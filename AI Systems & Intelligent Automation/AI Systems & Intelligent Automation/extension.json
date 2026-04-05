@@ -1,0 +1,14 @@
+{
+  "builtin": "False",
+  "default_enabled": "True",
+  "type": "extension",
+  "rocket_mode_compatible": "False",
+  "name": "AI Systems & Intelligent Automation",
+  "description": "AI (In Development)– the AI Agent / ModelMind Codex System represents the next generation intelligence core of the BIM3DNA ecosystem — a unified interface where local AI interference, code synthesis, and autonomous Revit task execution merge into a single pyRevit environment. The system now integrates a dedicated “AI Agent” tab within pyRevit, enabling direct access to local Codex runtime in VS Code for secure Python/C# code generation, validation, and execution. This two-layered setup bridges user intent, AI reasoning, and Revit API operations in a fully traceable and offline workflow.",
+  "author": "BIM3DNA",
+  "author_profile": "https://github.com/BIM3DNA",
+  "url": "https://github.com/BIM3DNA/AI-Systems-Intelligent-Automation",
+  "website": "https://bim3dna.nl/",
+  "image": "https://bim3dna.nl/assets/BIM3DNA%20Logo%20Final%20Wit-D1zb3ejQ.png",
+  "dependencies": []
+}

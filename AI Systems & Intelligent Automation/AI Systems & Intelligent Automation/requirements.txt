@@ -1,0 +1,11 @@
+pythonnet
+pandas
+openpyxl
+requests
+pyautogui
+matplotlib
+black
+pylint
+pytest
+revitron
+revitpythonwrapper
