@@ -117,3 +117,4 @@ Werkzeug==3.0.6
 widgetsnbextension==4.0.13
 wpf==1.0.0
 zipp==3.20.2
+inflect==0.5.1
