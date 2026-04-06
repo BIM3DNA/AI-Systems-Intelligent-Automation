@@ -140,3 +140,54 @@ The following are intentionally deferred:
 4. isolate provider/service responsibilities
 5. define the next functional AI Agent baseline
 6. continue aligned WBSO evidence capture after each pass
+
+## Runtime Validation Update — 2026-04-03
+
+A first real runtime validation of the cleaned AI Systems & Intelligent Automation baseline has now been completed.
+
+### Result
+
+Pass
+
+### What Was Confirmed
+
+- the correct custom extension directory was configured in pyRevit
+- pyRevit successfully discovered the cleaned extension
+- the **AI** tab became visible in Revit
+- the active button/script is visible under the AI tab
+- clicking the button opens the chat/UI window
+- no immediate runtime errors were observed during tab/button/UI launch
+
+### What This Proves
+
+This milestone proves that the cleaned migration baseline is now operational at:
+
+- pyRevit extension discovery level
+- pyRevit UI visibility level
+- initial script/UI launch level
+
+### What This Does Not Yet Prove
+
+This milestone does not yet prove:
+
+- deeper provider/service behavior
+- correctness of downstream AI request handling
+- correctness of chat-to-code / code-to-Revit workflows
+- reliability of model interaction beyond UI startup
+
+### Architectural Consequence
+
+The project can now move from:
+
+- migration baseline setup
+
+to:
+
+- validated pyRevit baseline with working UI entry point
+- service/provider classification
+- feature-level AI Agent validation
+- continued modular refactor and controlled implementation
+
+### Repo Structure Note
+
+The current structure is now runtime-valid. It is acceptable to keep it unchanged for the next pass. A later dedicated cleanup pass may still review whether the repo should be flattened or further normalized for long-term clarity.

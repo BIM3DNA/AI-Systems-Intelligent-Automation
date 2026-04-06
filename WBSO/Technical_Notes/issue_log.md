@@ -144,33 +144,23 @@ Added baseline files for:
 ## ISSUE-2026-04-03-005
 
 **Title:** pyRevit loading behavior not yet revalidated after baseline cleanup  
-**Status:** Open  
+**Status:** Resolved  
 **Type:** Validation / runtime
 
-### Description
+### Resolution
 
-The extension structure and metadata were cleaned and renamed, but the post-cleanup runtime behavior inside pyRevit has not yet been fully revalidated at the time of this baseline documentation.
+A runtime validation was executed after correcting the custom extension directory and rearranging the repository structure.
 
-### Impact
+### What Was Confirmed
 
-- unknown runtime integrity
-- risk of path, metadata, or bundle loading errors
-- baseline cannot be considered operational until validated
+- pyRevit discovered the cleaned extension
+- the AI tab became visible in Revit
+- the active button/script became visible in the tab
+- the current baseline is runtime-valid at discovery/UI level
 
-### Required Validation
+### Residual Note
 
-- confirm extension loads in pyRevit
-- confirm visible tab/panel/button structure is correct
-- confirm entry script launches
-- confirm failure mode is controlled if downstream components are incomplete
-
-### Next Action
-
-Run a baseline pyRevit loading test and document results in:
-
-- `WBSO/Testing_Validation/...`
-- `evidence_reference.md`
-- `experiment_log.csv`
+This issue is resolved for extension discovery and UI loading. Feature-level AI behavior still requires separate testing.
 
 ---
 
@@ -233,3 +223,79 @@ Review root-level scripts one-by-one and classify them as:
 - retained service/provider candidates need classification
 - root utility scripts need final architectural review
 - next pass should confirm minimal operational baseline
+
+## ISSUE-2026-04-03-008
+
+**Title:** pyRevit custom extension directory required corrected path after repo rearrangement  
+**Status:** Resolved  
+**Type:** Runtime configuration / pathing
+
+### Description
+
+After cleanup/refactor, the extension did not load until the correct working directory was added to pyRevit custom extension directories.
+
+### Impact
+
+- extension initially not visible
+- runtime validation blocked until correct path and structure alignment were established
+
+### Action Taken
+
+- rearranged folders/files into a pyRevit-loadable structure
+- configured the correct custom extension directory in pyRevit
+- refreshed pyRevit
+
+### Result
+
+The extension loaded successfully and the AI tab became visible.
+
+---
+
+## ISSUE-2026-04-03-010
+
+**Title:** Initial UI launch behavior of AI button required validation  
+**Status:** Resolved  
+**Type:** Runtime / UI validation
+
+### Description
+
+Even after the tab and button became visible, it still needed to be confirmed whether clicking the active AI button actually launched the intended interface without immediate runtime failure.
+
+### Action Taken
+
+- clicked the active AI button in Revit
+- observed script startup behavior directly inside pyRevit/Revit
+
+### Result
+
+- the chat/UI window opened successfully
+- no immediate runtime errors were observed during launch
+
+### Remaining Scope
+
+This resolves initial UI launch validation only. It does not yet confirm correctness of:
+
+- provider calls
+- chat processing
+- generated commands
+- downstream Revit action execution
+
+---
+
+## ISSUE-2026-04-03-009
+
+**Title:** Current nested / working repo structure is operational but may remain suboptimal for long-term clarity  
+**Status:** Open  
+**Type:** Repository structure / maintainability
+
+### Description
+
+The current repository layout now works with pyRevit and should not be changed immediately. However, it may later benefit from further normalization for clarity and maintainability.
+
+### Current Position
+
+Keep as-is for now because the structure is validated and functional.
+
+### Next Action
+
+Review only in a later dedicated refactor pass, not during the current validated baseline milestone.
