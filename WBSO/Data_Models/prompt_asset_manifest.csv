@@ -1,0 +1,7 @@
+Asset_ID,Path,Asset_Type,Role,Risk_Level,Mode,Status,Notes
+PA-001,AI.extension/lib/prompt_catalog.json,Prompt catalog,ModelMind structured prompt source,mixed,mixed,active,"Backs the available prompts tree with explicit metadata categories"
+PA-002,AI.extension/lib/approved_recipes.json,Approved recipe store,Reviewed reusable local recipes,mixed,deterministic,active,"Stores successful reviewed generated code separately from the base catalog"
+PA-003,AI.extension/lib/ai_prompt_registry.py,Support module,Catalog/approved-recipe loader,n/a,n/a,active,"Supplies ModelMind tree sections and agent command metadata"
+PA-004,AI.extension/lib/ai_local_store.py,Support module,Local UI state persistence,n/a,n/a,active,"Persists theme preference locally"
+PA-005,AI.extension/lib/ai_agent_session.py,Support module,AI Agent session semantics,n/a,n/a,active,"Defines planning, reviewed execution, toggle, and reset behavior"
+PA-006,AI.extension/lib/ai_reviewed_code.py,Support module,Reviewed-code validation,n/a,n/a,active,"Blocks unsupported Dynamo/DesignScript/runtime patterns before approval/execution"

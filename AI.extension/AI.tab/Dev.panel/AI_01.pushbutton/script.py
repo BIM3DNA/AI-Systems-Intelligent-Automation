@@ -18,6 +18,16 @@ from pyrevit import revit, DB, forms, script
 from pyrevit import script as pyscript
 import System.Windows.Forms as WinForms
 
+SCRIPT_DIR = os.path.dirname(__file__)
+LIB_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", "lib"))
+if LIB_DIR not in sys.path:
+    sys.path.append(LIB_DIR)
+
+from ai_agent_session import AgentSession
+from ai_local_store import LocalSettingsStore
+from ai_prompt_registry import PromptCatalog
+from ai_reviewed_code import validate_reviewed_code
+
 uidoc = revit.uidoc
 doc = revit.doc
 
@@ -25,6 +35,42 @@ doc = revit.doc
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "phi3:mini"
 XAML_PATH = "UI.xaml"
+PROMPT_CATALOG_PATH = os.path.join(LIB_DIR, "prompt_catalog.json")
+APPROVED_RECIPES_PATH = os.path.join(LIB_DIR, "approved_recipes.json")
+WINDOW_SETTINGS_FILE = "ai_window_settings.json"
+
+THEMES = {
+    "light": {
+        "window_bg": "#eff6ff",
+        "panel_bg": "#ffffff",
+        "panel_alt": "#f8fafd",
+        "border": "#7aaef7",
+        "accent": "#0085ff",
+        "accent_alt": "#00b894",
+        "text": "#1f2937",
+        "muted": "#4b5563",
+        "warn": "#ef4444",
+    },
+    "dark": {
+        "window_bg": "#0f172a",
+        "panel_bg": "#111827",
+        "panel_alt": "#1f2937",
+        "border": "#334155",
+        "accent": "#38bdf8",
+        "accent_alt": "#34d399",
+        "text": "#f8fafc",
+        "muted": "#cbd5e1",
+        "warn": "#fca5a5",
+    },
+}
+
+REVIEWED_CODE_STATE_COLORS = {
+    "draft": "#f59e0b",
+    "validated": "#10b981",
+    "blocked": "#ef4444",
+    "executed": "#3b82f6",
+    "saved": "#8b5cf6",
+}
 
 # print("RUNNING AI script from:", __file__)
 
@@ -57,6 +103,52 @@ def safe_str(x):
         return str(x)
     except:
         return "(err)"
+
+
+def slugify_text(text):
+    text = (text or "").strip().lower()
+    text = re.sub(r"[^a-z0-9]+", "-", text)
+    text = text.strip("-")
+    return text or "approved-recipe"
+
+
+def build_create_sheet_reviewed_code():
+    return """from Autodesk.Revit.DB import BuiltInCategory, FilteredElementCollector, ViewSheet, Transaction
+
+title_block_types = FilteredElementCollector(doc) \\
+    .OfCategory(BuiltInCategory.OST_TitleBlocks) \\
+    .WhereElementIsElementType() \\
+    .ToElements()
+
+if not title_block_types:
+    result = "Failed: no title block type exists in the current project."
+else:
+    title_block_type = title_block_types[0]
+    transaction = Transaction(doc, "Create AI Sheet")
+    transaction.Start()
+    try:
+        new_sheet = ViewSheet.Create(doc, title_block_type.Id)
+        if new_sheet:
+            try:
+                new_sheet.Name = "AI Generated Sheet"
+            except:
+                pass
+            try:
+                new_sheet.SheetNumber = "AI-001"
+            except:
+                pass
+            transaction.Commit()
+            result = "Created sheet: {0} ({1})".format(new_sheet.SheetNumber, new_sheet.Name)
+        else:
+            transaction.RollBack()
+            result = "Failed: ViewSheet.Create returned no sheet."
+    except Exception as create_error:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        result = "Failed to create sheet: {0}".format(str(create_error))
+"""
 
 
 def ollama_is_installed():
@@ -1535,6 +1627,140 @@ def select_all_pipes(doc, uidoc):
     return msg
 
 
+def list_ducts_in_active_view(doc, uidoc):
+    from Autodesk.Revit.DB import BuiltInCategory, FilteredElementCollector
+
+    active_view = uidoc.ActiveView
+    ducts = (
+        FilteredElementCollector(doc, active_view.Id)
+        .OfCategory(BuiltInCategory.OST_DuctCurves)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    rows = []
+    total_length = 0.0
+    for duct in ducts:
+        duct_type = doc.GetElement(duct.GetTypeId())
+        type_name = get_elem_name(duct_type) if duct_type else "(no type)"
+        system_name = "(no system)"
+        system_param = duct.LookupParameter("System Name")
+        if system_param:
+            try:
+                system_name = system_param.AsString() or "(no system)"
+            except:
+                pass
+        length = 0.0
+        length_param = duct.LookupParameter("Length")
+        if length_param:
+            try:
+                length = float(length_param.AsDouble() * 0.3048)
+            except:
+                length = 0.0
+        total_length += length
+        rows.append(
+            "Id: {0}, Type: {1}, System: {2}, Length: {3:.2f} m".format(
+                duct.Id.IntegerValue, type_name, system_name, length
+            )
+        )
+
+    msg = "Active view: {0}\nDucts found: {1}\n".format(active_view.Name, len(ducts))
+    msg += "\n".join(rows[:20])
+    if len(rows) > 20:
+        msg += "\n... (showing first 20 of {0})".format(len(rows))
+    msg += "\nTotal Length: {:.2f} m".format(total_length)
+    return msg
+
+
+def find_unconnected_fittings(doc, uidoc):
+    from Autodesk.Revit.DB import BuiltInCategory, FilteredElementCollector
+    from System.Collections.Generic import List
+
+    fittings = (
+        FilteredElementCollector(doc)
+        .OfCategory(BuiltInCategory.OST_DuctFitting)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    disconnected = []
+    for fitting in fittings:
+        try:
+            connector_set = fitting.MEPModel.ConnectorManager.Connectors
+        except:
+            connector_set = None
+        if connector_set is None:
+            continue
+        is_unconnected = False
+        for connector in connector_set:
+            try:
+                if not connector.IsConnected:
+                    is_unconnected = True
+                    break
+            except:
+                continue
+        if is_unconnected:
+            disconnected.append(fitting)
+
+    if disconnected:
+        uidoc.Selection.SetElementIds(
+            List[DB.ElementId]([item.Id for item in disconnected])
+        )
+
+    rows = []
+    for fitting in disconnected[:20]:
+        fitting_type = doc.GetElement(fitting.GetTypeId())
+        rows.append(
+            "Id: {0}, Type: {1}".format(
+                fitting.Id.IntegerValue,
+                get_elem_name(fitting_type) if fitting_type else "(no type)",
+            )
+        )
+
+    msg = "Unconnected duct fittings: {0}\n".format(len(disconnected))
+    msg += "\n".join(rows)
+    if len(disconnected) > 20:
+        msg += "\n... (showing first 20 of {0})".format(len(disconnected))
+    return msg
+
+
+def report_elements_without_system_assignment(doc, uidoc):
+    from Autodesk.Revit.DB import BuiltInCategory, FilteredElementCollector
+
+    categories = [
+        ("Ducts", BuiltInCategory.OST_DuctCurves),
+        ("Duct Fittings", BuiltInCategory.OST_DuctFitting),
+        ("Pipes", BuiltInCategory.OST_PipeCurves),
+        ("Pipe Fittings", BuiltInCategory.OST_PipeFitting),
+    ]
+    report = []
+    total_missing = 0
+    for label, category in categories:
+        elems = (
+            FilteredElementCollector(doc)
+            .OfCategory(category)
+            .WhereElementIsNotElementType()
+            .ToElements()
+        )
+        missing = []
+        for elem in elems:
+            system_name = None
+            param = elem.LookupParameter("System Name")
+            if param:
+                try:
+                    system_name = param.AsString()
+                except:
+                    system_name = None
+            if not system_name:
+                missing.append(elem)
+        total_missing += len(missing)
+        report.append("{0}: {1} without system assignment".format(label, len(missing)))
+        for elem in missing[:5]:
+            report.append("  - Id {0}".format(elem.Id.IntegerValue))
+
+    return "Elements without system assignment: {0}\n{1}".format(
+        total_missing, "\n".join(report)
+    )
+
+
 def total_duct_length(doc, uidoc):
     from Autodesk.Revit.DB import BuiltInCategory, FilteredElementCollector
 
@@ -2609,6 +2835,9 @@ MODELMIND_COMMANDS = [
     "list all views",
     "list all families",
     "list all levels",
+    "list ducts in active view",
+    "find unconnected fittings",
+    "report elements without system assignment",
     "health check",
     "super-select walls, columns, beams",  # add any combination you like!
     # Add more as you invent them!
@@ -2760,6 +2989,12 @@ def handle_public_command(prompt, doc, uidoc):
         return list_all_families(doc, uidoc)
     if "list all levels" in p:
         return list_all_levels(doc, uidoc)
+    if "list ducts in active view" in p:
+        return list_ducts_in_active_view(doc, uidoc)
+    if "find unconnected fittings" in p:
+        return find_unconnected_fittings(doc, uidoc)
+    if "report elements without system assignment" in p:
+        return report_elements_without_system_assignment(doc, uidoc)
     if "health check" in p or "model audit" in p:
         return model_health_check(doc, uidoc)
 
@@ -2824,14 +3059,142 @@ def llm_output_safety_filter(code):
 
 
 def run_code_in_revit(code, doc, uidoc):
-    # WARNING: Executing code from a string can be dangerous!
-    # This should only be done in a trusted context, never with untrusted user input.
     local_vars = {"doc": doc, "uidoc": uidoc, "DB": DB}
     try:
         exec(code, globals(), local_vars)
+        if "result" in local_vars and local_vars["result"] is not None:
+            return str(local_vars["result"])
         return "Code executed successfully."
     except Exception as e:
         return "Error executing code: {}".format(str(e))
+
+
+class ApprovedRecipeMetadataDialog(WinForms.Form):
+    def __init__(self, defaults):
+        WinForms.Form.__init__(self)
+        self.Text = "Save Approved Recipe"
+        self.Width = 420
+        self.Height = 340
+        self.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog
+        self.StartPosition = WinForms.FormStartPosition.CenterScreen
+        self.MaximizeBox = False
+        self.MinimizeBox = False
+        self.AcceptButton = None
+        self.CancelButton = None
+        self.metadata = None
+
+        labels = [
+            ("ID", "id", defaults.get("id", "")),
+            ("Title", "title", defaults.get("title", "")),
+            ("Category", "category", defaults.get("category", "")),
+            ("Role", "role", defaults.get("role", "")),
+            ("Risk Level", "risk_level", defaults.get("risk_level", "")),
+            ("Source Prompt", "source_prompt", defaults.get("source_prompt", "")),
+        ]
+
+        self.inputs = {}
+        top = 15
+        for caption, key, value in labels:
+            label = WinForms.Label()
+            label.Text = caption
+            label.Left = 12
+            label.Top = top + 4
+            label.Width = 95
+            self.Controls.Add(label)
+
+            if key in ("category", "role", "risk_level"):
+                control = WinForms.ComboBox()
+                control.Left = 115
+                control.Top = top
+                control.Width = 270
+                control.DropDownStyle = WinForms.ComboBoxStyle.DropDownList
+                if key == "category":
+                    for item in [
+                        "Delete",
+                        "Count",
+                        "Reports",
+                        "Lists",
+                        "Materials",
+                        "Tags / Tools",
+                        "Select All",
+                        "Totals",
+                        "Clash Check",
+                        "Approved Recipes",
+                    ]:
+                        control.Items.Add(item)
+                elif key == "role":
+                    for item in ["read", "modify"]:
+                        control.Items.Add(item)
+                elif key == "risk_level":
+                    for item in ["low", "medium", "high"]:
+                        control.Items.Add(item)
+                if value:
+                    try:
+                        control.SelectedItem = value
+                    except:
+                        pass
+                if control.SelectedItem is None and control.Items.Count > 0:
+                    control.SelectedIndex = 0
+            else:
+                control = WinForms.TextBox()
+                control.Left = 115
+                control.Top = top
+                control.Width = 270
+                control.Text = value
+            self.inputs[key] = control
+            self.Controls.Add(control)
+            top += 36
+
+        self.enabled_checkbox = WinForms.CheckBox()
+        self.enabled_checkbox.Text = "Enabled"
+        self.enabled_checkbox.Left = 115
+        self.enabled_checkbox.Top = top + 2
+        self.enabled_checkbox.Checked = bool(defaults.get("enabled", True))
+        self.Controls.Add(self.enabled_checkbox)
+        top += 38
+
+        save_button = WinForms.Button()
+        save_button.Text = "Save"
+        save_button.Left = 225
+        save_button.Top = top
+        save_button.Width = 75
+        save_button.Click += self._on_save
+        self.Controls.Add(save_button)
+
+        cancel_button = WinForms.Button()
+        cancel_button.Text = "Cancel"
+        cancel_button.Left = 310
+        cancel_button.Top = top
+        cancel_button.Width = 75
+        cancel_button.Click += self._on_cancel
+        self.Controls.Add(cancel_button)
+
+    def _collect_metadata(self):
+        metadata = {}
+        for key, control in self.inputs.items():
+            metadata[key] = (control.Text or "").strip()
+        metadata["enabled"] = bool(self.enabled_checkbox.Checked)
+        return metadata
+
+    def _on_save(self, sender, args):
+        metadata = self._collect_metadata()
+        required_keys = ["id", "title", "category", "role", "risk_level", "source_prompt"]
+        missing = [key for key in required_keys if not metadata.get(key)]
+        if missing:
+            WinForms.MessageBox.Show(
+                "Required metadata is missing: {0}".format(", ".join(missing)),
+                "ModelMind",
+                WinForms.MessageBoxButtons.OK,
+                WinForms.MessageBoxIcon.Warning,
+            )
+            return
+        self.metadata = metadata
+        self.DialogResult = WinForms.DialogResult.OK
+        self.Close()
+
+    def _on_cancel(self, sender, args):
+        self.DialogResult = WinForms.DialogResult.Cancel
+        self.Close()
 
 
 # === WPF Window Logic ===
@@ -2840,28 +3203,64 @@ def run_code_in_revit(code, doc, uidoc):
 class OllamaAIChat(forms.WPFWindow):
     def __init__(self, xaml_path):
         forms.WPFWindow.__init__(self, xaml_path)
+        self.catalog = PromptCatalog(PROMPT_CATALOG_PATH, APPROVED_RECIPES_PATH)
+        self.settings_store = LocalSettingsStore(WINDOW_SETTINGS_FILE)
+        self.settings = self.settings_store.load({"theme": "light"})
+        self.current_theme = self.settings.get("theme", "light")
+        self.agent_session = AgentSession(self.catalog.get_agent_commands())
         self.model = DEFAULT_MODEL
+        self.pending_ai_code = None
+        self.pending_ai_prompt = ""
+        self.pending_source_entry = None
+        self.selected_prompt_entry = None
+        self.pending_validated_code = None
+        self.last_successful_reviewed_code = None
+        self.last_reviewed_recipe_metadata = None
+
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
         self.refresh_model_info()
 
-        # === Ollama Chat tab
+        # Ollama Chat: low-risk conversational help and prompt experimentation.
         self.SendButton.Click += self.on_send_chat
-        # === ModelMind tab
+
+        # ModelMind: primary end-user workflow for deterministic and semi-generative tasks.
         self.ModelMindSendButton.Click += self.on_modelmind_send
-        # === Top
-        self.UpgradeButton.Click += self.on_upgrade_model
-        self.CloseButton.Click += self.on_close
         self.ApproveCodeButton.Click += self.on_approve_code
-        self.pending_ai_code = None  # Store pending code safely
-        self.populate_prompt_tree()
+        self.SaveRecipeButton.Click += self.on_save_recipe
         self.ModelMindInput.KeyDown += self.on_modelmindinput_keydown
         self.PromptTree.MouseDoubleClick += self.on_prompt_tree_doubleclick
         self.PromptTree.KeyDown += self.on_prompt_tree_keydown
         self.ModelMindInput.TextChanged += self.on_modelmind_input_changed
 
+        # AI Agent: advanced planning/execution surface with destructive actions off by default.
+        self.AgentRunButton.Click += self.on_agent_run
+        self.AgentExecuteButton.Click += self.on_agent_execute
+        self.AgentToggleCommandButton.Click += self.on_agent_toggle_command
+        self.AgentResetCommandsButton.Click += self.on_agent_reset_commands
+        self.AgentUndoButton.Click += self.on_agent_undo
+        self.AgentAllowDestructive.Checked += self.on_agent_destructive_toggled
+        self.AgentAllowDestructive.Unchecked += self.on_agent_destructive_toggled
+
+        # Window controls.
+        self.UpgradeButton.Click += self.on_upgrade_model
+        self.CloseButton.Click += self.on_close
+        self.ThemeToggleButton.Click += self.on_toggle_theme
+
         if hasattr(self, "HeaderBar"):
             self.HeaderBar.MouseLeftButtonDown += self._on_header_drag
+
+        self.ApproveCodeButton.IsEnabled = False
+        self.SaveRecipeButton.IsEnabled = False
+        self.AgentAllowDestructive.IsChecked = False
+        self.AgentUndoButton.IsEnabled = False
+        self.populate_prompt_tree()
+        self.populate_agent_command_selector()
+        self.apply_theme(self.current_theme)
+        self.update_window_status("idle")
+        self.update_reviewed_code_state("draft", "Awaiting reviewed code.")
+        self.update_agent_warning()
+        self.set_agent_status(self.agent_session.status)
 
     def _set_thinking(self, text):
         try:
@@ -2881,44 +3280,202 @@ class OllamaAIChat(forms.WPFWindow):
         self.ThinkingLabel.Visibility = System.Windows.Visibility.Collapsed
 
     def populate_prompt_list(self):
+        if not hasattr(self, "PromptListBox"):
+            return
         self.PromptListBox.Items.Clear()
         for cmd in MODELMIND_COMMANDS:
             self.PromptListBox.Items.Add(cmd)
 
+    def _brush(self, color_value):
+        import System.Windows.Media as Media
+
+        return Media.BrushConverter().ConvertFromString(color_value)
+
+    def _apply_control_style(self, control_name, background=None, foreground=None, border=None):
+        control = getattr(self, control_name, None)
+        if control is None:
+            return
+        try:
+            if background is not None and hasattr(control, "Background"):
+                control.Background = self._brush(background)
+            if foreground is not None and hasattr(control, "Foreground"):
+                control.Foreground = self._brush(foreground)
+            if border is not None and hasattr(control, "BorderBrush"):
+                control.BorderBrush = self._brush(border)
+        except:
+            pass
+
+    def apply_theme(self, theme_name):
+        palette = THEMES.get(theme_name, THEMES["light"])
+        self.current_theme = theme_name
+        self._apply_control_style("MainWindow", palette["window_bg"], palette["text"])
+        self._apply_control_style("MainBorder", palette["panel_bg"], palette["text"], palette["border"])
+        self._apply_control_style("HeaderTitle", None, palette["text"])
+        self._apply_control_style("HeaderSubtitle", None, palette["muted"])
+        self._apply_control_style("ModelInfo", None, palette["accent"])
+        self._apply_control_style("StatusLabel", None, palette["accent"])
+        self._apply_control_style("ThinkingLabel", None, palette["accent"])
+        self._apply_control_style("BusyBar", palette["panel_alt"], None, None)
+        self._apply_control_style("CloseButton", palette["accent"], "#ffffff", palette["accent"])
+        self._apply_control_style("ThemeToggleButton", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("UpgradeButton", palette["panel_alt"], palette["accent"], palette["accent"])
+        self._apply_control_style("ModelSelector", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("MainTabs", palette["panel_bg"], palette["text"], palette["border"])
+        self._apply_control_style("ChatHelpText", None, palette["muted"])
+        self._apply_control_style("ChatHistory", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ChatInput", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("SendButton", palette["accent"], "#ffffff", palette["accent"])
+        self._apply_control_style("AgentIntroText", None, palette["muted"])
+        self._apply_control_style("AgentWarningText", None, palette["warn"])
+        self._apply_control_style("AgentCommandLegend", None, palette["muted"])
+        self._apply_control_style("AgentStatus", None, palette["accent"])
+        self._apply_control_style("AgentHistory", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("AgentGoalInput", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("AgentRunButton", palette["accent"], "#ffffff", palette["accent"])
+        self._apply_control_style("AgentExecuteButton", palette["accent_alt"], "#ffffff", palette["accent_alt"])
+        self._apply_control_style("AgentCommandSelector", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("AgentToggleCommandButton", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("AgentResetCommandsButton", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("AgentUndoButton", palette["panel_alt"], palette["muted"], palette["border"])
+        self._apply_control_style("ModelMindIntroText", None, palette["muted"])
+        self._apply_control_style("ModelMindHistory", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ModelMindInput", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ModelMindSendButton", palette["accent_alt"], "#ffffff", palette["accent_alt"])
+        self._apply_control_style("ApproveCodeButton", palette["accent"], "#ffffff", palette["accent"])
+        self._apply_control_style("SaveRecipeButton", palette["accent_alt"], "#ffffff", palette["accent_alt"])
+        self._apply_control_style("ReviewedCodeStateLabel", None, palette["accent"])
+        self._apply_control_style("PromptTreeGroup", palette["panel_bg"], palette["text"], palette["border"])
+        self._apply_control_style("PromptTree", palette["panel_alt"], palette["text"], palette["border"])
+        try:
+            self.ThemeToggleButton.Content = "Theme: {0}".format(theme_name.title())
+        except:
+            pass
+        self.settings["theme"] = theme_name
+        self.settings_store.save(self.settings)
+
+    def on_toggle_theme(self, sender, args):
+        next_theme = "dark" if self.current_theme == "light" else "light"
+        self.apply_theme(next_theme)
+
+    def update_window_status(self, status, detail=None):
+        label = status.replace("_", " ").title()
+        if detail:
+            label = "{0} | {1}".format(label, detail)
+        try:
+            self.StatusLabel.Text = "Status: {0}".format(label)
+        except:
+            pass
+
+    def update_reviewed_code_state(self, state, reason=None):
+        state = (state or "draft").lower()
+        label = "Reviewed code state: {0}".format(state)
+        if reason:
+            label = "{0} | {1}".format(label, reason)
+        try:
+            self.ReviewedCodeStateLabel.Text = label
+            color = REVIEWED_CODE_STATE_COLORS.get(state)
+            if color:
+                self.ReviewedCodeStateLabel.Foreground = self._brush(color)
+        except:
+            pass
+
+    def reset_reviewed_code_state(self, state="draft", reason="Awaiting reviewed code."):
+        self.pending_ai_code = None
+        self.pending_validated_code = None
+        self.ApproveCodeButton.IsEnabled = False
+        self.SaveRecipeButton.IsEnabled = False
+        self.update_reviewed_code_state(state, reason)
+
+    def validate_and_prepare_reviewed_code(self, raw_code, prompt_text):
+        sanitized_code = sanitize_llm_code(raw_code)
+        sanitized_code = llm_output_safety_filter(sanitized_code)
+        validation = validate_reviewed_code(sanitized_code)
+        if sanitized_code.strip() == "# Not possible with current API":
+            validation["is_valid"] = False
+            if "Unsupported API pattern" not in validation["errors"]:
+                validation["errors"].append("Unsupported API pattern found in generated code.")
+        validation["sanitized_code"] = sanitized_code
+        if validation.get("is_valid"):
+            self.pending_ai_code = raw_code
+            self.pending_validated_code = sanitized_code
+            self.ApproveCodeButton.IsEnabled = True
+            self.update_reviewed_code_state("validated", "pyRevit-compatible reviewed code ready.")
+        else:
+            self.pending_ai_code = raw_code
+            self.pending_validated_code = None
+            self.ApproveCodeButton.IsEnabled = False
+            reason = "Blocked: {0}".format("; ".join(validation.get("blocked_hits") or validation.get("errors")))
+            self.update_reviewed_code_state("blocked", reason)
+            self.ModelMindHistory.AppendText(
+                "Reviewed code blocked for pyRevit runtime.\nUnsupported items: {0}\n".format(
+                    ", ".join(validation.get("blocked_hits") or validation.get("errors"))
+                )
+            )
+        return validation
+
+    def get_default_recipe_metadata(self):
+        source_entry = self.pending_source_entry or {}
+        title = source_entry.get("title") or self.pending_ai_prompt or "Approved recipe"
+        source_prompt = self.pending_ai_prompt or source_entry.get("prompt_text") or title
+        return {
+            "id": slugify_text(title + "-" + time.strftime("%Y%m%d-%H%M%S")),
+            "title": "{0} [{1}]".format(title, time.strftime("%Y-%m-%d %H:%M")),
+            "category": source_entry.get("category", "Approved Recipes"),
+            "role": source_entry.get("role", "modify"),
+            "risk_level": source_entry.get("risk_level", "medium"),
+            "source_prompt": source_prompt,
+            "enabled": True,
+        }
+
+    def set_agent_status(self, status):
+        readable = status.replace("_", " ").title()
+        try:
+            self.AgentStatus.Text = "Agent status: {0}".format(readable)
+        except:
+            pass
+        self.update_window_status(status)
+
     def populate_prompt_tree(self, filter_text=None):
-        # Build (or rebuild) the TreeView with optional filter
         from System.Windows.Controls import TreeViewItem
 
-        ft = (filter_text or "").lower()
         self.PromptTree.Items.Clear()
-
-        for cat, cmds in self.CATEGORY_PROMPTS.items():
-            # filter children by text if any
-            child_cmds = [c for c in cmds if ft in c.lower()] if ft else list(cmds)
-            if not child_cmds:
-                continue
-
+        sections = self.catalog.get_tree_sections(filter_text=filter_text)
+        for section in sections:
             cat_item = TreeViewItem()
-            cat_item.Header = cat
-            cat_item.IsExpanded = bool(ft)  # auto-expand when filtering
-
-            for cmd in child_cmds:
+            cat_item.Header = section.get("header")
+            cat_item.IsExpanded = True if filter_text else section.get("kind") == "approved"
+            cat_item.ToolTip = (
+                "Approved recipes are reviewed code assets." if section.get("kind") == "approved"
+                else "Structured ModelMind prompt catalog."
+            )
+            for entry in section.get("items", []):
                 leaf = TreeViewItem()
-                leaf.Header = cmd
-                leaf.Tag = cmd  # store the command text
+                leaf.Header = self._format_prompt_header(entry, section.get("kind"))
+                leaf.Tag = entry
+                leaf.ToolTip = self._build_prompt_tooltip(entry)
                 cat_item.Items.Add(leaf)
-
             self.PromptTree.Items.Add(cat_item)
 
+    def _format_prompt_header(self, entry, branch_kind):
+        prefix = "Approved | " if branch_kind == "approved" else ""
+        return "{0}{1}".format(prefix, entry.get("title", entry.get("prompt_text", "(untitled)")))
+
+    def _build_prompt_tooltip(self, entry):
+        return "Role: {0} | Risk: {1} | Mode: {2}\nPrompt: {3}".format(
+            entry.get("role", "read"),
+            entry.get("risk_level", "low"),
+            entry.get("mode", "deterministic"),
+            entry.get("prompt_text", ""),
+        )
+
     def on_prompt_tree_doubleclick(self, sender, args):
-        # Put selected leaf command into the input box
         sel = self.PromptTree.SelectedItem
         try:
-            # sel is a TreeViewItem; only act on leaves
             if sel is not None and hasattr(sel, "Items") and sel.Items.Count == 0:
-                cmd = sel.Tag if hasattr(sel, "Tag") else None
-                if cmd:
-                    self.ModelMindInput.Text = cmd
+                entry = sel.Tag if hasattr(sel, "Tag") else None
+                if entry:
+                    self.selected_prompt_entry = entry
+                    self.ModelMindInput.Text = entry.get("prompt_text", "")
                     self.ModelMindInput.CaretIndex = len(self.ModelMindInput.Text)
                     self.ModelMindInput.Focus()
         except:
@@ -2931,9 +3488,10 @@ class OllamaAIChat(forms.WPFWindow):
             sel = self.PromptTree.SelectedItem
             try:
                 if sel is not None and hasattr(sel, "Items") and sel.Items.Count == 0:
-                    cmd = sel.Tag if hasattr(sel, "Tag") else None
-                    if cmd:
-                        self.ModelMindInput.Text = cmd
+                    entry = sel.Tag if hasattr(sel, "Tag") else None
+                    if entry:
+                        self.selected_prompt_entry = entry
+                        self.ModelMindInput.Text = entry.get("prompt_text", "")
                         self.ModelMindInput.CaretIndex = len(self.ModelMindInput.Text)
                         self.ModelMindInput.Focus()
                         args.Handled = True
@@ -2947,90 +3505,14 @@ class OllamaAIChat(forms.WPFWindow):
     def on_modelmind_input_changed(self, sender, args):
         typed = self.ModelMindInput.Text or ""
         self.filter_prompt_tree(typed)
-
-    CATEGORY_PROMPTS = {
-        "Select All": [
-            "select all columns",
-            "select all walls",
-            "select all floors",
-            "select all ceilings",
-            "select all roofs",
-            "select all beams",
-            "select all foundations",
-            "select all rebars",
-            "select all windows",
-            "select all doors",
-            "select all ducts",
-            "select all pipes",
-            "select all lights",
-            "select all electrical equipment",
-            "select all cable trays",  # NEW: we'll route this below
-        ],
-        "Count": [
-            "count rebars",
-            "count columns",
-            "count walls",
-            "count floors",
-            "count ceilings",
-            "count roofs",
-            "count ducts",
-            "count lights",
-            "count all sheets",
-            "count all views",
-            "count loaded families",
-        ],
-        "Delete": [
-            "delete all doors",
-            "delete all columns",
-            "delete all walls",
-            "delete all ceilings",
-            "delete all roofs",
-            "delete all ducts",
-            "delete all lights",
-        ],
-        "Totals": [
-            "total structural volume",
-            "total room area",
-            "total duct length",
-            "total pipe length",
-            "total cable tray length",
-            "total ceiling area and volume",
-            "total roof area and volume",
-        ],
-        "Materials": [
-            "material takeoff wall",
-            "material takeoff floor",
-            "material takeoff columns",
-            "material takeoff beams",
-            "material takeoff roofs",
-            "material takeoff stairs",
-            "material takeoff curtain panel",
-            "material takeoff rebar",
-        ],
-        "Clash Check": [
-            "clash check",
-            "clash check walls columns",
-            "clash check ducts beams",
-        ],
-        "Reports": [
-            "report parameters",
-            "report phases",
-            "export schedule names",
-            "export all schedule data",
-            "health check",
-        ],
-        "Lists": [
-            "list all phases",
-            "list all sheets",
-            "list all views",
-            "list all families",
-            "list all levels",
-        ],
-        "Tags / Tools": [
-            "tag selection",
-            "super-select walls, columns, beams",
-        ],
-    }
+        if typed.strip() != (self.pending_ai_prompt or "").strip():
+            self.pending_ai_code = None
+            self.pending_validated_code = None
+            self.last_successful_reviewed_code = None
+            self.last_reviewed_recipe_metadata = None
+            self.ApproveCodeButton.IsEnabled = False
+            self.SaveRecipeButton.IsEnabled = False
+            self.update_reviewed_code_state("draft", "Prompt changed; reviewed code must be regenerated.")
 
     def on_modelmindinput_keydown(self, sender, args):
         import System.Windows.Input as wpfInput
@@ -3040,10 +3522,14 @@ class OllamaAIChat(forms.WPFWindow):
             args.Handled = True
 
     def on_prompt_listbox_doubleclick(self, sender, args):
+        if not hasattr(self, "PromptListBox"):
+            return
         if self.PromptListBox.SelectedItem:
             self.ModelMindInput.Text = self.PromptListBox.SelectedItem
 
     def on_prompt_listbox_keydown(self, sender, args):
+        if not hasattr(self, "PromptListBox"):
+            return
         import System.Windows.Input as wpfInput
 
         # Check if user pressed Enter or Tab
@@ -3078,15 +3564,12 @@ class OllamaAIChat(forms.WPFWindow):
         else:
             self.ModelInfo.Text = "Model: {} (active)".format(self.model)
 
-    # === Ollama Chat tab logic ---
     def on_send_chat(self, sender, args):
-        import System
-        import time
-
         prompt = self.ChatInput.Text.strip()
         if not prompt:
             return
 
+        self.update_window_status("executing", "Ollama Chat request")
         self._set_thinking("Thinking (Chat)...")
         self.show_busy()
         self._pump_ui()
@@ -3103,34 +3586,68 @@ class OllamaAIChat(forms.WPFWindow):
         finally:
             self.hide_busy()
             self._set_thinking("Thinking...")
+            self.update_window_status("idle")
 
-    # --- ModelMind tab logic ---
     def on_modelmind_send(self, sender, args):
         prompt = self.ModelMindInput.Text.strip()
         if not prompt:
             return
 
+        source_entry = self.resolve_prompt_entry(prompt)
+        self.pending_ai_prompt = prompt
+        self.pending_source_entry = source_entry
+        self.last_successful_reviewed_code = None
+        self.last_reviewed_recipe_metadata = None
+        self.SaveRecipeButton.IsEnabled = False
+        self.update_window_status("planning", "ModelMind request")
         self._set_thinking("Thinking (ModelMind)...")
         self.show_busy()
         self._pump_ui()
 
         try:
             self.ModelMindHistory.AppendText("You: {}\n".format(prompt))
-            # ... rest of your code
-            # (AI call, extract, etc)
 
-            # Try public commands first
+            if source_entry and source_entry.get("source") == "approved_recipe":
+                self.ModelMindHistory.AppendText(
+                    "Approved recipe selected: {0}\n".format(source_entry.get("title"))
+                )
+                result = self.run_approved_recipe(source_entry)
+                self.ModelMindHistory.AppendText("Approved recipe result: {}\n\n".format(result))
+                self.reset_reviewed_code_state("saved", "Approved recipe executed from reviewed store.")
+                return
+
             public_cmd_result = handle_public_command(prompt, doc, uidoc)
             if public_cmd_result:
                 self.ModelMindHistory.AppendText(
                     "Result: {}\n\n".format(public_cmd_result)
                 )
-                self.pending_ai_code = None  # clear pending code
-                self.ApproveCodeButton.IsEnabled = False
+                self.reset_reviewed_code_state("draft", "Deterministic ModelMind result returned.")
+                self.update_window_status("ready_to_execute", "Deterministic result complete")
                 return
 
-            # No match: Try AI codegen
+            if "create sheet" in prompt.lower():
+                reviewed_code = build_create_sheet_reviewed_code()
+                self.ModelMindHistory.AppendText(
+                    "Reviewed pyRevit-safe template prepared for create sheet:\n```python\n{0}\n```\n".format(
+                        reviewed_code
+                    )
+                )
+                validation = self.validate_and_prepare_reviewed_code(reviewed_code, prompt)
+                if validation.get("is_valid"):
+                    self.ModelMindHistory.AppendText(
+                        "Reviewed code validated for pyRevit. Click 'Approve & Run Code' to execute.\n"
+                    )
+                    self.update_window_status("ready_to_execute", "Reviewed create sheet template validated")
+                else:
+                    self.ModelMindHistory.AppendText(
+                        "Reviewed create sheet template was blocked before approval.\n"
+                    )
+                    self.update_window_status("failed", "Reviewed create sheet template blocked")
+                return
+
             code_prompt = (
+                "You are ModelMind, the primary BIM task surface for pyRevit users. "
+                "Prefer deterministic, reviewable Revit API scripts. "
                 "You are an expert Revit Python (IronPython) assistant. "
                 "Given the following task, output ONLY a working Python script for Revit using the Revit API. "
                 "Wrap your answer in triple backticks with 'python'. "
@@ -3142,23 +3659,29 @@ class OllamaAIChat(forms.WPFWindow):
             self.ModelMindHistory.AppendText(
                 "AI-generated code (review before running):\n{}\n".format(ai_reply)
             )
-            # Try to extract code block for approval
             code_blocks = extract_python_code(ai_reply)
             if code_blocks and len(code_blocks[0].strip()) > 0:
-                self.pending_ai_code = code_blocks[0]
-                self.ApproveCodeButton.IsEnabled = True
-                self.ModelMindHistory.AppendText(
-                    "Click 'Approve & Run Code' to execute.\n"
-                )
+                validation = self.validate_and_prepare_reviewed_code(code_blocks[0], prompt)
+                if validation.get("is_valid"):
+                    self.ModelMindHistory.AppendText(
+                        "Reviewed code validated for pyRevit. Click 'Approve & Run Code' to execute.\n"
+                    )
+                    self.update_window_status("ready_to_execute", "Code review validated")
+                else:
+                    self.ModelMindHistory.AppendText(
+                        "Approval remained disabled because the reviewed code is not pyRevit-compatible.\n"
+                    )
+                    self.update_window_status("failed", "Reviewed code blocked")
             else:
-                self.pending_ai_code = None
-                self.ApproveCodeButton.IsEnabled = False
+                self.reset_reviewed_code_state("draft", "No reviewed code available.")
                 self.ModelMindHistory.AppendText(
                     "No code block detected in AI reply.\n"
                 )
+                self.update_window_status("failed", "No executable code returned")
 
         except Exception as e:
             self.ModelMindHistory.AppendText("Error: {}\n".format(str(e)))
+            self.update_window_status("failed", str(e))
         finally:
             self.hide_busy()
             self._set_thinking("Thinking...")
@@ -3167,20 +3690,51 @@ class OllamaAIChat(forms.WPFWindow):
         if not self.pending_ai_code or len(self.pending_ai_code.strip()) == 0:
             self.ModelMindHistory.AppendText("No code to run.\n")
             return
+        self.update_window_status("executing", "Running reviewed ModelMind code")
         self._set_thinking("Running code...")
         self.show_busy()
         self._pump_ui()
         try:
-            sanitized_code = sanitize_llm_code(self.pending_ai_code)
+            validation = self.validate_and_prepare_reviewed_code(
+                self.pending_ai_code, self.pending_ai_prompt
+            )
+            if not validation.get("is_valid"):
+                self.ModelMindHistory.AppendText(
+                    "Approval blocked before execution. Unsupported items: {0}\n".format(
+                        ", ".join(validation.get("blocked_hits") or validation.get("errors"))
+                    )
+                )
+                self.update_window_status("failed", "Reviewed code blocked before execution")
+                return
+            sanitized_code = validation.get("sanitized_code")
             self.ModelMindHistory.AppendText(
                 "Running AI code:\n{}\n".format(sanitized_code)
             )
             result = run_code_in_revit(sanitized_code, doc, uidoc)
             self.ModelMindHistory.AppendText("AI code result: {}\n".format(result))
+            result_text = str(result).lower()
+            if result_text.startswith("code executed successfully") or result_text.startswith("created sheet:"):
+                self.last_successful_reviewed_code = sanitized_code
+                self.last_reviewed_recipe_metadata = self.get_default_recipe_metadata()
+                self.SaveRecipeButton.IsEnabled = True
+                self.update_reviewed_code_state("executed", "Reviewed code executed successfully.")
+                self.update_window_status("ready_to_execute", "Reviewed code executed")
+            else:
+                self.last_successful_reviewed_code = None
+                self.last_reviewed_recipe_metadata = None
+                self.SaveRecipeButton.IsEnabled = False
+                self.update_reviewed_code_state("blocked", "Execution failed; recipe save remains disabled.")
+                self.update_window_status("failed", result)
         except Exception as e:
             self.ModelMindHistory.AppendText("AI code error: {}\n".format(str(e)))
+            self.last_successful_reviewed_code = None
+            self.last_reviewed_recipe_metadata = None
+            self.SaveRecipeButton.IsEnabled = False
+            self.update_reviewed_code_state("blocked", str(e))
+            self.update_window_status("failed", str(e))
         finally:
             self.pending_ai_code = None
+            self.pending_validated_code = None
             self.ApproveCodeButton.IsEnabled = False
             self.hide_busy()
             self._set_thinking("Thinking...")
@@ -3191,6 +3745,192 @@ class OllamaAIChat(forms.WPFWindow):
             self.ModelInfo.Text = "Model {} upgraded.".format(self.model)
         else:
             self.ModelInfo.Text = "Failed to upgrade model: {}".format(self.model)
+
+    def on_save_recipe(self, sender, args):
+        if not self.last_successful_reviewed_code:
+            self.ModelMindHistory.AppendText(
+                "Save as Approved Recipe is available only after a successful reviewed-code run.\n"
+            )
+            return
+
+        dialog = ApprovedRecipeMetadataDialog(
+            self.last_reviewed_recipe_metadata or self.get_default_recipe_metadata()
+        )
+        if dialog.ShowDialog() != WinForms.DialogResult.OK or not dialog.metadata:
+            self.ModelMindHistory.AppendText("Approved recipe save cancelled.\n")
+            return
+
+        try:
+            recipe = self.catalog.save_approved_recipe(
+                dialog.metadata,
+                self.last_successful_reviewed_code,
+                source_entry=self.pending_source_entry,
+            )
+            self.ModelMindHistory.AppendText(
+                "Approved recipe saved: {0} ({1})\n".format(
+                    recipe.get("title"), recipe.get("id")
+                )
+            )
+            self.populate_prompt_tree(self.ModelMindInput.Text or "")
+            self.SaveRecipeButton.IsEnabled = False
+            self.last_successful_reviewed_code = None
+            self.last_reviewed_recipe_metadata = None
+            self.update_reviewed_code_state("saved", "Approved recipe stored and tree reloaded.")
+        except Exception as exc:
+            self.ModelMindHistory.AppendText(
+                "Failed to save approved recipe: {}\n".format(str(exc))
+            )
+
+    def resolve_prompt_entry(self, prompt):
+        target = (prompt or "").strip().lower()
+        if self.selected_prompt_entry:
+            current_prompt = (
+                self.selected_prompt_entry.get("prompt_text")
+                or self.selected_prompt_entry.get("title")
+                or ""
+            ).strip().lower()
+            if current_prompt == target:
+                return self.selected_prompt_entry
+
+        entry = self.catalog.get_entry_by_prompt(prompt)
+        if entry:
+            return entry
+
+        for approved in self.catalog.get_approved_entries():
+            prompt_text = (approved.get("prompt_text") or "").strip().lower()
+            title = (approved.get("title") or "").strip().lower()
+            if prompt_text == target or title == target:
+                return approved
+        return None
+
+    def run_approved_recipe(self, entry):
+        code_text = entry.get("stored_code")
+        if not code_text:
+            return "Approved recipe has no stored code."
+        validation = validate_reviewed_code(llm_output_safety_filter(sanitize_llm_code(code_text)))
+        if not validation.get("is_valid"):
+            return "Approved recipe blocked because it contains unsupported items: {0}".format(
+                ", ".join(validation.get("blocked_hits") or validation.get("errors"))
+            )
+        reviewed_code = validation.get("sanitized_code") if "sanitized_code" in validation else llm_output_safety_filter(sanitize_llm_code(code_text))
+        return run_code_in_revit(reviewed_code, doc, uidoc)
+
+    def update_agent_warning(self):
+        destructive_enabled = bool(self.AgentAllowDestructive.IsChecked)
+        self.agent_session.set_allow_destructive(destructive_enabled)
+        warning = (
+            "Warning: destructive tools are enabled for this session and may modify or delete model data."
+            if destructive_enabled
+            else "Destructive tools are OFF by default. Review plans first; modifying commands remain blocked."
+        )
+        try:
+            self.AgentWarningText.Text = warning
+        except:
+            pass
+
+    def on_agent_destructive_toggled(self, sender, args):
+        self.update_agent_warning()
+
+    def _describe_agent_step(self, step):
+        role_label = "Read-only" if step.get("role") == "read" else "Modifying"
+        enabled_label = "Enabled" if step.get("enabled", True) else "Disabled"
+        return "[{0}] {1} | risk: {2} | {3}".format(
+            role_label, step.get("title"), step.get("risk_level", "low"), enabled_label
+        )
+
+    def populate_agent_command_selector(self):
+        from System.Windows.Controls import ComboBoxItem
+
+        self.AgentCommandSelector.Items.Clear()
+        steps = self.agent_session.get_visible_steps()
+        for step in steps:
+            item = ComboBoxItem()
+            item.Content = self._describe_agent_step(step)
+            item.Tag = step
+            self.AgentCommandSelector.Items.Add(item)
+        if self.AgentCommandSelector.Items.Count > 0:
+            self.AgentCommandSelector.SelectedIndex = 0
+
+    def on_agent_run(self, sender, args):
+        goal = self.AgentGoalInput.Text.strip()
+        if not goal:
+            return
+
+        self.agent_session.refresh_catalog(self.catalog.get_agent_commands())
+        self.set_agent_status("planning")
+        self.update_window_status("planning", "AI Agent plan generation")
+        self.AgentHistory.AppendText("Goal: {}\n".format(goal))
+        plan = self.agent_session.plan_goal(goal)
+        if not plan:
+            self.AgentHistory.AppendText(
+                "No deterministic plan could be generated. Refine the goal or use ModelMind for reviewed code generation.\n\n"
+            )
+            self.AgentExecuteButton.IsEnabled = False
+            self.populate_agent_command_selector()
+            self.set_agent_status(self.agent_session.status)
+            return
+
+        self.AgentHistory.AppendText("Plan generated for review:\n")
+        for index, step in enumerate(plan):
+            self.AgentHistory.AppendText(
+                "  {0}. {1}\n".format(index + 1, self._describe_agent_step(step))
+            )
+        self.AgentHistory.AppendText(
+            "Run Agent only prepares the plan. Execute Plan will run the reviewed enabled steps.\n\n"
+        )
+        self.AgentExecuteButton.IsEnabled = True
+        self.populate_agent_command_selector()
+        self.set_agent_status(self.agent_session.status)
+
+    def _execute_agent_step(self, step):
+        result = handle_public_command(step.get("prompt_text", ""), doc, uidoc)
+        if result is None:
+            return "No deterministic executor is available for this step."
+        return result
+
+    def on_agent_execute(self, sender, args):
+        if not self.agent_session.get_visible_steps():
+            return
+
+        self.update_window_status("executing", "AI Agent execution")
+        self.set_agent_status("executing")
+        results = self.agent_session.execute(self._execute_agent_step)
+        for result in results:
+            step = result.get("step", {})
+            self.AgentHistory.AppendText(
+                "{0}: {1}\n{2}\n\n".format(
+                    result.get("status", "unknown").upper(),
+                    step.get("title", step.get("prompt_text", "(unknown step)")),
+                    result.get("message", ""),
+                )
+            )
+        self.AgentExecuteButton.IsEnabled = False
+        self.populate_agent_command_selector()
+        self.set_agent_status(self.agent_session.status)
+
+    def on_agent_toggle_command(self, sender, args):
+        selected = self.AgentCommandSelector.SelectedItem
+        if selected is None or not hasattr(selected, "Tag"):
+            return
+        step = selected.Tag
+        updated = self.agent_session.toggle_command(step.get("id"))
+        if updated:
+            self.AgentHistory.AppendText(
+                "Toggled command: {}\n\n".format(self._describe_agent_step(updated))
+            )
+            self.populate_agent_command_selector()
+
+    def on_agent_reset_commands(self, sender, args):
+        self.agent_session.reset()
+        self.AgentExecuteButton.IsEnabled = False
+        self.populate_agent_command_selector()
+        self.AgentHistory.AppendText("Agent plan and session command state cleared.\n\n")
+        self.set_agent_status(self.agent_session.status)
+
+    def on_agent_undo(self, sender, args):
+        self.AgentHistory.AppendText(
+            "Undo Last Action remains disabled because robust rollback/journaling is not implemented yet.\n\n"
+        )
 
     def _on_header_drag(self, sender, e):
         import System.Windows.Input as wpfInput

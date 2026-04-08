@@ -6,188 +6,131 @@ AI Systems & Intelligent Automation
 
 ## Current Phase
 
-2026 migration baseline + refactor + active development stream
+2026 migration baseline + guarded product-architecture refactor
 
 ## Purpose
 
-This file records the current technical architecture of the repository at the present stage of development. The repository is treated as the 2026 migration and refactor stream for ongoing AI systems and intelligent automation work in BIM / pyRevit / Revit API workflows.
+This file records the current architecture after restructuring the single pyRevit AI window around clearer product roles and safer local state.
 
-## Architectural Intent
+## Current Product Architecture
 
-The project is intended to evolve into a modular AI-enabled automation framework centered on a pyRevit-based AI Agent that can support:
+### 1. Single pyRevit Entry Point
 
-- deterministic commands for known Revit automation operations
-- generative AI-assisted script creation
-- local or controlled provider/model integration
-- traceable execution against live Revit context
-- future approval-driven or self-improving workflows
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- still acts as the pyRevit button entry point
+- still owns the WPF window launch
+- now delegates prompt catalog, approved recipe storage, theme persistence, and agent session semantics to support modules under `AI.extension/lib/`
 
-The broader R&D direction is consistent with the development report, which describes a local AI Agent / ModelMind / Codex-style system integrated into pyRevit, with dynamic model-context retrieval, code synthesis, static analysis, and controlled execution against the active Revit document. It also positions the AI Agent as part of a safe, auditable BIM copilot architecture rather than a general chatbot. :contentReference[oaicite:1]{index=1}
+### 2. Window Role Separation
 
-## Current Baseline Architecture
+- `Ollama Chat`: low-risk conversational help and prompt experimentation
+- `ModelMind`: primary task surface for deterministic and semi-generative BIM work
+- `AI Agent`: advanced plan/review/execute surface with modifying commands guarded and destructive tools off by default
 
-At the time of this baseline commit, the repository is organized around the following main layers:
+### 3. Structured Prompt Layer
 
-### 1. pyRevit Extension Layer
+Structured prompt metadata now lives in:
 
-This layer represents the visible in-Revit entry point. It includes:
+- `AI.extension/lib/prompt_catalog.json`
 
-- extension metadata
-- tab / panel / pushbutton structure
-- icon + bundle configuration
-- the initial script entry point used to invoke AI-related workflows from pyRevit
+Each prompt entry carries:
 
-This layer is currently being simplified from a legacy company-specific toolbar structure into a neutral AI Systems & Intelligent Automation baseline.
+- `id`
+- `title`
+- `category`
+- `role`
+- `risk_level`
+- `mode`
+- `prompt_text`
+- `enabled`
 
-### 2. Shared Support Layer
+The ModelMind tree is now rebuilt from this structured source rather than from hardcoded class state.
 
-This includes:
+### 4. Approved Recipe Layer
 
-- `lib/`
-- `hooks/`
-- any reusable helper code or extension support files retained from the legacy baseline
+Reviewed generated code can now be persisted as an approved local recipe in:
 
-This layer should remain minimal and only contain reusable logic needed by the current architecture.
+- `AI.extension/lib/approved_recipes.json`
 
-### 3. Service / Provider Layer
+This separates:
 
-Current candidate folders include:
+- catalog prompts
+- approved reviewed recipes
+- transient generated code waiting for approval
 
-- `Model_Service/`
-- `Openai_Server/`
+### 5. Local UI State Layer
 
-These represent service/provider integration directions that may support:
+Theme choice is now stored locally through a local settings helper and persisted outside the transient session.
 
-- local model runtime orchestration
-- provider abstraction
-- external or local AI request handling
-- code generation or validation workflows
+### 6. Agent Session Layer
 
-At this baseline phase, these components are treated as candidate retained modules pending further modular cleanup and scoping.
+The AI Agent tab now has explicit session semantics:
 
-### 4. Root Utility / Experiment Layer
+- `Run Agent` creates or refreshes a plan only
+- `Execute Plan` runs the reviewed plan
+- `Disable/Enable` toggles selected reviewed commands for the session
+- `Reset Commands` clears plan/session command state
+- `Undo Last Action` remains disabled because robust rollback/journaling is not implemented
 
-The repository still contains some standalone utility or experiment scripts. These are not yet treated as final architecture components. Each one must be reviewed and classified as one of:
+## Architectural Consequence of This Pass
 
-- keep and integrate
-- archive conceptually in migration notes
-- delete from active baseline
-- refactor into a clearer module boundary
+The window is still a single-shell pyRevit experience, but responsibilities are clearer:
 
-### 5. Repo-Local WBSO Evidence Layer
+- UI composition stays in the button script and XAML
+- prompt and recipe state moved into reusable support assets
+- agent orchestration remains lightweight, local, and safety-oriented
 
-The repository now contains:
+## What Was Actually Verified Locally
 
-- `WBSO/Technical_Notes/`
-- `WBSO/Testing_Validation/`
-- `WBSO/Data_Models/`
+- `prompt_catalog.json` parses successfully
+- `approved_recipes.json` parses successfully
+- `UI.xaml` is well-formed XML
+- the code was statically reviewed for IronPython-compatible syntax patterns in the edited areas
 
-This layer exists to keep technical evidence close to the code and to support disciplined logging of:
+## What Was Not Yet Verified
 
-- migration/refactor work
-- validation activities
-- architectural changes
-- retained/deleted legacy components
-- future provider/model/config changes
+- live pyRevit loading after this refactor
+- live Revit execution of the new HVAC validation commands
+- live Ollama response behavior after UI changes
+- approved recipe persistence during a real pyRevit/Revit session
 
-## Current Boundary Rules
+## 2026-04-08 Reviewed-Code Hardening Update
 
-The architecture should follow these rules going forward:
+The ModelMind reviewed-code path is now hardened around a pyRevit compatibility gate.
 
-- pyRevit UI entry points should remain thin
-- reusable business logic should not remain buried inside button scripts if it can be isolated
-- provider-specific behavior should be separated from UI behavior
-- legacy company-specific naming and assumptions should not remain in active components
-- repo-local WBSO evidence should be updated after each meaningful development pass
-- historical source lineage should be preserved via migration mapping, not by re-dating past work
+### Added runtime guardrails
 
-## Current In-Scope Work
+- reviewed code is validated before approval is enabled
+- reviewed code is validated again immediately before execution
+- unsupported Dynamo/DesignScript/runtime references are blocked before execution
+- failed reviewed-code runs remain ineligible for approved-recipe storage
+- approved-recipe save is now an explicit post-success action with required metadata
 
-The following work is currently in scope:
+### New support component
 
-- cleaning and renaming extension metadata
-- simplifying the extension structure
-- reducing obsolete toolbar/panel/button items
-- preserving only AI-relevant components
-- mapping legacy components to their new status
-- validating the cleaned baseline in pyRevit
-- preparing the codebase for further Codex-assisted modular development
+- `AI.extension/lib/ai_reviewed_code.py`
 
-## Deferred / Later-Phase Work
+This module detects unsupported reviewed-code patterns such as:
 
-The following are intentionally deferred:
+- `Autodesk.DesignScript`
+- `DesignScript`
+- `RevitServices`
+- `RevitNodes`
+- `ProtoGeometry`
+- `from Revit import ...`
+- Dynamo document/transaction context APIs
 
-- final provider abstraction design
-- production-grade agent orchestration
-- formal static-analysis / sandbox execution layer
-- advanced approval/rejection learning loop
-- robust command registry and action safety framework
-- deeper service decomposition until the baseline extension is stable
+### Live findings recorded for this pass
 
-## Current Risks
+The following are reported as live runtime findings for the current baseline before/through this pass:
 
-- legacy code entanglement may hide dependencies not yet visible in the cleaned structure
-- some retained scripts may still depend on removed metadata or folder assumptions
-- pyRevit loading behavior must be revalidated after renaming/refactor
-- service/provider candidates may overlap in responsibility and require consolidation
-- root-level utility scripts may create architectural ambiguity if left unmanaged
+- theme persistence works across relaunch
+- Ollama Chat works in live runtime
+- ModelMind deterministic tasks work
+- failed reviewed-code runs are not added to approved recipes
 
-## Next Architectural Milestones
+### Still pending live validation after hardening
 
-1. push the first stable migration baseline
-2. validate pyRevit loading of the cleaned extension
-3. classify retained scripts/modules more strictly
-4. isolate provider/service responsibilities
-5. define the next functional AI Agent baseline
-6. continue aligned WBSO evidence capture after each pass
-
-## Runtime Validation Update — 2026-04-03
-
-A first real runtime validation of the cleaned AI Systems & Intelligent Automation baseline has now been completed.
-
-### Result
-
-Pass
-
-### What Was Confirmed
-
-- the correct custom extension directory was configured in pyRevit
-- pyRevit successfully discovered the cleaned extension
-- the **AI** tab became visible in Revit
-- the active button/script is visible under the AI tab
-- clicking the button opens the chat/UI window
-- no immediate runtime errors were observed during tab/button/UI launch
-
-### What This Proves
-
-This milestone proves that the cleaned migration baseline is now operational at:
-
-- pyRevit extension discovery level
-- pyRevit UI visibility level
-- initial script/UI launch level
-
-### What This Does Not Yet Prove
-
-This milestone does not yet prove:
-
-- deeper provider/service behavior
-- correctness of downstream AI request handling
-- correctness of chat-to-code / code-to-Revit workflows
-- reliability of model interaction beyond UI startup
-
-### Architectural Consequence
-
-The project can now move from:
-
-- migration baseline setup
-
-to:
-
-- validated pyRevit baseline with working UI entry point
-- service/provider classification
-- feature-level AI Agent validation
-- continued modular refactor and controlled implementation
-
-### Repo Structure Note
-
-The current structure is now runtime-valid. It is acceptable to keep it unchanged for the next pass. A later dedicated cleanup pass may still review whether the repo should be flattened or further normalized for long-term clarity.
+- confirm invalid DesignScript/Dynamo reviewed code is blocked before execution in live Revit
+- confirm valid reviewed code executes and can then be saved as an approved recipe
+- confirm the saved approved recipe appears immediately in the approved branch after reload

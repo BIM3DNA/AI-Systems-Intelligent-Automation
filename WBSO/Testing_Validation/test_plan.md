@@ -6,101 +6,81 @@ AI Systems & Intelligent Automation
 
 ## Milestone
 
-2026-04-03 migration baseline
+2026-04-08 AI window architecture refactor
 
 ## Purpose
 
-This test plan defines the first validation checkpoint for the cleaned 2026 baseline of the repository.
+This test plan defines the next validation checkpoint after refactoring the single pyRevit AI window into clearer product roles with structured prompts and guarded local state.
 
-## Goal
+## Primary Runtime Risks to Revalidate
 
-To verify that the cleaned and renamed pyRevit extension baseline remains technically usable after migration/refactor work and that the repository is ready for ongoing development under disciplined WBSO evidence capture.
+1. the AI tab still loads in pyRevit
+2. the active button still opens the refactored UI
+3. Ollama Chat still answers a simple prompt
+4. ModelMind deterministic prompts still execute correctly
+5. the AI Agent plan/review/execute surface behaves according to the new semantics
+6. theme toggle persists across relaunch
 
-## What Is Being Tested
+## Required Validation Model
 
-1. extension metadata integrity
-2. pyRevit recognition of the cleaned extension
-3. visible tab/panel/button loading behavior
-4. entry script launch behavior
-5. controlled failure behavior if downstream AI/provider logic is still incomplete
-6. basic alignment between repository structure and current project scope
+Snowdon Towers Sample HVAC
 
-## Why This Test Matters
+## Planned Scenario Set
 
-The repository has been materially changed through:
+### 1. HVAC modeller
 
-- metadata cleanup
-- naming cleanup
-- structural reduction
-- removal of obsolete items
-- introduction of repo-local evidence files
+- run `list ducts in active view`
+- run `find unconnected fittings`
+- run `report elements without system assignment`
 
-Without validation, the migration baseline remains only structurally clean, not technically proven.
+### 2. BIM manager
 
-## Success Criteria
+- run `health check`
+- run representative counts/totals/report prompts
+- confirm structured prompt-tree navigation and filtering
 
-The baseline is considered valid if:
+### 3. General chat
 
-- pyRevit recognizes the extension
-- the cleaned extension loads without structural errors
-- the intended visible entry point appears correctly
-- launching the entry point succeeds or fails in a clearly explainable way
-- no external/company-facing naming remains in the active pyRevit-visible baseline
-- evidence of the validation is saved in the repo-local WBSO structure
+- send a simple Ollama Chat prompt and confirm response
 
-## Failure Criteria
+### 4. Safety and UX
 
-The baseline is not yet valid if:
+- confirm `Allow destructive tools` is off by default
+- confirm `Run Agent` creates a plan only
+- confirm `Execute Plan` only runs reviewed enabled commands
+- confirm `Undo Last Action` is visibly disabled with explanation
+- confirm theme toggling persists after relaunch
 
-- pyRevit does not recognize the extension
-- bundle metadata/path errors prevent loading
-- the entry point is missing
-- renaming caused unresolved script/icon/bundle references
-- the cleaned baseline still exposes unwanted legacy identity
-- the result cannot be documented clearly
+## What Was Actually Executed During This Workspace Pass
 
-## Validation Artifacts to Capture
+- parsed `prompt_catalog.json`
+- parsed `approved_recipes.json`
+- validated that `UI.xaml` is well-formed XML
+- performed static code review of the refactored controller and helper modules
 
-- screenshot of extension structure in repo
-- screenshot of pyRevit-visible result
-- screenshot of any startup/load behavior
-- screenshot of any runtime error if encountered
-- short written validation summary
-- artifact manifest of files/screenshots captured
+## Live Findings Already Available for This Pass
 
-## Planned Evidence Location
+- theme persistence works across relaunch
+- Ollama Chat works in live runtime
+- ModelMind deterministic tasks work
+- failed reviewed-code runs are not added to approved recipes
 
-- `WBSO/Testing_Validation/runs/2026-04-03_migration_baseline/`
-- `WBSO/Technical_Notes/evidence_reference.md`
-- `WBSO/Testing_Validation/experiment_log.csv`
+## New Post-Hardening Runtime Targets
 
-## Immediate Next Test After Baseline
+1. deterministic ModelMind task still works
+2. invalid generated code with DesignScript references is blocked before execution
+3. valid pyRevit-compatible reviewed code can execute
+4. successful reviewed run can be saved as approved recipe
+5. approved recipe appears in the ModelMind approved branch after reload
 
-After the first baseline push:
+## What Was Not Executed During This Workspace Pass
 
-- validate pyRevit loading
-- record output
-- update validation summary
-- update experiment log
-- update evidence reference
+- live pyRevit loading
+- live Revit button launch
+- live Ollama response validation
+- live Snowdon Towers Sample HVAC scenario execution
+- live post-hardening reviewed-code blocking/approved-recipe save flow checks
 
-## Execution Result — 2026-04-03 Runtime Validation
+## Acceptance Condition for Next Runtime Pass
 
-### Outcome
-
-Pass
-
-### What Was Confirmed
-
-- pyRevit recognized the cleaned extension after correct path configuration
-- the AI tab became visible
-- the active button/script became visible in the tab
-- clicking the button opened the chat/UI window
-- no immediate runtime errors were observed during launch
-
-### What Still Requires Testing
-
-- actual provider/service behavior
-- deeper chat workflow correctness
-- AI-assisted code generation / execution flow
-- controlled Revit interaction beyond initial UI launch
+The refactor should only be considered runtime-proven after the scenario set above is executed and documented in Revit/pyRevit.

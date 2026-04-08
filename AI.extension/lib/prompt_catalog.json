@@ -1,0 +1,672 @@
+[
+  {
+    "category": "Delete",
+    "enabled": true,
+    "id": "delete-all-doors",
+    "mode": "deterministic",
+    "prompt_text": "delete all doors",
+    "risk_level": "high",
+    "role": "modify",
+    "title": "Delete all doors"
+  },
+  {
+    "category": "Delete",
+    "enabled": true,
+    "id": "delete-all-columns",
+    "mode": "deterministic",
+    "prompt_text": "delete all columns",
+    "risk_level": "high",
+    "role": "modify",
+    "title": "Delete all columns"
+  },
+  {
+    "category": "Delete",
+    "enabled": true,
+    "id": "delete-all-walls",
+    "mode": "deterministic",
+    "prompt_text": "delete all walls",
+    "risk_level": "high",
+    "role": "modify",
+    "title": "Delete all walls"
+  },
+  {
+    "category": "Delete",
+    "enabled": true,
+    "id": "delete-all-ceilings",
+    "mode": "deterministic",
+    "prompt_text": "delete all ceilings",
+    "risk_level": "high",
+    "role": "modify",
+    "title": "Delete all ceilings"
+  },
+  {
+    "category": "Delete",
+    "enabled": true,
+    "id": "delete-all-roofs",
+    "mode": "deterministic",
+    "prompt_text": "delete all roofs",
+    "risk_level": "high",
+    "role": "modify",
+    "title": "Delete all roofs"
+  },
+  {
+    "category": "Delete",
+    "enabled": true,
+    "id": "delete-all-ducts",
+    "mode": "deterministic",
+    "prompt_text": "delete all ducts",
+    "risk_level": "high",
+    "role": "modify",
+    "title": "Delete all ducts"
+  },
+  {
+    "category": "Delete",
+    "enabled": true,
+    "id": "delete-all-lights",
+    "mode": "deterministic",
+    "prompt_text": "delete all lights",
+    "risk_level": "high",
+    "role": "modify",
+    "title": "Delete all lights"
+  },
+  {
+    "category": "Count",
+    "enabled": true,
+    "id": "count-rebars",
+    "mode": "deterministic",
+    "prompt_text": "count rebars",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count rebars"
+  },
+  {
+    "category": "Count",
+    "enabled": true,
+    "id": "count-columns",
+    "mode": "deterministic",
+    "prompt_text": "count columns",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count columns"
+  },
+  {
+    "category": "Count",
+    "enabled": true,
+    "id": "count-walls",
+    "mode": "deterministic",
+    "prompt_text": "count walls",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count walls"
+  },
+  {
+    "category": "Count",
+    "enabled": true,
+    "id": "count-floors",
+    "mode": "deterministic",
+    "prompt_text": "count floors",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count floors"
+  },
+  {
+    "category": "Count",
+    "enabled": true,
+    "id": "count-ceilings",
+    "mode": "deterministic",
+    "prompt_text": "count ceilings",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count ceilings"
+  },
+  {
+    "category": "Count",
+    "enabled": true,
+    "id": "count-roofs",
+    "mode": "deterministic",
+    "prompt_text": "count roofs",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count roofs"
+  },
+  {
+    "category": "Count",
+    "enabled": true,
+    "id": "count-ducts",
+    "mode": "deterministic",
+    "prompt_text": "count ducts",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count ducts"
+  },
+  {
+    "category": "Count",
+    "enabled": true,
+    "id": "count-lights",
+    "mode": "deterministic",
+    "prompt_text": "count lights",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count lights"
+  },
+  {
+    "category": "Reports",
+    "enabled": true,
+    "id": "count-all-sheets",
+    "mode": "deterministic",
+    "prompt_text": "count all sheets",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count all sheets"
+  },
+  {
+    "category": "Reports",
+    "enabled": true,
+    "id": "count-all-views",
+    "mode": "deterministic",
+    "prompt_text": "count all views",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count all views"
+  },
+  {
+    "category": "Reports",
+    "enabled": true,
+    "id": "health-check",
+    "mode": "deterministic",
+    "prompt_text": "health check",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Health check summary"
+  },
+  {
+    "category": "Reports",
+    "enabled": true,
+    "id": "report-parameters",
+    "mode": "deterministic",
+    "prompt_text": "report parameters",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Report parameters of selection"
+  },
+  {
+    "category": "Reports",
+    "enabled": true,
+    "id": "report-phases",
+    "mode": "deterministic",
+    "prompt_text": "report phases",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Report phases of selection"
+  },
+  {
+    "category": "Reports",
+    "enabled": true,
+    "id": "export-schedule-names",
+    "mode": "deterministic",
+    "prompt_text": "export schedule names",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Export schedule names"
+  },
+  {
+    "category": "Reports",
+    "enabled": true,
+    "id": "export-all-schedule-data",
+    "mode": "deterministic",
+    "prompt_text": "export all schedule data",
+    "risk_level": "medium",
+    "role": "read",
+    "title": "Export all schedule data"
+  },
+  {
+    "category": "Reports",
+    "enabled": true,
+    "id": "find-unconnected-fittings",
+    "mode": "deterministic",
+    "prompt_text": "find unconnected fittings",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Find unconnected HVAC fittings"
+  },
+  {
+    "category": "Reports",
+    "enabled": true,
+    "id": "report-elements-without-system-assignment",
+    "mode": "deterministic",
+    "prompt_text": "report elements without system assignment",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Report elements without system assignment"
+  },
+  {
+    "category": "Lists",
+    "enabled": true,
+    "id": "list-all-phases",
+    "mode": "deterministic",
+    "prompt_text": "list all phases",
+    "risk_level": "low",
+    "role": "read",
+    "title": "List all phases"
+  },
+  {
+    "category": "Lists",
+    "enabled": true,
+    "id": "list-all-sheets",
+    "mode": "deterministic",
+    "prompt_text": "list all sheets",
+    "risk_level": "low",
+    "role": "read",
+    "title": "List all sheets"
+  },
+  {
+    "category": "Lists",
+    "enabled": true,
+    "id": "list-all-views",
+    "mode": "deterministic",
+    "prompt_text": "list all views",
+    "risk_level": "low",
+    "role": "read",
+    "title": "List all views"
+  },
+  {
+    "category": "Lists",
+    "enabled": true,
+    "id": "list-all-families",
+    "mode": "deterministic",
+    "prompt_text": "list all families",
+    "risk_level": "low",
+    "role": "read",
+    "title": "List all families"
+  },
+  {
+    "category": "Lists",
+    "enabled": true,
+    "id": "list-all-levels",
+    "mode": "deterministic",
+    "prompt_text": "list all levels",
+    "risk_level": "low",
+    "role": "read",
+    "title": "List all levels"
+  },
+  {
+    "category": "Lists",
+    "enabled": true,
+    "id": "list-ducts-active-view",
+    "mode": "deterministic",
+    "prompt_text": "list ducts in active view",
+    "risk_level": "low",
+    "role": "read",
+    "title": "List ducts in active view"
+  },
+  {
+    "category": "Materials",
+    "enabled": true,
+    "id": "material-takeoff-wall",
+    "mode": "deterministic",
+    "prompt_text": "material takeoff wall",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Material takeoff wall"
+  },
+  {
+    "category": "Materials",
+    "enabled": true,
+    "id": "material-takeoff-floor",
+    "mode": "deterministic",
+    "prompt_text": "material takeoff floor",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Material takeoff floor"
+  },
+  {
+    "category": "Materials",
+    "enabled": true,
+    "id": "material-takeoff-columns",
+    "mode": "deterministic",
+    "prompt_text": "material takeoff columns",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Material takeoff columns"
+  },
+  {
+    "category": "Materials",
+    "enabled": true,
+    "id": "material-takeoff-beams",
+    "mode": "deterministic",
+    "prompt_text": "material takeoff beams",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Material takeoff beams"
+  },
+  {
+    "category": "Materials",
+    "enabled": true,
+    "id": "material-takeoff-roofs",
+    "mode": "deterministic",
+    "prompt_text": "material takeoff roofs",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Material takeoff roofs"
+  },
+  {
+    "category": "Materials",
+    "enabled": true,
+    "id": "material-takeoff-stairs",
+    "mode": "deterministic",
+    "prompt_text": "material takeoff stairs",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Material takeoff stairs"
+  },
+  {
+    "category": "Materials",
+    "enabled": true,
+    "id": "material-takeoff-curtain-panel",
+    "mode": "deterministic",
+    "prompt_text": "material takeoff curtain panel",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Material takeoff curtain panel"
+  },
+  {
+    "category": "Materials",
+    "enabled": true,
+    "id": "material-takeoff-rebar",
+    "mode": "deterministic",
+    "prompt_text": "material takeoff rebar",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Material takeoff rebar"
+  },
+  {
+    "category": "Tags / Tools",
+    "enabled": true,
+    "id": "tag-selection",
+    "mode": "deterministic",
+    "prompt_text": "tag selection",
+    "risk_level": "medium",
+    "role": "modify",
+    "title": "Tag selection"
+  },
+  {
+    "category": "Tags / Tools",
+    "enabled": true,
+    "id": "super-select",
+    "mode": "deterministic",
+    "prompt_text": "super-select walls, columns, beams",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Super-select sample categories"
+  },
+  {
+    "category": "Tags / Tools",
+    "enabled": true,
+    "id": "count-loaded-families",
+    "mode": "deterministic",
+    "prompt_text": "count loaded families",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count loaded families"
+  },
+  {
+    "category": "Tags / Tools",
+    "enabled": true,
+    "id": "create-sheet-reviewed-template",
+    "mode": "generative",
+    "prompt_text": "create sheet",
+    "risk_level": "medium",
+    "role": "modify",
+    "title": "Create sheet (reviewed template)"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-columns",
+    "mode": "deterministic",
+    "prompt_text": "select all columns",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all columns"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-walls",
+    "mode": "deterministic",
+    "prompt_text": "select all walls",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all walls"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-floors",
+    "mode": "deterministic",
+    "prompt_text": "select all floors",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all floors"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-ceilings",
+    "mode": "deterministic",
+    "prompt_text": "select all ceilings",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all ceilings"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-roofs",
+    "mode": "deterministic",
+    "prompt_text": "select all roofs",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all roofs"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-beams",
+    "mode": "deterministic",
+    "prompt_text": "select all beams",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all beams"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-foundations",
+    "mode": "deterministic",
+    "prompt_text": "select all foundations",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all foundations"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-rebars",
+    "mode": "deterministic",
+    "prompt_text": "select all rebars",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all rebars"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-windows",
+    "mode": "deterministic",
+    "prompt_text": "select all windows",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all windows"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-doors",
+    "mode": "deterministic",
+    "prompt_text": "select all doors",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all doors"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-ducts",
+    "mode": "deterministic",
+    "prompt_text": "select all ducts",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all ducts"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-pipes",
+    "mode": "deterministic",
+    "prompt_text": "select all pipes",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all pipes"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-lights",
+    "mode": "deterministic",
+    "prompt_text": "select all lights",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all lights"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-electrical-equipment",
+    "mode": "deterministic",
+    "prompt_text": "select all electrical equipment",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all electrical equipment"
+  },
+  {
+    "category": "Select All",
+    "enabled": true,
+    "id": "select-all-cable-trays",
+    "mode": "deterministic",
+    "prompt_text": "select all cable trays",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Select all cable trays"
+  },
+  {
+    "category": "Totals",
+    "enabled": true,
+    "id": "total-structural-volume",
+    "mode": "deterministic",
+    "prompt_text": "total structural volume",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Total structural volume"
+  },
+  {
+    "category": "Totals",
+    "enabled": true,
+    "id": "total-room-area",
+    "mode": "deterministic",
+    "prompt_text": "total room area",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Total room area"
+  },
+  {
+    "category": "Totals",
+    "enabled": true,
+    "id": "total-duct-length",
+    "mode": "deterministic",
+    "prompt_text": "total duct length",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Total duct length"
+  },
+  {
+    "category": "Totals",
+    "enabled": true,
+    "id": "total-pipe-length",
+    "mode": "deterministic",
+    "prompt_text": "total pipe length",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Total pipe length"
+  },
+  {
+    "category": "Totals",
+    "enabled": true,
+    "id": "total-cable-tray-length",
+    "mode": "deterministic",
+    "prompt_text": "total cable tray length",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Total cable tray length"
+  },
+  {
+    "category": "Totals",
+    "enabled": true,
+    "id": "total-ceiling-area-volume",
+    "mode": "deterministic",
+    "prompt_text": "total ceiling area and volume",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Total ceiling area and volume"
+  },
+  {
+    "category": "Totals",
+    "enabled": true,
+    "id": "total-roof-area-volume",
+    "mode": "deterministic",
+    "prompt_text": "total roof area and volume",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Total roof area and volume"
+  },
+  {
+    "category": "Clash Check",
+    "enabled": true,
+    "id": "clash-check",
+    "mode": "deterministic",
+    "prompt_text": "clash check",
+    "risk_level": "medium",
+    "role": "read",
+    "title": "Clash check walls vs columns"
+  },
+  {
+    "category": "Clash Check",
+    "enabled": true,
+    "id": "clash-check-walls-columns",
+    "mode": "deterministic",
+    "prompt_text": "clash check walls columns",
+    "risk_level": "medium",
+    "role": "read",
+    "title": "Clash check walls vs columns"
+  },
+  {
+    "category": "Clash Check",
+    "enabled": true,
+    "id": "clash-check-ducts-beams",
+    "mode": "deterministic",
+    "prompt_text": "clash check ducts beams",
+    "risk_level": "medium",
+    "role": "read",
+    "title": "Clash check ducts vs beams"
+  }
+]
