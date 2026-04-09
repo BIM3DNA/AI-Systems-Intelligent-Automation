@@ -90,3 +90,69 @@ Still pending live validation:
 - invalid reviewed code is blocked before execution
 - valid reviewed code executes and can then be saved
 - saved approved recipe appears immediately in the approved branch
+
+## 2026-04-09 Product Polish Pass
+
+### Refactor direction
+
+- keep one AI Workbench window
+- keep ModelMind as primary task surface
+- reduce AI Agent to a smaller deterministic reviewed-planner
+- improve dark-mode usability without destabilizing the validated baseline
+
+### Runtime facts already confirmed entering this pass
+
+- AI tab loads
+- button opens the workbench
+- Ollama Chat works
+- theme persistence works
+- deterministic `select all ducts` works
+- reviewed create-sheet flow works
+- approved recipe save/load works
+
+### Remaining runtime follow-up after this pass
+
+- validate planner handling for the new duct count/list cases
+- validate header alignment and dark-mode readability fixes in live Revit
+
+## 2026-04-09 Provider-Backed Planner Pass
+
+### Refactor direction
+
+- keep ModelMind as the primary task surface with a cleaner bottom input/action layout
+- keep AI Agent narrow and reviewed
+- add optional provider-backed planning without introducing raw cloud execution inside pyRevit
+
+### Refactor actions
+
+- widened the ModelMind input field and moved action buttons below it
+- reused `Openai_Server/chatgpt_service.py` for planner normalization
+- added `Model_Service/ModelService.py` provider-state and normalize-intent wrapper methods
+- added AI Agent provider UI states for local, available cloud, missing-key cloud, and request-failed cloud
+- constrained AI Agent plan output to a reviewed plan object:
+  - `matched_action`
+  - `confidence`
+  - `requires_modification`
+  - `destructive`
+  - `summary`
+  - `execution_ready`
+
+### Security boundary
+
+- `OPENAI_API_KEY` is now read from environment only
+- no code path in this pass stores or displays the key
+- cloud planning only selects or rejects supported actions
+- deterministic/reviewed execution remains local to the pyRevit runtime
+
+### Runtime position after this pass
+
+Locally checked:
+
+- updated XAML parses
+- updated service/helper modules compile
+
+Still pending live validation:
+
+- ModelMind layout polish
+- AI Agent local/cloud planner runtime behavior
+- missing-key and request-failure UI handling inside live Revit

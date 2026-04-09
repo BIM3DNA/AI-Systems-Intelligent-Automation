@@ -35,7 +35,7 @@ This file records the current provider/model strategy for the AI Systems & Intel
 | P-001 | Ollama | local runtime provider | local chat and local code-generation assistance | active baseline | retained for current baseline |
 | P-002 | Local deterministic command layer | non-LLM execution mode | trusted deterministic ModelMind and agent execution paths | active baseline | used to preserve safer runtime behavior |
 | P-003 | Local approved-recipe store | local reviewed asset mode | reviewed generated code saved for repeatable local reuse | new active component | not a model provider but part of execution governance |
-| P-004 | External API providers | external API provider | future optional adapters | candidate | still optional and modular |
+| P-004 | OpenAI planner adapter | external API provider | AI Agent cloud intent normalization for supported reviewed actions only | active optional path | requires `OPENAI_API_KEY` from environment |
 
 ## Rules Still in Force
 
@@ -46,4 +46,36 @@ This file records the current provider/model strategy for the AI Systems & Intel
 
 ## Current Validation Limit
 
-The provider/runtime split has been implemented structurally in code, but live post-refactor provider behavior has not yet been revalidated in Revit.
+The provider/runtime split has been implemented structurally in code, but live post-integration provider behavior has not yet been revalidated in Revit.
+
+## 2026-04-09 Planner Position
+
+For the current runtime, the AI Agent surface should be treated as:
+
+- deterministic
+- reviewed
+- narrow in scope
+- guidance-first when unsupported
+
+It should not be presented as a broad autonomous agent until richer planner/runtime coverage genuinely exists.
+
+## 2026-04-09 Provider Integration Update
+
+The current planner stack is now:
+
+- local planner path: deterministic local intent matcher for the supported BIM action set
+- cloud planner path: OpenAI-backed request normalization through `Openai_Server/chatgpt_service.py` and `Model_Service/ModelService.py`
+
+Rules added in this pass:
+
+1. `OPENAI_API_KEY` is loaded from environment only.
+2. Cloud planning must be disabled when the key is missing.
+3. Cloud planning may only select or reject from the supported action list.
+4. Cloud output must never execute directly as raw code.
+5. Execution remains inside the pyRevit-reviewed deterministic command/recipe path.
+
+Current live position:
+
+- provider integration implemented in code
+- missing-key and request-failure states surfaced in UI
+- live Revit verification for cloud planning still pending

@@ -142,6 +142,26 @@
   {
     "category": "Count",
     "enabled": true,
+    "id": "count-selected-ducts",
+    "mode": "deterministic",
+    "prompt_text": "count selected ducts",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count selected ducts"
+  },
+  {
+    "category": "Count",
+    "enabled": true,
+    "id": "count-ducts-active-view",
+    "mode": "deterministic",
+    "prompt_text": "count all ducts in active view",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Count all ducts in active view"
+  },
+  {
+    "category": "Count",
+    "enabled": true,
     "id": "count-lights",
     "mode": "deterministic",
     "prompt_text": "count lights",

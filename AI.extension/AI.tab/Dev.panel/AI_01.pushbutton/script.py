@@ -20,13 +20,18 @@ import System.Windows.Forms as WinForms
 
 SCRIPT_DIR = os.path.dirname(__file__)
 LIB_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", "lib"))
+ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
+MODEL_SERVICE_DIR = os.path.join(ROOT_DIR, "Model_Service")
 if LIB_DIR not in sys.path:
     sys.path.append(LIB_DIR)
+if MODEL_SERVICE_DIR not in sys.path:
+    sys.path.append(MODEL_SERVICE_DIR)
 
 from ai_agent_session import AgentSession
 from ai_local_store import LocalSettingsStore
 from ai_prompt_registry import PromptCatalog
 from ai_reviewed_code import validate_reviewed_code
+from ModelService import get_openai_provider_state, normalize_intent_to_supported_action
 
 uidoc = revit.uidoc
 doc = revit.doc
@@ -34,6 +39,7 @@ doc = revit.doc
 # === Config ===
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "phi3:mini"
+DEFAULT_PLANNER_MODEL = "gpt-4o-mini"
 XAML_PATH = "UI.xaml"
 PROMPT_CATALOG_PATH = os.path.join(LIB_DIR, "prompt_catalog.json")
 APPROVED_RECIPES_PATH = os.path.join(LIB_DIR, "approved_recipes.json")
@@ -50,6 +56,16 @@ THEMES = {
         "text": "#1f2937",
         "muted": "#4b5563",
         "warn": "#ef4444",
+        "disabled_bg": "#e5e7eb",
+        "disabled_fg": "#6b7280",
+        "dropdown_bg": "#f8fafd",
+        "dropdown_fg": "#1f2937",
+        "dropdown_item_bg": "#ffffff",
+        "dropdown_item_fg": "#1f2937",
+        "dropdown_highlight_bg": "#dbeafe",
+        "dropdown_highlight_fg": "#1f2937",
+        "tree_bg": "#f8fafd",
+        "tree_fg": "#1f2937",
     },
     "dark": {
         "window_bg": "#0f172a",
@@ -61,6 +77,16 @@ THEMES = {
         "text": "#f8fafc",
         "muted": "#cbd5e1",
         "warn": "#fca5a5",
+        "disabled_bg": "#334155",
+        "disabled_fg": "#e2e8f0",
+        "dropdown_bg": "#111827",
+        "dropdown_fg": "#f8fafc",
+        "dropdown_item_bg": "#1f2937",
+        "dropdown_item_fg": "#f8fafc",
+        "dropdown_highlight_bg": "#0f766e",
+        "dropdown_highlight_fg": "#f8fafc",
+        "tree_bg": "#111827",
+        "tree_fg": "#f8fafc",
     },
 }
 
@@ -1815,6 +1841,34 @@ def count_ducts(doc, uidoc):
     return "Total ducts: {}".format(len(ducts))
 
 
+def count_selected_ducts(doc, uidoc):
+    selected_ids = uidoc.Selection.GetElementIds()
+    count = 0
+    for element_id in selected_ids:
+        elem = doc.GetElement(element_id)
+        if (
+            elem
+            and hasattr(elem, "Category")
+            and elem.Category is not None
+            and elem.Category.Id.IntegerValue == int(DB.BuiltInCategory.OST_DuctCurves)
+        ):
+            count += 1
+    return "Selected ducts: {}".format(count)
+
+
+def count_ducts_in_active_view(doc, uidoc):
+    from Autodesk.Revit.DB import BuiltInCategory, FilteredElementCollector
+
+    active_view = uidoc.ActiveView
+    ducts = (
+        FilteredElementCollector(doc, active_view.Id)
+        .OfCategory(BuiltInCategory.OST_DuctCurves)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    return "Ducts in active view '{0}': {1}".format(active_view.Name, len(ducts))
+
+
 def delete_all_ducts(doc, uidoc):
     from Autodesk.Revit.DB import BuiltInCategory, FilteredElementCollector, Transaction
 
@@ -2790,6 +2844,8 @@ MODELMIND_COMMANDS = [
     "count ceilings",
     "count roofs",
     "count ducts",
+    "count selected ducts",
+    "count all ducts in active view",
     "count lights",
     "total structural volume",
     "select all windows",
@@ -2886,6 +2942,10 @@ def handle_public_command(prompt, doc, uidoc):
         return count_roofs(doc, uidoc)
     if "count ducts" in p:
         return count_ducts(doc, uidoc)
+    if "count selected ducts" in p or "count the selected ducts" in p or "how many selected ducts" in p:
+        return count_selected_ducts(doc, uidoc)
+    if "count all ducts in active view" in p:
+        return count_ducts_in_active_view(doc, uidoc)
     if "count lights" in p:
         return count_lights(doc, uidoc)
     if "total structural volume" in p:
@@ -2989,7 +3049,7 @@ def handle_public_command(prompt, doc, uidoc):
         return list_all_families(doc, uidoc)
     if "list all levels" in p:
         return list_all_levels(doc, uidoc)
-    if "list ducts in active view" in p:
+    if "list ducts in active view" in p or "list all ducts in active view" in p:
         return list_ducts_in_active_view(doc, uidoc)
     if "find unconnected fittings" in p:
         return find_unconnected_fittings(doc, uidoc)
@@ -3209,6 +3269,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.current_theme = self.settings.get("theme", "light")
         self.agent_session = AgentSession(self.catalog.get_agent_commands())
         self.model = DEFAULT_MODEL
+        self.planner_model = DEFAULT_PLANNER_MODEL
         self.pending_ai_code = None
         self.pending_ai_prompt = ""
         self.pending_source_entry = None
@@ -3216,6 +3277,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.pending_validated_code = None
         self.last_successful_reviewed_code = None
         self.last_reviewed_recipe_metadata = None
+        self.last_provider_notice = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -3228,6 +3290,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.ModelMindSendButton.Click += self.on_modelmind_send
         self.ApproveCodeButton.Click += self.on_approve_code
         self.SaveRecipeButton.Click += self.on_save_recipe
+        self.ToggleReviewedCodeButton.Click += self.on_toggle_reviewed_code
         self.ModelMindInput.KeyDown += self.on_modelmindinput_keydown
         self.PromptTree.MouseDoubleClick += self.on_prompt_tree_doubleclick
         self.PromptTree.KeyDown += self.on_prompt_tree_keydown
@@ -3239,6 +3302,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.AgentToggleCommandButton.Click += self.on_agent_toggle_command
         self.AgentResetCommandsButton.Click += self.on_agent_reset_commands
         self.AgentUndoButton.Click += self.on_agent_undo
+        self.AgentRuntimeSelector.SelectionChanged += self.on_planner_mode_changed
         self.AgentAllowDestructive.Checked += self.on_agent_destructive_toggled
         self.AgentAllowDestructive.Unchecked += self.on_agent_destructive_toggled
 
@@ -3252,10 +3316,12 @@ class OllamaAIChat(forms.WPFWindow):
 
         self.ApproveCodeButton.IsEnabled = False
         self.SaveRecipeButton.IsEnabled = False
+        self.ToggleReviewedCodeButton.IsEnabled = False
         self.AgentAllowDestructive.IsChecked = False
         self.AgentUndoButton.IsEnabled = False
         self.populate_prompt_tree()
         self.populate_agent_command_selector()
+        self.configure_planner_provider()
         self.apply_theme(self.current_theme)
         self.update_window_status("idle")
         self.update_reviewed_code_state("draft", "Awaiting reviewed code.")
@@ -3305,11 +3371,158 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             pass
 
+    def _set_theme_resource(self, resource_name, color_value):
+        try:
+            self.Resources[resource_name] = self._brush(color_value)
+        except:
+            pass
+
+    def _apply_button_state_style(self, button_name, enabled, active_bg, active_fg):
+        palette = THEMES.get(self.current_theme, THEMES["light"])
+        button = getattr(self, button_name, None)
+        if button is None:
+            return
+        button.IsEnabled = enabled
+        if enabled:
+            self._apply_control_style(button_name, active_bg, active_fg, active_bg)
+            try:
+                button.Opacity = 1.0
+            except:
+                pass
+        else:
+            self._apply_control_style(
+                button_name,
+                palette["disabled_bg"],
+                palette["disabled_fg"],
+                palette["border"],
+            )
+            try:
+                button.Opacity = 1.0
+            except:
+                pass
+
+    def refresh_action_button_states(self):
+        self._apply_button_state_style(
+            "AgentExecuteButton",
+            bool(self.AgentExecuteButton.IsEnabled),
+            THEMES.get(self.current_theme, THEMES["light"])["accent_alt"],
+            "#ffffff",
+        )
+        self._apply_button_state_style(
+            "AgentUndoButton",
+            bool(self.AgentUndoButton.IsEnabled),
+            THEMES.get(self.current_theme, THEMES["light"])["panel_alt"],
+            THEMES.get(self.current_theme, THEMES["light"])["text"],
+        )
+        self._apply_button_state_style(
+            "ApproveCodeButton",
+            bool(self.ApproveCodeButton.IsEnabled),
+            "#e17055",
+            "#ffffff",
+        )
+        self._apply_button_state_style(
+            "SaveRecipeButton",
+            bool(self.SaveRecipeButton.IsEnabled),
+            "#3b82f6",
+            "#ffffff",
+        )
+        self._apply_button_state_style(
+            "ToggleReviewedCodeButton",
+            bool(self.ToggleReviewedCodeButton.IsEnabled),
+            "#475569",
+            "#ffffff",
+        )
+
+    def get_selected_planner_mode(self):
+        selected = self.AgentRuntimeSelector.SelectedItem
+        if selected is None:
+            return "local"
+        text = ""
+        try:
+            text = selected.Content
+        except:
+            text = str(selected)
+        return "cloud" if "OpenAI" in str(text) else "local"
+
+    def update_planner_provider_ui(self, state, detail=None):
+        label = "Planner provider: Local"
+        if state == "available":
+            label = "Planner provider: OpenAI"
+        elif state == "local_only":
+            label = "Planner provider: Local only"
+        elif state == "missing_api_key":
+            label = "Planner provider: Cloud unavailable"
+        elif state == "request_failed":
+            label = "Planner provider: Cloud request failed"
+        elif state == "local":
+            label = "Planner provider: Local"
+        try:
+            self.AgentProviderLabel.Text = label
+            if detail:
+                self.AgentProviderLabel.ToolTip = detail
+        except:
+            pass
+        try:
+            if state == "available":
+                self.AgentProviderHelp.Text = "OpenAI planning is available. Cloud planning only normalizes requests into supported reviewed actions."
+            elif state == "local_only":
+                self.AgentProviderHelp.Text = "Cloud planning is unavailable because OPENAI_API_KEY is missing. Local deterministic planning remains available."
+            elif state == "request_failed":
+                self.AgentProviderHelp.Text = "Cloud planning request failed. Local deterministic planning remains available."
+            else:
+                self.AgentProviderHelp.Text = "Local deterministic planning is active. Cloud planning is optional and never executes raw code."
+        except:
+            pass
+
+    def configure_planner_provider(self):
+        provider_state = get_openai_provider_state()
+        self.cloud_provider_state = provider_state
+        selected_mode = self.get_selected_planner_mode()
+        try:
+            if self.AgentRuntimeSelector.Items.Count > 1:
+                openai_item = self.AgentRuntimeSelector.Items[1]
+                openai_item.IsEnabled = bool(provider_state.get("available"))
+        except:
+            pass
+
+        if not provider_state.get("available") and selected_mode == "cloud":
+            self.AgentRuntimeSelector.SelectedIndex = 0
+            selected_mode = "local"
+
+        if selected_mode == "cloud" and provider_state.get("available"):
+            self.update_planner_provider_ui("available", provider_state.get("message"))
+        else:
+            state = "local"
+            if not provider_state.get("available"):
+                state = "local_only" if provider_state.get("state") == "missing_api_key" else provider_state.get("state")
+            self.update_planner_provider_ui(state, provider_state.get("message"))
+
+        if not provider_state.get("available"):
+            try:
+                notice = "{0}\nSet OPENAI_API_KEY in the environment to enable cloud planning.".format(
+                    provider_state.get("message", "Cloud unavailable")
+                )
+                if notice != self.last_provider_notice:
+                    self.AgentHistory.AppendText("{0}\n\n".format(notice))
+                    self.last_provider_notice = notice
+            except:
+                pass
+
     def apply_theme(self, theme_name):
         palette = THEMES.get(theme_name, THEMES["light"])
         self.current_theme = theme_name
+        self._set_theme_resource("ComboBackgroundBrush", palette["dropdown_bg"])
+        self._set_theme_resource("ComboForegroundBrush", palette["dropdown_fg"])
+        self._set_theme_resource("ComboBorderBrush", palette["border"])
+        self._set_theme_resource("ComboItemBackgroundBrush", palette["dropdown_item_bg"])
+        self._set_theme_resource("ComboItemForegroundBrush", palette["dropdown_item_fg"])
+        self._set_theme_resource("ComboItemHighlightBrush", palette["dropdown_highlight_bg"])
+        self._set_theme_resource("ComboItemHighlightForegroundBrush", palette["dropdown_highlight_fg"])
+        self._set_theme_resource("TreeBackgroundBrush", palette["tree_bg"])
+        self._set_theme_resource("TreeForegroundBrush", palette["tree_fg"])
         self._apply_control_style("MainWindow", palette["window_bg"], palette["text"])
         self._apply_control_style("MainBorder", palette["panel_bg"], palette["text"], palette["border"])
+        self._apply_control_style("HeaderBar", palette["panel_bg"], palette["text"], None)
         self._apply_control_style("HeaderTitle", None, palette["text"])
         self._apply_control_style("HeaderSubtitle", None, palette["muted"])
         self._apply_control_style("ModelInfo", None, palette["accent"])
@@ -3327,7 +3540,9 @@ class OllamaAIChat(forms.WPFWindow):
         self._apply_control_style("SendButton", palette["accent"], "#ffffff", palette["accent"])
         self._apply_control_style("AgentIntroText", None, palette["muted"])
         self._apply_control_style("AgentWarningText", None, palette["warn"])
+        self._apply_control_style("AgentProviderHelp", None, palette["muted"])
         self._apply_control_style("AgentCommandLegend", None, palette["muted"])
+        self._apply_control_style("AgentProviderLabel", None, palette["muted"])
         self._apply_control_style("AgentStatus", None, palette["accent"])
         self._apply_control_style("AgentHistory", palette["panel_alt"], palette["text"], palette["border"])
         self._apply_control_style("AgentGoalInput", palette["panel_alt"], palette["text"], palette["border"])
@@ -3339,10 +3554,13 @@ class OllamaAIChat(forms.WPFWindow):
         self._apply_control_style("AgentUndoButton", palette["panel_alt"], palette["muted"], palette["border"])
         self._apply_control_style("ModelMindIntroText", None, palette["muted"])
         self._apply_control_style("ModelMindHistory", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ReviewedCodeGroup", palette["panel_bg"], palette["text"], palette["border"])
+        self._apply_control_style("ReviewedCodePreview", palette["panel_alt"], palette["text"], palette["border"])
         self._apply_control_style("ModelMindInput", palette["panel_alt"], palette["text"], palette["border"])
         self._apply_control_style("ModelMindSendButton", palette["accent_alt"], "#ffffff", palette["accent_alt"])
         self._apply_control_style("ApproveCodeButton", palette["accent"], "#ffffff", palette["accent"])
         self._apply_control_style("SaveRecipeButton", palette["accent_alt"], "#ffffff", palette["accent_alt"])
+        self._apply_control_style("ToggleReviewedCodeButton", "#475569", "#ffffff", "#475569")
         self._apply_control_style("ReviewedCodeStateLabel", None, palette["accent"])
         self._apply_control_style("PromptTreeGroup", palette["panel_bg"], palette["text"], palette["border"])
         self._apply_control_style("PromptTree", palette["panel_alt"], palette["text"], palette["border"])
@@ -3350,6 +3568,7 @@ class OllamaAIChat(forms.WPFWindow):
             self.ThemeToggleButton.Content = "Theme: {0}".format(theme_name.title())
         except:
             pass
+        self.refresh_action_button_states()
         self.settings["theme"] = theme_name
         self.settings_store.save(self.settings)
 
@@ -3357,20 +3576,37 @@ class OllamaAIChat(forms.WPFWindow):
         next_theme = "dark" if self.current_theme == "light" else "light"
         self.apply_theme(next_theme)
 
+    def on_planner_mode_changed(self, sender, args):
+        self.configure_planner_provider()
+
     def update_window_status(self, status, detail=None):
-        label = status.replace("_", " ").title()
+        labels = {
+            "idle": "Ready",
+            "planning": "Planning",
+            "ready_to_execute": "Ready",
+            "executing": "Working",
+            "failed": "Needs review",
+        }
+        label = labels.get(status, status.replace("_", " ").title())
         if detail:
-            label = "{0} | {1}".format(label, detail)
+            label = "{0} - {1}".format(label, detail)
         try:
-            self.StatusLabel.Text = "Status: {0}".format(label)
+            self.StatusLabel.Text = label
         except:
             pass
 
     def update_reviewed_code_state(self, state, reason=None):
         state = (state or "draft").lower()
-        label = "Reviewed code state: {0}".format(state)
+        display = {
+            "draft": "Reviewed code: Draft",
+            "validated": "Reviewed code: Validated",
+            "blocked": "Reviewed code: Blocked",
+            "executed": "Reviewed code: Executed",
+            "saved": "Reviewed code: Saved",
+        }
+        label = display.get(state, "Reviewed code: {0}".format(state.title()))
         if reason:
-            label = "{0} | {1}".format(label, reason)
+            label = "{0} - {1}".format(label, reason)
         try:
             self.ReviewedCodeStateLabel.Text = label
             color = REVIEWED_CODE_STATE_COLORS.get(state)
@@ -3384,7 +3620,27 @@ class OllamaAIChat(forms.WPFWindow):
         self.pending_validated_code = None
         self.ApproveCodeButton.IsEnabled = False
         self.SaveRecipeButton.IsEnabled = False
+        self.ToggleReviewedCodeButton.IsEnabled = False
+        self.ReviewedCodePreview.Text = ""
+        self.ReviewedCodeGroup.Visibility = System.Windows.Visibility.Collapsed
+        self.ToggleReviewedCodeButton.Content = "Show reviewed code"
+        self.refresh_action_button_states()
         self.update_reviewed_code_state(state, reason)
+
+    def set_reviewed_code_preview(self, code_text, allow_toggle=True):
+        self.ReviewedCodePreview.Text = code_text or ""
+        self.ToggleReviewedCodeButton.IsEnabled = bool(code_text) and allow_toggle
+        self.ToggleReviewedCodeButton.Content = "Show reviewed code"
+        self.ReviewedCodeGroup.Visibility = System.Windows.Visibility.Collapsed
+        self.refresh_action_button_states()
+
+    def on_toggle_reviewed_code(self, sender, args):
+        if self.ReviewedCodeGroup.Visibility == System.Windows.Visibility.Visible:
+            self.ReviewedCodeGroup.Visibility = System.Windows.Visibility.Collapsed
+            self.ToggleReviewedCodeButton.Content = "Show reviewed code"
+        else:
+            self.ReviewedCodeGroup.Visibility = System.Windows.Visibility.Visible
+            self.ToggleReviewedCodeButton.Content = "Hide reviewed code"
 
     def validate_and_prepare_reviewed_code(self, raw_code, prompt_text):
         sanitized_code = sanitize_llm_code(raw_code)
@@ -3399,18 +3655,21 @@ class OllamaAIChat(forms.WPFWindow):
             self.pending_ai_code = raw_code
             self.pending_validated_code = sanitized_code
             self.ApproveCodeButton.IsEnabled = True
-            self.update_reviewed_code_state("validated", "pyRevit-compatible reviewed code ready.")
+            self.set_reviewed_code_preview(sanitized_code, allow_toggle=True)
+            self.update_reviewed_code_state("validated", "Ready for reviewed execution.")
         else:
             self.pending_ai_code = raw_code
             self.pending_validated_code = None
             self.ApproveCodeButton.IsEnabled = False
+            self.set_reviewed_code_preview(sanitized_code, allow_toggle=True)
             reason = "Blocked: {0}".format("; ".join(validation.get("blocked_hits") or validation.get("errors")))
             self.update_reviewed_code_state("blocked", reason)
             self.ModelMindHistory.AppendText(
-                "Reviewed code blocked for pyRevit runtime.\nUnsupported items: {0}\n".format(
+                "Reviewed code blocked.\nUnsupported items: {0}\n".format(
                     ", ".join(validation.get("blocked_hits") or validation.get("errors"))
                 )
             )
+        self.refresh_action_button_states()
         return validation
 
     def get_default_recipe_metadata(self):
@@ -3428,9 +3687,16 @@ class OllamaAIChat(forms.WPFWindow):
         }
 
     def set_agent_status(self, status):
-        readable = status.replace("_", " ").title()
+        labels = {
+            "idle": "Planner ready",
+            "planning": "Planning",
+            "ready_to_execute": "Plan ready",
+            "executing": "Executing plan",
+            "failed": "Needs guidance",
+        }
+        readable = labels.get(status, status.replace("_", " ").title())
         try:
-            self.AgentStatus.Text = "Agent status: {0}".format(readable)
+            self.AgentStatus.Text = readable
         except:
             pass
         self.update_window_status(status)
@@ -3442,7 +3708,10 @@ class OllamaAIChat(forms.WPFWindow):
         sections = self.catalog.get_tree_sections(filter_text=filter_text)
         for section in sections:
             cat_item = TreeViewItem()
-            cat_item.Header = section.get("header")
+            header = section.get("header")
+            if section.get("kind") == "approved":
+                header = "Approved Recipes | reviewed code"
+            cat_item.Header = header
             cat_item.IsExpanded = True if filter_text else section.get("kind") == "approved"
             cat_item.ToolTip = (
                 "Approved recipes are reviewed code assets." if section.get("kind") == "approved"
@@ -3457,8 +3726,11 @@ class OllamaAIChat(forms.WPFWindow):
             self.PromptTree.Items.Add(cat_item)
 
     def _format_prompt_header(self, entry, branch_kind):
+        title = entry.get("title", entry.get("prompt_text", "(untitled)"))
+        if len(title) > 44:
+            title = "{0}...".format(title[:41])
         prefix = "Approved | " if branch_kind == "approved" else ""
-        return "{0}{1}".format(prefix, entry.get("title", entry.get("prompt_text", "(untitled)")))
+        return "{0}{1}".format(prefix, title)
 
     def _build_prompt_tooltip(self, entry):
         return "Role: {0} | Risk: {1} | Mode: {2}\nPrompt: {3}".format(
@@ -3478,6 +3750,13 @@ class OllamaAIChat(forms.WPFWindow):
                     self.ModelMindInput.Text = entry.get("prompt_text", "")
                     self.ModelMindInput.CaretIndex = len(self.ModelMindInput.Text)
                     self.ModelMindInput.Focus()
+                    if entry.get("source") == "approved_recipe":
+                        self.ModelMindHistory.AppendText(
+                            "Running approved recipe from tree: {}\n".format(
+                                entry.get("title", "Approved recipe")
+                            )
+                        )
+                        self.on_modelmind_send(sender, args)
         except:
             pass
 
@@ -3494,6 +3773,13 @@ class OllamaAIChat(forms.WPFWindow):
                         self.ModelMindInput.Text = entry.get("prompt_text", "")
                         self.ModelMindInput.CaretIndex = len(self.ModelMindInput.Text)
                         self.ModelMindInput.Focus()
+                        if entry.get("source") == "approved_recipe":
+                            self.ModelMindHistory.AppendText(
+                                "Running approved recipe from tree: {}\n".format(
+                                    entry.get("title", "Approved recipe")
+                                )
+                            )
+                            self.on_modelmind_send(sender, args)
                         args.Handled = True
             except:
                 pass
@@ -3512,6 +3798,11 @@ class OllamaAIChat(forms.WPFWindow):
             self.last_reviewed_recipe_metadata = None
             self.ApproveCodeButton.IsEnabled = False
             self.SaveRecipeButton.IsEnabled = False
+            self.ToggleReviewedCodeButton.IsEnabled = False
+            self.ReviewedCodeGroup.Visibility = System.Windows.Visibility.Collapsed
+            self.ReviewedCodePreview.Text = ""
+            self.ToggleReviewedCodeButton.Content = "Show reviewed code"
+            self.refresh_action_button_states()
             self.update_reviewed_code_state("draft", "Prompt changed; reviewed code must be regenerated.")
 
     def on_modelmindinput_keydown(self, sender, args):
@@ -3598,7 +3889,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.pending_source_entry = source_entry
         self.last_successful_reviewed_code = None
         self.last_reviewed_recipe_metadata = None
-        self.SaveRecipeButton.IsEnabled = False
+        self.reset_reviewed_code_state("draft", "Preparing request.")
         self.update_window_status("planning", "ModelMind request")
         self._set_thinking("Thinking (ModelMind)...")
         self.show_busy()
@@ -3608,18 +3899,19 @@ class OllamaAIChat(forms.WPFWindow):
             self.ModelMindHistory.AppendText("You: {}\n".format(prompt))
 
             if source_entry and source_entry.get("source") == "approved_recipe":
-                self.ModelMindHistory.AppendText(
-                    "Approved recipe selected: {0}\n".format(source_entry.get("title"))
-                )
                 result = self.run_approved_recipe(source_entry)
-                self.ModelMindHistory.AppendText("Approved recipe result: {}\n\n".format(result))
+                self.ModelMindHistory.AppendText(
+                    "Approved recipe executed: {0}\n{1}\n\n".format(
+                        source_entry.get("title"), result
+                    )
+                )
                 self.reset_reviewed_code_state("saved", "Approved recipe executed from reviewed store.")
                 return
 
             public_cmd_result = handle_public_command(prompt, doc, uidoc)
             if public_cmd_result:
                 self.ModelMindHistory.AppendText(
-                    "Result: {}\n\n".format(public_cmd_result)
+                    "Deterministic result\n{0}\n\n".format(public_cmd_result)
                 )
                 self.reset_reviewed_code_state("draft", "Deterministic ModelMind result returned.")
                 self.update_window_status("ready_to_execute", "Deterministic result complete")
@@ -3628,19 +3920,17 @@ class OllamaAIChat(forms.WPFWindow):
             if "create sheet" in prompt.lower():
                 reviewed_code = build_create_sheet_reviewed_code()
                 self.ModelMindHistory.AppendText(
-                    "Reviewed pyRevit-safe template prepared for create sheet:\n```python\n{0}\n```\n".format(
-                        reviewed_code
-                    )
+                    "Reviewed code draft\nPrepared pyRevit-safe create-sheet template.\n"
                 )
                 validation = self.validate_and_prepare_reviewed_code(reviewed_code, prompt)
                 if validation.get("is_valid"):
                     self.ModelMindHistory.AppendText(
-                        "Reviewed code validated for pyRevit. Click 'Approve & Run Code' to execute.\n"
+                        "Reviewed code validated\nUse Approve & Run Code to execute.\n"
                     )
                     self.update_window_status("ready_to_execute", "Reviewed create sheet template validated")
                 else:
                     self.ModelMindHistory.AppendText(
-                        "Reviewed create sheet template was blocked before approval.\n"
+                        "Reviewed code blocked before approval.\n"
                     )
                     self.update_window_status("failed", "Reviewed create sheet template blocked")
                 return
@@ -3656,20 +3946,20 @@ class OllamaAIChat(forms.WPFWindow):
                 "Task: {}".format(prompt)
             )
             ai_reply = send_ollama_chat(self.model, code_prompt)
-            self.ModelMindHistory.AppendText(
-                "AI-generated code (review before running):\n{}\n".format(ai_reply)
-            )
             code_blocks = extract_python_code(ai_reply)
             if code_blocks and len(code_blocks[0].strip()) > 0:
+                self.ModelMindHistory.AppendText(
+                    "Reviewed code draft\nA reviewed code draft was generated for this request.\n"
+                )
                 validation = self.validate_and_prepare_reviewed_code(code_blocks[0], prompt)
                 if validation.get("is_valid"):
                     self.ModelMindHistory.AppendText(
-                        "Reviewed code validated for pyRevit. Click 'Approve & Run Code' to execute.\n"
+                        "Reviewed code validated\nUse Approve & Run Code to execute.\n"
                     )
                     self.update_window_status("ready_to_execute", "Code review validated")
                 else:
                     self.ModelMindHistory.AppendText(
-                        "Approval remained disabled because the reviewed code is not pyRevit-compatible.\n"
+                        "Approval remains disabled because the reviewed code is not pyRevit-compatible.\n"
                     )
                     self.update_window_status("failed", "Reviewed code blocked")
             else:
@@ -3707,11 +3997,8 @@ class OllamaAIChat(forms.WPFWindow):
                 self.update_window_status("failed", "Reviewed code blocked before execution")
                 return
             sanitized_code = validation.get("sanitized_code")
-            self.ModelMindHistory.AppendText(
-                "Running AI code:\n{}\n".format(sanitized_code)
-            )
             result = run_code_in_revit(sanitized_code, doc, uidoc)
-            self.ModelMindHistory.AppendText("AI code result: {}\n".format(result))
+            self.ModelMindHistory.AppendText("Reviewed code executed\n{0}\n".format(result))
             result_text = str(result).lower()
             if result_text.startswith("code executed successfully") or result_text.startswith("created sheet:"):
                 self.last_successful_reviewed_code = sanitized_code
@@ -3719,12 +4006,14 @@ class OllamaAIChat(forms.WPFWindow):
                 self.SaveRecipeButton.IsEnabled = True
                 self.update_reviewed_code_state("executed", "Reviewed code executed successfully.")
                 self.update_window_status("ready_to_execute", "Reviewed code executed")
+                self.refresh_action_button_states()
             else:
                 self.last_successful_reviewed_code = None
                 self.last_reviewed_recipe_metadata = None
                 self.SaveRecipeButton.IsEnabled = False
                 self.update_reviewed_code_state("blocked", "Execution failed; recipe save remains disabled.")
                 self.update_window_status("failed", result)
+                self.refresh_action_button_states()
         except Exception as e:
             self.ModelMindHistory.AppendText("AI code error: {}\n".format(str(e)))
             self.last_successful_reviewed_code = None
@@ -3732,10 +4021,12 @@ class OllamaAIChat(forms.WPFWindow):
             self.SaveRecipeButton.IsEnabled = False
             self.update_reviewed_code_state("blocked", str(e))
             self.update_window_status("failed", str(e))
+            self.refresh_action_button_states()
         finally:
             self.pending_ai_code = None
             self.pending_validated_code = None
             self.ApproveCodeButton.IsEnabled = False
+            self.refresh_action_button_states()
             self.hide_busy()
             self._set_thinking("Thinking...")
 
@@ -3767,7 +4058,7 @@ class OllamaAIChat(forms.WPFWindow):
                 source_entry=self.pending_source_entry,
             )
             self.ModelMindHistory.AppendText(
-                "Approved recipe saved: {0} ({1})\n".format(
+                "Approved recipe saved\n{0} ({1})\n".format(
                     recipe.get("title"), recipe.get("id")
                 )
             )
@@ -3776,6 +4067,7 @@ class OllamaAIChat(forms.WPFWindow):
             self.last_successful_reviewed_code = None
             self.last_reviewed_recipe_metadata = None
             self.update_reviewed_code_state("saved", "Approved recipe stored and tree reloaded.")
+            self.refresh_action_button_states()
         except Exception as exc:
             self.ModelMindHistory.AppendText(
                 "Failed to save approved recipe: {}\n".format(str(exc))
@@ -3850,6 +4142,7 @@ class OllamaAIChat(forms.WPFWindow):
             self.AgentCommandSelector.Items.Add(item)
         if self.AgentCommandSelector.Items.Count > 0:
             self.AgentCommandSelector.SelectedIndex = 0
+        self.refresh_action_button_states()
 
     def on_agent_run(self, sender, args):
         goal = self.AgentGoalInput.Text.strip()
@@ -3858,35 +4151,134 @@ class OllamaAIChat(forms.WPFWindow):
 
         self.agent_session.refresh_catalog(self.catalog.get_agent_commands())
         self.set_agent_status("planning")
-        self.update_window_status("planning", "AI Agent plan generation")
-        self.AgentHistory.AppendText("Goal: {}\n".format(goal))
-        plan = self.agent_session.plan_goal(goal)
-        if not plan:
+        self.update_window_status("planning", "Planner request")
+        self.AgentHistory.AppendText("Planner request\n{0}\n".format(goal))
+        mode = self.get_selected_planner_mode()
+        plan_object = None
+
+        if mode == "cloud" and self.cloud_provider_state.get("available"):
+            cloud_result = self._build_cloud_plan(goal)
+            if cloud_result.get("provider_state") == "request_failed":
+                self.update_planner_provider_ui("request_failed", cloud_result.get("error"))
+                self.AgentHistory.AppendText(
+                    "Cloud planner request failed.\nFalling back to local deterministic planning.\n\n"
+                )
+                plan_object = self._build_local_plan(goal)
+            else:
+                self.update_planner_provider_ui("available", "Planner provider: OpenAI")
+                plan_object = cloud_result.get("plan")
+        else:
+            if mode == "cloud" and not self.cloud_provider_state.get("available"):
+                self.AgentHistory.AppendText(
+                    "{0}\nUsing local deterministic planning instead.\n\n".format(
+                        self.cloud_provider_state.get("message", "Cloud planner unavailable.")
+                    )
+                )
+            self.update_planner_provider_ui(
+                self.cloud_provider_state.get("state", "local")
+                if not self.cloud_provider_state.get("available")
+                else "local",
+                self.cloud_provider_state.get("message"),
+            )
+            plan_object = self._build_local_plan(goal)
+
+        plan = self.agent_session.get_visible_steps()
+        self._append_plan_object(plan_object)
+        if not plan_object or not bool(plan_object.get("execution_ready", False)) or not plan:
             self.AgentHistory.AppendText(
-                "No deterministic plan could be generated. Refine the goal or use ModelMind for reviewed code generation.\n\n"
+                "No reviewed executable plan is available.\n{0}\n\n".format(
+                    plan_object.get("summary", self.agent_session.guidance) if plan_object else self.agent_session.guidance
+                )
             )
             self.AgentExecuteButton.IsEnabled = False
             self.populate_agent_command_selector()
             self.set_agent_status(self.agent_session.status)
+            self.refresh_action_button_states()
             return
 
-        self.AgentHistory.AppendText("Plan generated for review:\n")
+        self.AgentHistory.AppendText("Plan ready for review\n")
         for index, step in enumerate(plan):
             self.AgentHistory.AppendText(
                 "  {0}. {1}\n".format(index + 1, self._describe_agent_step(step))
             )
         self.AgentHistory.AppendText(
-            "Run Agent only prepares the plan. Execute Plan will run the reviewed enabled steps.\n\n"
+            "Execute Plan runs only the reviewed enabled steps.\n\n"
         )
-        self.AgentExecuteButton.IsEnabled = True
+        self.AgentExecuteButton.IsEnabled = bool(plan_object.get("execution_ready", False))
         self.populate_agent_command_selector()
         self.set_agent_status(self.agent_session.status)
+        self.refresh_action_button_states()
 
     def _execute_agent_step(self, step):
+        if step.get("id") == "create-sheet-reviewed-template":
+            validation = self.validate_and_prepare_reviewed_code(
+                build_create_sheet_reviewed_code(),
+                "create sheet",
+            )
+            if not validation.get("is_valid"):
+                return "Reviewed create-sheet template is blocked."
+            return run_code_in_revit(validation.get("sanitized_code"), doc, uidoc)
         result = handle_public_command(step.get("prompt_text", ""), doc, uidoc)
         if result is None:
             return "No deterministic executor is available for this step."
         return result
+
+    def _planner_supported_actions(self):
+        return self.agent_session.get_supported_actions()
+
+    def _build_local_plan(self, goal):
+        self.agent_session.plan_goal(goal)
+        return self.agent_session.plan_object
+
+    def _build_cloud_plan(self, goal):
+        response = normalize_intent_to_supported_action(
+            goal,
+            self._planner_supported_actions(),
+            model_name=self.planner_model,
+        )
+        if not response.get("ok"):
+            return {
+                "provider_state": "request_failed",
+                "error": response.get("error", "Cloud planner request failed."),
+            }
+
+        result = response.get("result") or {}
+        action_id = result.get("matched_action", "")
+        if not action_id or result.get("rejected"):
+            self.agent_session.reset()
+            self.agent_session.plan_object = {
+                "matched_action": "",
+                "confidence": float(result.get("confidence", 0.0) or 0.0),
+                "requires_modification": False,
+                "destructive": False,
+                "summary": result.get("summary", "Unsupported request."),
+                "execution_ready": False,
+            }
+            self.agent_session.status = "failed"
+            self.agent_session.message = "Unsupported request"
+            self.agent_session.guidance = self.agent_session.SUPPORTED_MESSAGE
+            return {"provider_state": "available", "plan": self.agent_session.plan_object}
+
+        plan = self.agent_session.build_plan_from_action(
+            action_id,
+            result.get("confidence", 0.0),
+            result.get("summary", "OpenAI planner matched a supported action."),
+        )
+        return {"provider_state": "available", "plan": plan}
+
+    def _append_plan_object(self, plan_object):
+        if not plan_object:
+            return
+        self.AgentHistory.AppendText(
+            "Plan object\nmatched_action: {0}\nconfidence: {1:.2f}\nrequires_modification: {2}\ndestructive: {3}\nsummary: {4}\nexecution_ready: {5}\n".format(
+                plan_object.get("matched_action", ""),
+                float(plan_object.get("confidence", 0.0) or 0.0),
+                bool(plan_object.get("requires_modification", False)),
+                bool(plan_object.get("destructive", False)),
+                plan_object.get("summary", ""),
+                bool(plan_object.get("execution_ready", False)),
+            )
+        )
 
     def on_agent_execute(self, sender, args):
         if not self.agent_session.get_visible_steps():
@@ -3907,6 +4299,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.AgentExecuteButton.IsEnabled = False
         self.populate_agent_command_selector()
         self.set_agent_status(self.agent_session.status)
+        self.refresh_action_button_states()
 
     def on_agent_toggle_command(self, sender, args):
         selected = self.AgentCommandSelector.SelectedItem
@@ -3919,13 +4312,15 @@ class OllamaAIChat(forms.WPFWindow):
                 "Toggled command: {}\n\n".format(self._describe_agent_step(updated))
             )
             self.populate_agent_command_selector()
+            self.refresh_action_button_states()
 
     def on_agent_reset_commands(self, sender, args):
         self.agent_session.reset()
         self.AgentExecuteButton.IsEnabled = False
         self.populate_agent_command_selector()
-        self.AgentHistory.AppendText("Agent plan and session command state cleared.\n\n")
+        self.AgentHistory.AppendText("Planner state cleared.\n\n")
         self.set_agent_status(self.agent_session.status)
+        self.refresh_action_button_states()
 
     def on_agent_undo(self, sender, args):
         self.AgentHistory.AppendText(

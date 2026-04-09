@@ -134,3 +134,81 @@ The following are reported as live runtime findings for the current baseline bef
 - confirm invalid DesignScript/Dynamo reviewed code is blocked before execution in live Revit
 - confirm valid reviewed code executes and can then be saved as an approved recipe
 - confirm the saved approved recipe appears immediately in the approved branch after reload
+
+## 2026-04-09 UI and Deterministic Planner Polish Update
+
+### Confirmed live baseline facts carried into this pass
+
+- pyRevit AI tab loads
+- button opens AI Workbench
+- Ollama Chat works in live runtime
+- theme persistence works across relaunch
+- ModelMind deterministic `select all ducts` works in Snowdon Towers Sample HVAC
+- reviewed create-sheet template validates as pyRevit-compatible
+- reviewed create-sheet execution succeeds in live runtime
+- approved recipe save dialog works
+- approved recipe is stored and reloaded into the ModelMind tree
+
+### Code/UI changes added in this pass
+
+- top header/layout stabilized with title/subtitle left and controls pushed to the far right
+- dark-mode readability improved for dropdowns, tree text, labels, and disabled actions
+- reviewed-code output moved into a secondary show/hide panel instead of always dumping raw code into the main history
+- AI Agent narrowed to a deterministic reviewed-planner with a small supported command set
+- added deterministic planner support for:
+  - `select all ducts`
+  - `count selected ducts`
+  - `count all ducts in active view`
+  - `list ducts in active view`
+  - `find unconnected fittings`
+  - `report elements without system assignment`
+
+### Still pending live validation after this polish pass
+
+- AI Agent handling of the new deterministic duct-count/list cases
+- top-right header alignment verification in live Revit
+- dark-mode dropdown readability verification in live Revit
+- dark-mode tree readability verification in live Revit
+- disabled-button readability verification in live Revit
+
+## 2026-04-09 Provider-Backed Reviewed Planner Update
+
+### Purpose of this pass
+
+- finish the ModelMind layout polish
+- wire AI Agent to a real provider-backed planning path
+- keep execution deterministic and reviewed inside pyRevit
+
+### Architecture changes added
+
+- ModelMind input now spans most of the available width and its action buttons now sit below the input area
+- reviewed code remains secondary through the existing show/hide reviewed-code panel
+- AI Agent now supports two planning modes:
+  - local deterministic planner
+  - OpenAI-backed intent normalization planner
+- the cloud planner only normalizes requests into the existing supported deterministic/reviewed action set
+- cloud output does not execute as raw code
+- reviewed execution still goes through the local command registry or the reviewed `create sheet` template path
+
+### Provider security boundary
+
+- `OPENAI_API_KEY` is read from environment only
+- no API key is stored in repo-local files, logs, JSON artifacts, UI text, or WBSO evidence
+- if the key is missing, cloud planning is unavailable and the UI falls back to local planning guidance
+- if the cloud request fails, the UI reports the failure precisely and local planning remains available
+
+### Current validation position for this pass
+
+Locally verified:
+
+- helper/service modules compile under CPython
+- `UI.xaml` is well-formed XML after the latest layout/provider edits
+- prompt and approved-recipe JSON assets still parse
+
+Not yet live-validated after this pass:
+
+- ModelMind layout polish in live Revit
+- AI Agent local planner handling of the supported deterministic cases after this provider wiring
+- AI Agent cloud planning normalization with a valid environment key
+- missing-key UI state in live Revit
+- cloud request failure handling in live Revit

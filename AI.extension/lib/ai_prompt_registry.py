@@ -16,6 +16,15 @@ class PromptCatalog(object):
         "Totals",
         "Clash Check",
     ]
+    AGENT_ACTION_IDS = [
+        "select-all-ducts",
+        "count-selected-ducts",
+        "count-ducts-active-view",
+        "list-ducts-active-view",
+        "find-unconnected-fittings",
+        "report-elements-without-system-assignment",
+        "create-sheet-reviewed-template",
+    ]
 
     def __init__(self, catalog_path, approved_path):
         self.catalog_path = catalog_path
@@ -106,6 +115,8 @@ class PromptCatalog(object):
     def get_agent_commands(self):
         commands = []
         for entry in self.get_enabled_entries():
+            if entry.get("id") not in self.AGENT_ACTION_IDS:
+                continue
             commands.append(
                 {
                     "id": entry.get("id"),

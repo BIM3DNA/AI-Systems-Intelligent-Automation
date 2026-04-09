@@ -2,6 +2,12 @@
 
 
 class AgentSession(object):
+    SUPPORTED_MESSAGE = (
+        "Supported planner requests: select all ducts; count selected ducts; "
+        "count all ducts in active view; list ducts in active view; "
+        "find unconnected fittings; report elements without system assignment; create sheet."
+    )
+
     def __init__(self, commands=None):
         self.allow_destructive = False
         self.refresh_catalog(commands or [])
@@ -15,8 +21,10 @@ class AgentSession(object):
     def reset(self):
         self.goal = ""
         self.plan = []
+        self.plan_object = None
         self.status = "idle"
         self.message = "Idle"
+        self.guidance = self.SUPPORTED_MESSAGE
 
     def set_allow_destructive(self, enabled):
         self.allow_destructive = bool(enabled)
@@ -29,6 +37,20 @@ class AgentSession(object):
         step["enabled"] = True
         self.plan.append(step)
 
+    def get_supported_actions(self):
+        actions = []
+        for command in self.catalog.values():
+            actions.append(
+                {
+                    "id": command.get("id"),
+                    "title": command.get("title"),
+                    "prompt_text": command.get("prompt_text"),
+                    "requires_modification": command.get("role") == "modify",
+                    "destructive": command.get("risk_level") == "high",
+                }
+            )
+        return actions
+
     def _match_goal(self, goal_text):
         goal = (goal_text or "").lower()
         ordered_ids = []
@@ -39,30 +61,39 @@ class AgentSession(object):
                     ordered_ids.append(command_id)
                     return
 
-        add_if_found("list-ducts-active-view", "list ducts in active view", "ducts in active view")
+        add_if_found("select-all-ducts", "select all ducts", "select ducts")
+        add_if_found(
+            "count-selected-ducts",
+            "count selected ducts",
+            "count the selected ducts",
+            "how many selected ducts are there",
+            "how many selected ducts",
+        )
+        add_if_found(
+            "count-ducts-active-view",
+            "count all ducts in active view",
+            "count ducts in active view",
+            "how many ducts are in active view",
+        )
+        add_if_found(
+            "list-ducts-active-view",
+            "list ducts in active view",
+            "list all ducts in active view",
+            "ducts in active view",
+        )
         add_if_found("find-unconnected-fittings", "unconnected fittings", "find unconnected fittings")
         add_if_found(
             "report-elements-without-system-assignment",
             "without system assignment",
             "system assignment",
         )
-        add_if_found("health-check", "health check", "health summary", "model audit")
-        add_if_found("count-ducts", "count ducts")
-        add_if_found("total-duct-length", "total duct length", "duct length")
-        add_if_found("export-schedule-names", "schedule names")
-        add_if_found("export-all-schedule-data", "schedule data")
-        add_if_found("clash-check", "clash check", "clash")
-
-        if not ordered_ids:
-            for command in self.catalog.values():
-                prompt_text = (command.get("prompt_text") or "").lower()
-                title = (command.get("title") or "").lower()
-                if prompt_text and prompt_text in goal:
-                    ordered_ids.append(command.get("id"))
-                elif title and title in goal:
-                    ordered_ids.append(command.get("id"))
-                if len(ordered_ids) >= 3:
-                    break
+        add_if_found(
+            "create-sheet-reviewed-template",
+            "create sheet",
+            "make a sheet",
+            "create a sheet for me",
+            "make sheet",
+        )
 
         return ordered_ids
 
@@ -72,15 +103,56 @@ class AgentSession(object):
         self.status = "planning"
         self.message = "Planning"
         matched_ids = self._match_goal(goal_text)
-        for command_id in matched_ids:
-            self._add_step(command_id)
-        if self.plan:
-            self.status = "ready_to_execute"
-            self.message = "Ready to execute"
+        if matched_ids:
+            self.build_plan_from_action(
+                matched_ids[0],
+                confidence=0.75,
+                summary="Local deterministic planner matched a supported action.",
+            )
         else:
+            self.plan_object = {
+                "matched_action": "",
+                "confidence": 0.0,
+                "requires_modification": False,
+                "destructive": False,
+                "summary": "Unsupported request.",
+                "execution_ready": False,
+            }
             self.status = "failed"
-            self.message = "Failed"
+            self.message = "Unsupported request"
+            self.guidance = self.SUPPORTED_MESSAGE
         return list(self.plan)
+
+    def build_plan_from_action(self, action_id, confidence, summary):
+        self.reset()
+        command = self.catalog.get(action_id)
+        if not command:
+            self.plan_object = {
+                "matched_action": "",
+                "confidence": 0.0,
+                "requires_modification": False,
+                "destructive": False,
+                "summary": "Unsupported request.",
+                "execution_ready": False,
+            }
+            self.status = "failed"
+            self.message = "Unsupported request"
+            self.guidance = self.SUPPORTED_MESSAGE
+            return None
+
+        self._add_step(action_id)
+        self.plan_object = {
+            "matched_action": action_id,
+            "confidence": float(confidence),
+            "requires_modification": command.get("role") == "modify",
+            "destructive": command.get("risk_level") == "high",
+            "summary": summary,
+            "execution_ready": True,
+        }
+        self.status = "ready_to_execute"
+        self.message = "Ready to execute"
+        self.guidance = "Plan ready for review."
+        return dict(self.plan_object)
 
     def toggle_command(self, command_id):
         for step in self.plan:

@@ -73,13 +73,54 @@ Snowdon Towers Sample HVAC
 4. successful reviewed run can be saved as approved recipe
 5. approved recipe appears in the ModelMind approved branch after reload
 
-## What Was Not Executed During This Workspace Pass
+## 2026-04-09 Runtime Targets for This Polish Pass
 
-- live pyRevit loading
-- live Revit button launch
-- live Ollama response validation
-- live Snowdon Towers Sample HVAC scenario execution
-- live post-hardening reviewed-code blocking/approved-recipe save flow checks
+1. Ollama Chat still works
+2. ModelMind `select all ducts` still works
+3. reviewed create-sheet flow still works
+4. approved recipe save/load still works
+5. AI Agent successfully handles:
+   - count selected ducts
+   - count all ducts in active view
+   - list ducts in active view
+6. top-right header alignment is fixed
+7. dark-mode dropdown text is readable
+8. dark-mode tree text is readable
+9. disabled buttons remain readable
+
+## 2026-04-09 Runtime Targets for This Provider-Integration Pass
+
+1. ModelMind layout is improved:
+   - input wider
+   - action buttons below input
+2. Ollama Chat still works
+3. AI Agent local planning still handles supported deterministic cases
+4. AI Agent cloud planning can normalize at least:
+   - count selected ducts
+   - count all ducts in active view
+   - list ducts in active view
+   - create sheet
+5. Execute Plan only works for supported reviewed actions
+6. missing `OPENAI_API_KEY` state is handled gracefully
+7. cloud provider failure falls back cleanly or shows a precise error
+
+## Additional Checks Executed In This Provider-Integration Pass
+
+- compiled `AI.extension/lib/ai_local_store.py`
+- compiled `AI.extension/lib/ai_prompt_registry.py`
+- compiled `AI.extension/lib/ai_agent_session.py`
+- compiled `AI.extension/lib/ai_reviewed_code.py`
+- compiled `Model_Service/ModelService.py`
+- compiled `Openai_Server/chatgpt_service.py`
+- reparsed `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+
+## Additional Live Checks Not Executed In This Provider-Integration Pass
+
+- live ModelMind layout verification in Revit
+- live AI Agent local planner verification after provider wiring
+- live AI Agent OpenAI planner normalization with a valid key
+- live missing-key handling verification
+- live cloud request failure verification
 
 ## Acceptance Condition for Next Runtime Pass
 

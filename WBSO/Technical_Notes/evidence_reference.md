@@ -137,3 +137,115 @@ The validator now blocks reviewed code containing unsupported pyRevit runtime re
 - blocking behavior for invalid reviewed code in live Revit
 - successful reviewed-code save flow in live Revit
 - immediate approved-branch refresh after save in live Revit
+
+---
+
+## EV-2026-04-09-001 - UI polish and deterministic reviewed-planner narrowing
+
+### Summary
+
+Polished the AI Workbench header/layout and dark-mode readability, streamlined ModelMind reviewed-code presentation, and narrowed AI Agent into a smaller deterministic reviewed-planner for supported BIM workflows.
+
+### Why It Changed
+
+This pass was needed because the live runtime baseline was working, but the product surface still had:
+
+- header/layout crowding risk
+- dark-mode readability issues for dropdowns, tree text, and disabled actions
+- overly verbose reviewed-code output in ModelMind
+- an AI Agent surface that implied broader autonomy than the current supported runtime
+
+### Live runtime facts already confirmed for this pass
+
+- pyRevit AI tab loads
+- button opens AI Workbench
+- Ollama Chat works
+- theme persistence works across relaunch
+- ModelMind `select all ducts` works in Snowdon Towers Sample HVAC
+- reviewed create-sheet flow works
+- approved recipe save/load works
+
+### What changed in code
+
+- top-right header/button alignment
+- dark-mode dropdown/tree/disabled-control styling
+- show/hide reviewed-code panel for ModelMind
+- clearer approved-recipes branch presentation
+- direct approved-recipe execution from the tree
+- deterministic reviewed-planner support for additional duct-focused requests
+
+### What still requires live validation
+
+- AI Agent deterministic planner handling for the new duct-focused cases
+- top-right header alignment confirmation in live Revit
+- dark-mode dropdown/tree readability confirmation in live Revit
+- disabled-button readability confirmation in live Revit
+
+---
+
+## EV-2026-04-09-002 - Provider-backed reviewed planner integration
+
+### Summary
+
+Integrated a real provider-backed AI Agent planning path using the existing OpenAI service route while keeping execution deterministic and reviewed inside pyRevit.
+
+### Why It Changed
+
+This pass was needed because:
+
+- ModelMind still needed layout polish
+- AI Agent needed a real planning provider path
+- cloud planning needed to respect environment-based secret loading
+- execution still had to remain inside the reviewed deterministic action set
+
+### Code / Repo Areas Affected
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+- `AI.extension/lib/ai_agent_session.py`
+- `AI.extension/lib/ai_prompt_registry.py`
+- `AI.extension/lib/prompt_catalog.json`
+- `Openai_Server/chatgpt_service.py`
+- `Model_Service/ModelService.py`
+
+### What Changed
+
+- widened the ModelMind input and moved its actions below the input
+- added planner provider state/availability UI
+- added local vs OpenAI planner selection
+- loaded `OPENAI_API_KEY` from environment only
+- added provider-state checks for:
+  - local only
+  - cloud available
+  - cloud unavailable: missing key
+  - cloud unavailable: request failed
+- constrained cloud planning to machine-readable supported-action normalization
+- kept execution routed through the deterministic command registry or reviewed `create sheet` template
+
+### What Was Actually Verified Locally
+
+- `Openai_Server/chatgpt_service.py` compiles
+- `Model_Service/ModelService.py` compiles
+- AI support modules compile
+- `UI.xaml` is well-formed XML
+- prompt/approved-recipe JSON files parse
+
+### Live Findings Carried Forward
+
+Previously live-validated findings still in force:
+
+- pyRevit AI tab loads
+- button opens AI Workbench
+- Ollama Chat works
+- theme persistence works
+- ModelMind `select all ducts` works
+- reviewed create-sheet flow works
+- approved recipe save/load works
+
+### What Was Not Yet Verified Live In This Pass
+
+- ModelMind layout polish in live Revit
+- AI Agent local planner handling after this pass
+- AI Agent OpenAI planner normalization with a valid key
+- missing-key UI behavior in live Revit
+- request-failure handling/fallback in live Revit

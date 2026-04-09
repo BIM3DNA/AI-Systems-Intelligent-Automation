@@ -1,90 +1,86 @@
-import sys
+# -*- coding: utf-8 -*-
 import json
-import re
-import inflect  # Make sure to install: pip install inflect
-
-# Inflect engine for singular/plural normalization
-p = inflect.engine()
+import os
+import subprocess
+import sys
 
 
-def normalize(text):
-    """Convert plural nouns to singular (e.g., windows → window)"""
-    return p.singular_noun(text) or text
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+OPENAI_SERVICE_PATH = os.path.join(ROOT_DIR, "Openai_Server", "chatgpt_service.py")
 
 
-def filter_elements(question, model_data):
-    """
-    Filters model_data based on keywords found in the question.
-    Matches are normalized to singular form for robustness.
-    """
+def _candidate_python_commands():
+    candidates = []
 
-    q = question.lower()
-    words_in_question = re.findall(r"\w+", q)  # Extract clean words
-    normalized_words = [normalize(word) for word in words_in_question]
+    if os.environ.get("PYTHON_EXECUTABLE"):
+        candidates.append([os.environ.get("PYTHON_EXECUTABLE")])
 
-    # Define keyword mappings (expandable)
-    category_keywords = {
-        "wall": ["wall", "partition"],
-        "door": ["door", "entry", "exit"],
-        "window": ["window", "fenestration", "opening"],
-        "floor": ["floor", "level", "story"],
-        "roof": ["roof", "covering"],
-        "column": ["column", "pillar"],
-        "beam": ["beam", "girder"],
-        "stair": ["stair", "step", "staircase"],
-        "furniture": ["furniture", "chair", "table", "sofa", "desk"],
-        "fixture": ["fixture", "lighting", "lamp"],
-        "plumbing": ["pipe", "plumbing", "water"],
-        "electrical": ["electrical", "conduit", "cable", "wiring"],
-        "hvac": ["hvac", "air", "vent", "duct"],
-        "structural": ["structural", "steel", "concrete", "reinforcement"],
-        "exterior": ["exterior", "facade", "cladding"],
-        "interior": ["interior"],
-        "landscape": ["landscape", "garden", "tree", "plant"],
+    executable = sys.executable or ""
+    executable_name = os.path.basename(executable).lower()
+    if executable and "ipy" not in executable_name and "ironpython" not in executable_name:
+        candidates.append([executable])
+
+    candidates.append(["py", "-3"])
+    candidates.append(["python"])
+    return candidates
+
+
+def _run_service(command, payload=None, timeout_seconds=20):
+    payload = payload or {}
+    errors = []
+    for python_cmd in _candidate_python_commands():
+        try:
+            process = subprocess.Popen(
+                python_cmd + [OPENAI_SERVICE_PATH, command],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            out, err = process.communicate(
+                input=json.dumps(payload).encode("utf-8"), timeout=timeout_seconds
+            )
+            if process.returncode != 0:
+                try:
+                    data = json.loads(out.decode("utf-8"))
+                    if isinstance(data, dict) and data.get("error"):
+                        errors.append(data.get("error"))
+                        continue
+                except Exception:
+                    pass
+                errors.append(err.decode("utf-8") or "Service request failed.")
+                continue
+
+            data = json.loads(out.decode("utf-8"))
+            if not data.get("ok"):
+                errors.append(data.get("error", "Service returned an error."))
+                continue
+            return {"ok": True, "result": data.get("result"), "python_cmd": python_cmd}
+        except OSError as exc:
+            errors.append(str(exc))
+        except Exception as exc:
+            errors.append(str(exc))
+
+    return {"ok": False, "error": "; ".join([msg for msg in errors if msg]) or "Python service unavailable."}
+
+
+def get_openai_provider_state():
+    state = _run_service("--provider-state", {})
+    if not state.get("ok"):
+        return {
+            "available": False,
+            "state": "request_failed",
+            "message": "Cloud unavailable: request failed",
+            "detail": state.get("error", "Unknown error"),
+        }
+    result = state.get("result") or {}
+    result["detail"] = ""
+    return result
+
+
+def normalize_intent_to_supported_action(user_request, supported_actions, model_name="gpt-4o-mini"):
+    payload = {
+        "user_request": user_request,
+        "supported_actions": supported_actions,
+        "model_name": model_name,
     }
-
-    matched_categories = []
-
-    for category, keywords in category_keywords.items():
-        for word in normalized_words:
-            if word in keywords:
-                matched_categories.append(category)
-                break
-
-    matched_categories = list(set(matched_categories))  # Remove duplicates
-
-    # Debugging print
-    # print("Matched categories:", matched_categories)
-
-    if matched_categories:
-        filtered_elements = []
-        seen_ids = set()
-        for element in model_data:
-            cat_str = element.get("Category", "").lower()
-            for cat in matched_categories:
-                if cat in cat_str:
-                    eid = element.get("Id")
-                    if eid not in seen_ids:
-                        seen_ids.add(eid)
-                        filtered_elements.append(element)
-        return filtered_elements
-    else:
-        return model_data  # fallback if no match
-
-
-if __name__ == "__main__":
-    input_data = sys.stdin.read()
-    try:
-        data = json.loads(input_data)
-        question = data.get("question", "")
-        model_data = data.get("model_data", [])
-
-        matching_elements = filter_elements(question, model_data)
-        count = len(matching_elements)
-
-        response = "Received question: {0}. Number of matching elements: {1}.".format(
-            question, count
-        )
-        print(response)
-    except Exception as e:
-        print("Error: " + str(e))
+    return _run_service("--normalize-intent", payload)

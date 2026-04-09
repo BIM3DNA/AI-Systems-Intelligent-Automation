@@ -38,3 +38,31 @@ ModelMind now treats reviewed code as a governed path rather than a generic exec
 - unsupported Dynamo/DesignScript code is intentionally blocked
 - approved recipes are only created from successful reviewed-code executions
 - `create sheet` now has a pyRevit-safe reviewed template path
+
+## 2026-04-09 Scope Clarification
+
+The current product scope is now:
+
+- `ModelMind` as the main user workflow
+- `Ollama Chat` as the low-risk conversation surface
+- `AI Agent` as a smaller deterministic reviewed-planner for a narrow supported BIM command set
+
+This explicitly excludes any claim of broad autonomous agent capability in the current runtime.
+
+## 2026-04-09 Provider Alignment Update
+
+The current aligned runtime scope is:
+
+- `ModelMind` remains the main user workflow with a wider input area and secondary reviewed-code presentation
+- `AI Agent` now supports:
+  - local deterministic planning
+  - optional OpenAI-backed intent normalization
+- cloud planning is only in scope for reviewed action selection/rejection
+- cloud-generated freeform code execution is explicitly out of scope
+- secrets are only in scope through environment loading via `OPENAI_API_KEY`
+
+Still outside proven live scope for this pass:
+
+- cloud planner behavior in live Revit
+- missing-key and cloud-failure UI states in live Revit
+- post-pass live verification of the ModelMind layout polish

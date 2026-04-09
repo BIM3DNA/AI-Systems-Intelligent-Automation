@@ -165,3 +165,105 @@ Approved recipe persistence needed to remain restricted to successful reviewed-c
 ### Remaining Work
 
 - confirm the save dialog and immediate approved-branch refresh in live Revit
+
+---
+
+## ISSUE-2026-04-09-001
+
+**Title:** Header layout and dark-mode readability still needed product polish after the baseline refactor  
+**Status:** Resolved in code, live UI revalidation pending  
+**Type:** UI / usability
+
+### Description
+
+The AI Workbench still had top-area layout pressure and several dark-mode readability issues, especially around dropdowns, tree text, labels, and disabled buttons.
+
+### Action Taken
+
+- moved theme/close controls fully to the top-right corner
+- stabilized header/model/status layout with grid-based spacing
+- added dark-mode resource styling for dropdowns and tree text
+- improved disabled-button contrast for key gated actions
+- kept light mode behavior intact unless necessary
+
+### Remaining Work
+
+- verify header alignment in live Revit
+- verify dark-mode dropdown/tree/disabled-button readability in live Revit
+
+---
+
+## ISSUE-2026-04-09-002
+
+**Title:** AI Agent scope was too broad for the current supported runtime  
+**Status:** Resolved in code, live planner revalidation pending  
+**Type:** Product scope / deterministic planning
+
+### Description
+
+The AI Agent surface still implied broader autonomous/runtime modes than the implementation actually supported.
+
+### Action Taken
+
+- narrowed AI Agent to a deterministic reviewed-planner
+- removed placeholder runtime choices from the active UX
+- improved supported-intent matching for duct-focused BIM planner requests
+- added clearer guidance when a planner request is unsupported
+
+### Remaining Work
+
+- verify the new deterministic planner cases in live Revit:
+  - count selected ducts
+  - count all ducts in active view
+  - list ducts in active view
+
+---
+
+## ISSUE-2026-04-09-003
+
+**Title:** AI Agent lacked a real provider-backed planning path and clear missing-key behavior  
+**Status:** Resolved in code, live provider revalidation pending  
+**Type:** Provider integration / runtime configuration
+
+### Description
+
+The AI Agent surface had been narrowed conceptually, but it still lacked a real cloud-backed planning path for intent normalization and did not surface environment-based provider availability clearly.
+
+### Action Taken
+
+- reused `Openai_Server/chatgpt_service.py` for planner normalization
+- added `Model_Service/ModelService.py` wrapper methods for provider-state checks and intent normalization
+- limited cloud output to supported action selection or rejection
+- kept all execution inside the deterministic/reviewed pyRevit path
+- made missing `OPENAI_API_KEY` disable cloud mode with explicit UI guidance
+- added provider-state handling for request failures without exposing keys
+
+### Remaining Work
+
+- verify missing-key UI behavior in live Revit
+- verify cloud planner normalization in live Revit with a valid environment key
+- verify cloud request failure handling/fallback in live Revit
+
+---
+
+## ISSUE-2026-04-09-004
+
+**Title:** ModelMind input/actions still needed layout cleanup for real workbench use  
+**Status:** Resolved in code, live UI revalidation pending  
+**Type:** UI / product polish
+
+### Description
+
+ModelMind still used a cramped input/action layout that reduced the usable input width and gave reviewed actions too much visual competition with the prompt tree.
+
+### Action Taken
+
+- widened the ModelMind input field toward the right-side tree edge
+- moved action buttons below the input
+- kept prompt/recipe tree at the right
+- kept reviewed code secondary through the existing collapsible reviewed-code section
+
+### Remaining Work
+
+- verify the new ModelMind input/button spacing in live Revit
+- confirm the reviewed-code secondary presentation still feels clear during real use

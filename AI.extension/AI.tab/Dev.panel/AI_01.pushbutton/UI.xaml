@@ -8,6 +8,45 @@
     WindowStyle="None"
     Background="#eff6ff"
     ResizeMode="NoResize">
+    <Window.Resources>
+        <SolidColorBrush x:Key="ComboBackgroundBrush" Color="#f8fafd"/>
+        <SolidColorBrush x:Key="ComboForegroundBrush" Color="#1f2937"/>
+        <SolidColorBrush x:Key="ComboBorderBrush" Color="#b3cef6"/>
+        <SolidColorBrush x:Key="ComboItemBackgroundBrush" Color="#ffffff"/>
+        <SolidColorBrush x:Key="ComboItemForegroundBrush" Color="#1f2937"/>
+        <SolidColorBrush x:Key="ComboItemHighlightBrush" Color="#dbeafe"/>
+        <SolidColorBrush x:Key="ComboItemHighlightForegroundBrush" Color="#1f2937"/>
+        <SolidColorBrush x:Key="TreeBackgroundBrush" Color="#f8fafd"/>
+        <SolidColorBrush x:Key="TreeForegroundBrush" Color="#1f2937"/>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource ComboBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ComboForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ComboBorderBrush}"/>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="{DynamicResource ComboItemBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ComboItemForegroundBrush}"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ComboItemHighlightBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource ComboItemHighlightForegroundBrush}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ComboItemHighlightBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource ComboItemHighlightForegroundBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="TreeView">
+            <Setter Property="Background" Value="{DynamicResource TreeBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TreeForegroundBrush}"/>
+        </Style>
+        <Style TargetType="TreeViewItem">
+            <Setter Property="Foreground" Value="{DynamicResource TreeForegroundBrush}"/>
+            <Setter Property="Padding" Value="2"/>
+        </Style>
+    </Window.Resources>
     <Border x:Name="MainBorder" CornerRadius="16" BorderBrush="#7aaef7" BorderThickness="2" Background="White" Padding="10">
         <Grid>
             <Grid.RowDefinitions>
@@ -17,23 +56,33 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <DockPanel x:Name="HeaderBar" Grid.Row="0" Margin="0,0,0,8" Cursor="Hand">
-                <StackPanel Orientation="Vertical" Margin="12,0,0,0">
+            <Grid x:Name="HeaderBar" Grid.Row="0" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Vertical" Margin="12,0,16,0">
                     <TextBlock x:Name="HeaderTitle" Text="AI Workbench" VerticalAlignment="Center" FontWeight="Bold" FontSize="20" Foreground="#1f2937"/>
                     <TextBlock x:Name="HeaderSubtitle" Text="Single Revit entry point for chat, ModelMind recipes, and guarded agent planning." FontSize="11" Foreground="#4b5563"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                    <Button x:Name="ThemeToggleButton" Content="Theme: Light" Width="105" Height="26" Margin="10,0,0,0" Background="#f8fafd" Foreground="#1f2937" BorderBrush="#7aaef7" BorderThickness="1" ToolTip="Toggle light and dark window themes. The selection is saved locally."/>
-                    <Button x:Name="CloseButton" Content="Close" Width="60" Height="26" Margin="10,0,0,0" Background="#0085ff" Foreground="White" BorderBrush="#0085ff" BorderThickness="1"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <Button x:Name="ThemeToggleButton" Content="Theme: Light" Width="110" Height="28" Margin="10,0,0,0" Background="#f8fafd" Foreground="#1f2937" BorderBrush="#7aaef7" BorderThickness="1" ToolTip="Toggle light and dark window themes. The selection is saved locally."/>
+                    <Button x:Name="CloseButton" Content="Close" Width="64" Height="28" Margin="10,0,0,0" Background="#0085ff" Foreground="White" BorderBrush="#0085ff" BorderThickness="1"/>
                 </StackPanel>
-            </DockPanel>
+            </Grid>
 
-            <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,6,0,6">
-                <TextBlock x:Name="ModelInfo" Text="Model: Loading..." FontWeight="Bold" Foreground="#0085ff" FontSize="14" VerticalAlignment="Center"/>
-                <Button x:Name="UpgradeButton" Content="Upgrade Model" Width="110" Height="22" Margin="14,0,0,0" FontSize="12" Background="#e0eaff" Foreground="#0066cc" BorderBrush="#0066cc" BorderThickness="1"/>
-                <ComboBox x:Name="ModelSelector" Width="180" Height="22" Margin="14,0,0,0" FontSize="12" VerticalAlignment="Center"/>
-                <TextBlock x:Name="StatusLabel" Text="Status: Idle" FontWeight="Bold" Foreground="#0085ff" FontSize="13" Margin="18,0,0,0" VerticalAlignment="Center"/>
-            </StackPanel>
+            <Grid Grid.Row="1" Margin="0,6,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="ModelInfo" Grid.Column="0" Text="Model: Loading..." FontWeight="Bold" Foreground="#0085ff" FontSize="14" VerticalAlignment="Center"/>
+                <Button x:Name="UpgradeButton" Grid.Column="1" Content="Upgrade Model" Width="110" Height="24" Margin="14,0,0,0" FontSize="12" Background="#e0eaff" Foreground="#0066cc" BorderBrush="#0066cc" BorderThickness="1"/>
+                <ComboBox x:Name="ModelSelector" Grid.Column="2" Width="200" Height="24" Margin="14,0,0,0" FontSize="12" VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusLabel" Grid.Column="3" Text="Ready" FontWeight="Bold" Foreground="#0085ff" FontSize="13" Margin="18,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+            </Grid>
 
             <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,6">
                 <ProgressBar x:Name="BusyBar" Height="8" Width="140" IsIndeterminate="True" Visibility="Collapsed" Foreground="#0085ff" Background="#e0eaff"/>
@@ -61,9 +110,10 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="AI Agent" ToolTip="Advanced planning and reviewed execution surface. Destructive tools remain disabled unless explicitly enabled for the current session.">
+                <TabItem Header="AI Agent" ToolTip="Smaller deterministic reviewed-planner for supported BIM checks and selections.">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -72,7 +122,7 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock x:Name="AgentIntroText" Grid.Row="0" Margin="0,0,0,6" TextWrapping="Wrap" Foreground="#4b5563" Text="AI Agent is the advanced plan and execute surface. Run Agent creates or refreshes a plan only. Execute Plan runs an already reviewed plan."/>
+                        <TextBlock x:Name="AgentIntroText" Grid.Row="0" Margin="0,0,0,6" TextWrapping="Wrap" Foreground="#4b5563" Text="AI Agent is a smaller deterministic reviewed-planner. It only supports a narrow set of BIM workflow plans for now."/>
                         <TextBlock x:Name="AgentWarningText" Grid.Row="1" Margin="0,0,0,8" TextWrapping="Wrap" Foreground="#ef4444" FontWeight="Bold" Text="Destructive tools are OFF by default. Review plans first; modifying commands remain blocked."/>
 
                         <Grid Grid.Row="2" Margin="0,0,0,8">
@@ -80,33 +130,36 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="220"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Text="Agent runtime:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#1f2937" FontWeight="Bold"/>
-                            <ComboBox x:Name="AgentRuntimeSelector" Grid.Column="1" Width="210" Height="26" VerticalAlignment="Center" ToolTip="Execution/runtime label only for now. Planning and execution remain local deterministic workflows in this pass.">
-                                <ComboBoxItem Content="Auto (reviewed deterministic plan)" IsSelected="True"/>
-                                <ComboBoxItem Content="Local: Ollama-assisted planning"/>
-                                <ComboBoxItem Content="Cloud: future provider adapter"/>
+                            <TextBlock Text="Planner mode:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#1f2937" FontWeight="Bold"/>
+                            <ComboBox x:Name="AgentRuntimeSelector" Grid.Column="1" Width="210" Height="26" VerticalAlignment="Center" ToolTip="Choose Local deterministic planning or OpenAI-backed intent normalization when available.">
+                                <ComboBoxItem Content="Local deterministic planner" IsSelected="True"/>
+                                <ComboBoxItem Content="OpenAI planner"/>
                             </ComboBox>
-                            <CheckBox x:Name="AgentAllowDestructive" Grid.Column="2" Margin="16,0,0,0" VerticalAlignment="Center" Content="Allow destructive tools" ToolTip="Disabled by default. When enabled, modifying commands in the reviewed plan may change or delete model data."/>
-                            <TextBlock x:Name="AgentStatus" Grid.Column="3" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="#0085ff" FontWeight="Bold" Text="Agent status: Idle"/>
+                            <TextBlock x:Name="AgentProviderLabel" Grid.Column="2" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="#4b5563" FontWeight="Bold" Text="Planner provider: Local"/>
+                            <CheckBox x:Name="AgentAllowDestructive" Grid.Column="3" Margin="16,0,0,0" VerticalAlignment="Center" Content="Allow destructive tools" ToolTip="Disabled by default. When enabled, modifying commands in the reviewed plan may change or delete model data."/>
+                            <TextBlock x:Name="AgentStatus" Grid.Column="4" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="#0085ff" FontWeight="Bold" Text="Planner ready"/>
                         </Grid>
 
-                        <RichTextBox x:Name="AgentHistory" Grid.Row="3" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="#f8fafd" FontSize="15" BorderBrush="#b3cef6" BorderThickness="1"/>
+                        <TextBlock x:Name="AgentProviderHelp" Grid.Row="3" Margin="0,0,0,8" TextWrapping="Wrap" Foreground="#4b5563" Text="Local deterministic planning is always available. OpenAI planning needs OPENAI_API_KEY and only normalizes requests into supported reviewed actions."/>
 
-                        <Grid Grid.Row="4" Margin="0,10,0,0">
+                        <RichTextBox x:Name="AgentHistory" Grid.Row="4" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="#f8fafd" FontSize="15" BorderBrush="#b3cef6" BorderThickness="1"/>
+
+                        <Grid Grid.Row="5" Margin="0,10,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="150"/>
                                 <ColumnDefinition Width="150"/>
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="AgentGoalInput" Height="32" MaxHeight="80" MinWidth="390" MaxWidth="820" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontSize="14" BorderBrush="#b3cef6" BorderThickness="1" Margin="0,0,10,0" Grid.Column="0" ToolTip="Describe the result you want. Run Agent will produce a reviewed plan; Execute Plan runs the enabled steps."/>
-                            <Button x:Name="AgentRunButton" Content="Run Agent" Width="140" Height="32" Background="#6c5ce7" Foreground="White" FontWeight="Bold" BorderBrush="#6c5ce7" BorderThickness="1" FontSize="14" Grid.Column="1" ToolTip="Generate or refresh a plan only."/>
+                            <Button x:Name="AgentRunButton" Content="Plan Request" Width="140" Height="32" Background="#6c5ce7" Foreground="White" FontWeight="Bold" BorderBrush="#6c5ce7" BorderThickness="1" FontSize="14" Grid.Column="1" ToolTip="Generate or refresh a supported deterministic plan only."/>
                             <Button x:Name="AgentExecuteButton" Content="Execute Plan" Width="140" Height="32" Background="#0984e3" Foreground="White" FontWeight="Bold" BorderBrush="#0984e3" BorderThickness="1" FontSize="14" Grid.Column="2" IsEnabled="False" ToolTip="Execute the currently reviewed plan."/>
                         </Grid>
 
-                        <Grid Grid.Row="5" Margin="0,8,0,0">
+                        <Grid Grid.Row="6" Margin="0,8,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -118,7 +171,7 @@
                                 <ColumnDefinition Width="140"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock x:Name="AgentCommandLegend" Grid.Row="0" Grid.ColumnSpan="4" Margin="0,0,0,6" TextWrapping="Wrap" Foreground="#4b5563" Text="Command labels distinguish [Read-only] and [Modifying] steps. Disable or re-enable reviewed steps for the current session before execution."/>
+                            <TextBlock x:Name="AgentCommandLegend" Grid.Row="0" Grid.ColumnSpan="4" Margin="0,0,0,6" TextWrapping="Wrap" Foreground="#4b5563" Text="Supported planner actions: select all ducts, count selected ducts, count all ducts in active view, list ducts in active view, find unconnected fittings, report elements without system assignment."/>
                             <ComboBox x:Name="AgentCommandSelector" Grid.Row="1" Grid.Column="0" Height="26" Margin="0,0,10,0" VerticalAlignment="Center"/>
                             <Button x:Name="AgentToggleCommandButton" Content="Disable/Enable" Width="120" Height="26" Background="#ffeaa7" Foreground="#2d3436" BorderBrush="#ffeaa7" BorderThickness="1" Grid.Row="1" Grid.Column="1" ToolTip="Enable or disable the selected planned command for this session."/>
                             <Button x:Name="AgentResetCommandsButton" Content="Reset Commands" Width="120" Height="26" Background="#fab1a0" Foreground="#2d3436" BorderBrush="#fab1a0" BorderThickness="1" Grid.Row="1" Grid.Column="2" Margin="10,0,0,0" ToolTip="Clear the current plan and session command state."/>
@@ -138,26 +191,31 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <TextBlock x:Name="ModelMindIntroText" Grid.Row="0" Grid.Column="0" Margin="0,0,10,8" TextWrapping="Wrap" Foreground="#4b5563" Text="ModelMind is the primary task surface for most users. Use the structured prompt catalog for deterministic and semi-generative BIM workflows. Approved recipes are shown in a separate branch."/>
                         <TextBlock x:Name="ReviewedCodeStateLabel" Grid.Row="1" Grid.Column="0" Margin="0,0,10,8" TextWrapping="Wrap" Foreground="#0085ff" FontWeight="Bold" Text="Reviewed code state: draft"/>
                         <RichTextBox x:Name="ModelMindHistory" Grid.Row="2" Grid.Column="0" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="#f8fafd" FontSize="15" BorderBrush="#b3cef6" BorderThickness="1"/>
+                        <GroupBox x:Name="ReviewedCodeGroup" Header="Reviewed Code" Grid.Row="3" Grid.Column="0" Margin="0,10,10,0" Visibility="Collapsed">
+                            <TextBox x:Name="ReviewedCodePreview" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MinHeight="120" MaxHeight="180" BorderThickness="0" Background="#f8fafd" Foreground="#1f2937"/>
+                        </GroupBox>
 
-                        <Grid Grid.Row="3" Grid.Column="0" Margin="0,10,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="170"/>
-                                <ColumnDefinition Width="170"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="ModelMindInput" Height="32" MaxHeight="80" MinWidth="390" MaxWidth="720" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontSize="14" BorderBrush="#b3cef6" BorderThickness="1" Margin="0,0,10,0" Grid.Column="0" ToolTip="Enter a deterministic recipe prompt or a semi-generative BIM task request."/>
-                            <Button x:Name="ModelMindSendButton" Content="Send" Width="90" Height="32" Background="#00b894" Foreground="White" FontWeight="Bold" BorderBrush="#00b894" BorderThickness="1" FontSize="14" Grid.Column="1"/>
-                            <Button x:Name="ApproveCodeButton" Content="Approve &amp; Run Code" Width="150" Height="32" Background="#e17055" Foreground="White" FontWeight="Bold" BorderBrush="#e17055" BorderThickness="1" FontSize="14" Margin="10,0,0,0" Grid.Column="2" ToolTip="Run reviewed generated code. Successful runs can be saved as approved recipes."/>
-                            <Button x:Name="SaveRecipeButton" Content="Save as Approved Recipe" Width="160" Height="32" Background="#3b82f6" Foreground="White" FontWeight="Bold" BorderBrush="#3b82f6" BorderThickness="1" FontSize="13" Margin="10,0,0,0" Grid.Column="3" IsEnabled="False" ToolTip="Available only after a successful reviewed-code execution."/>
+                        <Grid Grid.Row="4" Grid.Column="0" Margin="0,10,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBox x:Name="ModelMindInput" Grid.Row="0" Height="32" MaxHeight="80" MinWidth="390" MaxWidth="1000" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontSize="14" BorderBrush="#b3cef6" BorderThickness="1" Margin="0,0,0,10" ToolTip="Enter a deterministic recipe prompt or a semi-generative BIM task request."/>
+                            <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                                <Button x:Name="ModelMindSendButton" Content="Send" Width="95" Height="32" Background="#00b894" Foreground="White" FontWeight="Bold" BorderBrush="#00b894" BorderThickness="1" FontSize="14" Margin="0,0,10,0"/>
+                                <Button x:Name="ToggleReviewedCodeButton" Content="Show reviewed code" Width="140" Height="32" Background="#475569" Foreground="White" FontWeight="Bold" BorderBrush="#475569" BorderThickness="1" FontSize="12" Margin="0,0,10,0" IsEnabled="False" ToolTip="Show or hide the reviewed code draft."/>
+                                <Button x:Name="ApproveCodeButton" Content="Approve &amp; Run Code" Width="150" Height="32" Background="#e17055" Foreground="White" FontWeight="Bold" BorderBrush="#e17055" BorderThickness="1" FontSize="14" Margin="0,0,10,0" ToolTip="Run reviewed generated code only after validation."/>
+                                <Button x:Name="SaveRecipeButton" Content="Save as Approved Recipe" Width="170" Height="32" Background="#3b82f6" Foreground="White" FontWeight="Bold" BorderBrush="#3b82f6" BorderThickness="1" FontSize="13" Margin="0,0,10,0" IsEnabled="False" ToolTip="Available only after a successful reviewed-code execution."/>
+                            </WrapPanel>
                         </Grid>
 
-                        <GroupBox x:Name="PromptTreeGroup" Header="Available Prompts and Approved Recipes" Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Margin="10,0,0,0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+                        <GroupBox x:Name="PromptTreeGroup" Header="Available Prompts and Approved Recipes" Grid.Row="0" Grid.Column="1" Grid.RowSpan="5" Margin="10,0,0,0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
                             <TreeView x:Name="PromptTree" BorderBrush="#b3cef6" BorderThickness="1"/>
                         </GroupBox>
                     </Grid>
