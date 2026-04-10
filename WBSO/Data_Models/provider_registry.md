@@ -32,3 +32,34 @@ Provider boundary rules:
 - `P-004` does not execute code
 - execution remains bound to `P-002` and the reviewed local recipe path
 - missing-key and request-failure states are surfaced explicitly in the UI
+
+## 2026-04-10 Diagnostics Refinement
+
+The provider-state path now carries safe diagnostic distinctions for:
+
+- key present vs missing key
+- provider reachable vs not reachable
+- auth failure
+- network failure
+- request failure
+- provider ready
+
+The UI-local `local_only` state remains a presentation state used when the local planner is active or when cloud mode is unavailable.
+
+## 2026-04-10 Self-Test Extension
+
+The provider path now also exposes a developer-focused self-test surface that reports:
+
+- environment key visibility
+- module importability
+- client initialization success
+- provider probe request success
+- runtime interpreter identity
+
+Current workspace self-test classification:
+
+- `network_failed`
+
+## 2026-04-10 Responses API Note
+
+The OpenAI planner adapter now targets the OpenAI Responses API for provider probing and supported-action normalization.

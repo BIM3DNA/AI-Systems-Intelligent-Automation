@@ -31,7 +31,11 @@ from ai_agent_session import AgentSession
 from ai_local_store import LocalSettingsStore
 from ai_prompt_registry import PromptCatalog
 from ai_reviewed_code import validate_reviewed_code
-from ModelService import get_openai_provider_state, normalize_intent_to_supported_action
+from ModelService import (
+    get_openai_provider_state,
+    get_openai_provider_self_test,
+    normalize_intent_to_supported_action,
+)
 
 uidoc = revit.uidoc
 doc = revit.doc
@@ -1869,6 +1873,320 @@ def count_ducts_in_active_view(doc, uidoc):
     return "Ducts in active view '{0}': {1}".format(active_view.Name, len(ducts))
 
 
+def _selected_elements_by_categories(doc, uidoc, built_in_categories):
+    selected = []
+    selected_ids = uidoc.Selection.GetElementIds()
+    category_ids = [int(getattr(DB.BuiltInCategory, name)) if isinstance(name, str) else int(name) for name in built_in_categories]
+    for element_id in selected_ids:
+        elem = doc.GetElement(element_id)
+        if (
+            elem
+            and hasattr(elem, "Category")
+            and elem.Category is not None
+            and elem.Category.Id.IntegerValue in category_ids
+        ):
+            selected.append(elem)
+    return selected
+
+
+def report_total_selected_duct_length(doc, uidoc):
+    ducts = _selected_elements_by_categories(doc, uidoc, [DB.BuiltInCategory.OST_DuctCurves])
+    total_length = 0.0
+    for duct in ducts:
+        param = duct.LookupParameter("Length")
+        if param:
+            try:
+                total_length += float(param.AsDouble() * 0.3048)
+            except:
+                pass
+    return "Selected ducts: {0}\nTotal selected duct length: {1:.2f} m".format(len(ducts), total_length)
+
+
+def report_total_selected_duct_volume_cubic_meters(doc, uidoc):
+    ducts = _selected_elements_by_categories(doc, uidoc, [DB.BuiltInCategory.OST_DuctCurves])
+    total_volume = 0.0
+    for duct in ducts:
+        param = duct.LookupParameter("Volume")
+        if param:
+            try:
+                total_volume += float(param.AsDouble() * 0.0283168)
+            except:
+                pass
+    return "Selected ducts: {0}\nTotal selected duct volume: {1:.3f} m³".format(len(ducts), total_volume)
+
+
+def report_ducts_without_system_assignment(doc, uidoc):
+    ducts = (
+        DB.FilteredElementCollector(doc)
+        .OfCategory(DB.BuiltInCategory.OST_DuctCurves)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    missing = []
+    for duct in ducts:
+        param = duct.LookupParameter("System Name")
+        system_name = None
+        if param:
+            try:
+                system_name = param.AsString()
+            except:
+                pass
+        if not system_name:
+            missing.append(duct)
+    lines = ["Ducts without system assignment: {0}".format(len(missing))]
+    for duct in missing[:20]:
+        lines.append("Id: {0}".format(duct.Id.IntegerValue))
+    return "\n".join(lines)
+
+
+def count_selected_pipes(doc, uidoc):
+    pipes = _selected_elements_by_categories(doc, uidoc, [DB.BuiltInCategory.OST_PipeCurves])
+    return "Selected pipes: {0}".format(len(pipes))
+
+
+def report_total_selected_pipe_length(doc, uidoc):
+    pipes = _selected_elements_by_categories(doc, uidoc, [DB.BuiltInCategory.OST_PipeCurves])
+    total_length = 0.0
+    for pipe in pipes:
+        param = pipe.LookupParameter("Length")
+        if param:
+            try:
+                total_length += float(param.AsDouble() * 0.3048)
+            except:
+                pass
+    return "Selected pipes: {0}\nTotal selected pipe length: {1:.2f} m".format(len(pipes), total_length)
+
+
+def find_unconnected_pipe_fittings(doc, uidoc):
+    from System.Collections.Generic import List
+
+    fittings = (
+        DB.FilteredElementCollector(doc)
+        .OfCategory(DB.BuiltInCategory.OST_PipeFitting)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    disconnected = []
+    for fitting in fittings:
+        try:
+            connector_set = fitting.MEPModel.ConnectorManager.Connectors
+        except:
+            connector_set = None
+        if connector_set is None:
+            continue
+        for connector in connector_set:
+            try:
+                if not connector.IsConnected:
+                    disconnected.append(fitting)
+                    break
+            except:
+                continue
+    if disconnected:
+        uidoc.Selection.SetElementIds(List[DB.ElementId]([item.Id for item in disconnected]))
+    lines = ["Unconnected pipe fittings: {0}".format(len(disconnected))]
+    for fitting in disconnected[:20]:
+        lines.append("Id: {0}".format(fitting.Id.IntegerValue))
+    return "\n".join(lines)
+
+
+def report_pipes_without_system_assignment(doc, uidoc):
+    pipes = (
+        DB.FilteredElementCollector(doc)
+        .OfCategory(DB.BuiltInCategory.OST_PipeCurves)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    missing = []
+    for pipe in pipes:
+        param = pipe.LookupParameter("System Name")
+        system_name = None
+        if param:
+            try:
+                system_name = param.AsString()
+            except:
+                pass
+        if not system_name:
+            missing.append(pipe)
+    lines = ["Pipes without system assignment: {0}".format(len(missing))]
+    for pipe in missing[:20]:
+        lines.append("Id: {0}".format(pipe.Id.IntegerValue))
+    return "\n".join(lines)
+
+
+def _electrical_selection_categories():
+    return [
+        DB.BuiltInCategory.OST_ElectricalFixtures,
+        DB.BuiltInCategory.OST_ElectricalEquipment,
+        DB.BuiltInCategory.OST_LightingFixtures,
+        DB.BuiltInCategory.OST_DataDevices,
+        DB.BuiltInCategory.OST_FireAlarmDevices,
+        DB.BuiltInCategory.OST_CommunicationDevices,
+        DB.BuiltInCategory.OST_SecurityDevices,
+        DB.BuiltInCategory.OST_NurseCallDevices,
+    ]
+
+
+def select_all_electrical_fixtures_in_active_view(doc, uidoc):
+    from System.Collections.Generic import List
+
+    active_view = uidoc.ActiveView
+    fixtures = (
+        DB.FilteredElementCollector(doc, active_view.Id)
+        .OfCategory(DB.BuiltInCategory.OST_ElectricalFixtures)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    uidoc.Selection.SetElementIds(List[DB.ElementId]([item.Id for item in fixtures]))
+    return "Selected {0} electrical fixtures in active view '{1}'.".format(len(fixtures), active_view.Name)
+
+
+def count_selected_fixtures_devices(doc, uidoc):
+    elems = _selected_elements_by_categories(doc, uidoc, _electrical_selection_categories())
+    return "Selected fixtures/devices: {0}".format(len(elems))
+
+
+def report_devices_without_circuit_info(doc, uidoc):
+    elems = _selected_elements_by_categories(doc, uidoc, _electrical_selection_categories())
+    missing = []
+    for elem in elems:
+        values = []
+        for param_name in ("Circuit Number", "Panel", "System Type"):
+            param = elem.LookupParameter(param_name)
+            if param:
+                try:
+                    values.append(param.AsString() or "")
+                except:
+                    values.append("")
+        if not [value for value in values if value]:
+            missing.append(elem)
+    lines = ["Selected devices without circuit/system info: {0}".format(len(missing))]
+    for elem in missing[:20]:
+        lines.append("Id: {0}, Category: {1}".format(elem.Id.IntegerValue, get_elem_name(elem.Category) if elem.Category else "(no category)"))
+    return "\n".join(lines)
+
+
+def list_fixtures_by_type_in_active_view(doc, uidoc):
+    active_view = uidoc.ActiveView
+    fixtures = (
+        DB.FilteredElementCollector(doc, active_view.Id)
+        .OfCategory(DB.BuiltInCategory.OST_ElectricalFixtures)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    counts = {}
+    for elem in fixtures:
+        elem_type = doc.GetElement(elem.GetTypeId())
+        type_name = get_elem_name(elem_type) if elem_type else "(no type)"
+        counts[type_name] = counts.get(type_name, 0) + 1
+    lines = ["Electrical fixtures by type in active view '{0}':".format(active_view.Name)]
+    for type_name in sorted(counts.keys()):
+        lines.append("{0}: {1}".format(type_name, counts[type_name]))
+    return "\n".join(lines)
+
+
+def report_selected_elements_by_category(doc, uidoc):
+    elems = [doc.GetElement(element_id) for element_id in uidoc.Selection.GetElementIds()]
+    counts = {}
+    for elem in elems:
+        if not elem or not getattr(elem, "Category", None):
+            continue
+        category_name = get_elem_name(elem.Category)
+        counts[category_name] = counts.get(category_name, 0) + 1
+    lines = ["Selected elements by category:"]
+    for category_name in sorted(counts.keys()):
+        lines.append("{0}: {1}".format(category_name, counts[category_name]))
+    return "\n".join(lines)
+
+
+def report_selected_elements_by_type(doc, uidoc):
+    elems = [doc.GetElement(element_id) for element_id in uidoc.Selection.GetElementIds()]
+    counts = {}
+    for elem in elems:
+        if not elem:
+            continue
+        elem_type = doc.GetElement(elem.GetTypeId()) if hasattr(elem, "GetTypeId") else None
+        type_name = get_elem_name(elem_type) if elem_type else get_elem_name(elem)
+        counts[type_name] = counts.get(type_name, 0) + 1
+    lines = ["Selected elements by type:"]
+    for type_name in sorted(counts.keys()):
+        lines.append("{0}: {1}".format(type_name, counts[type_name]))
+    return "\n".join(lines)
+
+
+def health_check_for_active_view_selection(doc, uidoc):
+    elems = [doc.GetElement(element_id) for element_id in uidoc.Selection.GetElementIds()]
+    lines = [
+        "Selection health check",
+        "Active view: {0}".format(uidoc.ActiveView.Name),
+        "Selected elements: {0}".format(len([elem for elem in elems if elem])),
+    ]
+    category_counts = {}
+    for elem in elems:
+        if elem and getattr(elem, "Category", None):
+            category_name = get_elem_name(elem.Category)
+            category_counts[category_name] = category_counts.get(category_name, 0) + 1
+    for category_name in sorted(category_counts.keys()):
+        lines.append("{0}: {1}".format(category_name, category_counts[category_name]))
+    return "\n".join(lines)
+
+
+def report_missing_parameters_from_selection(doc, uidoc):
+    elems = [doc.GetElement(element_id) for element_id in uidoc.Selection.GetElementIds()]
+    parameter_names = ["Mark", "Comments", "Type Mark", "System Name", "Circuit Number"]
+    lines = ["Missing parameters from selection:"]
+    for param_name in parameter_names:
+        missing_count = 0
+        for elem in elems:
+            if not elem:
+                continue
+            param = elem.LookupParameter(param_name)
+            value = None
+            if param:
+                try:
+                    value = param.AsString()
+                except:
+                    value = None
+            if not value:
+                missing_count += 1
+        lines.append("{0}: missing on {1} selected element(s)".format(param_name, missing_count))
+    return "\n".join(lines)
+
+
+def create_3d_view_from_selection(doc, uidoc):
+    from Autodesk.Revit.DB import FilteredElementCollector, Transaction, View3D, ViewFamily, ViewFamilyType
+
+    view_type = None
+    for candidate in FilteredElementCollector(doc).OfClass(ViewFamilyType):
+        try:
+            if candidate.ViewFamily == ViewFamily.ThreeDimensional:
+                view_type = candidate
+                break
+        except:
+            continue
+    if view_type is None:
+        return "Failed: no 3D view family type exists in the current project."
+
+    transaction = Transaction(doc, "Create AI 3D View")
+    transaction.Start()
+    try:
+        view3d = View3D.CreateIsometric(doc, view_type.Id)
+        if view3d is None:
+            transaction.RollBack()
+            return "Failed: View3D.CreateIsometric returned no view."
+        try:
+            view3d.Name = "AI 3D View"
+        except:
+            pass
+        transaction.Commit()
+        return "Created 3D view: {0}".format(view3d.Name)
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return "Failed to create 3D view: {0}".format(str(exc))
+
+
 def delete_all_ducts(doc, uidoc):
     from Autodesk.Revit.DB import BuiltInCategory, FilteredElementCollector, Transaction
 
@@ -2900,8 +3218,79 @@ MODELMIND_COMMANDS = [
 ]
 
 
+REVIEWED_ACTION_HANDLERS = {
+    "select_all_ducts": select_all_ducts,
+    "count_selected_ducts": count_selected_ducts,
+    "count_ducts_in_active_view": count_ducts_in_active_view,
+    "list_ducts_in_active_view": list_ducts_in_active_view,
+    "report_total_selected_duct_length": report_total_selected_duct_length,
+    "report_total_selected_duct_volume_cubic_meters": report_total_selected_duct_volume_cubic_meters,
+    "find_unconnected_duct_fittings": find_unconnected_fittings,
+    "report_ducts_without_system_assignment": report_ducts_without_system_assignment,
+    "select_all_pipes": select_all_pipes,
+    "count_selected_pipes": count_selected_pipes,
+    "report_total_selected_pipe_length": report_total_selected_pipe_length,
+    "find_unconnected_pipe_fittings": find_unconnected_pipe_fittings,
+    "report_pipes_without_system_assignment": report_pipes_without_system_assignment,
+    "select_all_electrical_fixtures_in_active_view": select_all_electrical_fixtures_in_active_view,
+    "count_selected_fixtures_devices": count_selected_fixtures_devices,
+    "report_devices_without_circuit_info": report_devices_without_circuit_info,
+    "list_fixtures_by_type_in_active_view": list_fixtures_by_type_in_active_view,
+    "report_selected_elements_by_category": report_selected_elements_by_category,
+    "report_selected_elements_by_type": report_selected_elements_by_type,
+    "health_check_for_active_view_selection": health_check_for_active_view_selection,
+    "report_missing_parameters_from_selection": report_missing_parameters_from_selection,
+    "create_3d_view_from_selection": create_3d_view_from_selection,
+}
+
+
+def execute_reviewed_action_handler(handler_name, doc, uidoc):
+    handler = REVIEWED_ACTION_HANDLERS.get(handler_name)
+    if handler is None:
+        return None
+    return handler(doc, uidoc)
+
+
 def handle_public_command(prompt, doc, uidoc):
     p = prompt.lower()
+    if "report total selected duct length" in p or "total selected duct length" in p or "length of selected ducts" in p:
+        return report_total_selected_duct_length(doc, uidoc)
+    if (
+        "report total selected duct volume in cubic meters" in p
+        or "total selected duct volume in m3" in p
+        or "total selected duct volume in cubic meters" in p
+        or "volume of selected ducts" in p
+        or "selected duct volume" in p
+    ):
+        return report_total_selected_duct_volume_cubic_meters(doc, uidoc)
+    if "report ducts without system assignment" in p:
+        return report_ducts_without_system_assignment(doc, uidoc)
+    if "count selected pipes" in p or "how many pipes are selected" in p:
+        return count_selected_pipes(doc, uidoc)
+    if "report total selected pipe length" in p or "total selected pipe length" in p or "length of selected pipes" in p:
+        return report_total_selected_pipe_length(doc, uidoc)
+    if "find unconnected pipe fittings" in p or "find disconnected pipe fittings" in p:
+        return find_unconnected_pipe_fittings(doc, uidoc)
+    if "report pipes without system assignment" in p:
+        return report_pipes_without_system_assignment(doc, uidoc)
+    if "select all electrical fixtures in active view" in p or "select electrical fixtures in active view" in p:
+        return select_all_electrical_fixtures_in_active_view(doc, uidoc)
+    if "count selected fixtures/devices" in p or "count selected fixtures" in p or "count selected devices" in p:
+        return count_selected_fixtures_devices(doc, uidoc)
+    if "report devices without circuit/system info" in p or "report devices without circuit info" in p:
+        return report_devices_without_circuit_info(doc, uidoc)
+    if "list fixtures by type in active view" in p or "list electrical fixtures by type" in p:
+        return list_fixtures_by_type_in_active_view(doc, uidoc)
+    if "report selected elements by category" in p:
+        return report_selected_elements_by_category(doc, uidoc)
+    if "report selected elements by type" in p:
+        return report_selected_elements_by_type(doc, uidoc)
+    if "health check for active view selection" in p or "selection health check" in p:
+        return health_check_for_active_view_selection(doc, uidoc)
+    if "report missing parameters from selection" in p or "missing parameters from selection" in p:
+        return report_missing_parameters_from_selection(doc, uidoc)
+    if "create 3d view from selection/context" in p or "create 3d view from selection" in p or "create 3d view" in p:
+        return create_3d_view_from_selection(doc, uidoc)
     if p.startswith("super-select"):
         # Example: "super-select walls, columns, beams"
         cats = re.findall(r"super-select\s+(.*)", p)
@@ -3445,17 +3834,28 @@ class OllamaAIChat(forms.WPFWindow):
         return "cloud" if "OpenAI" in str(text) else "local"
 
     def update_planner_provider_ui(self, state, detail=None):
-        label = "Planner provider: Local"
-        if state == "available":
-            label = "Planner provider: OpenAI"
-        elif state == "local_only":
-            label = "Planner provider: Local only"
-        elif state == "missing_api_key":
-            label = "Planner provider: Cloud unavailable"
+        diagnostics = self.cloud_provider_state or {}
+        label = "Planner provider: Local deterministic planner"
+        if state == "provider_ready":
+            label = "Planner provider: OpenAI ready"
+        elif state == "missing_openai_module":
+            label = "Planner provider: OpenAI module missing"
+        elif state == "client_init_failed":
+            label = "Planner provider: OpenAI client init failed"
+        elif state == "key_present":
+            label = "Planner provider: OpenAI key present"
+        elif state == "missing_key":
+            label = "Planner provider: OpenAI missing key"
+        elif state == "auth_failed":
+            label = "Planner provider: OpenAI auth failed"
+        elif state == "network_failed":
+            label = "Planner provider: OpenAI network failed"
         elif state == "request_failed":
-            label = "Planner provider: Cloud request failed"
+            label = "Planner provider: OpenAI request failed"
+        elif state == "local_only":
+            label = "Planner provider: Local deterministic planner"
         elif state == "local":
-            label = "Planner provider: Local"
+            label = "Planner provider: Local deterministic planner"
         try:
             self.AgentProviderLabel.Text = label
             if detail:
@@ -3463,14 +3863,63 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             pass
         try:
-            if state == "available":
-                self.AgentProviderHelp.Text = "OpenAI planning is available. Cloud planning only normalizes requests into supported reviewed actions."
-            elif state == "local_only":
-                self.AgentProviderHelp.Text = "Cloud planning is unavailable because OPENAI_API_KEY is missing. Local deterministic planning remains available."
+            diagnostic = "Key present: {0} | Provider reachable: {1} | Last error: {2}".format(
+                "yes" if diagnostics.get("key_present") else "no",
+                "yes" if diagnostics.get("provider_reachable") else "no",
+                diagnostics.get("last_error_category") or "none",
+            )
+            if state == "provider_ready":
+                self.AgentProviderHelp.Text = (
+                    "OpenAI planning is available for intent normalization only. "
+                    "Execution still runs through reviewed deterministic actions. "
+                    + diagnostic
+                )
+            elif state == "missing_key":
+                self.AgentProviderHelp.Text = (
+                    "Cloud planning is unavailable because OPENAI_API_KEY is missing from the current process environment. "
+                    "Local deterministic planning remains available. "
+                    + diagnostic
+                )
+            elif state == "missing_openai_module":
+                self.AgentProviderHelp.Text = (
+                    "OPENAI_API_KEY is visible, but the Python runtime used by the cloud planner cannot import the openai module. "
+                    "Local deterministic planning remains available. "
+                    + diagnostic
+                )
+            elif state == "client_init_failed":
+                self.AgentProviderHelp.Text = (
+                    "OPENAI_API_KEY is visible, but OpenAI client initialization failed in the runtime used by the cloud planner. "
+                    "Local deterministic planning remains available. "
+                    + diagnostic
+                )
+            elif state == "auth_failed":
+                self.AgentProviderHelp.Text = (
+                    "Cloud planning reached OpenAI but authentication or permission failed. "
+                    "Local deterministic planning remains available. "
+                    + diagnostic
+                )
+            elif state == "network_failed":
+                self.AgentProviderHelp.Text = (
+                    "Cloud planning could not reach OpenAI due to a network or timeout issue. "
+                    "Local deterministic planning remains available. "
+                    + diagnostic
+                )
             elif state == "request_failed":
-                self.AgentProviderHelp.Text = "Cloud planning request failed. Local deterministic planning remains available."
+                self.AgentProviderHelp.Text = (
+                    "Cloud planning failed due to request, quota, or model configuration issues. "
+                    "Local deterministic planning remains available. "
+                    + diagnostic
+                )
+            elif state == "key_present":
+                self.AgentProviderHelp.Text = (
+                    "OpenAI key is present. Cloud planning remains a reviewed normalization step only. "
+                    + diagnostic
+                )
             else:
-                self.AgentProviderHelp.Text = "Local deterministic planning is active. Cloud planning is optional and never executes raw code."
+                self.AgentProviderHelp.Text = (
+                    "Local deterministic planning is active. Cloud planning is optional and never executes raw code. "
+                    + diagnostic
+                )
         except:
             pass
 
@@ -3481,23 +3930,25 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             if self.AgentRuntimeSelector.Items.Count > 1:
                 openai_item = self.AgentRuntimeSelector.Items[1]
-                openai_item.IsEnabled = bool(provider_state.get("available"))
+                openai_item.IsEnabled = bool(provider_state.get("key_present"))
         except:
             pass
 
-        if not provider_state.get("available") and selected_mode == "cloud":
+        if provider_state.get("state") == "missing_key" and selected_mode == "cloud":
             self.AgentRuntimeSelector.SelectedIndex = 0
             selected_mode = "local"
 
-        if selected_mode == "cloud" and provider_state.get("available"):
-            self.update_planner_provider_ui("available", provider_state.get("message"))
+        if selected_mode == "cloud" and provider_state.get("state") == "provider_ready":
+            self.update_planner_provider_ui("provider_ready", provider_state.get("message"))
         else:
             state = "local"
-            if not provider_state.get("available"):
-                state = "local_only" if provider_state.get("state") == "missing_api_key" else provider_state.get("state")
+            if selected_mode == "cloud":
+                state = provider_state.get("state", "request_failed")
+            elif provider_state.get("state") == "missing_key":
+                state = "local_only"
             self.update_planner_provider_ui(state, provider_state.get("message"))
 
-        if not provider_state.get("available"):
+        if provider_state.get("state") == "missing_key":
             try:
                 notice = "{0}\nSet OPENAI_API_KEY in the environment to enable cloud planning.".format(
                     provider_state.get("message", "Cloud unavailable")
@@ -3507,6 +3958,74 @@ class OllamaAIChat(forms.WPFWindow):
                     self.last_provider_notice = notice
             except:
                 pass
+        elif provider_state.get("state") in ("auth_failed", "network_failed", "request_failed"):
+            try:
+                notice = "{0}\nLocal deterministic planning remains available.".format(
+                    provider_state.get("message", "Cloud planner request failed.")
+                )
+                if notice != self.last_provider_notice:
+                    self.AgentHistory.AppendText("{0}\n\n".format(notice))
+                    self.last_provider_notice = notice
+            except:
+                pass
+        elif provider_state.get("state") in ("missing_openai_module", "client_init_failed"):
+            try:
+                notice = "{0}\nUse 'cloud planner self test' in AI Agent to inspect the runtime and dependency state.".format(
+                    provider_state.get("message", "Cloud planner initialization failed.")
+                )
+                if notice != self.last_provider_notice:
+                    self.AgentHistory.AppendText("{0}\n\n".format(notice))
+                    self.last_provider_notice = notice
+            except:
+                pass
+
+    def _is_cloud_self_test_request(self, goal):
+        goal_text = (goal or "").strip().lower()
+        return (
+            "cloud planner self test" in goal_text
+            or "cloud self test" in goal_text
+            or "planner self test" in goal_text
+            or "openai self test" in goal_text
+        )
+
+    def _format_provider_self_test(self, result):
+        return (
+            "Cloud planner self test\n"
+            "env_key_present: {0}\n"
+            "openai_module_importable: {1}\n"
+            "client_init_ok: {2}\n"
+            "test_request_ok: {3}\n"
+            "failure_category: {4}\n"
+            "failure_message_safe: {5}\n"
+            "runtime_executable: {6}\n"
+            "runtime_version: {7}\n"
+            "runtime_command: {8}\n"
+        ).format(
+            "yes" if result.get("env_key_present") else "no",
+            "yes" if result.get("openai_module_importable") else "no",
+            "yes" if result.get("client_init_ok") else "no",
+            "yes" if result.get("test_request_ok") else "no",
+            result.get("failure_category", ""),
+            result.get("failure_message_safe", ""),
+            result.get("runtime_executable", ""),
+            result.get("runtime_version", ""),
+            result.get("runtime_command", ""),
+        )
+
+    def run_cloud_planner_self_test(self):
+        result = get_openai_provider_self_test()
+        self.cloud_provider_state = get_openai_provider_state()
+        self.update_planner_provider_ui(
+            self.cloud_provider_state.get("state", "local"),
+            self.cloud_provider_state.get("message"),
+        )
+        self.AgentHistory.AppendText("{0}\n".format(self._format_provider_self_test(result)))
+        if result.get("failure_category") == "provider_ready":
+            self.set_agent_status("idle")
+            self.update_window_status("idle", "Cloud planner self test passed")
+        else:
+            self.set_agent_status("failed")
+            self.update_window_status("failed", "Cloud planner self test")
 
     def apply_theme(self, theme_name):
         palette = THEMES.get(theme_name, THEMES["light"])
@@ -3908,6 +4427,37 @@ class OllamaAIChat(forms.WPFWindow):
                 self.reset_reviewed_code_state("saved", "Approved recipe executed from reviewed store.")
                 return
 
+            if source_entry and source_entry.get("deterministic_handler"):
+                if source_entry.get("deterministic_handler") == "create_sheet_reviewed_template":
+                    reviewed_code = build_create_sheet_reviewed_code()
+                    self.ModelMindHistory.AppendText(
+                        "Reviewed code draft\nPrepared reviewed create-sheet action from the shared registry.\n"
+                    )
+                    validation = self.validate_and_prepare_reviewed_code(reviewed_code, prompt)
+                    if validation.get("is_valid"):
+                        self.ModelMindHistory.AppendText(
+                            "Reviewed code validated\nUse Approve & Run Code to execute.\n"
+                        )
+                        self.update_window_status("ready_to_execute", "Reviewed create sheet action validated")
+                    else:
+                        self.ModelMindHistory.AppendText(
+                            "Reviewed code blocked before approval.\n"
+                        )
+                        self.update_window_status("failed", "Reviewed create sheet action blocked")
+                    return
+                reviewed_result = execute_reviewed_action_handler(
+                    source_entry.get("deterministic_handler"),
+                    doc,
+                    uidoc,
+                )
+                if reviewed_result:
+                    self.ModelMindHistory.AppendText(
+                        "Deterministic result\n{0}\n\n".format(reviewed_result)
+                    )
+                    self.reset_reviewed_code_state("draft", "Reviewed action returned from shared registry.")
+                    self.update_window_status("ready_to_execute", "Deterministic result complete")
+                    return
+
             public_cmd_result = handle_public_command(prompt, doc, uidoc)
             if public_cmd_result:
                 self.ModelMindHistory.AppendText(
@@ -4149,6 +4699,14 @@ class OllamaAIChat(forms.WPFWindow):
         if not goal:
             return
 
+        if self._is_cloud_self_test_request(goal):
+            self.AgentHistory.AppendText("Planner request\n{0}\n".format(goal))
+            self.run_cloud_planner_self_test()
+            self.AgentExecuteButton.IsEnabled = False
+            self.populate_agent_command_selector()
+            self.refresh_action_button_states()
+            return
+
         self.agent_session.refresh_catalog(self.catalog.get_agent_commands())
         self.set_agent_status("planning")
         self.update_window_status("planning", "Planner request")
@@ -4156,19 +4714,35 @@ class OllamaAIChat(forms.WPFWindow):
         mode = self.get_selected_planner_mode()
         plan_object = None
 
-        if mode == "cloud" and self.cloud_provider_state.get("available"):
+        if mode == "cloud" and self.cloud_provider_state.get("state") == "provider_ready":
             cloud_result = self._build_cloud_plan(goal)
-            if cloud_result.get("provider_state") == "request_failed":
-                self.update_planner_provider_ui("request_failed", cloud_result.get("error"))
+            if cloud_result.get("provider_state") != "provider_ready":
+                self.cloud_provider_state = {
+                    "available": False,
+                    "state": cloud_result.get("provider_state", "request_failed"),
+                    "key_state": "key_present",
+                    "key_present": True,
+                    "provider_reachable": bool(cloud_result.get("provider_reachable", False)),
+                    "last_error_category": cloud_result.get("last_error_category", cloud_result.get("provider_state", "request_failed")),
+                    "message": cloud_result.get("message", cloud_result.get("error", "Cloud planner request failed.")),
+                    "detail": cloud_result.get("detail", cloud_result.get("error", "")),
+                }
+                self.update_planner_provider_ui(
+                    self.cloud_provider_state.get("state"),
+                    self.cloud_provider_state.get("message"),
+                )
                 self.AgentHistory.AppendText(
-                    "Cloud planner request failed.\nFalling back to local deterministic planning.\n\n"
+                    "{0}\nFalling back to local deterministic planning.\n\n".format(
+                        self.cloud_provider_state.get("message", "Cloud planner request failed.")
+                    )
                 )
                 plan_object = self._build_local_plan(goal)
             else:
-                self.update_planner_provider_ui("available", "Planner provider: OpenAI")
+                self.cloud_provider_state = dict(get_openai_provider_state())
+                self.update_planner_provider_ui("provider_ready", self.cloud_provider_state.get("message"))
                 plan_object = cloud_result.get("plan")
         else:
-            if mode == "cloud" and not self.cloud_provider_state.get("available"):
+            if mode == "cloud" and self.cloud_provider_state.get("state") != "provider_ready":
                 self.AgentHistory.AppendText(
                     "{0}\nUsing local deterministic planning instead.\n\n".format(
                         self.cloud_provider_state.get("message", "Cloud planner unavailable.")
@@ -4176,7 +4750,7 @@ class OllamaAIChat(forms.WPFWindow):
                 )
             self.update_planner_provider_ui(
                 self.cloud_provider_state.get("state", "local")
-                if not self.cloud_provider_state.get("available")
+                if mode == "cloud"
                 else "local",
                 self.cloud_provider_state.get("message"),
             )
@@ -4210,7 +4784,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.refresh_action_button_states()
 
     def _execute_agent_step(self, step):
-        if step.get("id") == "create-sheet-reviewed-template":
+        if step.get("deterministic_handler") == "create_sheet_reviewed_template" or step.get("id") == "create-sheet-reviewed-template":
             validation = self.validate_and_prepare_reviewed_code(
                 build_create_sheet_reviewed_code(),
                 "create sheet",
@@ -4218,6 +4792,10 @@ class OllamaAIChat(forms.WPFWindow):
             if not validation.get("is_valid"):
                 return "Reviewed create-sheet template is blocked."
             return run_code_in_revit(validation.get("sanitized_code"), doc, uidoc)
+        if step.get("deterministic_handler"):
+            result = execute_reviewed_action_handler(step.get("deterministic_handler"), doc, uidoc)
+            if result is not None:
+                return result
         result = handle_public_command(step.get("prompt_text", ""), doc, uidoc)
         if result is None:
             return "No deterministic executor is available for this step."
@@ -4238,8 +4816,12 @@ class OllamaAIChat(forms.WPFWindow):
         )
         if not response.get("ok"):
             return {
-                "provider_state": "request_failed",
+                "provider_state": response.get("state", "request_failed"),
+                "message": response.get("message", response.get("error", "Cloud planner request failed.")),
                 "error": response.get("error", "Cloud planner request failed."),
+                "provider_reachable": bool(response.get("provider_reachable", False)),
+                "last_error_category": response.get("last_error_category", "request_failed"),
+                "detail": response.get("detail", ""),
             }
 
         result = response.get("result") or {}
@@ -4251,20 +4833,20 @@ class OllamaAIChat(forms.WPFWindow):
                 "confidence": float(result.get("confidence", 0.0) or 0.0),
                 "requires_modification": False,
                 "destructive": False,
-                "summary": result.get("summary", "Unsupported request."),
+                "summary": result.get("summary", self.agent_session._build_unsupported_summary(goal)),
                 "execution_ready": False,
             }
             self.agent_session.status = "failed"
             self.agent_session.message = "Unsupported request"
-            self.agent_session.guidance = self.agent_session.SUPPORTED_MESSAGE
-            return {"provider_state": "available", "plan": self.agent_session.plan_object}
+            self.agent_session.guidance = self.agent_session.plan_object["summary"]
+            return {"provider_state": "provider_ready", "plan": self.agent_session.plan_object}
 
         plan = self.agent_session.build_plan_from_action(
             action_id,
             result.get("confidence", 0.0),
             result.get("summary", "OpenAI planner matched a supported action."),
         )
-        return {"provider_state": "available", "plan": plan}
+        return {"provider_state": "provider_ready", "plan": plan}
 
     def _append_plan_object(self, plan_object):
         if not plan_object:

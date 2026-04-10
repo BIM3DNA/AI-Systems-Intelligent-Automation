@@ -2,10 +2,8 @@
 
 
 class AgentSession(object):
-    SUPPORTED_MESSAGE = (
-        "Supported planner requests: select all ducts; count selected ducts; "
-        "count all ducts in active view; list ducts in active view; "
-        "find unconnected fittings; report elements without system assignment; create sheet."
+    VOLUME_CANDIDATE_MESSAGE = (
+        "Candidate near-term action: report total volume of selected ducts in cubic meters."
     )
 
     def __init__(self, commands=None):
@@ -17,6 +15,14 @@ class AgentSession(object):
         self.catalog = {}
         for command in commands:
             self.catalog[command.get("id")] = dict(command)
+        supported_titles = []
+        for command in commands:
+            title = command.get("title")
+            if title:
+                supported_titles.append(title)
+        self.supported_message = "Supported reviewed actions: {0}.".format(
+            "; ".join(supported_titles)
+        ) if supported_titles else "No shared reviewed actions are currently registered."
 
     def reset(self):
         self.goal = ""
@@ -24,7 +30,7 @@ class AgentSession(object):
         self.plan_object = None
         self.status = "idle"
         self.message = "Idle"
-        self.guidance = self.SUPPORTED_MESSAGE
+        self.guidance = getattr(self, "supported_message", "No shared reviewed actions are currently registered.")
 
     def set_allow_destructive(self, enabled):
         self.allow_destructive = bool(enabled)
@@ -45,6 +51,9 @@ class AgentSession(object):
                     "id": command.get("id"),
                     "title": command.get("title"),
                     "prompt_text": command.get("prompt_text"),
+                    "planner_aliases": list(command.get("planner_aliases") or []),
+                    "deterministic_handler": command.get("deterministic_handler", ""),
+                    "requires_confirmation": bool(command.get("requires_confirmation", False)),
                     "requires_modification": command.get("role") == "modify",
                     "destructive": command.get("risk_level") == "high",
                 }
@@ -53,61 +62,78 @@ class AgentSession(object):
 
     def _match_goal(self, goal_text):
         goal = (goal_text or "").lower()
-        ordered_ids = []
-
-        def add_if_found(command_id, *phrases):
+        matches = []
+        for command_id, command in self.catalog.items():
+            phrases = []
+            phrases.extend(command.get("planner_aliases") or [])
+            phrases.append(command.get("prompt_text", ""))
+            phrases.append(command.get("title", ""))
+            best_score = 0
             for phrase in phrases:
-                if phrase in goal and command_id not in ordered_ids:
-                    ordered_ids.append(command_id)
-                    return
+                phrase = (phrase or "").strip().lower()
+                if not phrase:
+                    continue
+                if goal == phrase:
+                    best_score = max(best_score, 100 + len(phrase))
+                elif phrase in goal:
+                    best_score = max(best_score, 50 + len(phrase))
+                elif all(token in goal for token in phrase.split() if len(token) > 2):
+                    best_score = max(best_score, 10 + len(phrase))
+            if best_score:
+                matches.append((best_score, command_id))
+        matches.sort(reverse=True)
+        return matches
 
-        add_if_found("select-all-ducts", "select all ducts", "select ducts")
-        add_if_found(
-            "count-selected-ducts",
-            "count selected ducts",
-            "count the selected ducts",
-            "how many selected ducts are there",
-            "how many selected ducts",
+    def _build_unsupported_summary(self, goal_text):
+        goal = (goal_text or "").lower()
+        if "schedule" in goal or "quantity" in goal:
+            return (
+                "Schedule creation or quantity schedule generation is not yet implemented as "
+                "a reviewed deterministic action. Closest supported reviewed actions include "
+                "count selected ducts; count ducts in active view; list ducts in active view; create sheet. "
+                + self.VOLUME_CANDIDATE_MESSAGE
+            )
+        if "volume" in goal and "duct" in goal:
+            return (
+                "If the shared reviewed action registry does not yet include a matching duct-volume action, "
+                "the request remains unsupported. Closest supported reviewed actions include count selected ducts "
+                "and list ducts in active view. "
+                + self.VOLUME_CANDIDATE_MESSAGE
+            )
+        return (
+            "This request is outside the current reviewed deterministic action set. "
+            + self.supported_message
         )
-        add_if_found(
-            "count-ducts-active-view",
-            "count all ducts in active view",
-            "count ducts in active view",
-            "how many ducts are in active view",
-        )
-        add_if_found(
-            "list-ducts-active-view",
-            "list ducts in active view",
-            "list all ducts in active view",
-            "ducts in active view",
-        )
-        add_if_found("find-unconnected-fittings", "unconnected fittings", "find unconnected fittings")
-        add_if_found(
-            "report-elements-without-system-assignment",
-            "without system assignment",
-            "system assignment",
-        )
-        add_if_found(
-            "create-sheet-reviewed-template",
-            "create sheet",
-            "make a sheet",
-            "create a sheet for me",
-            "make sheet",
-        )
-
-        return ordered_ids
 
     def plan_goal(self, goal_text):
         self.reset()
         self.goal = goal_text or ""
         self.status = "planning"
         self.message = "Planning"
-        matched_ids = self._match_goal(goal_text)
-        if matched_ids:
+        matches = self._match_goal(goal_text)
+        if matches:
+            if len(matches) > 1 and matches[0][0] == matches[1][0]:
+                first = self.catalog.get(matches[0][1], {})
+                second = self.catalog.get(matches[1][1], {})
+                self.plan_object = {
+                    "matched_action": "",
+                    "confidence": 0.0,
+                    "requires_modification": False,
+                    "destructive": False,
+                    "summary": "Ambiguous request. Did you mean '{0}' or '{1}'?".format(
+                        first.get("title", matches[0][1]),
+                        second.get("title", matches[1][1]),
+                    ),
+                    "execution_ready": False,
+                }
+                self.status = "failed"
+                self.message = "Needs clarification"
+                self.guidance = self.plan_object["summary"]
+                return list(self.plan)
             self.build_plan_from_action(
-                matched_ids[0],
+                matches[0][1],
                 confidence=0.75,
-                summary="Local deterministic planner matched a supported action.",
+                summary="Planner matched a shared reviewed action.",
             )
         else:
             self.plan_object = {
@@ -115,12 +141,12 @@ class AgentSession(object):
                 "confidence": 0.0,
                 "requires_modification": False,
                 "destructive": False,
-                "summary": "Unsupported request.",
+                "summary": self._build_unsupported_summary(goal_text),
                 "execution_ready": False,
             }
             self.status = "failed"
             self.message = "Unsupported request"
-            self.guidance = self.SUPPORTED_MESSAGE
+            self.guidance = self.plan_object["summary"]
         return list(self.plan)
 
     def build_plan_from_action(self, action_id, confidence, summary):
@@ -132,12 +158,12 @@ class AgentSession(object):
                 "confidence": 0.0,
                 "requires_modification": False,
                 "destructive": False,
-                "summary": "Unsupported request.",
+                "summary": self._build_unsupported_summary(action_id),
                 "execution_ready": False,
             }
             self.status = "failed"
             self.message = "Unsupported request"
-            self.guidance = self.SUPPORTED_MESSAGE
+            self.guidance = self.plan_object["summary"]
             return None
 
         self._add_step(action_id)

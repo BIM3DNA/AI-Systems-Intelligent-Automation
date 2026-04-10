@@ -17,7 +17,11 @@ def _candidate_python_commands():
 
     executable = sys.executable or ""
     executable_name = os.path.basename(executable).lower()
-    if executable and "ipy" not in executable_name and "ironpython" not in executable_name:
+    if (
+        executable
+        and "ipy" not in executable_name
+        and "ironpython" not in executable_name
+    ):
         candidates.append([executable])
 
     candidates.append(["py", "-3"])
@@ -42,8 +46,12 @@ def _run_service(command, payload=None, timeout_seconds=20):
             if process.returncode != 0:
                 try:
                     data = json.loads(out.decode("utf-8"))
-                    if isinstance(data, dict) and data.get("error"):
-                        errors.append(data.get("error"))
+                    if isinstance(data, dict):
+                        if data.get("error"):
+                            data["ok"] = False
+                            data["python_cmd"] = python_cmd
+                            return data
+                        errors.append("Service request failed.")
                         continue
                 except Exception:
                     pass
@@ -60,7 +68,11 @@ def _run_service(command, payload=None, timeout_seconds=20):
         except Exception as exc:
             errors.append(str(exc))
 
-    return {"ok": False, "error": "; ".join([msg for msg in errors if msg]) or "Python service unavailable."}
+    return {
+        "ok": False,
+        "error": "; ".join([msg for msg in errors if msg])
+        or "Python service unavailable.",
+    }
 
 
 def get_openai_provider_state():
@@ -68,16 +80,45 @@ def get_openai_provider_state():
     if not state.get("ok"):
         return {
             "available": False,
-            "state": "request_failed",
-            "message": "Cloud unavailable: request failed",
-            "detail": state.get("error", "Unknown error"),
+            "state": state.get("state", "request_failed"),
+            "key_state": state.get("key_state", "missing_key"),
+            "key_present": bool(state.get("key_present", False)),
+            "provider_reachable": bool(state.get("provider_reachable", False)),
+            "last_error_category": state.get("last_error_category", "request_failed"),
+            "message": state.get("message", "OpenAI request failed."),
+            "detail": state.get("detail", state.get("error", "Unknown error")),
+            "runtime_command": " ".join(state.get("python_cmd", []) or []),
         }
     result = state.get("result") or {}
-    result["detail"] = ""
+    result["detail"] = result.get("detail", "")
+    result["runtime_command"] = " ".join(state.get("python_cmd", []) or [])
     return result
 
 
-def normalize_intent_to_supported_action(user_request, supported_actions, model_name="gpt-4o-mini"):
+def get_openai_provider_self_test():
+    state = _run_service("--provider-self-test", {})
+    if not state.get("ok"):
+        return {
+            "ok": False,
+            "env_key_present": False,
+            "openai_module_importable": False,
+            "client_init_ok": False,
+            "test_request_ok": False,
+            "failure_category": state.get("state", "request_failed"),
+            "failure_message_safe": state.get(
+                "detail", state.get("error", "Unknown error")
+            ),
+            "runtime_command": " ".join(state.get("python_cmd", []) or []),
+        }
+    result = state.get("result") or {}
+    result["ok"] = True
+    result["runtime_command"] = " ".join(state.get("python_cmd", []) or [])
+    return result
+
+
+def normalize_intent_to_supported_action(
+    user_request, supported_actions, model_name="gpt-4o-mini"
+):
     payload = {
         "user_request": user_request,
         "supported_actions": supported_actions,

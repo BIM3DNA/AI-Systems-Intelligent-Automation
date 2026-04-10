@@ -38,6 +38,47 @@ The earlier migration baseline was runtime-validated in pyRevit at UI-launch lev
 - cloud planning only normalizes user requests into the supported reviewed action set
 - cloud output does not execute as raw code inside pyRevit
 
+## Planner Provider Diagnostics
+
+The AI Agent provider path now distinguishes:
+
+- missing key
+- key present
+- auth failure
+- network failure
+- request failure
+- provider ready
+- local-only UI state
+
+Safe diagnostics surfaced to the UI include:
+
+- key present: yes/no
+- provider reachable: yes/no
+- last error category
+
+The cloud planner also now exposes a developer-focused self-test request:
+
+- `cloud planner self test`
+
+It reports:
+
+- env key visibility
+- `openai` importability
+- client initialization success
+- provider probe request success
+- runtime interpreter identity
+
+## Shared Reviewed Action Registry
+
+- ModelMind now acts as the visible source-of-truth reviewed action library
+- AI Agent now plans and routes over that same reviewed action registry
+- approved recipes remain a separate branch and are not a second planner action inventory
+
+The cloud service path now uses the OpenAI Python client via the Responses API for:
+
+- minimal provider probe
+- supported-action normalization
+
 ## 2026-04-09 Pass Position
 
 Implemented in code:
@@ -52,3 +93,26 @@ Still pending live Revit validation after this pass:
 - AI Agent local planner cases after the latest changes
 - AI Agent OpenAI planner normalization with a valid key
 - missing-key and request-failure runtime behavior
+
+## Still Unsupported In AI Agent
+
+- reviewed deterministic schedule creation
+- quantity schedule generation
+- arbitrary non-reviewed cloud code execution
+
+Broader schedule-generation requests remain unsupported unless they are implemented as reviewed deterministic actions.
+
+## 2026-04-10 Shared Registry Position
+
+The shared reviewed action registry now contains the initial HVAC, piping, electrical, QA/BIM, and low-risk write action set, and the AI Agent local planner normalizes against that same registry.
+
+## Current Workspace Cloud Planner Finding
+
+The current workspace self-test through the actual service path reports:
+
+- `env_key_present: yes`
+- `openai_module_importable: yes`
+- `client_init_ok: yes`
+- `failure_category: network_failed`
+
+That points to provider/network reachability as the next likely fix for cloud planning in the runtime used by the subprocess service.

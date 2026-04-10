@@ -104,6 +104,44 @@ Snowdon Towers Sample HVAC
 6. missing `OPENAI_API_KEY` state is handled gracefully
 7. cloud provider failure falls back cleanly or shows a precise error
 
+## 2026-04-10 Runtime Targets for This Provider-Diagnostics Pass
+
+1. key-present state no longer shows missing-key guidance
+2. cloud request failure shows the correct classified failure category
+3. local deterministic planner still works when cloud planning fails
+4. unsupported schedule-generation request shows clear reviewed deterministic guidance
+5. supported deterministic requests still work
+
+## 2026-04-10 Runtime Targets for This Cloud Self-Test Pass
+
+1. determine whether `OPENAI_API_KEY` is visible to the runtime actually used by the cloud planner
+2. determine whether `openai` is importable in that runtime
+3. determine whether client initialization succeeds in that runtime
+4. determine whether a provider probe request succeeds in that runtime
+5. confirm local deterministic planner still works
+
+## 2026-04-10 Runtime Targets for This Responses API Pass
+
+1. confirm the cloud planner service can import `openai` in the runtime it actually uses
+2. confirm a minimal Responses API probe succeeds
+3. confirm AI Agent can normalize:
+   - select ducts
+   - count selected ducts
+   - create sheet
+4. keep unsupported broader schedule-generation requests rejected unless actually implemented
+
+## 2026-04-10 Runtime Targets for This Shared Registry Pass
+
+1. ModelMind shows the shared reviewed actions correctly
+2. AI Agent can execute:
+   - select all ducts
+   - count selected ducts
+   - count ducts in active view
+   - report total selected duct volume in cubic meters
+   - find unconnected duct fittings
+   - create sheet
+3. approved recipes still save and reload correctly
+
 ## Additional Checks Executed In This Provider-Integration Pass
 
 - compiled `AI.extension/lib/ai_local_store.py`
@@ -114,6 +152,57 @@ Snowdon Towers Sample HVAC
 - compiled `Openai_Server/chatgpt_service.py`
 - reparsed `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
 
+## Additional Checks Executed In This Provider-Diagnostics Pass
+
+- compiled `AI.extension/lib/ai_prompt_registry.py`
+- compiled `AI.extension/lib/ai_agent_session.py`
+- compiled `Model_Service/ModelService.py`
+- compiled `Openai_Server/chatgpt_service.py`
+- reparsed `AI.extension/lib/prompt_catalog.json`
+
+## Additional Checks Executed In This Cloud Self-Test Pass
+
+- compiled `Openai_Server/chatgpt_service.py`
+- compiled `Model_Service/ModelService.py`
+- compiled `AI.extension/lib/ai_agent_session.py`
+- executed `--provider-state` through the service path
+- executed `--provider-self-test` through the service path
+
+Workspace self-test result:
+
+- `env_key_present: yes`
+- `openai_module_importable: yes`
+- `client_init_ok: yes`
+- `test_request_ok: no`
+- `failure_category: network_failed`
+
+## Additional Checks Executed In This Responses API Pass
+
+- switched provider probe to the OpenAI Responses API
+- switched planner normalization requests to the OpenAI Responses API
+- re-ran provider-state and provider-self-test through the service path
+
+Current workspace result after the Responses API switch:
+
+- `failure_category: network_failed`
+
+## Additional Checks Executed In This Shared Registry Pass
+
+- compiled `AI.extension/lib/ai_prompt_registry.py`
+- compiled `AI.extension/lib/ai_agent_session.py`
+- reparsed `AI.extension/lib/prompt_catalog.json`
+- loaded shared reviewed actions from the registry
+- verified AI Agent local planning against shared aliases for:
+  - `select ducts`
+  - `count selected ducts`
+  - `volume of selected ducts`
+  - `find disconnected duct fittings`
+  - `create a sheet`
+
+Shared reviewed actions loaded locally:
+
+- `23`
+
 ## Additional Live Checks Not Executed In This Provider-Integration Pass
 
 - live ModelMind layout verification in Revit
@@ -121,6 +210,30 @@ Snowdon Towers Sample HVAC
 - live AI Agent OpenAI planner normalization with a valid key
 - live missing-key handling verification
 - live cloud request failure verification
+
+## Additional Live Checks Not Executed In This Provider-Diagnostics Pass
+
+- live verification that key-present no longer shows the missing-key message
+- live verification of provider category reporting for auth/network/request failures
+- live verification of local fallback after a cloud failure
+- live verification of the clearer unsupported schedule/quantity guidance
+
+## Additional Live Checks Not Executed In This Cloud Self-Test Pass
+
+- live Revit confirmation of the runtime-visible `OPENAI_API_KEY` state
+- live Revit confirmation of `openai` importability in the actual cloud-planner runtime
+- live Revit confirmation of the exact self-test failure category
+
+## Additional Live Checks Not Executed In This Responses API Pass
+
+- live Revit confirmation that the Responses API path works after dependency parity is fixed
+- live Revit confirmation of AI Agent cloud normalization for the supported cases
+
+## Additional Live Checks Not Executed In This Shared Registry Pass
+
+- live Revit validation of the shared ModelMind tree
+- live Revit execution validation for the expanded MEP reviewed action set
+- live Revit validation of approved recipe continuity after the registry refactor
 
 ## Acceptance Condition for Next Runtime Pass
 

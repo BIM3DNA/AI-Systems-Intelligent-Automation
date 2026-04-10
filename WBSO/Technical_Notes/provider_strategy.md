@@ -79,3 +79,61 @@ Current live position:
 - provider integration implemented in code
 - missing-key and request-failure states surfaced in UI
 - live Revit verification for cloud planning still pending
+
+## 2026-04-10 Provider Diagnostics Update
+
+The provider boundary now distinguishes:
+
+- key presence
+- provider reachability
+- provider-ready vs failed request states
+
+Safe diagnostic fields now expected across the provider path:
+
+- `key_present`
+- `provider_reachable`
+- `last_error_category`
+- `state`
+
+Current failure classes surfaced for UI use:
+
+- `missing_key`
+- `missing_openai_module`
+- `client_init_failed`
+- `auth_failed`
+- `network_failed`
+- `request_failed`
+- `provider_ready`
+
+UI rule tightened in this pass:
+
+- `Set OPENAI_API_KEY...` guidance must appear only for `missing_key`
+
+Still pending live validation:
+
+- key-present but request-failed reporting in live Revit
+- accurate category display for cloud failures in live Revit
+
+## 2026-04-10 Self-Test Position
+
+The cloud planner service path now exposes a self-test that reports the actual runtime used for provider requests.
+
+Current workspace self-test result after runtime dependency fix:
+
+- key visible in runtime: yes
+- `openai` importable in runtime: yes
+- client initialization in runtime: yes
+- classified failure: `network_failed`
+
+This indicates the next likely fix is provider/network reachability from the Python interpreter used by the cloud planner subprocess.
+
+## 2026-04-10 Responses API Position
+
+The OpenAI planner service path now uses the OpenAI Python client via the Responses API for both:
+
+- minimal provider probe
+- intent normalization requests
+
+Current blocker remains unchanged after that wiring update:
+
+- the runtime used by the subprocess cannot yet complete a provider request due to `network_failed`

@@ -66,3 +66,60 @@ Still outside proven live scope for this pass:
 - cloud planner behavior in live Revit
 - missing-key and cloud-failure UI states in live Revit
 - post-pass live verification of the ModelMind layout polish
+
+## 2026-04-10 Scope Refinement
+
+The current aligned scope now also includes:
+
+- honest provider diagnostics for the AI Agent planner surface
+- safe distinction between key presence and real cloud request failure states
+- clearer unsupported-request guidance for schedule/quantity prompts
+
+Still outside implemented scope:
+
+- reviewed deterministic schedule creation
+- quantity schedule generation
+- reviewed deterministic reporting of selected-duct total volume in cubic meters
+
+That duct-volume action is now recorded as a candidate for near-term expansion only.
+
+## 2026-04-10 Diagnostic Scope Addition
+
+The current implemented scope now also includes:
+
+- a developer-focused AI Agent diagnostic request:
+  - `cloud planner self test`
+- explicit reporting of whether the cloud planner runtime can:
+  - see `OPENAI_API_KEY`
+  - import `openai`
+  - initialize a client
+  - complete a provider probe request
+
+This diagnostic path is for runtime transparency only. It does not change the reviewed deterministic execution boundary.
+
+## 2026-04-10 OpenAI Planner Scope Note
+
+The current implemented cloud scope is now:
+
+- OpenAI Responses API for planning / intent normalization only
+- deterministic reviewed local execution only
+
+Still outside working runtime scope until dependency parity is fixed:
+
+- successful live Revit OpenAI planner normalization
+
+Current workspace blocker after dependency parity improvement:
+
+- successful provider/network reachability for the Responses API path
+
+## 2026-04-10 Shared Registry Scope Update
+
+The current aligned product scope now also includes:
+
+- one shared reviewed action registry for both ModelMind and AI Agent
+- ModelMind as the visible source-of-truth reviewed action library
+- AI Agent as planner/router over that same registry
+
+Still outside proven live scope after this pass:
+
+- live execution validation for the newly added MEP reviewed actions

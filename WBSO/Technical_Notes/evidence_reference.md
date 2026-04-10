@@ -249,3 +249,210 @@ Previously live-validated findings still in force:
 - AI Agent OpenAI planner normalization with a valid key
 - missing-key UI behavior in live Revit
 - request-failure handling/fallback in live Revit
+
+---
+
+## EV-2026-04-10-001 - Provider diagnostics refinement and honest planner-state reporting
+
+### Summary
+
+Refined the AI Agent provider diagnostics so the UI can distinguish key presence from real cloud request failures and report planner state more honestly.
+
+### Why It Changed
+
+Current live findings reported that:
+
+- `OPENAI_API_KEY` exists in Windows user environment variables
+- the AI Agent UI still showed both a request-failed message and a missing-key setup message
+- that combined messaging was incorrect
+
+### Code / Repo Areas Affected
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `Openai_Server/chatgpt_service.py`
+- `Model_Service/ModelService.py`
+- `AI.extension/lib/ai_agent_session.py`
+- `AI.extension/lib/ai_prompt_registry.py`
+- `AI.extension/lib/prompt_catalog.json`
+
+### What Changed
+
+- added structured provider health reporting from the OpenAI service layer
+- distinguished:
+  - `missing_key`
+  - `auth_failed`
+  - `request_failed`
+  - `network_failed`
+  - `provider_ready`
+  - `local_only`
+- surfaced safe diagnostics for key presence, provider reachability, and last error category
+- removed the broad missing-key notice from non-missing-key failures
+- improved unsupported planner guidance for schedule/quantity requests
+- recorded a candidate near-term action for selected-duct volume reporting without claiming it is implemented
+
+### What Was Actually Verified Locally
+
+- updated provider/service modules compile
+- updated prompt catalog parses
+
+### Live Findings Recorded For This Pass
+
+- key exists in Windows user environment variables
+- the pre-fix live UI messaging was incorrect because it mixed missing-key and request-failed guidance
+- unsupported schedule-generation request rejection remains acceptable for now because schedule generation is outside the current reviewed deterministic action set
+
+### What Still Needs Live Verification
+
+- key-present state no longer shows the missing-key guidance
+- cloud failure shows the correct classified state in the UI
+- local deterministic fallback still works when cloud planning fails
+- improved unsupported schedule/quantity guidance is shown in live Revit
+
+---
+
+## EV-2026-04-10-002 - Cloud planner self-test and runtime-identity diagnostics
+
+### Summary
+
+Added a cloud planner self-test path so the actual Python runtime used by the AI Agent cloud planner can report environment visibility, dependency availability, and request readiness safely inside the Revit UI.
+
+### Why It Changed
+
+This pass was needed because:
+
+- `OPENAI_API_KEY` exists in Windows user environment variables
+- AI Agent still showed `key_present: no` in live runtime
+- local verification suggested the `openai` module might be missing in the runtime used by the subprocess service path
+
+### Code / Repo Areas Affected
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `Openai_Server/chatgpt_service.py`
+- `Model_Service/ModelService.py`
+- `AI.extension/lib/ai_agent_session.py`
+
+### What Was Added
+
+- provider self-test command in `chatgpt_service.py`
+- service wrapper method in `ModelService.py`
+- internal AI Agent request:
+  - `cloud planner self test`
+- safe runtime-identity reporting:
+  - runtime executable
+  - runtime version
+  - subprocess command used
+
+### What Was Actually Verified In This Workspace Pass
+
+Workspace self-test result through the service path:
+
+- `env_key_present: yes`
+- `openai_module_importable: no`
+- `client_init_ok: no`
+- `test_request_ok: no`
+- `failure_category: missing_openai_module`
+- runtime executable reported as `C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python313\\python.exe`
+
+### What Still Needs Live Verification
+
+- whether live Revit sees the same environment key visibility result
+- whether live Revit reports the same missing-module result
+- whether local deterministic planning still remains validated after the self-test additions
+
+---
+
+## EV-2026-04-10-003 - OpenAI Responses API planner wiring
+
+### Summary
+
+Updated the OpenAI-backed cloud planner path to use the OpenAI Python client through the Responses API while keeping cloud use limited to planning / intent normalization / supported-action mapping.
+
+### What Changed
+
+- `chatgpt_service.py` now uses the Responses API for:
+  - minimal provider probe
+  - planner normalization requests
+- no raw cloud-generated code is executed
+- reviewed deterministic execution boundaries remain intact in the pyRevit layer
+
+### What Was Actually Verified
+
+- updated provider/service modules compile
+- the Responses API service path now reports:
+  - `env_key_present: yes`
+  - `openai_module_importable: yes`
+  - `client_init_ok: yes`
+  - `failure_category: network_failed`
+
+### Current Runtime Conclusion
+
+The OpenAI planner is not yet confirmed working in live Revit. The current verified blocker is no longer dependency visibility; it is provider/network reachability from the Python runtime used by the cloud planner subprocess.
+
+---
+
+## EV-2026-04-10-004 - Shared reviewed action registry for ModelMind and AI Agent
+
+### Summary
+
+Refactored ModelMind and AI Agent to share one reviewed action registry so the visible task library and the planner/router operate over the same reviewed action definitions.
+
+### Code / Repo Areas Affected
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/lib/ai_prompt_registry.py`
+- `AI.extension/lib/ai_agent_session.py`
+- `AI.extension/lib/prompt_catalog.json`
+
+### What Changed
+
+- AI Agent no longer depends on a separate hardcoded action inventory
+- registry metadata now includes reviewed action planner aliases and deterministic handler names
+- AI Agent local planning now matches against registry aliases
+- both ModelMind and AI Agent now consume the same reviewed action definitions
+
+### New reviewed MEP action coverage added
+
+- HVAC / Ducting:
+  - select all ducts
+  - count selected ducts
+  - count ducts in active view
+  - list ducts in active view
+  - report total selected duct length
+  - report total selected duct volume in cubic meters
+  - find unconnected duct fittings
+  - report ducts without system assignment
+- Piping:
+  - select all pipes
+  - count selected pipes
+  - report total selected pipe length
+  - find unconnected pipe fittings
+  - report pipes without system assignment
+- Electrical:
+  - select all electrical fixtures in active view
+  - count selected fixtures/devices
+  - report devices without circuit/system info
+  - list fixtures by type in active view
+- QA / BIM:
+  - report selected elements by category
+  - report selected elements by type
+  - health check for active view selection
+  - report missing parameters from selection
+- Low-risk write actions:
+  - create sheet
+  - create 3D view from selection/context
+
+### What Was Actually Verified Locally
+
+- shared reviewed actions loaded from registry: `23`
+- AI Agent local planner normalized example prompts through the shared registry for:
+  - `select ducts`
+  - `count selected ducts`
+  - `volume of selected ducts`
+  - `find disconnected duct fittings`
+  - `create a sheet`
+
+### What Still Needs Live Verification
+
+- ModelMind rendering of the shared reviewed action set
+- AI Agent execution of the new MEP reviewed actions in live Revit
+- approved recipe save/load continuity after the registry refactor

@@ -267,3 +267,166 @@ ModelMind still used a cramped input/action layout that reduced the usable input
 
 - verify the new ModelMind input/button spacing in live Revit
 - confirm the reviewed-code secondary presentation still feels clear during real use
+
+---
+
+## ISSUE-2026-04-10-001
+
+**Title:** AI Agent provider diagnostics incorrectly mixed missing-key guidance with real cloud request failures  
+**Status:** Resolved in code, live verification pending  
+**Type:** Provider diagnostics / UI honesty
+
+### Description
+
+Current live findings showed that the AI Agent provider messaging could simultaneously report a cloud request failure and also instruct the user to set `OPENAI_API_KEY`, even when the key was already present in the Windows user environment.
+
+### Action Taken
+
+- added structured provider health states in the OpenAI service path
+- distinguished key presence from provider reachability and request outcome
+- limited the missing-key message to the actual `missing_key` state only
+- exposed safe diagnostics for:
+  - key present yes/no
+  - provider reachable yes/no
+  - last error category
+- kept cloud/local planner behavior separate and explicit in the UI
+
+### Remaining Work
+
+- verify in live Revit that key-present no longer shows the missing-key message
+- verify real cloud failures show the correct category
+- verify local deterministic fallback still works when cloud planning fails
+
+---
+
+## ISSUE-2026-04-10-002
+
+**Title:** Unsupported AI Agent requests needed clearer reviewed deterministic scope guidance  
+**Status:** Resolved in code, live verification pending  
+**Type:** Planner UX / supported-action guidance
+
+### Description
+
+Unsupported requests such as schedule-generation or quantity-schedule creation could return an overly terse `Unsupported request.` message even when a clearer reviewed deterministic limitation message and closest supported actions were available.
+
+### Action Taken
+
+- added clearer unsupported-request summaries for schedule/quantity and duct-volume-adjacent prompts
+- explicitly states that schedule creation / quantity schedule generation is not yet implemented as a reviewed deterministic action
+- suggests the closest currently supported deterministic requests
+- recorded a near-term candidate action:
+  - `report total volume of selected ducts in cubic meters`
+
+### Remaining Work
+
+- verify the clearer unsupported guidance in live Revit
+- decide whether the candidate duct-volume action should be promoted into the active deterministic action set in a later pass
+
+---
+
+## ISSUE-2026-04-10-003
+
+**Title:** Cloud planner needs runtime self-test visibility inside pyRevit/Revit  
+**Status:** Resolved in code, live verification pending  
+**Type:** Runtime diagnostics / dependency visibility
+
+### Description
+
+Live findings showed that `OPENAI_API_KEY` existed in Windows user environment variables, but the runtime-visible planner state still reported `key_present: no`. Earlier local verification also suggested the `openai` dependency was unavailable in the Python runtime used by the cloud planner service path.
+
+### Action Taken
+
+- added a provider self-test path through `chatgpt_service.py`
+- exposed the self-test through the pyRevit-side service wrapper
+- added an internal AI Agent request:
+  - `cloud planner self test`
+- made the self-test print structured safe diagnostics into the AI Agent output panel
+- recorded the actual interpreter identity used by the service runtime
+
+### Workspace Result Observed
+
+Initial workspace result:
+
+- environment key visible: yes
+- `openai` module importable: no
+- failure category: `missing_openai_module`
+
+### Remaining Work
+
+- confirm the same result inside live Revit
+- fix dependency availability in the actual cloud-planner runtime used by pyRevit
+
+---
+
+## ISSUE-2026-04-10-004
+
+**Title:** OpenAI cloud planner path needed to move to the OpenAI Responses API while preserving reviewed deterministic execution boundaries  
+**Status:** Resolved in code, blocked in runtime by missing module  
+**Type:** Provider implementation / runtime dependency
+
+### Description
+
+The cloud planner path needed to use the supported OpenAI Python client API for minimal planning requests while still rejecting unsupported actions and never executing raw cloud-generated code.
+
+### Action Taken
+
+- updated `chatgpt_service.py` to use the OpenAI Responses API
+- updated the provider probe/self-test to use a minimal Responses API request
+- preserved deterministic reviewed execution boundaries in the pyRevit layer
+
+### Current Verified Result
+
+- service path updated in code
+- after installing and upgrading the OpenAI Python client in the actual service runtime, the current workspace failure category is now `network_failed`
+
+### Remaining Work
+
+- confirm live Revit shows the same post-fix state
+- resolve provider/network reachability so the Responses API probe can succeed
+
+---
+
+## ISSUE-2026-04-10-005
+
+**Title:** ModelMind and AI Agent were still using separate reviewed action inventories  
+**Status:** Resolved in code, live verification pending  
+**Type:** Architecture / planner-router design
+
+### Description
+
+ModelMind was already backed by the prompt catalog, but AI Agent still relied on a separate hardcoded subset and separate planner phrase mapping. That violated the requirement that one shared reviewed action registry should drive both surfaces.
+
+### Action Taken
+
+- removed the hardcoded AI Agent reviewed action subset in `ai_prompt_registry.py`
+- made AI Agent read the same reviewed action entries used by ModelMind
+- added registry metadata for planner aliases, handler names, scope, discipline, and confirmation requirements
+- moved AI Agent local intent matching onto registry-provided aliases
+
+### Remaining Work
+
+- verify the expanded shared registry in live Revit
+- verify AI Agent execution for the newly added MEP reviewed actions
+
+---
+
+## ISSUE-2026-04-10-006
+
+**Title:** Initial MEP reviewed action set needed to be promoted into the shared registry and handler layer  
+**Status:** Resolved in code, live verification pending  
+**Type:** Reviewed action coverage / deterministic execution
+
+### Description
+
+The initial HVAC, piping, electrical, QA/BIM, and low-risk write action set needed to exist as first-class reviewed actions in the shared registry so both ModelMind and AI Agent could use them.
+
+### Action Taken
+
+- added shared reviewed registry entries for the initial MEP action set
+- added deterministic handlers for the new selection/reporting/write actions in `script.py`
+- preserved reviewed create-sheet handling and approved-recipe separation
+
+### Remaining Work
+
+- live Revit validation for the newly added reviewed MEP actions
+- assess whether any additional alias tuning is needed after live use

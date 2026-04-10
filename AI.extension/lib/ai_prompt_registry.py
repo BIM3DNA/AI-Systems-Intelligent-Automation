@@ -16,16 +16,6 @@ class PromptCatalog(object):
         "Totals",
         "Clash Check",
     ]
-    AGENT_ACTION_IDS = [
-        "select-all-ducts",
-        "count-selected-ducts",
-        "count-ducts-active-view",
-        "list-ducts-active-view",
-        "find-unconnected-fittings",
-        "report-elements-without-system-assignment",
-        "create-sheet-reviewed-template",
-    ]
-
     def __init__(self, catalog_path, approved_path):
         self.catalog_path = catalog_path
         self.approved_path = approved_path
@@ -56,15 +46,29 @@ class PromptCatalog(object):
         items = []
         for entry in self.get_base_entries():
             if entry.get("enabled", True):
-                items.append(entry)
+                items.append(self._normalize_entry(entry))
         return items
+
+    def _normalize_entry(self, entry):
+        normalized = dict(entry or {})
+        normalized["discipline"] = normalized.get("discipline", "General")
+        normalized["scope_type"] = normalized.get("scope_type", "project")
+        normalized["planner_aliases"] = list(normalized.get("planner_aliases") or [])
+        normalized["deterministic_handler"] = normalized.get("deterministic_handler", "")
+        normalized["requires_confirmation"] = bool(normalized.get("requires_confirmation", False))
+        return normalized
+
+    def is_shared_reviewed_action(self, entry):
+        entry = self._normalize_entry(entry)
+        return bool(entry.get("enabled", True) and entry.get("deterministic_handler"))
 
     def get_entry_by_prompt(self, prompt_text):
         target = (prompt_text or "").strip().lower()
         for entry in self.get_enabled_entries():
             prompt = (entry.get("prompt_text") or "").strip().lower()
             title = (entry.get("title") or "").strip().lower()
-            if prompt == target or title == target:
+            aliases = [str(alias).strip().lower() for alias in entry.get("planner_aliases") or []]
+            if prompt == target or title == target or target in aliases:
                 return entry
         return None
 
@@ -77,6 +81,9 @@ class PromptCatalog(object):
             entry.get("prompt_text", ""),
             entry.get("role", ""),
             entry.get("mode", ""),
+            entry.get("discipline", ""),
+            entry.get("scope_type", ""),
+            " ".join(entry.get("planner_aliases") or []),
         ]
         ft = filter_text.lower()
         for text in haystacks:
@@ -112,21 +119,17 @@ class PromptCatalog(object):
             sections.append({"header": "Approved Recipes", "items": approved, "kind": "approved"})
         return sections
 
+    def get_reviewed_actions(self):
+        actions = []
+        for entry in self.get_enabled_entries():
+            if self.is_shared_reviewed_action(entry):
+                actions.append(self._normalize_entry(entry))
+        return actions
+
     def get_agent_commands(self):
         commands = []
-        for entry in self.get_enabled_entries():
-            if entry.get("id") not in self.AGENT_ACTION_IDS:
-                continue
-            commands.append(
-                {
-                    "id": entry.get("id"),
-                    "title": entry.get("title"),
-                    "prompt_text": entry.get("prompt_text"),
-                    "risk_level": entry.get("risk_level", "low"),
-                    "mode": entry.get("mode", "deterministic"),
-                    "role": entry.get("role", "read"),
-                }
-            )
+        for entry in self.get_reviewed_actions():
+            commands.append(dict(entry))
         return commands
 
     def save_approved_recipe(self, metadata, code_text, source_entry=None):

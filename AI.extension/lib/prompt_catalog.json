@@ -147,17 +147,34 @@
     "prompt_text": "count selected ducts",
     "risk_level": "low",
     "role": "read",
-    "title": "Count selected ducts"
+    "title": "Count selected ducts",
+    "discipline": "HVAC / Ducting",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "count selected ducts",
+      "how many ducts are selected",
+      "how many selected ducts"
+    ],
+    "deterministic_handler": "count_selected_ducts",
+    "requires_confirmation": false
   },
   {
     "category": "Count",
     "enabled": true,
     "id": "count-ducts-active-view",
     "mode": "deterministic",
-    "prompt_text": "count all ducts in active view",
+    "prompt_text": "count ducts in active view",
     "risk_level": "low",
     "role": "read",
-    "title": "Count all ducts in active view"
+    "title": "Count ducts in active view",
+    "discipline": "HVAC / Ducting",
+    "scope_type": "active_view",
+    "planner_aliases": [
+      "count ducts in active view",
+      "count all ducts in active view"
+    ],
+    "deterministic_handler": "count_ducts_in_active_view",
+    "requires_confirmation": false
   },
   {
     "category": "Count",
@@ -244,10 +261,19 @@
     "enabled": true,
     "id": "find-unconnected-fittings",
     "mode": "deterministic",
-    "prompt_text": "find unconnected fittings",
+    "prompt_text": "find unconnected duct fittings",
     "risk_level": "low",
     "role": "read",
-    "title": "Find unconnected HVAC fittings"
+    "title": "Find unconnected duct fittings",
+    "discipline": "HVAC / Ducting",
+    "scope_type": "project",
+    "planner_aliases": [
+      "find unconnected duct fittings",
+      "find disconnected duct fittings",
+      "find unconnected fittings"
+    ],
+    "deterministic_handler": "find_unconnected_duct_fittings",
+    "requires_confirmation": false
   },
   {
     "category": "Reports",
@@ -317,7 +343,15 @@
     "prompt_text": "list ducts in active view",
     "risk_level": "low",
     "role": "read",
-    "title": "List ducts in active view"
+    "title": "List ducts in active view",
+    "discipline": "HVAC / Ducting",
+    "scope_type": "active_view",
+    "planner_aliases": [
+      "list ducts in active view",
+      "list all ducts in active view"
+    ],
+    "deterministic_handler": "list_ducts_in_active_view",
+    "requires_confirmation": false
   },
   {
     "category": "Materials",
@@ -437,7 +471,16 @@
     "prompt_text": "create sheet",
     "risk_level": "medium",
     "role": "modify",
-    "title": "Create sheet (reviewed template)"
+    "title": "Create sheet",
+    "discipline": "QA / BIM",
+    "scope_type": "project",
+    "planner_aliases": [
+      "create a sheet",
+      "create sheet",
+      "make a sheet"
+    ],
+    "deterministic_handler": "create_sheet_reviewed_template",
+    "requires_confirmation": true
   },
   {
     "category": "Select All",
@@ -547,7 +590,15 @@
     "prompt_text": "select all ducts",
     "risk_level": "low",
     "role": "read",
-    "title": "Select all ducts"
+    "title": "Select all ducts",
+    "discipline": "HVAC / Ducting",
+    "scope_type": "project",
+    "planner_aliases": [
+      "select ducts",
+      "select all ducts"
+    ],
+    "deterministic_handler": "select_all_ducts",
+    "requires_confirmation": false
   },
   {
     "category": "Select All",
@@ -557,7 +608,15 @@
     "prompt_text": "select all pipes",
     "risk_level": "low",
     "role": "read",
-    "title": "Select all pipes"
+    "title": "Select all pipes",
+    "discipline": "Piping",
+    "scope_type": "project",
+    "planner_aliases": [
+      "select pipes",
+      "select all pipes"
+    ],
+    "deterministic_handler": "select_all_pipes",
+    "requires_confirmation": false
   },
   {
     "category": "Select All",
@@ -618,6 +677,26 @@
     "risk_level": "low",
     "role": "read",
     "title": "Total duct length"
+  },
+  {
+    "category": "Totals",
+    "enabled": true,
+    "id": "report-selected-duct-volume-cubic-meters",
+    "mode": "deterministic",
+    "prompt_text": "report total selected duct volume in cubic meters",
+    "risk_level": "low",
+    "role": "read",
+    "title": "Report total selected duct volume in cubic meters",
+    "discipline": "HVAC / Ducting",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "volume of selected ducts",
+      "total selected duct volume in m3",
+      "total selected duct volume in cubic meters",
+      "selected duct volume"
+    ],
+    "deterministic_handler": "report_total_selected_duct_volume_cubic_meters",
+    "requires_confirmation": false
   },
   {
     "category": "Totals",
@@ -688,5 +767,282 @@
     "risk_level": "medium",
     "role": "read",
     "title": "Clash check ducts vs beams"
+  },
+  {
+    "id": "report-selected-duct-length",
+    "title": "Report total selected duct length",
+    "category": "Totals",
+    "discipline": "HVAC / Ducting",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "report total selected duct length",
+      "total selected duct length",
+      "length of selected ducts"
+    ],
+    "deterministic_handler": "report_total_selected_duct_length",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report total selected duct length",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-ducts-without-system-assignment",
+    "title": "Report ducts without system assignment",
+    "category": "Reports",
+    "discipline": "HVAC / Ducting",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "planner_aliases": [
+      "report ducts without system assignment",
+      "ducts without system assignment",
+      "ducts without system info"
+    ],
+    "deterministic_handler": "report_ducts_without_system_assignment",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report ducts without system assignment",
+    "mode": "deterministic"
+  },
+  {
+    "id": "count-selected-pipes",
+    "title": "Count selected pipes",
+    "category": "Count",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "count selected pipes",
+      "how many pipes are selected"
+    ],
+    "deterministic_handler": "count_selected_pipes",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "count selected pipes",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-selected-pipe-length",
+    "title": "Report total selected pipe length",
+    "category": "Totals",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "report total selected pipe length",
+      "total selected pipe length",
+      "length of selected pipes"
+    ],
+    "deterministic_handler": "report_total_selected_pipe_length",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report total selected pipe length",
+    "mode": "deterministic"
+  },
+  {
+    "id": "find-unconnected-pipe-fittings",
+    "title": "Find unconnected pipe fittings",
+    "category": "Reports",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "planner_aliases": [
+      "find unconnected pipe fittings",
+      "find disconnected pipe fittings"
+    ],
+    "deterministic_handler": "find_unconnected_pipe_fittings",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "find unconnected pipe fittings",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-pipes-without-system-assignment",
+    "title": "Report pipes without system assignment",
+    "category": "Reports",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "planner_aliases": [
+      "report pipes without system assignment",
+      "pipes without system assignment"
+    ],
+    "deterministic_handler": "report_pipes_without_system_assignment",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report pipes without system assignment",
+    "mode": "deterministic"
+  },
+  {
+    "id": "select-all-electrical-fixtures-active-view",
+    "title": "Select all electrical fixtures in active view",
+    "category": "Select All",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "planner_aliases": [
+      "select all electrical fixtures in active view",
+      "select electrical fixtures in active view"
+    ],
+    "deterministic_handler": "select_all_electrical_fixtures_in_active_view",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "select all electrical fixtures in active view",
+    "mode": "deterministic"
+  },
+  {
+    "id": "count-selected-fixtures-devices",
+    "title": "Count selected fixtures/devices",
+    "category": "Count",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "count selected fixtures",
+      "count selected devices",
+      "count selected fixtures devices"
+    ],
+    "deterministic_handler": "count_selected_fixtures_devices",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "count selected fixtures/devices",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-devices-without-circuit-info",
+    "title": "Report devices without circuit/system info",
+    "category": "Reports",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "report devices without circuit info",
+      "devices without circuit info",
+      "devices without system info"
+    ],
+    "deterministic_handler": "report_devices_without_circuit_info",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report devices without circuit/system info",
+    "mode": "deterministic"
+  },
+  {
+    "id": "list-fixtures-by-type-active-view",
+    "title": "List fixtures by type in active view",
+    "category": "Lists",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "planner_aliases": [
+      "list fixtures by type in active view",
+      "list electrical fixtures by type"
+    ],
+    "deterministic_handler": "list_fixtures_by_type_in_active_view",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "list fixtures by type in active view",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-selected-elements-by-category",
+    "title": "Report selected elements by category",
+    "category": "Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "report selected elements by category",
+      "selected elements by category"
+    ],
+    "deterministic_handler": "report_selected_elements_by_category",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report selected elements by category",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-selected-elements-by-type",
+    "title": "Report selected elements by type",
+    "category": "Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "report selected elements by type",
+      "selected elements by type"
+    ],
+    "deterministic_handler": "report_selected_elements_by_type",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report selected elements by type",
+    "mode": "deterministic"
+  },
+  {
+    "id": "health-check-active-view-selection",
+    "title": "Health check for active view selection",
+    "category": "Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "health check for active view selection",
+      "selection health check",
+      "health check selection"
+    ],
+    "deterministic_handler": "health_check_for_active_view_selection",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "health check for active view selection",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-missing-parameters-from-selection",
+    "title": "Report missing parameters from selection",
+    "category": "Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "report missing parameters from selection",
+      "missing parameters from selection"
+    ],
+    "deterministic_handler": "report_missing_parameters_from_selection",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report missing parameters from selection",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-3d-view-from-selection",
+    "title": "Create 3D view from selection/context",
+    "category": "Tags / Tools",
+    "discipline": "QA / BIM",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "create 3d view",
+      "create 3d view from selection",
+      "make a 3d view"
+    ],
+    "deterministic_handler": "create_3d_view_from_selection",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create 3d view from selection/context",
+    "mode": "deterministic"
   }
 ]
