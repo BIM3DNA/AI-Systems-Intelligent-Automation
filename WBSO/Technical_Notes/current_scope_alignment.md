@@ -123,3 +123,16 @@ The current aligned product scope now also includes:
 Still outside proven live scope after this pass:
 
 - live execution validation for the newly added MEP reviewed actions
+
+## 2026-04-13 Expanded MEP Scope Note
+
+The current aligned scope now also includes:
+
+- expanded deterministic shared MEP actions for ducting, piping, electrical, and QA/BIM review
+- a more robust deterministic duct-volume reporting path
+- lightweight runtime guidance that keeps `phi3:mini` as the stable recommended Ollama model when heavier local models are unstable
+
+Still outside proven live scope after this pass:
+
+- live validation for the newly added pipe/electrical/QA actions
+- live validation for the duct-volume fix

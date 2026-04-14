@@ -456,3 +456,64 @@ Refactored ModelMind and AI Agent to share one reviewed action registry so the v
 - ModelMind rendering of the shared reviewed action set
 - AI Agent execution of the new MEP reviewed actions in live Revit
 - approved recipe save/load continuity after the registry refactor
+
+---
+
+## EV-2026-04-13-001 - Expanded reviewed MEP registry over the shared action architecture
+
+### Summary
+
+Expanded the shared reviewed action registry around the already validated local deterministic workflow while preserving the architecture:
+
+- `ModelMind` = source-of-truth reviewed action library
+- `AI Agent` = planner/router over the same reviewed actions
+
+### Live findings carried into this pass
+
+Reported as already live-validated before this code pass:
+
+- Ollama Chat works with `phi3:mini`
+- ModelMind:
+  - `select all ducts`
+  - `count ducts in active view`
+  - `list ducts in active view`
+  - `create sheet`
+- AI Agent:
+  - `select ducts`
+  - `count selected ducts`
+  - `count ducts in active view`
+  - `list ducts in active view`
+- reviewed create-sheet flow remains working
+- approved recipe save/load remains working
+
+### What changed in code
+
+- added reviewed deterministic actions for additional piping, electrical, QA/BIM, and low-risk write workflows
+- expanded alias coverage for practical BIM phrasing
+- added pipe active-view count/list actions
+- added electrical active-view fixture listing action
+
+### What was actually verified locally
+
+- shared reviewed actions loaded from registry: `26`
+- AI Agent local planner normalized shared-registry aliases for:
+  - `duct length`
+  - `total selected duct volume`
+  - `pipes without system`
+  - `count pipes in active view`
+  - `electrical devices in active view`
+  - `create a 3d view from this selection`
+
+### Duct-volume investigation outcome
+
+- the old implementation depended only on a direct `Volume` parameter
+- the new implementation now:
+  - uses direct volume if available
+  - derives volume from section dimensions + length when possible
+  - reports unresolved ducts honestly if the sample/model data is insufficient
+
+### What still needs live verification
+
+- duct-volume action after the robustness fix
+- the newly added pipe/electrical/QA actions
+- `create 3D view` in live Revit

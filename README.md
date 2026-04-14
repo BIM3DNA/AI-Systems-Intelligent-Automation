@@ -106,6 +106,30 @@ Broader schedule-generation requests remain unsupported unless they are implemen
 
 The shared reviewed action registry now contains the initial HVAC, piping, electrical, QA/BIM, and low-risk write action set, and the AI Agent local planner normalizes against that same registry.
 
+## 2026-04-13 Expanded MEP Position
+
+Latest reported live-validated actions carried into the current pass:
+
+- Ollama Chat with `phi3:mini`
+- ModelMind:
+  - `select all ducts`
+  - `count ducts in active view`
+  - `list ducts in active view`
+  - `create sheet`
+- AI Agent:
+  - `select ducts`
+  - `count selected ducts`
+  - `count ducts in active view`
+  - `list ducts in active view`
+- reviewed create-sheet flow
+- approved recipe save/load
+
+This pass expands the shared reviewed MEP action set further for piping, electrical, QA/BIM, and low-risk write actions while keeping execution deterministic and reviewed.
+
+Known limitation carried into this pass:
+
+- heavier local models such as `gemma3:27b` may be unstable in runtime, while `phi3:mini` is the stable recommended model
+
 ## Current Workspace Cloud Planner Finding
 
 The current workspace self-test through the actual service path reports:

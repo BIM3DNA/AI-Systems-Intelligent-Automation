@@ -357,3 +357,57 @@ Not yet live-validated in Revit after this pass:
 - shared ModelMind tree rendering for the expanded MEP set
 - AI Agent execution for the newly added MEP reviewed actions
 - approved recipe save/load continuity after the registry refactor
+
+## 2026-04-13 Expanded Reviewed MEP Action Pass
+
+### Confirmed live baseline facts carried into this pass
+
+- Ollama Chat works with `phi3:mini`
+- ModelMind works for:
+  - `select all ducts`
+  - `count ducts in active view`
+  - `list ducts in active view`
+  - `create sheet`
+- AI Agent works for:
+  - `select ducts`
+  - `count selected ducts`
+  - `count ducts in active view`
+  - `list ducts in active view`
+- reviewed create-sheet flow remains working
+- approved recipe save/load remains working
+
+### Known live issues carried into this pass
+
+- `gemma3:27b` appears unstable/crashes in runtime, while `phi3:mini` is stable
+- `report total selected duct volume in cubic meters` returned `0.000 m³` and required investigation
+- cloud/OpenAI planning remains non-blocking and is not the focus of this pass
+
+### Code changes added in this pass
+
+- expanded the shared reviewed registry to cover additional piping, electrical, QA/BIM, and low-risk write actions
+- added missing pipe active-view reviewed actions
+- added electrical active-view listing action
+- improved local alias coverage for practical BIM phrasing
+- added a lightweight model/runtime note that keeps `phi3:mini` as the stable recommended fallback when heavier local models behave unstably
+- hardened the duct-volume action so it:
+  - uses direct volume when available
+  - derives volume from section dimensions and length when possible
+  - returns an honest unresolved-data note when volume cannot be determined reliably
+
+### Current local verification for this pass
+
+- shared reviewed actions loaded from registry: `26`
+- AI Agent local planner matched shared aliases for:
+  - `duct length`
+  - `total selected duct volume`
+  - `pipes without system`
+  - `count pipes in active view`
+  - `electrical devices in active view`
+  - `create a 3d view from this selection`
+
+### Still pending live validation after this pass
+
+- duct-volume action behavior on Snowdon Towers Sample HVAC after the robustness fix
+- new pipe active-view actions in ModelMind and AI Agent
+- new electrical and QA/BIM reviewed actions in live Revit
+- 3D-view creation action in live Revit

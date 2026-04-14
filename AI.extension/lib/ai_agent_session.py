@@ -2,10 +2,6 @@
 
 
 class AgentSession(object):
-    VOLUME_CANDIDATE_MESSAGE = (
-        "Candidate near-term action: report total volume of selected ducts in cubic meters."
-    )
-
     def __init__(self, commands=None):
         self.allow_destructive = False
         self.refresh_catalog(commands or [])
@@ -90,15 +86,14 @@ class AgentSession(object):
             return (
                 "Schedule creation or quantity schedule generation is not yet implemented as "
                 "a reviewed deterministic action. Closest supported reviewed actions include "
-                "count selected ducts; count ducts in active view; list ducts in active view; create sheet. "
-                + self.VOLUME_CANDIDATE_MESSAGE
+                "count selected ducts; count ducts in active view; list ducts in active view; "
+                "report total selected duct volume in cubic meters; create sheet."
             )
         if "volume" in goal and "duct" in goal:
             return (
-                "If the shared reviewed action registry does not yet include a matching duct-volume action, "
-                "the request remains unsupported. Closest supported reviewed actions include count selected ducts "
-                "and list ducts in active view. "
-                + self.VOLUME_CANDIDATE_MESSAGE
+                "No reviewed duct-volume action matched this request exactly. "
+                "Closest supported reviewed actions include report total selected duct volume in cubic meters, "
+                "count selected ducts, and list ducts in active view."
             )
         return (
             "This request is outside the current reviewed deterministic action set. "

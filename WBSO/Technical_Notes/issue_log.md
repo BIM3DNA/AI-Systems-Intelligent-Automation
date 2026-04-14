@@ -430,3 +430,78 @@ The initial HVAC, piping, electrical, QA/BIM, and low-risk write action set need
 
 - live Revit validation for the newly added reviewed MEP actions
 - assess whether any additional alias tuning is needed after live use
+
+---
+
+## ISSUE-2026-04-13-001
+
+**Title:** Reviewed duct-volume action returned `0.000 m³` and needed a more honest deterministic extraction path  
+**Status:** Resolved in code, live verification pending  
+**Type:** Deterministic handler robustness / sample-model data quality
+
+### Description
+
+Live testing showed that `report total selected duct volume in cubic meters` returned `0.000 m³`, which suggested either missing parameter data, wrong unit handling, or a need to derive volume from geometry-related dimensions instead of relying only on a direct parameter.
+
+### Action Taken
+
+- investigated the current implementation path
+- kept direct `Volume` parameter reading as the first option
+- added deterministic fallback derivation from:
+  - diameter + length
+  - width + height + length
+  - cross-sectional area + length
+- changed the result formatting so unresolved ducts are reported honestly instead of silently collapsing to a misleading zero-only result
+
+### Remaining Work
+
+- live Revit validation on Snowdon Towers Sample HVAC after the robustness fix
+- determine whether the sample model exposes enough duct data for reliable derived volume on all tested ducts
+
+---
+
+## ISSUE-2026-04-13-002
+
+**Title:** Shared reviewed MEP registry still lacked some first-class pipe/electrical/QA actions and natural-language aliases  
+**Status:** Resolved in code, live verification pending  
+**Type:** Shared registry expansion / deterministic workflow coverage
+
+### Description
+
+The shared reviewed registry needed more first-class pipe, electrical, and QA/BIM actions, plus better natural-language aliases, while preserving the single shared-registry architecture.
+
+### Action Taken
+
+- added reviewed actions for:
+  - pipes in active view count/list
+  - electrical fixtures in active view list
+  - expanded pipe/electrical/QA/BIM reporting coverage
+- improved alias coverage for:
+  - duct length / selected duct volume / disconnected duct fittings / ducts without system
+  - select pipes / count pipes in active view / list pipes in active view / pipes without system
+  - electrical devices in active view / fixtures without circuit
+
+### Remaining Work
+
+- live Revit validation for the newly added reviewed MEP actions
+
+---
+
+## ISSUE-2026-04-13-003
+
+**Title:** Heavier Ollama models can look like feature failures when the runtime itself is unstable  
+**Status:** Mitigated in code, live observation continues  
+**Type:** Runtime UX / provider stability messaging
+
+### Description
+
+Latest live findings indicate that `gemma3:27b` appears unstable/crashes in runtime, while `phi3:mini` remains stable. Without a small runtime note, users may conclude the feature surface is broken rather than the selected local model/runtime combination.
+
+### Action Taken
+
+- added a lightweight runtime note in the model info/status path
+- kept `phi3:mini` as the stable recommended model in the UI messaging when a heavier model is selected or fails
+
+### Remaining Work
+
+- continue observing live runtime behavior for heavier local models

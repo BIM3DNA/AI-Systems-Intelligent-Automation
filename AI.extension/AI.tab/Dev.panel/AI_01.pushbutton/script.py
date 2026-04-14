@@ -1889,30 +1889,124 @@ def _selected_elements_by_categories(doc, uidoc, built_in_categories):
     return selected
 
 
+def _lookup_param_double(elem, names):
+    for name in names:
+        param = elem.LookupParameter(name)
+        if not param:
+            continue
+        try:
+            return float(param.AsDouble())
+        except:
+            continue
+    return None
+
+
+def _derive_mep_curve_volume_ft3(elem):
+    length_ft = _lookup_param_double(elem, ["Length", "Centerline Length"])
+    if not length_ft or length_ft <= 0:
+        return None, "missing length"
+
+    diameter_ft = _lookup_param_double(elem, ["Diameter", "Overall Size"])
+    if diameter_ft and diameter_ft > 0:
+        radius_ft = diameter_ft / 2.0
+        return 3.141592653589793 * radius_ft * radius_ft * length_ft, "derived from diameter and length"
+
+    width_ft = _lookup_param_double(elem, ["Width"])
+    height_ft = _lookup_param_double(elem, ["Height"])
+    if width_ft and width_ft > 0 and height_ft and height_ft > 0:
+        return width_ft * height_ft * length_ft, "derived from width, height, and length"
+
+    area_ft2 = _lookup_param_double(elem, ["Cross-Sectional Area", "Area"])
+    if area_ft2 and area_ft2 > 0:
+        return area_ft2 * length_ft, "derived from cross-sectional area and length"
+
+    return None, "missing usable section dimensions"
+
+
 def report_total_selected_duct_length(doc, uidoc):
     ducts = _selected_elements_by_categories(doc, uidoc, [DB.BuiltInCategory.OST_DuctCurves])
     total_length = 0.0
+    rows = []
     for duct in ducts:
         param = duct.LookupParameter("Length")
+        length_m = 0.0
         if param:
             try:
-                total_length += float(param.AsDouble() * 0.3048)
+                length_m = float(param.AsDouble() * 0.3048)
             except:
                 pass
-    return "Selected ducts: {0}\nTotal selected duct length: {1:.2f} m".format(len(ducts), total_length)
+        total_length += length_m
+        rows.append("Id: {0}, Length: {1:.2f} m".format(duct.Id.IntegerValue, length_m))
+    lines = [
+        "Selected ducts: {0}".format(len(ducts)),
+        "Total selected duct length: {0:.2f} m".format(total_length),
+    ]
+    lines.extend(rows[:10])
+    if len(rows) > 10:
+        lines.append("...showing first 10 of {0}".format(len(rows)))
+    if not ducts:
+        lines.append("No selected ducts found.")
+    return "\n".join(lines)
 
 
 def report_total_selected_duct_volume_cubic_meters(doc, uidoc):
     ducts = _selected_elements_by_categories(doc, uidoc, [DB.BuiltInCategory.OST_DuctCurves])
     total_volume = 0.0
+    direct_hits = 0
+    derived_hits = 0
+    missing_ids = []
+    preview_rows = []
     for duct in ducts:
         param = duct.LookupParameter("Volume")
+        volume_ft3 = None
         if param:
             try:
-                total_volume += float(param.AsDouble() * 0.0283168)
+                volume_ft3 = float(param.AsDouble())
             except:
-                pass
-    return "Selected ducts: {0}\nTotal selected duct volume: {1:.3f} m³".format(len(ducts), total_volume)
+                volume_ft3 = None
+        if volume_ft3 and volume_ft3 > 0:
+            volume_m3 = volume_ft3 * 0.0283168
+            total_volume += volume_m3
+            direct_hits += 1
+            preview_rows.append("Id: {0}, Volume: {1:.3f} m³ (direct)".format(duct.Id.IntegerValue, volume_m3))
+            continue
+
+        derived_volume_ft3, derived_reason = _derive_mep_curve_volume_ft3(duct)
+        if derived_volume_ft3 and derived_volume_ft3 > 0:
+            volume_m3 = derived_volume_ft3 * 0.0283168
+            total_volume += volume_m3
+            derived_hits += 1
+            preview_rows.append(
+                "Id: {0}, Volume: {1:.3f} m³ ({2})".format(
+                    duct.Id.IntegerValue, volume_m3, derived_reason
+                )
+            )
+        else:
+            missing_ids.append(duct.Id.IntegerValue)
+
+    lines = [
+        "Selected ducts: {0}".format(len(ducts)),
+        "Total selected duct volume: {0:.3f} m³".format(total_volume),
+    ]
+    if direct_hits:
+        lines.append("Direct volume parameter used on {0} duct(s).".format(direct_hits))
+    if derived_hits:
+        lines.append("Derived volume used on {0} duct(s).".format(derived_hits))
+    lines.extend(preview_rows[:10])
+    if len(preview_rows) > 10:
+        lines.append("...showing first 10 of {0}".format(len(preview_rows)))
+    if missing_ids:
+        lines.append(
+            "Volume could not be resolved for {0} duct(s) due to missing usable volume/section data.".format(
+                len(missing_ids)
+            )
+        )
+        preview = ", ".join([str(item_id) for item_id in missing_ids[:10]])
+        if preview:
+            lines.append("Unresolved duct ids: {0}{1}".format(preview, " ..." if len(missing_ids) > 10 else ""))
+    if not ducts:
+        lines.append("No selected ducts found.")
+    return "\n".join(lines)
 
 
 def report_ducts_without_system_assignment(doc, uidoc):
@@ -1934,8 +2028,10 @@ def report_ducts_without_system_assignment(doc, uidoc):
         if not system_name:
             missing.append(duct)
     lines = ["Ducts without system assignment: {0}".format(len(missing))]
-    for duct in missing[:20]:
+    for duct in missing[:10]:
         lines.append("Id: {0}".format(duct.Id.IntegerValue))
+    if len(missing) > 10:
+        lines.append("...showing first 10 of {0}".format(len(missing)))
     return "\n".join(lines)
 
 
@@ -1944,17 +2040,82 @@ def count_selected_pipes(doc, uidoc):
     return "Selected pipes: {0}".format(len(pipes))
 
 
+def count_pipes_in_active_view(doc, uidoc):
+    active_view = uidoc.ActiveView
+    pipes = (
+        DB.FilteredElementCollector(doc, active_view.Id)
+        .OfCategory(DB.BuiltInCategory.OST_PipeCurves)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    return "Pipes in active view '{0}': {1}".format(active_view.Name, len(pipes))
+
+
+def list_pipes_in_active_view(doc, uidoc):
+    active_view = uidoc.ActiveView
+    pipes = (
+        DB.FilteredElementCollector(doc, active_view.Id)
+        .OfCategory(DB.BuiltInCategory.OST_PipeCurves)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    rows = []
+    total_length = 0.0
+    for pipe in pipes:
+        pipe_type = doc.GetElement(pipe.GetTypeId())
+        type_name = get_elem_name(pipe_type) if pipe_type else "(no type)"
+        system_name = "(no system)"
+        system_param = pipe.LookupParameter("System Name")
+        if system_param:
+            try:
+                system_name = system_param.AsString() or "(no system)"
+            except:
+                pass
+        length = 0.0
+        length_param = pipe.LookupParameter("Length")
+        if length_param:
+            try:
+                length = float(length_param.AsDouble() * 0.3048)
+            except:
+                length = 0.0
+        total_length += length
+        rows.append(
+            "Id: {0}, Type: {1}, System: {2}, Length: {3:.2f} m".format(
+                pipe.Id.IntegerValue, type_name, system_name, length
+            )
+        )
+    lines = ["Active view: {0}".format(active_view.Name), "Pipes found: {0}".format(len(pipes))]
+    lines.extend(rows[:10])
+    if len(rows) > 10:
+        lines.append("...showing first 10 of {0}".format(len(rows)))
+    lines.append("Total Length: {0:.2f} m".format(total_length))
+    return "\n".join(lines)
+
+
 def report_total_selected_pipe_length(doc, uidoc):
     pipes = _selected_elements_by_categories(doc, uidoc, [DB.BuiltInCategory.OST_PipeCurves])
     total_length = 0.0
+    rows = []
     for pipe in pipes:
         param = pipe.LookupParameter("Length")
+        length_m = 0.0
         if param:
             try:
-                total_length += float(param.AsDouble() * 0.3048)
+                length_m = float(param.AsDouble() * 0.3048)
             except:
                 pass
-    return "Selected pipes: {0}\nTotal selected pipe length: {1:.2f} m".format(len(pipes), total_length)
+        total_length += length_m
+        rows.append("Id: {0}, Length: {1:.2f} m".format(pipe.Id.IntegerValue, length_m))
+    lines = [
+        "Selected pipes: {0}".format(len(pipes)),
+        "Total selected pipe length: {0:.2f} m".format(total_length),
+    ]
+    lines.extend(rows[:10])
+    if len(rows) > 10:
+        lines.append("...showing first 10 of {0}".format(len(rows)))
+    if not pipes:
+        lines.append("No selected pipes found.")
+    return "\n".join(lines)
 
 
 def find_unconnected_pipe_fittings(doc, uidoc):
@@ -1984,8 +2145,10 @@ def find_unconnected_pipe_fittings(doc, uidoc):
     if disconnected:
         uidoc.Selection.SetElementIds(List[DB.ElementId]([item.Id for item in disconnected]))
     lines = ["Unconnected pipe fittings: {0}".format(len(disconnected))]
-    for fitting in disconnected[:20]:
+    for fitting in disconnected[:10]:
         lines.append("Id: {0}".format(fitting.Id.IntegerValue))
+    if len(disconnected) > 10:
+        lines.append("...showing first 10 of {0}".format(len(disconnected)))
     return "\n".join(lines)
 
 
@@ -2008,8 +2171,10 @@ def report_pipes_without_system_assignment(doc, uidoc):
         if not system_name:
             missing.append(pipe)
     lines = ["Pipes without system assignment: {0}".format(len(missing))]
-    for pipe in missing[:20]:
+    for pipe in missing[:10]:
         lines.append("Id: {0}".format(pipe.Id.IntegerValue))
+    if len(missing) > 10:
+        lines.append("...showing first 10 of {0}".format(len(missing)))
     return "\n".join(lines)
 
 
@@ -2059,9 +2224,14 @@ def report_devices_without_circuit_info(doc, uidoc):
                     values.append("")
         if not [value for value in values if value]:
             missing.append(elem)
-    lines = ["Selected devices without circuit/system info: {0}".format(len(missing))]
-    for elem in missing[:20]:
+    lines = [
+        "Selected fixtures/devices inspected: {0}".format(len(elems)),
+        "Selected devices without circuit/system info: {0}".format(len(missing)),
+    ]
+    for elem in missing[:10]:
         lines.append("Id: {0}, Category: {1}".format(elem.Id.IntegerValue, get_elem_name(elem.Category) if elem.Category else "(no category)"))
+    if len(missing) > 10:
+        lines.append("...showing first 10 of {0}".format(len(missing)))
     return "\n".join(lines)
 
 
@@ -2084,6 +2254,28 @@ def list_fixtures_by_type_in_active_view(doc, uidoc):
     return "\n".join(lines)
 
 
+def list_electrical_fixtures_in_active_view(doc, uidoc):
+    active_view = uidoc.ActiveView
+    fixtures = (
+        DB.FilteredElementCollector(doc, active_view.Id)
+        .OfCategory(DB.BuiltInCategory.OST_ElectricalFixtures)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    lines = ["Electrical fixtures in active view '{0}': {1}".format(active_view.Name, len(fixtures))]
+    for elem in fixtures[:10]:
+        elem_type = doc.GetElement(elem.GetTypeId())
+        lines.append(
+            "Id: {0}, Type: {1}".format(
+                elem.Id.IntegerValue,
+                get_elem_name(elem_type) if elem_type else "(no type)",
+            )
+        )
+    if len(fixtures) > 10:
+        lines.append("...showing first 10 of {0}".format(len(fixtures)))
+    return "\n".join(lines)
+
+
 def report_selected_elements_by_category(doc, uidoc):
     elems = [doc.GetElement(element_id) for element_id in uidoc.Selection.GetElementIds()]
     counts = {}
@@ -2093,6 +2285,9 @@ def report_selected_elements_by_category(doc, uidoc):
         category_name = get_elem_name(elem.Category)
         counts[category_name] = counts.get(category_name, 0) + 1
     lines = ["Selected elements by category:"]
+    if not counts:
+        lines.append("No selected elements found.")
+        return "\n".join(lines)
     for category_name in sorted(counts.keys()):
         lines.append("{0}: {1}".format(category_name, counts[category_name]))
     return "\n".join(lines)
@@ -2108,25 +2303,66 @@ def report_selected_elements_by_type(doc, uidoc):
         type_name = get_elem_name(elem_type) if elem_type else get_elem_name(elem)
         counts[type_name] = counts.get(type_name, 0) + 1
     lines = ["Selected elements by type:"]
+    if not counts:
+        lines.append("No selected elements found.")
+        return "\n".join(lines)
     for type_name in sorted(counts.keys()):
         lines.append("{0}: {1}".format(type_name, counts[type_name]))
     return "\n".join(lines)
 
 
 def health_check_for_active_view_selection(doc, uidoc):
-    elems = [doc.GetElement(element_id) for element_id in uidoc.Selection.GetElementIds()]
-    lines = [
-        "Selection health check",
-        "Active view: {0}".format(uidoc.ActiveView.Name),
-        "Selected elements: {0}".format(len([elem for elem in elems if elem])),
+    active_view = uidoc.ActiveView
+    category_specs = [
+        ("Ducts", DB.BuiltInCategory.OST_DuctCurves),
+        ("Duct Fittings", DB.BuiltInCategory.OST_DuctFitting),
+        ("Pipes", DB.BuiltInCategory.OST_PipeCurves),
+        ("Pipe Fittings", DB.BuiltInCategory.OST_PipeFitting),
+        ("Electrical Fixtures", DB.BuiltInCategory.OST_ElectricalFixtures),
+        ("Electrical Equipment", DB.BuiltInCategory.OST_ElectricalEquipment),
     ]
+    total_count = 0
+    missing_system = 0
+    missing_mark = 0
     category_counts = {}
-    for elem in elems:
-        if elem and getattr(elem, "Category", None):
-            category_name = get_elem_name(elem.Category)
-            category_counts[category_name] = category_counts.get(category_name, 0) + 1
-    for category_name in sorted(category_counts.keys()):
-        lines.append("{0}: {1}".format(category_name, category_counts[category_name]))
+    for label, category in category_specs:
+        elems = (
+            DB.FilteredElementCollector(doc, active_view.Id)
+            .OfCategory(category)
+            .WhereElementIsNotElementType()
+            .ToElements()
+        )
+        category_counts[label] = len(elems)
+        total_count += len(elems)
+        for elem in elems:
+            if label not in ("Electrical Fixtures", "Electrical Equipment"):
+                system_param = elem.LookupParameter("System Name")
+                system_value = None
+                if system_param:
+                    try:
+                        system_value = system_param.AsString()
+                    except:
+                        pass
+                if not system_value:
+                    missing_system += 1
+            mark_param = elem.LookupParameter("Mark")
+            mark_value = None
+            if mark_param:
+                try:
+                    mark_value = mark_param.AsString()
+                except:
+                    pass
+            if not mark_value:
+                missing_mark += 1
+    lines = [
+        "Active-view MEP health check",
+        "Active view: {0}".format(active_view.Name),
+        "Supported MEP elements in active view: {0}".format(total_count),
+        "Elements missing system assignment: {0}".format(missing_system),
+        "Elements missing Mark: {0}".format(missing_mark),
+    ]
+    for label, _ in category_specs:
+        lines.append("{0}: {1}".format(label, category_counts.get(label, 0)))
     return "\n".join(lines)
 
 
@@ -3229,11 +3465,14 @@ REVIEWED_ACTION_HANDLERS = {
     "report_ducts_without_system_assignment": report_ducts_without_system_assignment,
     "select_all_pipes": select_all_pipes,
     "count_selected_pipes": count_selected_pipes,
+    "count_pipes_in_active_view": count_pipes_in_active_view,
+    "list_pipes_in_active_view": list_pipes_in_active_view,
     "report_total_selected_pipe_length": report_total_selected_pipe_length,
     "find_unconnected_pipe_fittings": find_unconnected_pipe_fittings,
     "report_pipes_without_system_assignment": report_pipes_without_system_assignment,
     "select_all_electrical_fixtures_in_active_view": select_all_electrical_fixtures_in_active_view,
     "count_selected_fixtures_devices": count_selected_fixtures_devices,
+    "list_electrical_fixtures_in_active_view": list_electrical_fixtures_in_active_view,
     "report_devices_without_circuit_info": report_devices_without_circuit_info,
     "list_fixtures_by_type_in_active_view": list_fixtures_by_type_in_active_view,
     "report_selected_elements_by_category": report_selected_elements_by_category,
@@ -3267,6 +3506,10 @@ def handle_public_command(prompt, doc, uidoc):
         return report_ducts_without_system_assignment(doc, uidoc)
     if "count selected pipes" in p or "how many pipes are selected" in p:
         return count_selected_pipes(doc, uidoc)
+    if "count pipes in active view" in p or "count all pipes in active view" in p:
+        return count_pipes_in_active_view(doc, uidoc)
+    if "list pipes in active view" in p or "list all pipes in active view" in p:
+        return list_pipes_in_active_view(doc, uidoc)
     if "report total selected pipe length" in p or "total selected pipe length" in p or "length of selected pipes" in p:
         return report_total_selected_pipe_length(doc, uidoc)
     if "find unconnected pipe fittings" in p or "find disconnected pipe fittings" in p:
@@ -3277,6 +3520,8 @@ def handle_public_command(prompt, doc, uidoc):
         return select_all_electrical_fixtures_in_active_view(doc, uidoc)
     if "count selected fixtures/devices" in p or "count selected fixtures" in p or "count selected devices" in p:
         return count_selected_fixtures_devices(doc, uidoc)
+    if "list electrical fixtures in active view" in p or "electrical devices in active view" in p:
+        return list_electrical_fixtures_in_active_view(doc, uidoc)
     if "report devices without circuit/system info" in p or "report devices without circuit info" in p:
         return report_devices_without_circuit_info(doc, uidoc)
     if "list fixtures by type in active view" in p or "list electrical fixtures by type" in p:
@@ -4372,7 +4617,10 @@ class OllamaAIChat(forms.WPFWindow):
         if not ollama_model_installed(self.model):
             self.ModelInfo.Text = "Model '{}' not installed.".format(self.model)
         else:
-            self.ModelInfo.Text = "Model: {} (active)".format(self.model)
+            note = ""
+            if self.model != DEFAULT_MODEL:
+                note = " Runtime note: heavier local models may be unstable in this runtime; phi3:mini remains the stable recommended model."
+            self.ModelInfo.Text = "Model: {} (active).{}".format(self.model, note)
 
     def on_send_chat(self, sender, args):
         prompt = self.ChatInput.Text.strip()
@@ -4389,6 +4637,8 @@ class OllamaAIChat(forms.WPFWindow):
             # Simulate long call
             # time.sleep(5)  # For demo, remove in production
             reply = send_ollama_chat(self.model, prompt)
+            if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
+                reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             self.ChatHistory.AppendText("AI: {}\n\n".format(reply))
             self.ChatInput.Text = ""
         except Exception as e:

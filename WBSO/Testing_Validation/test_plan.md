@@ -142,6 +142,28 @@ Snowdon Towers Sample HVAC
    - create sheet
 3. approved recipes still save and reload correctly
 
+## 2026-04-13 Runtime Targets for This Expanded MEP Pass
+
+ModelMind
+
+1. report total selected duct length
+2. report total selected duct volume in cubic meters
+3. find unconnected duct fittings
+4. report ducts without system assignment
+5. select all pipes
+6. count pipes in active view
+7. list pipes in active view
+
+AI Agent
+
+8. natural-language mapping for:
+   - `duct length`
+   - `volume of selected ducts`
+   - `find disconnected duct fittings`
+   - `pipes without system`
+   - `create a 3d view from this selection`
+9. reviewed plan generation remains bounded and execution remains deterministic
+
 ## Additional Checks Executed In This Provider-Integration Pass
 
 - compiled `AI.extension/lib/ai_local_store.py`
@@ -203,6 +225,38 @@ Shared reviewed actions loaded locally:
 
 - `23`
 
+## Additional Checks Executed In This Expanded MEP Pass
+
+- compiled `AI.extension/lib/ai_prompt_registry.py`
+- compiled `AI.extension/lib/ai_agent_session.py`
+- reparsed `AI.extension/lib/prompt_catalog.json`
+- verified shared reviewed actions loaded from registry: `26`
+- verified AI Agent local shared-registry planning for:
+  - `duct length`
+  - `total selected duct volume`
+  - `pipes without system`
+  - `count pipes in active view`
+  - `electrical devices in active view`
+  - `create a 3d view from this selection`
+
+## Live Findings Already Reported Before This Pass
+
+- Ollama Chat works with `phi3:mini`
+- ModelMind works for:
+  - `select all ducts`
+  - `count ducts in active view`
+  - `list ducts in active view`
+  - `create sheet`
+- AI Agent works for:
+  - `select ducts`
+  - `count selected ducts`
+  - `count ducts in active view`
+  - `list ducts in active view`
+- reviewed create-sheet flow remains working
+- approved recipe save/load remains working
+- `gemma3:27b` appears unstable/crashes in runtime while `phi3:mini` is stable
+- `report total selected duct volume in cubic meters` returned `0.000 m³` before the fix in this pass
+
 ## Additional Live Checks Not Executed In This Provider-Integration Pass
 
 - live ModelMind layout verification in Revit
@@ -234,6 +288,13 @@ Shared reviewed actions loaded locally:
 - live Revit validation of the shared ModelMind tree
 - live Revit execution validation for the expanded MEP reviewed action set
 - live Revit validation of approved recipe continuity after the registry refactor
+
+## Additional Live Checks Not Executed In This Expanded MEP Pass
+
+- duct-volume action validation after the robustness fix
+- new pipe active-view actions
+- new electrical and QA/BIM reviewed actions
+- `create 3D view` in live Revit
 
 ## Acceptance Condition for Next Runtime Pass
 

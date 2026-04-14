@@ -270,7 +270,8 @@
     "planner_aliases": [
       "find unconnected duct fittings",
       "find disconnected duct fittings",
-      "find unconnected fittings"
+      "find unconnected fittings",
+      "disconnected duct fittings"
     ],
     "deterministic_handler": "find_unconnected_duct_fittings",
     "requires_confirmation": false
@@ -693,7 +694,8 @@
       "volume of selected ducts",
       "total selected duct volume in m3",
       "total selected duct volume in cubic meters",
-      "selected duct volume"
+      "selected duct volume",
+      "selected duct volume in cubic meters"
     ],
     "deterministic_handler": "report_total_selected_duct_volume_cubic_meters",
     "requires_confirmation": false
@@ -779,7 +781,9 @@
     "planner_aliases": [
       "report total selected duct length",
       "total selected duct length",
-      "length of selected ducts"
+      "length of selected ducts",
+      "duct length",
+      "total duct length"
     ],
     "deterministic_handler": "report_total_selected_duct_length",
     "requires_confirmation": false,
@@ -798,7 +802,8 @@
     "planner_aliases": [
       "report ducts without system assignment",
       "ducts without system assignment",
-      "ducts without system info"
+      "ducts without system info",
+      "ducts without system"
     ],
     "deterministic_handler": "report_ducts_without_system_assignment",
     "requires_confirmation": false,
@@ -835,7 +840,8 @@
     "planner_aliases": [
       "report total selected pipe length",
       "total selected pipe length",
-      "length of selected pipes"
+      "length of selected pipes",
+      "pipe length"
     ],
     "deterministic_handler": "report_total_selected_pipe_length",
     "requires_confirmation": false,
@@ -853,7 +859,8 @@
     "scope_type": "project",
     "planner_aliases": [
       "find unconnected pipe fittings",
-      "find disconnected pipe fittings"
+      "find disconnected pipe fittings",
+      "disconnected pipe fittings"
     ],
     "deterministic_handler": "find_unconnected_pipe_fittings",
     "requires_confirmation": false,
@@ -871,7 +878,8 @@
     "scope_type": "project",
     "planner_aliases": [
       "report pipes without system assignment",
-      "pipes without system assignment"
+      "pipes without system assignment",
+      "pipes without system"
     ],
     "deterministic_handler": "report_pipes_without_system_assignment",
     "requires_confirmation": false,
@@ -899,7 +907,7 @@
   },
   {
     "id": "count-selected-fixtures-devices",
-    "title": "Count selected fixtures/devices",
+    "title": "Count selected electrical fixtures/devices",
     "category": "Count",
     "discipline": "Electrical",
     "role": "read",
@@ -908,7 +916,8 @@
     "planner_aliases": [
       "count selected fixtures",
       "count selected devices",
-      "count selected fixtures devices"
+      "count selected fixtures devices",
+      "count selected electrical fixtures/devices"
     ],
     "deterministic_handler": "count_selected_fixtures_devices",
     "requires_confirmation": false,
@@ -918,7 +927,7 @@
   },
   {
     "id": "report-devices-without-circuit-info",
-    "title": "Report devices without circuit/system info",
+    "title": "Report devices/fixtures without circuit or system assignment",
     "category": "Reports",
     "discipline": "Electrical",
     "role": "read",
@@ -927,7 +936,10 @@
     "planner_aliases": [
       "report devices without circuit info",
       "devices without circuit info",
-      "devices without system info"
+      "devices without system info",
+      "fixtures without circuit",
+      "devices without system",
+      "fixtures without system"
     ],
     "deterministic_handler": "report_devices_without_circuit_info",
     "requires_confirmation": false,
@@ -991,7 +1003,7 @@
   },
   {
     "id": "health-check-active-view-selection",
-    "title": "Health check for active view selection",
+    "title": "Health check of active view for supported MEP categories",
     "category": "Reports",
     "discipline": "QA / BIM",
     "role": "read",
@@ -1000,7 +1012,8 @@
     "planner_aliases": [
       "health check for active view selection",
       "selection health check",
-      "health check selection"
+      "health check selection",
+      "health check of active view for supported mep categories"
     ],
     "deterministic_handler": "health_check_for_active_view_selection",
     "requires_confirmation": false,
@@ -1010,7 +1023,7 @@
   },
   {
     "id": "report-missing-parameters-from-selection",
-    "title": "Report missing parameters from selection",
+    "title": "Report missing key parameters from selected elements",
     "category": "Reports",
     "discipline": "QA / BIM",
     "role": "read",
@@ -1018,7 +1031,8 @@
     "scope_type": "selection",
     "planner_aliases": [
       "report missing parameters from selection",
-      "missing parameters from selection"
+      "missing parameters from selection",
+      "report missing key parameters from selected elements"
     ],
     "deterministic_handler": "report_missing_parameters_from_selection",
     "requires_confirmation": false,
@@ -1028,7 +1042,7 @@
   },
   {
     "id": "create-3d-view-from-selection",
-    "title": "Create 3D view from selection/context",
+    "title": "Create 3D view from current selection/context",
     "category": "Tags / Tools",
     "discipline": "QA / BIM",
     "role": "modify",
@@ -1037,12 +1051,67 @@
     "planner_aliases": [
       "create 3d view",
       "create 3d view from selection",
-      "make a 3d view"
+      "make a 3d view",
+      "create a 3d view from this selection"
     ],
     "deterministic_handler": "create_3d_view_from_selection",
     "requires_confirmation": true,
     "enabled": true,
     "prompt_text": "create 3d view from selection/context",
+    "mode": "deterministic"
+  },
+  {
+    "id": "count-pipes-active-view",
+    "title": "Count pipes in active view",
+    "category": "Count",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "planner_aliases": [
+      "count pipes in active view",
+      "count all pipes in active view"
+    ],
+    "deterministic_handler": "count_pipes_in_active_view",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "count pipes in active view",
+    "mode": "deterministic"
+  },
+  {
+    "id": "list-pipes-active-view",
+    "title": "List pipes in active view",
+    "category": "Lists",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "planner_aliases": [
+      "list pipes in active view",
+      "list all pipes in active view"
+    ],
+    "deterministic_handler": "list_pipes_in_active_view",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "list pipes in active view",
+    "mode": "deterministic"
+  },
+  {
+    "id": "list-electrical-fixtures-active-view",
+    "title": "List electrical fixtures in active view",
+    "category": "Lists",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "planner_aliases": [
+      "list electrical fixtures in active view",
+      "electrical devices in active view"
+    ],
+    "deterministic_handler": "list_electrical_fixtures_in_active_view",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "list electrical fixtures in active view",
     "mode": "deterministic"
   }
 ]
