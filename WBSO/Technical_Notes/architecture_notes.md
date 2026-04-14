@@ -411,3 +411,196 @@ Not yet live-validated in Revit after this pass:
 - new pipe active-view actions in ModelMind and AI Agent
 - new electrical and QA/BIM reviewed actions in live Revit
 - 3D-view creation action in live Revit
+
+## 2026-04-14 Shared Catalog Visibility and Resize Pass
+
+This pass focused on usability and governance, not on adding a second AI Agent catalog surface.
+
+### Architectural changes
+
+- kept one shared reviewed registry only
+- changed ModelMind tree rendering so it now shows the shared reviewed action catalog by governed top-level domains:
+  - HVAC
+  - Piping
+  - Electrical
+  - QA / BIM
+  - Views / Sheets
+- kept aliases and example prompts as metadata on canonical reviewed actions instead of creating duplicate tree leaves
+- kept Approved Recipes in a distinct branch and grouped them by domain where possible
+- kept AI Agent as a planner/router over the same shared reviewed actions without adding a second catalog tree
+
+### UI/runtime architecture changes
+
+- made the AI Workbench window structurally resizable with persisted width, height, and position
+- refit ModelMind to use a resizable split layout with:
+  - expanding output/history area
+  - expanding reviewed catalog tree
+  - action-details panel for canonical prompt, aliases/examples, role, risk, and validation state
+  - wrapped bottom action buttons under the input field to avoid overlap on smaller sizes
+- added a lightweight Recent Prompts branch stored locally for convenience only; it is not part of the canonical reviewed catalog
+
+### Local verification for this pass
+
+- shared reviewed actions exposed in the governed ModelMind tree shape:
+  - HVAC
+  - Piping
+  - Electrical
+  - QA / BIM
+  - Views / Sheets
+  - Recent Prompts
+  - Approved Recipes
+- shared reviewed actions available from registry: `26`
+- AI Agent supported-action view also reflects the same `26` shared reviewed actions
+- `UI.xaml` is well-formed after the resize/layout refactor
+
+### Still pending live validation after this pass
+
+- live Revit confirmation that the new resizable layout behaves correctly when the window is stretched and reduced
+- live Revit confirmation that the governed ModelMind tree renders correctly with grouped reviewed actions and approved-recipe domains
+- live Revit confirmation that AI Agent supported-action summaries remain correct in the runtime UI after this refactor
+
+## 2026-04-14 AI Agent Plan-Step Control Pass
+
+This pass did not expand the reviewed action set. It focused only on AI Agent queue usability and control-state logic.
+
+### Root cause
+
+- the bottom AI Agent selector had been overloaded with two meanings:
+  - current reviewed plan steps
+  - shared supported reviewed actions
+- the adjacent buttons (`Disable/Enable`, `Reset Commands`, `Execute Plan`) only operate on current plan steps, not on the whole supported-action catalog
+- when no plan existed, the selector still showed supported actions, which made the control look actionable while the buttons correctly remained disabled
+
+### Architectural behavior after this pass
+
+- the bottom selector now represents only the current reviewed plan steps
+- supported reviewed actions remain visible separately as informational text only
+- AI Agent still uses the shared reviewed registry and still does not introduce a second catalog tree
+- Approved Recipes remain ModelMind-centered and were not added as a new Agent queue source in this pass
+
+### Stateful plan-step fields
+
+Each queued plan step now carries explicit runtime state:
+
+- `id`
+- `title`
+- `role` (`read_only` or `modifying`)
+- `risk`
+- `enabled`
+- `executed`
+- `blocked_reason`
+- `undo_available`
+
+### Local verification for this pass
+
+- a local deterministic plan for `count selected ducts` now produces a plan step with the explicit queue-state fields above
+- toggling that step off changes the session state so `has_enabled_steps` becomes false
+- `UI.xaml` remains well-formed after the Agent control relabel/state additions
+
+### Still pending live validation after this pass
+
+- live confirmation that the selected plan step now activates the adjacent buttons as intended
+- live confirmation that `Execute Plan` availability messaging matches destructive-tools gating correctly
+
+## 2026-04-14 Action-Specific Undo Pass
+
+This pass does not add generic undo. It adds real reversible undo only for the already validated modifying action `Create 3D view from current selection/context`.
+
+### Undo model added
+
+- session-level undo context is now stored only for the last successfully executed modifying reviewed action
+- undo context is structured and currently records:
+  - `action_id`
+  - `action_title`
+  - `role`
+  - `document_identity`
+  - `created_element_ids`
+  - `created_view_id`
+  - `created_view_name`
+  - `timestamp_utc`
+  - `session_marker`
+  - `undo_available`
+
+### First truly undoable action
+
+- `Create 3D view from current selection/context`
+
+Forward execution now records the created 3D view identifier after a successful transaction commit. Undo deletes that recorded view in a new transaction if:
+
+- the undo context still exists
+- the action is the supported reversible create-3D-view action
+- the document identity still matches
+- the created view still exists
+
+### Session behavior
+
+- read-only actions do not create undo context
+- blocked modifying actions do not create undo context
+- `Reset Commands` clears the current undo context to avoid stale reversible state from surviving a session reset
+- undo context is cleared after a successful undo
+
+### Local verification for this pass
+
+- blocked modifying action with destructive tools off: no undo context created
+- successful modifying action with destructive tools on: undo context created
+- `reset()` clears undo context
+- successful read-only execution does not create undo context
+
+### Still pending live validation after this pass
+
+- live confirmation that create-3D-view undo deletes the created view in Revit
+- live confirmation of honest failure cases when the created view is already gone or document context changes
+
+## 2026-04-15 Create-Sheet Undo Extension Pass
+
+This pass extends the existing reviewed-action undo framework from `Create 3D view from current selection/context` to `Create sheet`.
+
+### Undo-context extension
+
+- `run_code_in_revit` now infers and returns structured undo context when a reviewed create-sheet execution succeeds
+- create-sheet undo context now records:
+  - `action_id`
+  - `action_title`
+  - `role`
+  - `document_identity`
+  - `created_sheet_id`
+  - `created_sheet_number`
+  - `created_sheet_name`
+  - `timestamp_utc`
+  - `session_marker`
+  - `undo_available`
+
+### Shared modifying behavior
+
+The same last-action undo context is now populated consistently when create sheet succeeds through:
+
+- AI Agent reviewed plan execution
+- ModelMind reviewed execution
+- approved recipe execution
+
+The framework still keeps only one current-session undo context and does not introduce a history stack.
+
+### First truly undoable modifying actions after this pass
+
+- `Create 3D view from current selection/context`
+- `Create sheet`
+
+### Session behavior preserved
+
+- read-only actions remain non-undoable
+- destructive-tools gating remains unchanged for forward modifying execution
+- `Reset Commands` still clears undo context as the safe session behavior
+
+### Local verification for this pass
+
+- successful create-sheet execution path creates undo context structurally
+- create-sheet undo context clears on reset
+- create-3D-view undo path still creates undo context structurally
+- read-only execution still creates no undo context
+- approved-recipe/create-sheet path is wired through the same undo-context application helper
+
+### Still pending live validation after this pass
+
+- actual delete-on-undo behavior for the created sheet in Revit
+- honest runtime failure handling for missing/dependent/deleted sheets
+- approved-recipe create-sheet undo behavior in the live runtime

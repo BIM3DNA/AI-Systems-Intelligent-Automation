@@ -4,10 +4,15 @@
     Title="AI Workbench"
     Height="640"
     Width="1100"
+    MinWidth="980"
+    MinHeight="680"
     WindowStartupLocation="CenterScreen"
     WindowStyle="None"
     Background="#eff6ff"
-    ResizeMode="NoResize">
+    ResizeMode="CanResizeWithGrip"
+    SizeToContent="Manual"
+    UseLayoutRounding="True"
+    SnapsToDevicePixels="True">
     <Window.Resources>
         <SolidColorBrush x:Key="ComboBackgroundBrush" Color="#f8fafd"/>
         <SolidColorBrush x:Key="ComboForegroundBrush" Color="#1f2937"/>
@@ -163,19 +168,25 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="130"/>
                                 <ColumnDefinition Width="130"/>
                                 <ColumnDefinition Width="140"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock x:Name="AgentCommandLegend" Grid.Row="0" Grid.ColumnSpan="4" Margin="0,0,0,6" TextWrapping="Wrap" Foreground="#4b5563" Text="Supported planner actions: select all ducts, count selected ducts, count all ducts in active view, list ducts in active view, find unconnected fittings, report elements without system assignment."/>
-                            <ComboBox x:Name="AgentCommandSelector" Grid.Row="1" Grid.Column="0" Height="26" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                            <Button x:Name="AgentToggleCommandButton" Content="Disable/Enable" Width="120" Height="26" Background="#ffeaa7" Foreground="#2d3436" BorderBrush="#ffeaa7" BorderThickness="1" Grid.Row="1" Grid.Column="1" ToolTip="Enable or disable the selected planned command for this session."/>
-                            <Button x:Name="AgentResetCommandsButton" Content="Reset Commands" Width="120" Height="26" Background="#fab1a0" Foreground="#2d3436" BorderBrush="#fab1a0" BorderThickness="1" Grid.Row="1" Grid.Column="2" Margin="10,0,0,0" ToolTip="Clear the current plan and session command state."/>
-                            <Button x:Name="AgentUndoButton" Content="Undo Last Action" Width="130" Height="26" Background="#dfe6e9" Foreground="#2d3436" BorderBrush="#dfe6e9" BorderThickness="1" Grid.Row="1" Grid.Column="3" Margin="10,0,0,0" IsEnabled="False" ToolTip="Disabled because robust rollback and journaling are not implemented yet."/>
+                            <TextBlock x:Name="AgentCommandLegend" Grid.Row="0" Grid.ColumnSpan="5" Margin="0,0,0,6" TextWrapping="Wrap" Foreground="#4b5563" Text="Supported reviewed actions are shown here for reference. The control below selects only the current reviewed plan steps."/>
+                            <TextBlock x:Name="AgentPlanStepLabel" Grid.Row="1" Grid.Column="0" Margin="0,0,10,0" VerticalAlignment="Center" Foreground="#1f2937" FontWeight="Bold" Text="Current Plan Steps:"/>
+                            <ComboBox x:Name="AgentCommandSelector" Grid.Row="1" Grid.Column="1" Height="26" Margin="0,0,10,0" VerticalAlignment="Center" ToolTip="Shows only the reviewed steps in the current plan."/>
+                            <Button x:Name="AgentToggleCommandButton" Content="Disable/Enable" Width="120" Height="26" Background="#ffeaa7" Foreground="#2d3436" BorderBrush="#ffeaa7" BorderThickness="1" Grid.Row="1" Grid.Column="2" ToolTip="Enable or disable the selected planned command for this session."/>
+                            <Button x:Name="AgentResetCommandsButton" Content="Reset Commands" Width="120" Height="26" Background="#fab1a0" Foreground="#2d3436" BorderBrush="#fab1a0" BorderThickness="1" Grid.Row="1" Grid.Column="3" Margin="10,0,0,0" ToolTip="Clear the current plan and session command state."/>
+                            <Button x:Name="AgentUndoButton" Content="Undo Last Action" Width="130" Height="26" Background="#dfe6e9" Foreground="#2d3436" BorderBrush="#dfe6e9" BorderThickness="1" Grid.Row="1" Grid.Column="4" Margin="10,0,0,0" IsEnabled="False" ToolTip="Disabled because robust rollback and journaling are not implemented yet."/>
+                            <TextBlock x:Name="AgentStepStateText" Grid.Row="2" Grid.ColumnSpan="5" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="#4b5563" Text="No current reviewed plan. Plan Request creates the current reviewed plan steps."/>
+                            <TextBlock x:Name="AgentUndoStatusText" Grid.Row="3" Grid.ColumnSpan="5" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#4b5563" Text="Undo unavailable: no reversible action in current session."/>
                         </Grid>
                     </Grid>
                 </TabItem>
@@ -184,10 +195,10 @@
                     <Grid Margin="10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="320"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
@@ -195,29 +206,57 @@
                         </Grid.RowDefinitions>
 
                         <TextBlock x:Name="ModelMindIntroText" Grid.Row="0" Grid.Column="0" Margin="0,0,10,8" TextWrapping="Wrap" Foreground="#4b5563" Text="ModelMind is the primary task surface for most users. Use the structured prompt catalog for deterministic and semi-generative BIM workflows. Approved recipes are shown in a separate branch."/>
-                        <TextBlock x:Name="ReviewedCodeStateLabel" Grid.Row="1" Grid.Column="0" Margin="0,0,10,8" TextWrapping="Wrap" Foreground="#0085ff" FontWeight="Bold" Text="Reviewed code state: draft"/>
-                        <RichTextBox x:Name="ModelMindHistory" Grid.Row="2" Grid.Column="0" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="#f8fafd" FontSize="15" BorderBrush="#b3cef6" BorderThickness="1"/>
-                        <GroupBox x:Name="ReviewedCodeGroup" Header="Reviewed Code" Grid.Row="3" Grid.Column="0" Margin="0,10,10,0" Visibility="Collapsed">
+                        <Grid Grid.Row="1" Grid.Column="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="ReviewedCodeStateLabel" Grid.Row="0" Margin="0,0,10,8" TextWrapping="Wrap" Foreground="#0085ff" FontWeight="Bold" Text="Reviewed code state: draft"/>
+                            <RichTextBox x:Name="ModelMindHistory" Grid.Row="1" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="#f8fafd" FontSize="15" BorderBrush="#b3cef6" BorderThickness="1"/>
+                        </Grid>
+                        <GroupBox x:Name="ReviewedCodeGroup" Header="Reviewed Code" Grid.Row="2" Grid.Column="0" Margin="0,10,10,0" Visibility="Collapsed">
                             <TextBox x:Name="ReviewedCodePreview" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MinHeight="120" MaxHeight="180" BorderThickness="0" Background="#f8fafd" Foreground="#1f2937"/>
                         </GroupBox>
 
-                        <Grid Grid.Row="4" Grid.Column="0" Margin="0,10,0,0">
+                        <Grid Grid.Row="3" Grid.Column="0" Margin="0,10,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <TextBox x:Name="ModelMindInput" Grid.Row="0" Height="32" MaxHeight="80" MinWidth="390" MaxWidth="1000" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontSize="14" BorderBrush="#b3cef6" BorderThickness="1" Margin="0,0,0,10" ToolTip="Enter a deterministic recipe prompt or a semi-generative BIM task request."/>
-                            <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                                <Button x:Name="ModelMindSendButton" Content="Send" Width="95" Height="32" Background="#00b894" Foreground="White" FontWeight="Bold" BorderBrush="#00b894" BorderThickness="1" FontSize="14" Margin="0,0,10,0"/>
-                                <Button x:Name="ToggleReviewedCodeButton" Content="Show reviewed code" Width="140" Height="32" Background="#475569" Foreground="White" FontWeight="Bold" BorderBrush="#475569" BorderThickness="1" FontSize="12" Margin="0,0,10,0" IsEnabled="False" ToolTip="Show or hide the reviewed code draft."/>
-                                <Button x:Name="ApproveCodeButton" Content="Approve &amp; Run Code" Width="150" Height="32" Background="#e17055" Foreground="White" FontWeight="Bold" BorderBrush="#e17055" BorderThickness="1" FontSize="14" Margin="0,0,10,0" ToolTip="Run reviewed generated code only after validation."/>
-                                <Button x:Name="SaveRecipeButton" Content="Save as Approved Recipe" Width="170" Height="32" Background="#3b82f6" Foreground="White" FontWeight="Bold" BorderBrush="#3b82f6" BorderThickness="1" FontSize="13" Margin="0,0,10,0" IsEnabled="False" ToolTip="Available only after a successful reviewed-code execution."/>
+                            <TextBox x:Name="ModelMindInput" Grid.Row="0" MinHeight="32" MaxHeight="90" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontSize="14" BorderBrush="#b3cef6" BorderThickness="1" Margin="0,0,0,10" HorizontalAlignment="Stretch" ToolTip="Enter a deterministic recipe prompt or a semi-generative BIM task request."/>
+                            <WrapPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" ItemHeight="32" ItemWidth="170">
+                                <Button x:Name="ModelMindSendButton" Content="Send" Width="110" Height="32" Background="#00b894" Foreground="White" FontWeight="Bold" BorderBrush="#00b894" BorderThickness="1" FontSize="14" Margin="0,0,10,8"/>
+                                <Button x:Name="ToggleReviewedCodeButton" Content="Show reviewed code" Width="150" Height="32" Background="#475569" Foreground="White" FontWeight="Bold" BorderBrush="#475569" BorderThickness="1" FontSize="12" Margin="0,0,10,8" IsEnabled="False" ToolTip="Show or hide the reviewed code draft."/>
+                                <Button x:Name="ApproveCodeButton" Content="Approve &amp; Run Code" Width="160" Height="32" Background="#e17055" Foreground="White" FontWeight="Bold" BorderBrush="#e17055" BorderThickness="1" FontSize="14" Margin="0,0,10,8" ToolTip="Run reviewed generated code only after validation."/>
+                                <Button x:Name="SaveRecipeButton" Content="Save as Approved Recipe" Width="180" Height="32" Background="#3b82f6" Foreground="White" FontWeight="Bold" BorderBrush="#3b82f6" BorderThickness="1" FontSize="13" Margin="0,0,10,8" IsEnabled="False" ToolTip="Available only after a successful reviewed-code execution."/>
                             </WrapPanel>
                         </Grid>
 
-                        <GroupBox x:Name="PromptTreeGroup" Header="Available Prompts and Approved Recipes" Grid.Row="0" Grid.Column="1" Grid.RowSpan="5" Margin="10,0,0,0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
-                            <TreeView x:Name="PromptTree" BorderBrush="#b3cef6" BorderThickness="1"/>
-                        </GroupBox>
+                        <GridSplitter x:Name="ModelMindSplitter" Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="#dbeafe" ResizeBehavior="PreviousAndNext"/>
+
+                        <Grid Grid.Row="0" Grid.Column="2" Grid.RowSpan="4" Margin="10,0,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <GroupBox x:Name="PromptDetailsGroup" Header="Selected Action" Grid.Row="0" Margin="0,0,0,8">
+                                <Grid Margin="6">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock x:Name="PromptDetailTitle" Grid.Row="0" Text="Select a reviewed action" FontWeight="Bold" TextWrapping="Wrap" Foreground="#1f2937"/>
+                                    <TextBlock x:Name="PromptDetailMeta" Grid.Row="1" Margin="0,6,0,0" Text="Role, risk, and validation status will appear here." TextWrapping="Wrap" Foreground="#4b5563"/>
+                                    <TextBox x:Name="PromptDetailBody" Grid.Row="2" Margin="0,8,0,0" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MinHeight="100" MaxHeight="170" BorderThickness="0" Background="#f8fafd" Foreground="#1f2937"/>
+                                </Grid>
+                            </GroupBox>
+                            <TextBlock x:Name="PromptTreeHint" Grid.Row="1" Margin="0,0,0,8" TextWrapping="Wrap" Foreground="#4b5563" Text="ModelMind shows the shared reviewed catalog only. Aliases and examples stay in the action details instead of creating duplicate tree nodes."/>
+                            <GroupBox x:Name="PromptTreeGroup" Header="Reviewed Action Catalog" Grid.Row="2" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+                                <TreeView x:Name="PromptTree" BorderBrush="#b3cef6" BorderThickness="1"/>
+                            </GroupBox>
+                        </Grid>
                     </Grid>
                 </TabItem>
             </TabControl>

@@ -130,6 +130,112 @@ Known limitation carried into this pass:
 
 - heavier local models such as `gemma3:27b` may be unstable in runtime, while `phi3:mini` is the stable recommended model
 
+## 2026-04-14 Shared Catalog Visibility and Resize Pass
+
+This pass keeps the same shared reviewed-registry architecture but makes it more usable:
+
+- ModelMind now renders the shared reviewed catalog as the visible governed task library
+- AI Agent remains a planner/router over the same reviewed actions and does not gain a second catalog tree
+- aliases/examples remain metadata on canonical actions instead of becoming duplicate tree nodes
+- Approved Recipes stay separate from the canonical reviewed catalog
+- the Workbench shell is now structurally resizable and stores its size/position locally
+
+What was verified locally in this pass:
+
+- shared reviewed actions available from registry: `26`
+- ModelMind tree sections build as:
+  - `HVAC`
+  - `Piping`
+  - `Electrical`
+  - `QA / BIM`
+  - `Views / Sheets`
+  - `Recent Prompts`
+  - `Approved Recipes`
+- AI Agent supported-action UI now reflects the same `26` shared reviewed actions
+- `UI.xaml` is well-formed after the resize/layout refactor
+
+What still needs live confirmation in Revit:
+
+- grouped ModelMind tree rendering
+- window resize/restore behavior
+- approved-recipe domain grouping in the updated tree
+- matched-action visibility and supported-action display in AI Agent after planning
+
+## 2026-04-14 AI Agent Queue State Pass
+
+This pass does not expand the reviewed action catalog. It fixes AI Agent queue usability only.
+
+- the bottom Agent selector now represents only the current reviewed plan steps
+- supported reviewed actions remain visible separately as informational text
+- plan steps now carry explicit runtime state such as `enabled`, `executed`, `blocked_reason`, and `undo_available`
+- button enablement now follows actual plan/session state rather than generic selector population
+
+What was verified locally in this pass:
+
+- a `count selected ducts` plan produces a queued step with the explicit state fields above
+- disabling the only queued step makes the session non-runnable
+- `UI.xaml` remains well-formed after the Agent control changes
+
+What still needs live confirmation:
+
+- revised queue-selector interaction in pyRevit
+- corrected button enable/disable transitions in runtime
+- Execute Plan gating/status messaging when modifying steps are present and destructive tools remain off
+
+## 2026-04-14 Action-Specific Undo Pass
+
+This pass adds real undo only for a truly reversible reviewed action:
+
+- `Create 3D view from current selection/context`
+
+What changed:
+
+- successful modifying execution can now store structured undo context
+- Undo Last Action is enabled only when that reversible context exists
+- `Reset Commands` clears undo context to avoid stale reversible state
+- read-only actions remain non-undoable
+
+What was verified locally in this pass:
+
+- blocked modifying execution does not create undo context
+- successful modifying execution does create undo context
+- reset clears undo context
+- read-only execution does not create undo context
+
+What still needs live confirmation:
+
+- actual deletion of the created 3D view on undo in Revit
+- honest undo failure messaging for stale/missing contexts
+
+## 2026-04-15 Create-Sheet Undo Extension
+
+This pass extends the existing real reviewed-action undo framework to:
+
+- `Create sheet`
+
+What changed:
+
+- successful create-sheet execution can now populate last-action undo context
+- the same last-action undo model is now used across:
+  - AI Agent reviewed execution
+  - ModelMind reviewed execution
+  - approved recipe execution
+- create-3D-view undo remains in place
+- read-only actions remain non-undoable
+
+What was verified locally in this pass:
+
+- successful create-sheet execution can create undo context structurally
+- reset clears that undo context
+- create-3D-view undo context still works structurally
+- read-only execution still creates no undo context
+
+What still needs live confirmation:
+
+- actual sheet deletion on undo in Revit
+- honest failure messaging when the created sheet is gone or cannot be deleted safely
+- approved-recipe create-sheet undo behavior in live runtime
+
 ## Current Workspace Cloud Planner Finding
 
 The current workspace self-test through the actual service path reports:

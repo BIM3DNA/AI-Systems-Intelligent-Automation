@@ -517,3 +517,138 @@ Reported as already live-validated before this code pass:
 - duct-volume action after the robustness fix
 - the newly added pipe/electrical/QA actions
 - `create 3D view` in live Revit
+
+---
+
+## EV-2026-04-14-001 - Shared catalog visibility and resizable Workbench shell
+
+### Scope
+
+- make ModelMind visibly reflect the full shared reviewed action registry
+- keep aliases/examples as metadata rather than duplicate nodes
+- keep Approved Recipes outside the canonical catalog
+- keep AI Agent as planner/router only, not as a second catalog tree
+- make the Workbench shell resizable with persisted window geometry
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+- `AI.extension/lib/ai_prompt_registry.py`
+- `AI.extension/lib/ai_agent_session.py`
+
+### What was actually verified locally
+
+- shared reviewed actions available from registry: `26`
+- ModelMind tree sections now build as:
+  - `HVAC`
+  - `Piping`
+  - `Electrical`
+  - `QA / BIM`
+  - `Views / Sheets`
+  - `Recent Prompts`
+  - `Approved Recipes`
+- AI Agent supported-action view now reflects the same `26` shared reviewed actions instead of a stale hardcoded subset
+- `UI.xaml` parses successfully after the resizable split-layout refactor
+
+### What remains unvalidated in live Revit
+
+- grouped ModelMind tree rendering in the actual pyRevit window
+- resize behavior, splitter usability, and persisted window position/size in runtime
+- approved-recipe branch grouping by domain after save/reload in runtime
+
+---
+
+## EV-2026-04-14-002 - AI Agent plan-step state and control clarification
+
+### Scope
+
+- clarify that the bottom AI Agent selector is only for current reviewed plan steps
+- keep supported reviewed actions informational rather than interactive in that control
+- fix button enable/disable behavior to follow actual plan-step state
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+- `AI.extension/lib/ai_agent_session.py`
+
+### What was actually verified locally
+
+- a local plan for `count selected ducts` creates a step with:
+  - `id`
+  - `title`
+  - `role`
+  - `risk`
+  - `enabled`
+  - `executed`
+  - `blocked_reason`
+  - `undo_available`
+- disabling that single step changes session state so `has_enabled_steps` becomes false
+- `UI.xaml` parses successfully after the Agent control relabel/state additions
+
+### What remains unvalidated in live Revit
+
+- selected-plan-step interaction in the actual Agent UI
+- corrected button enable/disable behavior during live session use
+- Execute Plan availability messaging when only modifying steps are enabled and destructive tools remain off
+
+---
+
+## EV-2026-04-14-003 - Action-specific undo for create-3D-view
+
+### Scope
+
+- add real reversible undo context only for a truly reversible reviewed modifying action
+- do not add generic/global undo
+- keep Approved Recipes and the broader reviewed catalog behavior unchanged
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+- `AI.extension/lib/ai_agent_session.py`
+
+### What was actually verified locally
+
+- blocked modifying execution with destructive tools off does not create undo context
+- successful modifying execution with destructive tools on creates undo context
+- `reset()` clears undo context
+- successful read-only execution does not create undo context
+- `UI.xaml` parses successfully after adding the undo-status text
+
+### What remains unvalidated in live Revit
+
+- real delete-on-undo behavior for the created 3D view
+- honest runtime failure reporting if the created view is already gone
+- live confirmation that `Undo Last Action` enables only when the create-3D-view undo context exists
+
+---
+
+## EV-2026-04-15-001 - Create-sheet undo extension
+
+### Scope
+
+- extend the real reviewed-action undo framework from create-3D-view to create sheet
+- keep one last-action undo context only
+- keep read-only actions non-undoable
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+- `AI.extension/lib/ai_agent_session.py`
+
+### What was actually verified locally
+
+- successful create-sheet execution can create undo context structurally
+- `reset()` clears create-sheet undo context
+- create-3D-view undo-context behavior still works structurally
+- read-only execution still creates no undo context
+- approved-recipe and reviewed execution paths are wired through the shared undo-context application helper
+
+### What remains unvalidated in live Revit
+
+- actual delete-on-undo behavior for created sheets
+- honest runtime failure reporting when a created sheet is gone or not deletable
+- approved-recipe create-sheet undo behavior in the live session

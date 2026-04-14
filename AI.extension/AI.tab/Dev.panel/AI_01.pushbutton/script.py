@@ -2423,6 +2423,146 @@ def create_3d_view_from_selection(doc, uidoc):
         return "Failed to create 3D view: {0}".format(str(exc))
 
 
+def _document_identity(doc):
+    try:
+        return doc.PathName or doc.Title or "(unsaved document)"
+    except:
+        return "(unknown document)"
+
+
+def execute_create_3d_view_with_undo(doc, uidoc):
+    from Autodesk.Revit.DB import FilteredElementCollector, Transaction, View3D, ViewFamily, ViewFamilyType
+
+    view_type = None
+    for candidate in FilteredElementCollector(doc).OfClass(ViewFamilyType):
+        try:
+            if candidate.ViewFamily == ViewFamily.ThreeDimensional:
+                view_type = candidate
+                break
+        except:
+            continue
+    if view_type is None:
+        return {"message": "Failed: no 3D view family type exists in the current project."}
+
+    transaction = Transaction(doc, "Create AI 3D View")
+    transaction.Start()
+    try:
+        view3d = View3D.CreateIsometric(doc, view_type.Id)
+        if view3d is None:
+            transaction.RollBack()
+            return {"message": "Failed: View3D.CreateIsometric returned no view."}
+        try:
+            view3d.Name = "AI 3D View"
+        except:
+            pass
+        transaction.Commit()
+        return {
+            "message": "Created 3D view: {0}".format(view3d.Name),
+            "undo_context": {
+                "action_id": "create-3d-view-from-selection",
+                "action_title": "Create 3D view from current selection/context",
+                "role": "modifying",
+                "document_identity": _document_identity(doc),
+                "created_element_ids": [view3d.Id.IntegerValue],
+                "created_view_id": view3d.Id.IntegerValue,
+                "created_view_name": view3d.Name,
+                "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "session_marker": "agent-current-session",
+                "undo_available": True,
+            },
+        }
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return {"message": "Failed to create 3D view: {0}".format(str(exc))}
+
+
+def undo_create_3d_view_action(doc, undo_context):
+    if not undo_context:
+        return {"ok": False, "message": "Undo unavailable: no undo context recorded."}
+    if undo_context.get("action_id") != "create-3d-view-from-selection":
+        return {"ok": False, "message": "Undo unavailable: last action is not a reversible create-3D-view action."}
+    if not undo_context.get("undo_available"):
+        return {"ok": False, "message": "Undo unavailable: context is not marked reversible."}
+    if undo_context.get("document_identity") != _document_identity(doc):
+        return {"ok": False, "message": "Undo unavailable: document changed or invalid context."}
+
+    view_id_value = undo_context.get("created_view_id")
+    if view_id_value is None:
+        return {"ok": False, "message": "Undo unavailable: created view identifier was not recorded."}
+
+    created_view = None
+    try:
+        created_view = doc.GetElement(DB.ElementId(int(view_id_value)))
+    except:
+        created_view = None
+    if created_view is None:
+        return {"ok": False, "message": "Undo failed: created view no longer exists."}
+
+    transaction = DB.Transaction(doc, "Undo AI 3D View")
+    transaction.Start()
+    try:
+        view_name = undo_context.get("created_view_name") or get_elem_name(created_view)
+        doc.Delete(created_view.Id)
+        transaction.Commit()
+        return {
+            "ok": True,
+            "message": "UNDONE: Create 3D view from current selection/context\nDeleted created 3D view: {0}".format(view_name),
+        }
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return {"ok": False, "message": "Undo failed: {0}".format(str(exc))}
+
+
+def undo_create_sheet_action(doc, undo_context):
+    if not undo_context:
+        return {"ok": False, "message": "Undo unavailable: no undo context recorded."}
+    if undo_context.get("action_id") != "create-sheet-reviewed-template":
+        return {"ok": False, "message": "Undo unavailable: last action is not a reversible create-sheet action."}
+    if not undo_context.get("undo_available"):
+        return {"ok": False, "message": "Undo unavailable: context is not marked reversible."}
+    if undo_context.get("document_identity") != _document_identity(doc):
+        return {"ok": False, "message": "Undo unavailable: document changed or invalid context."}
+
+    sheet_id_value = undo_context.get("created_sheet_id")
+    if sheet_id_value is None:
+        return {"ok": False, "message": "Undo unavailable: created sheet identifier was not recorded."}
+
+    created_sheet = None
+    try:
+        created_sheet = doc.GetElement(DB.ElementId(int(sheet_id_value)))
+    except:
+        created_sheet = None
+    if created_sheet is None:
+        return {"ok": False, "message": "Undo failed: created sheet no longer exists."}
+
+    transaction = DB.Transaction(doc, "Undo AI Sheet")
+    transaction.Start()
+    try:
+        sheet_number = undo_context.get("created_sheet_number") or getattr(created_sheet, "SheetNumber", "(no number)")
+        sheet_name = undo_context.get("created_sheet_name") or getattr(created_sheet, "Name", "(no name)")
+        doc.Delete(created_sheet.Id)
+        transaction.Commit()
+        return {
+            "ok": True,
+            "message": "UNDONE: Create sheet\nDeleted created sheet: {0} ({1})".format(
+                sheet_number,
+                sheet_name,
+            ),
+        }
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return {"ok": False, "message": "Undo failed: {0}".format(str(exc))}
+
+
 def delete_all_ducts(doc, uidoc):
     from Autodesk.Revit.DB import BuiltInCategory, FilteredElementCollector, Transaction
 
@@ -3756,11 +3896,40 @@ def run_code_in_revit(code, doc, uidoc):
     local_vars = {"doc": doc, "uidoc": uidoc, "DB": DB}
     try:
         exec(code, globals(), local_vars)
+        message = "Code executed successfully."
         if "result" in local_vars and local_vars["result"] is not None:
-            return str(local_vars["result"])
-        return "Code executed successfully."
+            message = str(local_vars["result"])
+
+        undo_context = local_vars.get("undo_context")
+        if not undo_context:
+            new_sheet = local_vars.get("new_sheet")
+            if new_sheet is not None and str(message).lower().startswith("created sheet:"):
+                try:
+                    undo_context = {
+                        "action_id": "create-sheet-reviewed-template",
+                        "action_title": "Create sheet",
+                        "role": "modifying",
+                        "document_identity": _document_identity(doc),
+                        "created_sheet_id": new_sheet.Id.IntegerValue,
+                        "created_sheet_number": getattr(new_sheet, "SheetNumber", None),
+                        "created_sheet_name": getattr(new_sheet, "Name", None),
+                        "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "session_marker": "reviewed-current-session",
+                        "undo_available": True,
+                    }
+                except:
+                    undo_context = None
+        if undo_context:
+            return {"message": message, "undo_context": undo_context}
+        return message
     except Exception as e:
         return "Error executing code: {}".format(str(e))
+
+
+def execution_result_message(execution_result):
+    if isinstance(execution_result, dict):
+        return str(execution_result.get("message", ""))
+    return str(execution_result)
 
 
 class ApprovedRecipeMetadataDialog(WinForms.Form):
@@ -3899,7 +4068,18 @@ class OllamaAIChat(forms.WPFWindow):
         forms.WPFWindow.__init__(self, xaml_path)
         self.catalog = PromptCatalog(PROMPT_CATALOG_PATH, APPROVED_RECIPES_PATH)
         self.settings_store = LocalSettingsStore(WINDOW_SETTINGS_FILE)
-        self.settings = self.settings_store.load({"theme": "light"})
+        self.settings = self.settings_store.load(
+            {
+                "theme": "light",
+                "recent_prompts": [],
+                "window": {
+                    "width": 1100.0,
+                    "height": 640.0,
+                    "left": None,
+                    "top": None,
+                },
+            }
+        )
         self.current_theme = self.settings.get("theme", "light")
         self.agent_session = AgentSession(self.catalog.get_agent_commands())
         self.model = DEFAULT_MODEL
@@ -3912,6 +4092,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.last_successful_reviewed_code = None
         self.last_reviewed_recipe_metadata = None
         self.last_provider_notice = None
+        self.current_matched_action_id = ""
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -3928,6 +4109,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.ModelMindInput.KeyDown += self.on_modelmindinput_keydown
         self.PromptTree.MouseDoubleClick += self.on_prompt_tree_doubleclick
         self.PromptTree.KeyDown += self.on_prompt_tree_keydown
+        self.PromptTree.SelectedItemChanged += self.on_prompt_tree_selected
         self.ModelMindInput.TextChanged += self.on_modelmind_input_changed
 
         # AI Agent: advanced planning/execution surface with destructive actions off by default.
@@ -3936,6 +4118,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.AgentToggleCommandButton.Click += self.on_agent_toggle_command
         self.AgentResetCommandsButton.Click += self.on_agent_reset_commands
         self.AgentUndoButton.Click += self.on_agent_undo
+        self.AgentCommandSelector.SelectionChanged += self.on_agent_step_selected
         self.AgentRuntimeSelector.SelectionChanged += self.on_planner_mode_changed
         self.AgentAllowDestructive.Checked += self.on_agent_destructive_toggled
         self.AgentAllowDestructive.Unchecked += self.on_agent_destructive_toggled
@@ -3944,6 +4127,8 @@ class OllamaAIChat(forms.WPFWindow):
         self.UpgradeButton.Click += self.on_upgrade_model
         self.CloseButton.Click += self.on_close
         self.ThemeToggleButton.Click += self.on_toggle_theme
+        self.Loaded += self.on_window_loaded
+        self.Closing += self.on_window_closing
 
         if hasattr(self, "HeaderBar"):
             self.HeaderBar.MouseLeftButtonDown += self._on_header_drag
@@ -3957,10 +4142,12 @@ class OllamaAIChat(forms.WPFWindow):
         self.populate_agent_command_selector()
         self.configure_planner_provider()
         self.apply_theme(self.current_theme)
+        self._restore_window_geometry()
         self.update_window_status("idle")
         self.update_reviewed_code_state("draft", "Awaiting reviewed code.")
         self.update_agent_warning()
         self.set_agent_status(self.agent_session.status)
+        self.update_prompt_details(None)
 
     def _set_thinking(self, text):
         try:
@@ -3978,6 +4165,93 @@ class OllamaAIChat(forms.WPFWindow):
     def hide_busy(self):
         self.BusyBar.Visibility = System.Windows.Visibility.Collapsed
         self.ThinkingLabel.Visibility = System.Windows.Visibility.Collapsed
+
+    def _window_settings(self):
+        window_settings = self.settings.get("window", {})
+        if not isinstance(window_settings, dict):
+            window_settings = {}
+            self.settings["window"] = window_settings
+        return window_settings
+
+    def _restore_window_geometry(self):
+        window_settings = self._window_settings()
+        try:
+            width = float(window_settings.get("width") or 1100.0)
+            height = float(window_settings.get("height") or 640.0)
+            self.Width = max(width, float(self.MinWidth))
+            self.Height = max(height, float(self.MinHeight))
+        except:
+            pass
+        try:
+            left = window_settings.get("left")
+            top = window_settings.get("top")
+            if left is not None and top is not None:
+                self.Left = float(left)
+                self.Top = float(top)
+        except:
+            pass
+
+    def _persist_window_geometry(self):
+        try:
+            window_settings = self._window_settings()
+            window_settings["width"] = float(self.Width)
+            window_settings["height"] = float(self.Height)
+            window_settings["left"] = float(self.Left)
+            window_settings["top"] = float(self.Top)
+            self.settings_store.save(self.settings)
+        except:
+            pass
+
+    def on_window_loaded(self, sender, args):
+        self._restore_window_geometry()
+
+    def on_window_closing(self, sender, args):
+        self._persist_window_geometry()
+
+    def _build_recent_prompt_entry(self, prompt_text):
+        prompt_text = (prompt_text or "").strip()
+        if not prompt_text:
+            return None
+        source_entry = self.resolve_prompt_entry(prompt_text) or {}
+        title = source_entry.get("title") or prompt_text
+        category = source_entry.get("category") or "QA / BIM"
+        group = source_entry.get("group") or "Recent"
+        return {
+            "id": "recent-{0}".format(slugify_text(prompt_text)[:40]),
+            "title": title,
+            "category": category,
+            "group": group,
+            "role": source_entry.get("role", "read"),
+            "risk_level": source_entry.get("risk_level", "low"),
+            "canonical_prompt": source_entry.get("canonical_prompt", source_entry.get("prompt_text", prompt_text)),
+            "prompt_text": source_entry.get("prompt_text", prompt_text),
+            "aliases": list(source_entry.get("aliases") or source_entry.get("planner_aliases") or []),
+            "example_prompts": list(source_entry.get("example_prompts") or []),
+            "validation_state": source_entry.get("validation_state", "recent"),
+            "visible_in_modelmind": False,
+            "available_to_agent": bool(source_entry.get("available_to_agent", bool(source_entry.get("deterministic_handler")))),
+            "deterministic_handler": source_entry.get("deterministic_handler", ""),
+            "source": "recent_prompt",
+        }
+
+    def remember_recent_prompt(self, prompt_text):
+        entry = self._build_recent_prompt_entry(prompt_text)
+        if not entry:
+            return
+        recent = []
+        for item in self.settings.get("recent_prompts", []):
+            if item.get("prompt_text") != entry.get("prompt_text"):
+                recent.append(item)
+        recent.insert(0, entry)
+        self.settings["recent_prompts"] = recent[:8]
+        self.settings_store.save(self.settings)
+
+    def get_recent_prompt_entries(self):
+        recent_entries = []
+        for item in self.settings.get("recent_prompts", []):
+            if isinstance(item, dict) and item.get("prompt_text"):
+                recent_entries.append(item)
+        return recent_entries
 
     def populate_prompt_list(self):
         if not hasattr(self, "PromptListBox"):
@@ -4036,6 +4310,40 @@ class OllamaAIChat(forms.WPFWindow):
                 pass
 
     def refresh_action_button_states(self):
+        selected_agent_step = self.get_selected_agent_step() if hasattr(self, "AgentCommandSelector") else None
+        has_plan = self.agent_session.has_plan() if hasattr(self, "agent_session") else False
+        can_execute, execute_reason = self._get_execute_plan_status() if hasattr(self, "agent_session") else (False, "")
+        if hasattr(self, "AgentToggleCommandButton"):
+            self.AgentToggleCommandButton.IsEnabled = bool(has_plan and selected_agent_step)
+            try:
+                self.AgentToggleCommandButton.ToolTip = (
+                    "Enable or disable the selected reviewed plan step for this session."
+                    if self.AgentToggleCommandButton.IsEnabled
+                    else "Available only when a current reviewed plan step is selected."
+                )
+            except:
+                pass
+        if hasattr(self, "AgentResetCommandsButton"):
+            self.AgentResetCommandsButton.IsEnabled = bool(has_plan)
+        if hasattr(self, "AgentExecuteButton"):
+            self.AgentExecuteButton.IsEnabled = bool(can_execute)
+            try:
+                self.AgentExecuteButton.ToolTip = execute_reason
+            except:
+                pass
+        if hasattr(self, "AgentUndoButton"):
+            self.AgentUndoButton.IsEnabled = bool(
+                hasattr(self, "agent_session") and self.agent_session.has_undo_context()
+            )
+            try:
+                self.AgentUndoButton.ToolTip = (
+                    "Undo the last reversible modifying action in this session."
+                    if self.AgentUndoButton.IsEnabled
+                    else "Undo is available only when a real reversible modifying action completed successfully in this session."
+                )
+            except:
+                pass
+
         self._apply_button_state_style(
             "AgentExecuteButton",
             bool(self.AgentExecuteButton.IsEnabled),
@@ -4065,6 +4373,18 @@ class OllamaAIChat(forms.WPFWindow):
             bool(self.ToggleReviewedCodeButton.IsEnabled),
             "#475569",
             "#ffffff",
+        )
+        self._apply_button_state_style(
+            "AgentToggleCommandButton",
+            bool(self.AgentToggleCommandButton.IsEnabled),
+            THEMES.get(self.current_theme, THEMES["light"])["panel_alt"],
+            THEMES.get(self.current_theme, THEMES["light"])["text"],
+        )
+        self._apply_button_state_style(
+            "AgentResetCommandsButton",
+            bool(self.AgentResetCommandsButton.IsEnabled),
+            THEMES.get(self.current_theme, THEMES["light"])["panel_alt"],
+            THEMES.get(self.current_theme, THEMES["light"])["text"],
         )
 
     def get_selected_planner_mode(self):
@@ -4306,6 +4626,9 @@ class OllamaAIChat(forms.WPFWindow):
         self._apply_control_style("AgentWarningText", None, palette["warn"])
         self._apply_control_style("AgentProviderHelp", None, palette["muted"])
         self._apply_control_style("AgentCommandLegend", None, palette["muted"])
+        self._apply_control_style("AgentPlanStepLabel", None, palette["text"])
+        self._apply_control_style("AgentStepStateText", None, palette["muted"])
+        self._apply_control_style("AgentUndoStatusText", None, palette["muted"])
         self._apply_control_style("AgentProviderLabel", None, palette["muted"])
         self._apply_control_style("AgentStatus", None, palette["accent"])
         self._apply_control_style("AgentHistory", palette["panel_alt"], palette["text"], palette["border"])
@@ -4326,8 +4649,14 @@ class OllamaAIChat(forms.WPFWindow):
         self._apply_control_style("SaveRecipeButton", palette["accent_alt"], "#ffffff", palette["accent_alt"])
         self._apply_control_style("ToggleReviewedCodeButton", "#475569", "#ffffff", "#475569")
         self._apply_control_style("ReviewedCodeStateLabel", None, palette["accent"])
+        self._apply_control_style("PromptDetailsGroup", palette["panel_bg"], palette["text"], palette["border"])
+        self._apply_control_style("PromptDetailTitle", None, palette["text"])
+        self._apply_control_style("PromptDetailMeta", None, palette["muted"])
+        self._apply_control_style("PromptDetailBody", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("PromptTreeHint", None, palette["muted"])
         self._apply_control_style("PromptTreeGroup", palette["panel_bg"], palette["text"], palette["border"])
         self._apply_control_style("PromptTree", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ModelMindSplitter", palette["panel_alt"], palette["text"], palette["border"])
         try:
             self.ThemeToggleButton.Content = "Theme: {0}".format(theme_name.title())
         except:
@@ -4469,40 +4798,130 @@ class OllamaAIChat(forms.WPFWindow):
         from System.Windows.Controls import TreeViewItem
 
         self.PromptTree.Items.Clear()
-        sections = self.catalog.get_tree_sections(filter_text=filter_text)
+        sections = self.catalog.get_tree_sections(
+            filter_text=filter_text,
+            recent_prompts=self.get_recent_prompt_entries(),
+        )
         for section in sections:
-            cat_item = TreeViewItem()
-            header = section.get("header")
-            if section.get("kind") == "approved":
-                header = "Approved Recipes | reviewed code"
-            cat_item.Header = header
-            cat_item.IsExpanded = True if filter_text else section.get("kind") == "approved"
-            cat_item.ToolTip = (
-                "Approved recipes are reviewed code assets." if section.get("kind") == "approved"
-                else "Structured ModelMind prompt catalog."
+            self.PromptTree.Items.Add(
+                self._build_prompt_tree_node(section, filter_text=filter_text, depth=0)
             )
-            for entry in section.get("items", []):
-                leaf = TreeViewItem()
-                leaf.Header = self._format_prompt_header(entry, section.get("kind"))
-                leaf.Tag = entry
-                leaf.ToolTip = self._build_prompt_tooltip(entry)
-                cat_item.Items.Add(leaf)
-            self.PromptTree.Items.Add(cat_item)
+
+    def _build_prompt_tree_node(self, node, filter_text=None, depth=0):
+        from System.Windows.Controls import TreeViewItem
+
+        item = TreeViewItem()
+        item.Header = node.get("header", "(untitled)")
+        item.Tag = node.get("tag")
+        item.ToolTip = node.get("tooltip", self._branch_tooltip(node))
+        item.IsExpanded = True if filter_text else depth < 1 or node.get("kind") in ("approved", "recent")
+        for child in node.get("groups", []):
+            item.Items.Add(self._build_prompt_tree_node(child, filter_text=filter_text, depth=depth + 1))
+        for entry in node.get("items", []):
+            leaf = TreeViewItem()
+            leaf.Header = self._format_prompt_header(entry, node.get("kind"))
+            leaf.Tag = entry
+            leaf.ToolTip = self._build_prompt_tooltip(entry)
+            item.Items.Add(leaf)
+        return item
+
+    def _branch_tooltip(self, node):
+        kind = node.get("kind")
+        if kind == "approved":
+            return "Approved recipes are reviewed code assets kept separate from the canonical catalog."
+        if kind == "recent":
+            return "Recent prompts are convenience shortcuts only; they are not canonical reviewed actions."
+        return "Shared reviewed action catalog for ModelMind and AI Agent."
 
     def _format_prompt_header(self, entry, branch_kind):
         title = entry.get("title", entry.get("prompt_text", "(untitled)"))
         if len(title) > 44:
             title = "{0}...".format(title[:41])
-        prefix = "Approved | " if branch_kind == "approved" else ""
+        prefix = ""
+        if branch_kind == "approved":
+            prefix = "Approved | "
+        elif branch_kind == "recent":
+            prefix = "Recent | "
         return "{0}{1}".format(prefix, title)
 
     def _build_prompt_tooltip(self, entry):
-        return "Role: {0} | Risk: {1} | Mode: {2}\nPrompt: {3}".format(
+        return "Role: {0} | Risk: {1} | Validation: {2}\nCanonical prompt: {3}".format(
             entry.get("role", "read"),
             entry.get("risk_level", "low"),
-            entry.get("mode", "deterministic"),
-            entry.get("prompt_text", ""),
+            entry.get("validation_state", "structural_only"),
+            entry.get("canonical_prompt", entry.get("prompt_text", "")),
         )
+
+    def update_prompt_details(self, entry):
+        title = "Select a reviewed action"
+        meta = "Role, risk, and validation status will appear here."
+        body = (
+            "Canonical prompt, aliases, and examples stay attached to the selected reviewed action. "
+            "They do not create duplicate catalog nodes."
+        )
+        if entry:
+            title = entry.get("title", entry.get("prompt_text", "Selected action"))
+            meta = "Role: {0} | Risk: {1} | Validation: {2} | Agent: {3}".format(
+                entry.get("role", "read"),
+                entry.get("risk_level", "low"),
+                entry.get("validation_state", "structural_only"),
+                "available" if entry.get("available_to_agent", False) else "not available",
+            )
+            aliases = entry.get("aliases") or entry.get("planner_aliases") or []
+            examples = entry.get("example_prompts") or []
+            lines = [
+                "Canonical prompt: {0}".format(
+                    entry.get("canonical_prompt", entry.get("prompt_text", ""))
+                ),
+                "Discipline: {0}".format(entry.get("discipline", "General")),
+                "Scope: {0}".format(entry.get("scope_type", "project")),
+                "Group: {0}".format(entry.get("group", "Report")),
+            ]
+            if aliases:
+                lines.append("Aliases: {0}".format(", ".join(aliases[:6])))
+            if examples:
+                lines.append("Examples: {0}".format(", ".join(examples[:4])))
+            if entry.get("source") == "approved_recipe":
+                lines.append("Approved recipe source: reviewed code store")
+            elif entry.get("source") == "recent_prompt":
+                lines.append("Recent prompt shortcut only; not a canonical reviewed action.")
+            body = "\n".join(lines)
+        try:
+            self.PromptDetailTitle.Text = title
+            self.PromptDetailMeta.Text = meta
+            self.PromptDetailBody.Text = body
+        except:
+            pass
+
+    def _select_prompt_entry(self, entry, run_if_recipe=False):
+        if not entry:
+            self.selected_prompt_entry = None
+            self.update_prompt_details(None)
+            return
+        self.selected_prompt_entry = entry
+        self.update_prompt_details(entry)
+        self.ModelMindInput.Text = entry.get("canonical_prompt", entry.get("prompt_text", ""))
+        self.ModelMindInput.CaretIndex = len(self.ModelMindInput.Text)
+        self.ModelMindInput.Focus()
+        if run_if_recipe and entry.get("source") == "approved_recipe":
+            self.ModelMindHistory.AppendText(
+                "Running approved recipe from tree: {}\n".format(
+                    entry.get("title", "Approved recipe")
+                )
+            )
+            self.on_modelmind_send(self, None)
+
+    def on_prompt_tree_selected(self, sender, args):
+        sel = self.PromptTree.SelectedItem
+        try:
+            entry = sel.Tag if sel is not None and hasattr(sel, "Tag") else None
+            if isinstance(entry, dict):
+                self.selected_prompt_entry = entry
+                self.update_prompt_details(entry)
+            else:
+                self.update_prompt_details(None)
+        except:
+            self.update_prompt_details(None)
 
     def on_prompt_tree_doubleclick(self, sender, args):
         sel = self.PromptTree.SelectedItem
@@ -4510,17 +4929,7 @@ class OllamaAIChat(forms.WPFWindow):
             if sel is not None and hasattr(sel, "Items") and sel.Items.Count == 0:
                 entry = sel.Tag if hasattr(sel, "Tag") else None
                 if entry:
-                    self.selected_prompt_entry = entry
-                    self.ModelMindInput.Text = entry.get("prompt_text", "")
-                    self.ModelMindInput.CaretIndex = len(self.ModelMindInput.Text)
-                    self.ModelMindInput.Focus()
-                    if entry.get("source") == "approved_recipe":
-                        self.ModelMindHistory.AppendText(
-                            "Running approved recipe from tree: {}\n".format(
-                                entry.get("title", "Approved recipe")
-                            )
-                        )
-                        self.on_modelmind_send(sender, args)
+                    self._select_prompt_entry(entry, run_if_recipe=True)
         except:
             pass
 
@@ -4533,17 +4942,7 @@ class OllamaAIChat(forms.WPFWindow):
                 if sel is not None and hasattr(sel, "Items") and sel.Items.Count == 0:
                     entry = sel.Tag if hasattr(sel, "Tag") else None
                     if entry:
-                        self.selected_prompt_entry = entry
-                        self.ModelMindInput.Text = entry.get("prompt_text", "")
-                        self.ModelMindInput.CaretIndex = len(self.ModelMindInput.Text)
-                        self.ModelMindInput.Focus()
-                        if entry.get("source") == "approved_recipe":
-                            self.ModelMindHistory.AppendText(
-                                "Running approved recipe from tree: {}\n".format(
-                                    entry.get("title", "Approved recipe")
-                                )
-                            )
-                            self.on_modelmind_send(sender, args)
+                        self._select_prompt_entry(entry, run_if_recipe=True)
                         args.Handled = True
             except:
                 pass
@@ -4555,6 +4954,14 @@ class OllamaAIChat(forms.WPFWindow):
     def on_modelmind_input_changed(self, sender, args):
         typed = self.ModelMindInput.Text or ""
         self.filter_prompt_tree(typed)
+        selected_prompt = ""
+        if self.selected_prompt_entry:
+            selected_prompt = self.selected_prompt_entry.get(
+                "canonical_prompt",
+                self.selected_prompt_entry.get("prompt_text", ""),
+            )
+        if typed.strip() and typed.strip() != (selected_prompt or "").strip():
+            self.selected_prompt_entry = None
         if typed.strip() != (self.pending_ai_prompt or "").strip():
             self.pending_ai_code = None
             self.pending_validated_code = None
@@ -4568,6 +4975,7 @@ class OllamaAIChat(forms.WPFWindow):
             self.ToggleReviewedCodeButton.Content = "Show reviewed code"
             self.refresh_action_button_states()
             self.update_reviewed_code_state("draft", "Prompt changed; reviewed code must be regenerated.")
+        self.update_prompt_details(self.selected_prompt_entry)
 
     def on_modelmindinput_keydown(self, sender, args):
         import System.Windows.Input as wpfInput
@@ -4656,6 +5064,8 @@ class OllamaAIChat(forms.WPFWindow):
         source_entry = self.resolve_prompt_entry(prompt)
         self.pending_ai_prompt = prompt
         self.pending_source_entry = source_entry
+        self.remember_recent_prompt(prompt)
+        self.populate_prompt_tree(self.ModelMindInput.Text or "")
         self.last_successful_reviewed_code = None
         self.last_reviewed_recipe_metadata = None
         self.reset_reviewed_code_state("draft", "Preparing request.")
@@ -4669,9 +5079,10 @@ class OllamaAIChat(forms.WPFWindow):
 
             if source_entry and source_entry.get("source") == "approved_recipe":
                 result = self.run_approved_recipe(source_entry)
+                self.apply_undo_context_from_execution_result(result)
                 self.ModelMindHistory.AppendText(
                     "Approved recipe executed: {0}\n{1}\n\n".format(
-                        source_entry.get("title"), result
+                        source_entry.get("title"), execution_result_message(result)
                     )
                 )
                 self.reset_reviewed_code_state("saved", "Approved recipe executed from reviewed store.")
@@ -4701,8 +5112,11 @@ class OllamaAIChat(forms.WPFWindow):
                     uidoc,
                 )
                 if reviewed_result:
+                    self.apply_undo_context_from_execution_result(reviewed_result)
                     self.ModelMindHistory.AppendText(
-                        "Deterministic result\n{0}\n\n".format(reviewed_result)
+                        "Deterministic result\n{0}\n\n".format(
+                            execution_result_message(reviewed_result)
+                        )
                     )
                     self.reset_reviewed_code_state("draft", "Reviewed action returned from shared registry.")
                     self.update_window_status("ready_to_execute", "Deterministic result complete")
@@ -4798,8 +5212,10 @@ class OllamaAIChat(forms.WPFWindow):
                 return
             sanitized_code = validation.get("sanitized_code")
             result = run_code_in_revit(sanitized_code, doc, uidoc)
-            self.ModelMindHistory.AppendText("Reviewed code executed\n{0}\n".format(result))
-            result_text = str(result).lower()
+            self.apply_undo_context_from_execution_result(result)
+            result_message = execution_result_message(result)
+            self.ModelMindHistory.AppendText("Reviewed code executed\n{0}\n".format(result_message))
+            result_text = result_message.lower()
             if result_text.startswith("code executed successfully") or result_text.startswith("created sheet:"):
                 self.last_successful_reviewed_code = sanitized_code
                 self.last_reviewed_recipe_metadata = self.get_default_recipe_metadata()
@@ -4812,7 +5228,7 @@ class OllamaAIChat(forms.WPFWindow):
                 self.last_reviewed_recipe_metadata = None
                 self.SaveRecipeButton.IsEnabled = False
                 self.update_reviewed_code_state("blocked", "Execution failed; recipe save remains disabled.")
-                self.update_window_status("failed", result)
+                self.update_window_status("failed", result_message)
                 self.refresh_action_button_states()
         except Exception as e:
             self.ModelMindHistory.AppendText("AI code error: {}\n".format(str(e)))
@@ -4919,29 +5335,143 @@ class OllamaAIChat(forms.WPFWindow):
             self.AgentWarningText.Text = warning
         except:
             pass
+        self.refresh_agent_step_state()
+        self.refresh_action_button_states()
 
     def on_agent_destructive_toggled(self, sender, args):
         self.update_agent_warning()
 
     def _describe_agent_step(self, step):
-        role_label = "Read-only" if step.get("role") == "read" else "Modifying"
+        role_label = "Read-only" if step.get("role") == "read_only" else "Modifying"
         enabled_label = "Enabled" if step.get("enabled", True) else "Disabled"
         return "[{0}] {1} | risk: {2} | {3}".format(
-            role_label, step.get("title"), step.get("risk_level", "low"), enabled_label
+            role_label, step.get("title"), step.get("risk", step.get("risk_level", "low")), enabled_label
         )
+
+    def refresh_agent_supported_actions_ui(self, matched_action_id=None):
+        commands = self.catalog.get_agent_commands()
+        summary = "Shared reviewed actions available: {0}".format(len(commands))
+        if matched_action_id:
+            matched = None
+            for command in commands:
+                if command.get("id") == matched_action_id:
+                    matched = command
+                    break
+            if matched:
+                summary = "{0} | Matched action: {1}".format(summary, matched.get("title"))
+        try:
+            self.AgentCommandLegend.Text = summary
+        except:
+            pass
+
+    def get_selected_agent_step(self):
+        selected = self.AgentCommandSelector.SelectedItem
+        if selected is None or not hasattr(selected, "Tag"):
+            return None
+        tag = selected.Tag
+        if not isinstance(tag, dict) or tag.get("kind") != "plan_step":
+            return None
+        return tag.get("payload")
+
+    def _step_requires_destructive(self, step):
+        return bool(step and step.get("role") == "modifying")
+
+    def _get_execute_plan_status(self):
+        if not self.agent_session.has_plan():
+            return (False, "No current reviewed plan. Plan Request creates the current plan.")
+        if not self.agent_session.has_enabled_steps():
+            return (False, "All current plan steps are disabled.")
+        if not self.agent_session.has_runnable_steps():
+            return (False, "Current enabled steps are blocked by destructive-tools gating.")
+        return (True, "Execute Plan is available for the current enabled reviewed steps.")
+
+    def refresh_agent_step_state(self):
+        step = self.get_selected_agent_step()
+        execute_available, execute_reason = self._get_execute_plan_status()
+        if not step:
+            message = "No current reviewed plan. Plan Request creates the current reviewed plan steps."
+            if self.agent_session.has_plan():
+                message = execute_reason
+            try:
+                self.AgentStepStateText.Text = message
+                self.AgentStepStateText.ToolTip = message
+            except:
+                pass
+            return
+
+        role_label = "Read-only" if step.get("role") == "read_only" else "Modifying"
+        enabled_label = "Enabled" if step.get("enabled", True) else "Disabled"
+        blocked_reason = step.get("blocked_reason") or "None"
+        if self._step_requires_destructive(step) and not bool(self.AgentAllowDestructive.IsChecked):
+            blocked_reason = "Blocked by destructive-tools gate."
+        execute_label = "available" if execute_available else "not available"
+        message = (
+            "Selected plan step: {0} | {1} | risk: {2} | {3} | executed: {4} | blocked: {5} | Execute Plan: {6}".format(
+                step.get("title", "(untitled step)"),
+                role_label,
+                step.get("risk", step.get("risk_level", "low")),
+                enabled_label,
+                "yes" if step.get("executed") else "no",
+                blocked_reason,
+                execute_label,
+            )
+        )
+        try:
+            self.AgentStepStateText.Text = message
+            self.AgentStepStateText.ToolTip = execute_reason
+        except:
+            pass
+
+    def refresh_agent_undo_status(self):
+        undo_context = self.agent_session.get_undo_context()
+        if undo_context and undo_context.get("undo_available"):
+            message = "Undo available: {0}".format(
+                undo_context.get("action_title", "Reversible action")
+            )
+        else:
+            message = "Undo unavailable: no reversible action in current session."
+        try:
+            self.AgentUndoStatusText.Text = message
+            self.AgentUndoStatusText.ToolTip = message
+        except:
+            pass
+
+    def apply_undo_context_from_execution_result(self, execution_result):
+        if isinstance(execution_result, dict):
+            undo_context = execution_result.get("undo_context")
+            if undo_context:
+                self.agent_session.set_undo_context(undo_context)
+                self.refresh_agent_undo_status()
+                self.refresh_action_button_states()
+                return True
+        return False
+
+    def on_agent_step_selected(self, sender, args):
+        self.refresh_agent_step_state()
+        self.refresh_agent_undo_status()
+        self.refresh_action_button_states()
 
     def populate_agent_command_selector(self):
         from System.Windows.Controls import ComboBoxItem
 
         self.AgentCommandSelector.Items.Clear()
         steps = self.agent_session.get_visible_steps()
-        for step in steps:
+        if steps:
+            for step in steps:
+                item = ComboBoxItem()
+                item.Content = self._describe_agent_step(step)
+                item.Tag = {"kind": "plan_step", "payload": step}
+                self.AgentCommandSelector.Items.Add(item)
+        else:
             item = ComboBoxItem()
-            item.Content = self._describe_agent_step(step)
-            item.Tag = step
+            item.Content = "(No current reviewed plan steps)"
+            item.Tag = {"kind": "placeholder", "payload": None}
             self.AgentCommandSelector.Items.Add(item)
         if self.AgentCommandSelector.Items.Count > 0:
             self.AgentCommandSelector.SelectedIndex = 0
+        self.refresh_agent_supported_actions_ui(self.current_matched_action_id)
+        self.refresh_agent_step_state()
+        self.refresh_agent_undo_status()
         self.refresh_action_button_states()
 
     def on_agent_run(self, sender, args):
@@ -5007,6 +5537,9 @@ class OllamaAIChat(forms.WPFWindow):
             plan_object = self._build_local_plan(goal)
 
         plan = self.agent_session.get_visible_steps()
+        self.current_matched_action_id = ""
+        if plan_object:
+            self.current_matched_action_id = plan_object.get("matched_action", "") or ""
         self._append_plan_object(plan_object)
         if not plan_object or not bool(plan_object.get("execution_ready", False)) or not plan:
             self.AgentHistory.AppendText(
@@ -5042,6 +5575,8 @@ class OllamaAIChat(forms.WPFWindow):
             if not validation.get("is_valid"):
                 return "Reviewed create-sheet template is blocked."
             return run_code_in_revit(validation.get("sanitized_code"), doc, uidoc)
+        if step.get("deterministic_handler") == "create_3d_view_from_selection" or step.get("id") == "create-3d-view-from-selection":
+            return execute_create_3d_view_with_undo(doc, uidoc)
         if step.get("deterministic_handler"):
             result = execute_reviewed_action_handler(step.get("deterministic_handler"), doc, uidoc)
             if result is not None:
@@ -5131,13 +5666,17 @@ class OllamaAIChat(forms.WPFWindow):
         self.AgentExecuteButton.IsEnabled = False
         self.populate_agent_command_selector()
         self.set_agent_status(self.agent_session.status)
+        self.refresh_agent_undo_status()
         self.refresh_action_button_states()
 
     def on_agent_toggle_command(self, sender, args):
         selected = self.AgentCommandSelector.SelectedItem
         if selected is None or not hasattr(selected, "Tag"):
             return
-        step = selected.Tag
+        tag = selected.Tag
+        if not isinstance(tag, dict) or tag.get("kind") != "plan_step":
+            return
+        step = tag.get("payload") or {}
         updated = self.agent_session.toggle_command(step.get("id"))
         if updated:
             self.AgentHistory.AppendText(
@@ -5148,16 +5687,43 @@ class OllamaAIChat(forms.WPFWindow):
 
     def on_agent_reset_commands(self, sender, args):
         self.agent_session.reset()
+        self.current_matched_action_id = ""
         self.AgentExecuteButton.IsEnabled = False
         self.populate_agent_command_selector()
         self.AgentHistory.AppendText("Planner state cleared.\n\n")
         self.set_agent_status(self.agent_session.status)
+        self.refresh_agent_undo_status()
         self.refresh_action_button_states()
 
     def on_agent_undo(self, sender, args):
-        self.AgentHistory.AppendText(
-            "Undo Last Action remains disabled because robust rollback/journaling is not implemented yet.\n\n"
-        )
+        undo_context = self.agent_session.get_undo_context()
+        if not undo_context:
+            self.AgentHistory.AppendText(
+                "Undo unavailable: no undo context recorded.\n\n"
+            )
+            self.refresh_agent_undo_status()
+            self.refresh_action_button_states()
+            return
+
+        action_id = undo_context.get("action_id")
+        if action_id == "create-3d-view-from-selection":
+            result = undo_create_3d_view_action(doc, undo_context)
+        elif action_id == "create-sheet-reviewed-template":
+            result = undo_create_sheet_action(doc, undo_context)
+        else:
+            result = {
+                "ok": False,
+                "message": "Undo unavailable: last action is not a supported reversible reviewed action.",
+            }
+        self.AgentHistory.AppendText("{0}\n\n".format(result.get("message", "")))
+        if result.get("ok"):
+            self.agent_session.clear_undo_context()
+            self.update_window_status("idle", "Undo completed")
+        else:
+            self.update_window_status("failed", "Undo failed")
+        self.refresh_agent_undo_status()
+        self.populate_agent_command_selector()
+        self.refresh_action_button_states()
 
     def _on_header_drag(self, sender, e):
         import System.Windows.Input as wpfInput

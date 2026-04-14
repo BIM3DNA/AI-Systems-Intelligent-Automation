@@ -136,3 +136,58 @@ Still outside proven live scope after this pass:
 
 - live validation for the newly added pipe/electrical/QA actions
 - live validation for the duct-volume fix
+
+## 2026-04-14 Shared Catalog Visibility Scope Note
+
+The current aligned scope now also includes:
+
+- ModelMind as the visible governed reviewed-action catalog over the shared registry
+- AI Agent as planner/router over the same shared reviewed actions without a second tree
+- canonical reviewed actions separated from aliases/examples and from approved recipes
+- a resizable AI Workbench shell with locally persisted size and position
+
+Still outside proven live scope after this pass:
+
+- live confirmation of the grouped ModelMind tree in pyRevit
+- live confirmation of window resize/layout behavior in runtime
+- live confirmation of approved-recipe domain grouping after save/reload
+
+## 2026-04-14 AI Agent Queue State Scope Note
+
+The current aligned scope now also includes:
+
+- AI Agent bottom selector representing only the current reviewed plan steps
+- supported reviewed actions shown separately as informational status rather than as an actionable queue selector
+- explicit plan-step runtime state for enablement/execution/blocking visibility
+
+Still outside proven live scope after this pass:
+
+- live confirmation of corrected Agent queue control interaction
+- live confirmation of Execute Plan gating/status behavior in runtime
+
+## 2026-04-14 Action-Specific Undo Scope Note
+
+The current aligned scope now also includes:
+
+- session-level undo context only for actually reversible modifying reviewed actions
+- one first supported reversible action:
+  - `Create 3D view from current selection/context`
+
+Still outside proven live scope after this pass:
+
+- live confirmation of real create-3D-view undo in Revit
+- live confirmation of honest undo failure handling in invalid/stale contexts
+
+## 2026-04-15 Create-Sheet Undo Scope Note
+
+The current aligned scope now also includes:
+
+- real last-action undo for:
+  - `Create 3D view from current selection/context`
+  - `Create sheet`
+- unified undo-context handling across AI Agent, ModelMind, and approved recipe execution
+
+Still outside proven live scope after this pass:
+
+- live confirmation of create-sheet undo in Revit
+- live confirmation of approved-recipe create-sheet undo behavior

@@ -505,3 +505,136 @@ Latest live findings indicate that `gemma3:27b` appears unstable/crashes in runt
 ### Remaining Work
 
 - continue observing live runtime behavior for heavier local models
+
+---
+
+## ISSUE-2026-04-14-001
+
+**Title:** ModelMind tree governance and visibility were still too flat for the shared reviewed registry  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** Information architecture / UX governance
+
+### Description
+
+The shared reviewed registry existed, but ModelMind still rendered a flatter legacy-style tree. That weakened the intended product architecture because users could not clearly see the full reviewed catalog by domain/group, while AI Agent was already planning over the same underlying reviewed actions.
+
+### Action Taken
+
+- changed ModelMind tree rendering to show the shared reviewed catalog by:
+  - HVAC
+  - Piping
+  - Electrical
+  - QA / BIM
+  - Views / Sheets
+- kept aliases/examples in action details instead of creating duplicate nodes
+- kept Approved Recipes separate and grouped by domain
+- added a lightweight Recent Prompts branch outside the governed catalog
+
+### Remaining Work
+
+- confirm the grouped tree rendering in live Revit
+- confirm that approved recipes still appear in the intended domain branch after save/reload in runtime
+
+---
+
+## ISSUE-2026-04-14-002
+
+**Title:** AI Workbench layout was not resilient enough for resize and long catalog/output sessions  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** WPF layout / local state persistence
+
+### Description
+
+The window shell was still fixed-size and more auto-content-driven than it should have been. That made the catalog/output split less usable and made it harder to verify that controls would remain readable without overlap when the window size changes.
+
+### Action Taken
+
+- enabled resizable window behavior with minimum width/height
+- persisted window width, height, left, and top locally
+- refit ModelMind to a splitter-based layout with stable bottom action area
+- added selection-details panel and kept the reviewed-code panel visually secondary
+
+### Remaining Work
+
+- confirm live resize behavior in Revit/pyRevit
+- confirm there is no clipping or overlap at smaller practical window sizes
+
+---
+
+## ISSUE-2026-04-14-003
+
+**Title:** AI Agent plan-step selector was ambiguous and made adjacent controls appear broken  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** State management / queue UX
+
+### Description
+
+Latest live findings showed that AI Agent supported actions executed successfully, but selecting items in the bottom dropdown did not activate the adjacent controls consistently. The underlying issue was that the dropdown mixed two concepts:
+
+- the current reviewed plan steps
+- the full supported reviewed-action catalog
+
+Only current plan steps are actionable for toggle/reset/execute state, so using the same control for catalog display made the disabled buttons look incorrect.
+
+### Action Taken
+
+- restricted the bottom selector to current reviewed plan steps only
+- kept supported actions in separate informational text
+- added explicit per-step state fields (`enabled`, `executed`, `blocked_reason`, `undo_available`, etc.)
+- tied control enablement to actual plan/session state instead of to generic selector population
+
+### Remaining Work
+
+- confirm live runtime interaction with the revised selector and buttons
+- confirm that the step-state text is sufficiently clear in the pyRevit UI
+
+---
+
+## ISSUE-2026-04-14-004
+
+**Title:** Undo Last Action had no real reversible implementation behind it  
+**Status:** Structurally addressed for create-3D-view only, live runtime confirmation pending  
+**Type:** Safe rollback / action-specific undo
+
+### Description
+
+The AI Agent `Undo Last Action` control existed as a placeholder, but no real reversible action context was being stored. That meant the control could not honestly support undo even for modifying actions that are actually reversible.
+
+### Action Taken
+
+- added session-level structured undo context
+- limited real undo to the actually reversible reviewed action:
+  - `Create 3D view from current selection/context`
+- implemented undo by deleting the created 3D view in a fresh transaction when the stored context is still valid
+- kept read-only actions and generic/global rollback out of scope
+
+### Remaining Work
+
+- live Revit confirmation that the created view is deleted correctly by Undo Last Action
+- live confirmation of failure messaging when the created view no longer exists or the context is invalid
+
+---
+
+## ISSUE-2026-04-15-001
+
+**Title:** Create sheet had no real reversible undo even though the action was already working  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** Safe rollback / action-specific undo
+
+### Description
+
+The reviewed create-sheet action was already working through AI Agent, ModelMind, and approved recipes, but only create-3D-view had real undo support. That left the undo framework inconsistent across modifying reviewed actions.
+
+### Action Taken
+
+- extended the structured session undo context model to create sheet
+- implemented `Undo Last Action` support for create sheet by deleting the created sheet in a fresh transaction when the context is still valid
+- unified undo-context application across:
+  - AI Agent execution
+  - ModelMind reviewed execution
+  - approved recipe execution
+
+### Remaining Work
+
+- live Revit confirmation that created sheets are deleted correctly by undo
+- live confirmation of honest failure handling when the created sheet no longer exists or cannot be deleted safely

@@ -26,6 +26,7 @@ class AgentSession(object):
         self.plan_object = None
         self.status = "idle"
         self.message = "Idle"
+        self.last_undo_context = None
         self.guidance = getattr(self, "supported_message", "No shared reviewed actions are currently registered.")
 
     def set_allow_destructive(self, enabled):
@@ -36,8 +37,53 @@ class AgentSession(object):
         if not command:
             return
         step = dict(command)
+        original_role = step.get("role", "read")
+        step["command_role"] = original_role
+        step["role"] = "modifying" if original_role == "modify" else "read_only"
+        step["risk"] = step.get("risk_level", "low")
         step["enabled"] = True
+        step["executed"] = False
+        step["blocked_reason"] = ""
+        step["undo_available"] = False
         self.plan.append(step)
+
+    def has_plan(self):
+        return bool(self.plan)
+
+    def has_enabled_steps(self):
+        for step in self.plan:
+            if step.get("enabled", True):
+                return True
+        return False
+
+    def has_runnable_steps(self):
+        for step in self.plan:
+            if not step.get("enabled", True):
+                continue
+            if step.get("role") == "modifying" and not self.allow_destructive:
+                continue
+            return True
+        return False
+
+    def has_undo_context(self):
+        return bool(self.last_undo_context and self.last_undo_context.get("undo_available"))
+
+    def get_undo_context(self):
+        return dict(self.last_undo_context) if self.last_undo_context else None
+
+    def set_undo_context(self, context):
+        self.clear_undo_context()
+        if not context:
+            return
+        self.last_undo_context = dict(context)
+        target_action_id = self.last_undo_context.get("action_id")
+        for step in self.plan:
+            step["undo_available"] = bool(step.get("id") == target_action_id)
+
+    def clear_undo_context(self):
+        self.last_undo_context = None
+        for step in self.plan:
+            step["undo_available"] = False
 
     def get_supported_actions(self):
         actions = []
@@ -46,8 +92,10 @@ class AgentSession(object):
                 {
                     "id": command.get("id"),
                     "title": command.get("title"),
-                    "prompt_text": command.get("prompt_text"),
-                    "planner_aliases": list(command.get("planner_aliases") or []),
+                    "prompt_text": command.get("canonical_prompt", command.get("prompt_text")),
+                    "planner_aliases": list(command.get("aliases") or command.get("planner_aliases") or []),
+                    "canonical_prompt": command.get("canonical_prompt", command.get("prompt_text")),
+                    "validation_state": command.get("validation_state", "structural_only"),
                     "deterministic_handler": command.get("deterministic_handler", ""),
                     "requires_confirmation": bool(command.get("requires_confirmation", False)),
                     "requires_modification": command.get("role") == "modify",
@@ -61,7 +109,9 @@ class AgentSession(object):
         matches = []
         for command_id, command in self.catalog.items():
             phrases = []
-            phrases.extend(command.get("planner_aliases") or [])
+            phrases.extend(command.get("aliases") or command.get("planner_aliases") or [])
+            phrases.extend(command.get("example_prompts") or [])
+            phrases.append(command.get("canonical_prompt", command.get("prompt_text", "")))
             phrases.append(command.get("prompt_text", ""))
             phrases.append(command.get("title", ""))
             best_score = 0
@@ -179,6 +229,7 @@ class AgentSession(object):
         for step in self.plan:
             if step.get("id") == command_id:
                 step["enabled"] = not step.get("enabled", True)
+                step["blocked_reason"] = ""
                 return step
         return None
 
@@ -194,10 +245,15 @@ class AgentSession(object):
         self.status = "executing"
         self.message = "Executing"
         results = []
+        self.clear_undo_context()
         for step in self.plan:
+            step["executed"] = False
+            step["blocked_reason"] = ""
+            step["undo_available"] = False
             result = {"step": step, "status": "skipped", "message": "Disabled"}
             if step.get("enabled", True):
-                if step.get("role") == "modify" and not self.allow_destructive:
+                if step.get("role") == "modifying" and not self.allow_destructive:
+                    step["blocked_reason"] = "Blocked by destructive-tools gate."
                     result = {
                         "step": step,
                         "status": "blocked",
@@ -205,12 +261,24 @@ class AgentSession(object):
                     }
                 else:
                     try:
-                        message = executor(step)
+                        exec_result = executor(step)
+                        if isinstance(exec_result, dict):
+                            message = exec_result.get("message", "")
+                            undo_context = exec_result.get("undo_context")
+                        else:
+                            message = exec_result
+                            undo_context = None
+                        step["executed"] = True
+                        if step.get("role") == "modifying" and undo_context:
+                            self.set_undo_context(undo_context)
                         result = {"step": step, "status": "executed", "message": message}
                     except Exception as exc:
                         self.status = "failed"
                         self.message = "Failed"
+                        step["blocked_reason"] = str(exc)
                         result = {"step": step, "status": "failed", "message": str(exc)}
+            else:
+                step["blocked_reason"] = "Disabled in current plan."
             results.append(result)
 
         if self.status != "failed":
