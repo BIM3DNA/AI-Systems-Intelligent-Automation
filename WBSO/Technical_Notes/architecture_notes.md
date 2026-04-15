@@ -604,3 +604,152 @@ The framework still keeps only one current-session undo context and does not int
 - actual delete-on-undo behavior for the created sheet in Revit
 - honest runtime failure handling for missing/dependent/deleted sheets
 - approved-recipe create-sheet undo behavior in the live runtime
+
+## 2026-04-15 QA/BIM Hardening Pass
+
+This pass did not change the catalog architecture or reviewed action inventory. It hardened the existing QA/BIM read-only actions for runtime trustworthiness and better BIM-coordination output.
+
+### Actions hardened
+
+- `report selected elements by category`
+- `report selected elements by type`
+- `report missing key parameters from selected elements`
+- `health check of active view for supported MEP categories`
+
+### Output improvements
+
+- total selected/inspected counts
+- grouped breakdowns
+- sample element ids
+- explicit truncation (`showing first 20`)
+- explicit no-selection / nothing-missing notes
+
+### Parameter-inspection changes
+
+The reviewed baseline now prefers a smaller production-oriented check set:
+
+- `Mark`
+- `Comments`
+- `Family and Type`
+- `System assignment` where actually applicable
+- `Electrical circuit/system` where actually applicable
+
+Irrelevant categories are skipped instead of being counted as missing for nonsensical parameters.
+
+### Health-check changes
+
+The active-view health check now summarizes:
+
+- ducts count
+- duct fittings count
+- pipes count
+- pipe fittings count
+- electrical fixtures count
+- electrical equipment count
+- elements without system assignment where supported
+- unconnected fitting findings where supported
+- missing electrical circuit/system info where supported
+
+### Local verification for this pass
+
+- QA/BIM handler blocks were updated without syntax regressions
+- `UI.xaml` remains well-formed
+- registry/catalog architecture remains unchanged; the hardened actions stay under the shared QA / BIM branch
+
+### Still pending live validation after this pass
+
+- runtime usefulness and correctness of the hardened QA/BIM summaries on real project selections/views
+- parameter applicability behavior across mixed-discipline live selections
+
+## 2026-04-15 QA/BIM Scope Messaging and Alias Pass
+
+This pass did not add QA/BIM actions. It clarified scope and improved natural-language normalization for the existing QA/BIM reviewed actions.
+
+### Scope clarification
+
+- selected-element QA/BIM actions now explicitly state:
+  - `Selection scope: active document only`
+- empty-selection responses now explicitly state:
+  - no selected elements found in the active Revit document
+  - selections in other open Revit projects are not included
+- active-view QA/BIM actions now explicitly state:
+  - `View scope: active view in active document`
+
+### Alias improvements
+
+The shared reviewed catalog now includes additional metadata aliases/examples for:
+
+- selected elements by category
+- selected elements by type
+- missing key parameters from selection
+- health check of active view for supported MEP categories
+
+These remain metadata only and do not create duplicate ModelMind tree nodes.
+
+### Local verification for this pass
+
+- new QA/BIM alias prompts normalize to the intended reviewed actions through the shared planner/catalog path
+- scope messaging lines are present in the reviewed handler output
+- the shared catalog metadata now correctly advertises:
+  - `selection` scope for selected-element QA/BIM actions
+  - `active_view` scope for the health check action
+
+### Still pending live validation after this pass
+
+- live confirmation that the new scope wording reduces confusion when users have selections in other open Revit projects
+- live confirmation that the added QA/BIM aliases are sufficient for common natural-language prompts
+
+## 2026-04-15 QA/BIM Category Grouping Defect Fix
+
+This pass did not add reviewed actions or change scope rules. It fixes one output defect in the existing QA/BIM action `report selected elements by category`.
+
+### Root cause
+
+- the category report grouped by `_category_name(elem)`
+- `_category_name(elem)` depended on `get_elem_name(category)`
+- `get_elem_name()` attempted `elem.Document.GetElement(elem.GetTypeId())` before checking whether the object was a real Revit `Element`
+- Revit `Category` objects do not support that path reliably, so the helper fell into its blanket exception handler and returned the literal string `(err)`
+- that `(err)` string then appeared as the rendered category bucket, e.g. `(err): 5 | sample ids: ...`
+
+### Fix
+
+- hardened `get_elem_name()` so it:
+  - returns `Name` first when present
+  - only attempts `Document/GetTypeId` when those members actually exist
+  - falls back safely without emitting `(err)` for valid category objects
+- hardened the category report so actual grouping exceptions now return an honest message instead of rendering a fake category bucket
+- missing categories now render as:
+  - `<No Category>`
+
+### Still pending live validation after this pass
+
+- live confirmation that category breakdowns now render as real Revit category names on non-empty active selections
+
+## 2026-04-15 QA/BIM Validation Metadata Promotion and Context UX Pass
+
+This pass did not add reviewed actions or change planner architecture. It aligned the shared reviewed catalog with confirmed runtime evidence and improved small selection-context cues for the existing QA/BIM actions.
+
+### Metadata promotion
+
+The following reviewed QA/BIM actions are now explicitly marked `live_validated` in the shared reviewed catalog:
+
+- `report selected elements by category`
+- `report selected elements by type`
+- `report missing key parameters from selected elements`
+- `health check of active view for supported MEP categories`
+
+Other reviewed actions keep their previous validation state unless they already had equivalent live evidence.
+
+### UX hardening
+
+- selection-based QA/BIM outputs now include compact context lines for:
+  - active document
+  - active view
+  - current selection count
+- the active-view health-check output now includes the active document line as well
+- Recent Prompts now resolve back to canonical reviewed-action metadata for the Selected Action panel
+
+### Still pending live validation after this pass
+
+- runtime confirmation of the promoted validation-state display in the Selected Action panel
+- runtime confirmation of the compact context lines and canonical recent-prompt details behavior

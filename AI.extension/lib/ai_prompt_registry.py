@@ -85,6 +85,10 @@ class PromptCatalog(object):
                 "count-ducts-active-view",
                 "list-ducts-active-view",
                 "create-sheet-reviewed-template",
+                "report-selected-elements-by-category",
+                "report-selected-elements-by-type",
+                "report-missing-parameters-from-selection",
+                "health-check-active-view-selection",
             ]
         )
         if entry.get("id") in live_validated:

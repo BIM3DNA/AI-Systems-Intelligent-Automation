@@ -2276,115 +2276,379 @@ def list_electrical_fixtures_in_active_view(doc, uidoc):
     return "\n".join(lines)
 
 
-def report_selected_elements_by_category(doc, uidoc):
-    elems = [doc.GetElement(element_id) for element_id in uidoc.Selection.GetElementIds()]
-    counts = {}
-    for elem in elems:
-        if not elem or not getattr(elem, "Category", None):
+def _selected_elements(doc, uidoc):
+    elements = []
+    for element_id in uidoc.Selection.GetElementIds():
+        elem = doc.GetElement(element_id)
+        if elem is not None:
+            elements.append(elem)
+    return elements
+
+
+def _sample_id_text(elements, limit=5):
+    ids = []
+    for elem in elements[:limit]:
+        try:
+            ids.append(str(elem.Id.IntegerValue))
+        except:
             continue
-        category_name = get_elem_name(elem.Category)
-        counts[category_name] = counts.get(category_name, 0) + 1
-    lines = ["Selected elements by category:"]
-    if not counts:
-        lines.append("No selected elements found.")
+    if not ids:
+        return "(none)"
+    suffix = " ..." if len(elements) > limit else ""
+    return ", ".join(ids) + suffix
+
+
+def _value_from_param(param):
+    if not param:
+        return None
+    for accessor in ("AsString", "AsValueString"):
+        try:
+            value = getattr(param, accessor)()
+            if value:
+                return value
+        except:
+            pass
+    try:
+        if hasattr(param, "AsInteger"):
+            value = param.AsInteger()
+            if value not in (None, 0):
+                return str(value)
+    except:
+        pass
+    try:
+        if hasattr(param, "AsDouble"):
+            value = param.AsDouble()
+            if value not in (None, 0):
+                return str(value)
+    except:
+        pass
+    return None
+
+
+def _lookup_first_param_value(elem, names):
+    for name in names:
+        try:
+            value = _value_from_param(elem.LookupParameter(name))
+            if value:
+                return value
+        except:
+            continue
+    return None
+
+
+def _family_and_type_text(doc, elem):
+    elem_type = None
+    try:
+        elem_type = doc.GetElement(elem.GetTypeId()) if hasattr(elem, "GetTypeId") else None
+    except:
+        elem_type = None
+    family_name = None
+    type_name = None
+    if elem_type is not None:
+        try:
+            family_name = getattr(elem_type, "FamilyName", None)
+        except:
+            family_name = None
+        type_name = get_elem_name(elem_type)
+    if not type_name:
+        type_name = get_elem_name(elem)
+    if family_name and type_name:
+        return "{0} : {1}".format(family_name, type_name)
+    return type_name or family_name or None
+
+
+def _category_name(elem):
+    category = getattr(elem, "Category", None)
+    return get_elem_name(category) if category else "<No Category>"
+
+
+def _document_title(doc):
+    try:
+        title = getattr(doc, "Title", None)
+        if title:
+            return title
+    except:
+        pass
+    return "(unknown document)"
+
+
+def _active_view_title(doc, uidoc=None):
+    try:
+        active_view = getattr(uidoc, "ActiveView", None) if uidoc is not None else None
+        if active_view is None:
+            active_view = getattr(doc, "ActiveView", None)
+        if active_view is not None:
+            return get_elem_name(active_view) or "(unknown view)"
+    except:
+        pass
+    return "(unknown view)"
+
+
+def _element_type_name(doc, elem):
+    try:
+        elem_type = doc.GetElement(elem.GetTypeId()) if hasattr(elem, "GetTypeId") else None
+    except:
+        elem_type = None
+    return get_elem_name(elem_type) if elem_type else get_elem_name(elem)
+
+
+def _supports_system_assignment(elem):
+    try:
+        category_id = elem.Category.Id.IntegerValue
+    except:
+        return False
+    supported = set(
+        [
+            int(DB.BuiltInCategory.OST_DuctCurves),
+            int(DB.BuiltInCategory.OST_DuctFitting),
+            int(DB.BuiltInCategory.OST_PipeCurves),
+            int(DB.BuiltInCategory.OST_PipeFitting),
+            int(DB.BuiltInCategory.OST_MechanicalEquipment),
+            int(DB.BuiltInCategory.OST_DuctAccessory),
+            int(DB.BuiltInCategory.OST_PipeAccessory),
+            int(DB.BuiltInCategory.OST_ElectricalFixtures),
+            int(DB.BuiltInCategory.OST_ElectricalEquipment),
+        ]
+    )
+    return category_id in supported
+
+
+def _supports_electrical_assignment(elem):
+    try:
+        category_id = elem.Category.Id.IntegerValue
+    except:
+        return False
+    supported = set(
+        [
+            int(DB.BuiltInCategory.OST_ElectricalFixtures),
+            int(DB.BuiltInCategory.OST_ElectricalEquipment),
+            int(DB.BuiltInCategory.OST_LightingFixtures),
+            int(DB.BuiltInCategory.OST_LightingDevices),
+        ]
+    )
+    return category_id in supported
+
+
+def _system_assignment_value(elem):
+    return _lookup_first_param_value(
+        elem,
+        ["System Name", "System Classification", "System Type", "RBS_SYSTEM_CLASSIFICATION_PARAM"],
+    )
+
+
+def _electrical_assignment_value(elem):
+    return _lookup_first_param_value(
+        elem,
+        ["Circuit Number", "Panel", "System Type", "System Name", "System Classification"],
+    )
+
+
+def _is_unconnected_fitting(elem):
+    try:
+        connector_set = elem.MEPModel.ConnectorManager.Connectors
+    except:
+        connector_set = None
+    if connector_set is None:
+        return False
+    for connector in connector_set:
+        try:
+            if not connector.IsConnected:
+                return True
+        except:
+            continue
+    return False
+
+
+def report_selected_elements_by_category(doc, uidoc):
+    elems = _selected_elements(doc, uidoc)
+    lines = [
+        "Selected elements by category",
+        "Selection scope: active document only",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Current selection count: {0}".format(len(elems)),
+        "Total selected elements: {0}".format(len(elems)),
+    ]
+    grouped = {}
+    try:
+        for elem in elems:
+            if not elem:
+                continue
+            category_name = _category_name(elem)
+            grouped.setdefault(category_name, []).append(elem)
+    except Exception as err:
+        lines.append("Unable to group selected elements by category.")
+        lines.append("Diagnostic: {0}".format(safe_str(err)))
         return "\n".join(lines)
-    for category_name in sorted(counts.keys()):
-        lines.append("{0}: {1}".format(category_name, counts[category_name]))
+    if not grouped:
+        lines.append("No selected elements found in the active Revit document.")
+        lines.append("Selections in other open Revit projects are not included.")
+        return "\n".join(lines)
+    ordered = sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))
+    for index, (category_name, items) in enumerate(ordered[:20]):
+        lines.append(
+            "{0}: {1} | sample ids: {2}".format(
+                category_name,
+                len(items),
+                _sample_id_text(items),
+            )
+        )
+    if len(ordered) > 20:
+        lines.append("...showing first 20 of {0} category groups".format(len(ordered)))
     return "\n".join(lines)
 
 
 def report_selected_elements_by_type(doc, uidoc):
-    elems = [doc.GetElement(element_id) for element_id in uidoc.Selection.GetElementIds()]
-    counts = {}
+    elems = _selected_elements(doc, uidoc)
+    grouped = {}
     for elem in elems:
         if not elem:
             continue
-        elem_type = doc.GetElement(elem.GetTypeId()) if hasattr(elem, "GetTypeId") else None
-        type_name = get_elem_name(elem_type) if elem_type else get_elem_name(elem)
-        counts[type_name] = counts.get(type_name, 0) + 1
-    lines = ["Selected elements by type:"]
-    if not counts:
-        lines.append("No selected elements found.")
+        type_name = _family_and_type_text(doc, elem) or "(no type)"
+        grouped.setdefault(type_name, []).append(elem)
+    lines = [
+        "Selected elements by type",
+        "Selection scope: active document only",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Current selection count: {0}".format(len(elems)),
+        "Total selected elements: {0}".format(len(elems)),
+    ]
+    if not grouped:
+        lines.append("No selected elements found in the active Revit document.")
+        lines.append("Selections in other open Revit projects are not included.")
         return "\n".join(lines)
-    for type_name in sorted(counts.keys()):
-        lines.append("{0}: {1}".format(type_name, counts[type_name]))
+    ordered = sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))
+    for type_name, items in ordered[:20]:
+        lines.append(
+            "{0}: {1} | sample ids: {2}".format(
+                type_name,
+                len(items),
+                _sample_id_text(items),
+            )
+        )
+    if len(ordered) > 20:
+        lines.append("...showing first 20 of {0} type groups".format(len(ordered)))
     return "\n".join(lines)
 
 
 def health_check_for_active_view_selection(doc, uidoc):
     active_view = uidoc.ActiveView
     category_specs = [
-        ("Ducts", DB.BuiltInCategory.OST_DuctCurves),
-        ("Duct Fittings", DB.BuiltInCategory.OST_DuctFitting),
-        ("Pipes", DB.BuiltInCategory.OST_PipeCurves),
-        ("Pipe Fittings", DB.BuiltInCategory.OST_PipeFitting),
-        ("Electrical Fixtures", DB.BuiltInCategory.OST_ElectricalFixtures),
-        ("Electrical Equipment", DB.BuiltInCategory.OST_ElectricalEquipment),
+        ("Ducts", DB.BuiltInCategory.OST_DuctCurves, "system"),
+        ("Duct Fittings", DB.BuiltInCategory.OST_DuctFitting, "fitting"),
+        ("Pipes", DB.BuiltInCategory.OST_PipeCurves, "system"),
+        ("Pipe Fittings", DB.BuiltInCategory.OST_PipeFitting, "fitting"),
+        ("Electrical Fixtures", DB.BuiltInCategory.OST_ElectricalFixtures, "electrical"),
+        ("Electrical Equipment", DB.BuiltInCategory.OST_ElectricalEquipment, "electrical"),
     ]
     total_count = 0
-    missing_system = 0
-    missing_mark = 0
+    missing_system = []
+    unconnected_fittings = []
+    missing_electrical = []
     category_counts = {}
-    for label, category in category_specs:
-        elems = (
+    for label, category, inspection_mode in category_specs:
+        elems = list(
             DB.FilteredElementCollector(doc, active_view.Id)
             .OfCategory(category)
             .WhereElementIsNotElementType()
             .ToElements()
         )
-        category_counts[label] = len(elems)
+        category_counts[label] = elems
         total_count += len(elems)
         for elem in elems:
-            if label not in ("Electrical Fixtures", "Electrical Equipment"):
-                system_param = elem.LookupParameter("System Name")
-                system_value = None
-                if system_param:
-                    try:
-                        system_value = system_param.AsString()
-                    except:
-                        pass
-                if not system_value:
-                    missing_system += 1
-            mark_param = elem.LookupParameter("Mark")
-            mark_value = None
-            if mark_param:
-                try:
-                    mark_value = mark_param.AsString()
-                except:
-                    pass
-            if not mark_value:
-                missing_mark += 1
+            if inspection_mode == "system" and not _system_assignment_value(elem):
+                missing_system.append(elem)
+            elif inspection_mode == "fitting" and _is_unconnected_fitting(elem):
+                unconnected_fittings.append(elem)
+            elif inspection_mode == "electrical" and not _electrical_assignment_value(elem):
+                missing_electrical.append(elem)
     lines = [
         "Active-view MEP health check",
+        "View scope: active view in active document",
+        "Active document: {0}".format(_document_title(doc)),
         "Active view: {0}".format(active_view.Name),
         "Supported MEP elements in active view: {0}".format(total_count),
-        "Elements missing system assignment: {0}".format(missing_system),
-        "Elements missing Mark: {0}".format(missing_mark),
+        "Elements without system assignment: {0}".format(len(missing_system)),
+        "Unconnected fittings found: {0}".format(len(unconnected_fittings)),
+        "Electrical fixtures/equipment without circuit/system info: {0}".format(len(missing_electrical)),
     ]
-    for label, _ in category_specs:
-        lines.append("{0}: {1}".format(label, category_counts.get(label, 0)))
+    for label, _, _ in category_specs:
+        lines.append("{0}: {1}".format(label, len(category_counts.get(label, []))))
+    if missing_system:
+        lines.append("System-missing sample ids: {0}".format(_sample_id_text(missing_system)))
+    if unconnected_fittings:
+        lines.append("Unconnected-fitting sample ids: {0}".format(_sample_id_text(unconnected_fittings)))
+    if missing_electrical:
+        lines.append("Electrical-missing sample ids: {0}".format(_sample_id_text(missing_electrical)))
+    if not (missing_system or unconnected_fittings or missing_electrical):
+        lines.append("No missing-system or unconnected-fitting findings were detected in the active view summary.")
     return "\n".join(lines)
 
 
 def report_missing_parameters_from_selection(doc, uidoc):
-    elems = [doc.GetElement(element_id) for element_id in uidoc.Selection.GetElementIds()]
-    parameter_names = ["Mark", "Comments", "Type Mark", "System Name", "Circuit Number"]
-    lines = ["Missing parameters from selection:"]
-    for param_name in parameter_names:
-        missing_count = 0
+    elems = _selected_elements(doc, uidoc)
+    lines = [
+        "Missing key parameters from selection",
+        "Selection scope: active document only",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Current selection count: {0}".format(len(elems)),
+        "Total selected elements: {0}".format(len(elems)),
+    ]
+    if not elems:
+        lines.append("No selected elements found in the active Revit document.")
+        lines.append("Selections in other open Revit projects are not included.")
+        return "\n".join(lines)
+
+    checks = [
+        ("Mark", lambda elem: _lookup_first_param_value(elem, ["Mark"])),
+        ("Comments", lambda elem: _lookup_first_param_value(elem, ["Comments"])),
+        ("Family and Type", lambda elem: _family_and_type_text(doc, elem)),
+        (
+            "System assignment",
+            lambda elem: _system_assignment_value(elem) if _supports_system_assignment(elem) else "__not_applicable__",
+        ),
+        (
+            "Electrical circuit/system",
+            lambda elem: _electrical_assignment_value(elem) if _supports_electrical_assignment(elem) else "__not_applicable__",
+        ),
+    ]
+
+    findings = []
+    for label, resolver in checks:
+        applicable = []
+        missing = []
         for elem in elems:
-            if not elem:
+            try:
+                value = resolver(elem)
+            except:
+                value = "__not_applicable__"
+            if value == "__not_applicable__":
                 continue
-            param = elem.LookupParameter(param_name)
-            value = None
-            if param:
-                try:
-                    value = param.AsString()
-                except:
-                    value = None
+            applicable.append(elem)
             if not value:
-                missing_count += 1
-        lines.append("{0}: missing on {1} selected element(s)".format(param_name, missing_count))
+                missing.append(elem)
+        if not applicable:
+            continue
+        findings.append((label, applicable, missing))
+
+    if not findings:
+        lines.append("No reviewed parameter checks were applicable to the current selection.")
+        return "\n".join(lines)
+
+    missing_any = False
+    for label, applicable, missing in findings:
+        lines.append(
+            "{0}: missing on {1} of {2} applicable element(s)".format(
+                label, len(missing), len(applicable)
+            )
+        )
+        if missing:
+            missing_any = True
+            lines.append("  sample ids: {0}".format(_sample_id_text(missing)))
+    if not missing_any:
+        lines.append("Nothing is missing from the reviewed baseline parameter set for the current selection.")
     return "\n".join(lines)
 
 
@@ -2736,17 +3000,29 @@ def delete_all_lights(doc, uidoc):
 
 # --- GENERAL ---
 def get_elem_name(elem):
+    if elem is None:
+        return None
     try:
-        # Prefer the type name if possible
-        t = elem.Document.GetElement(elem.GetTypeId())
-        if t and hasattr(t, "Name"):
-            return t.Name
-        if hasattr(elem, "Name"):
-            return elem.Name
-        # Fallback to ElementId if all else fails
+        elem_name = getattr(elem, "Name", None)
+        if elem_name:
+            return elem_name
+    except:
+        pass
+    try:
+        if hasattr(elem, "Document") and hasattr(elem, "GetTypeId"):
+            type_id = elem.GetTypeId()
+            if type_id and hasattr(type_id, "IntegerValue") and type_id.IntegerValue > 0:
+                elem_type = elem.Document.GetElement(type_id)
+                type_name = getattr(elem_type, "Name", None) if elem_type is not None else None
+                if type_name:
+                    return type_name
+    except:
+        pass
+    try:
         return "ElementId: {}".format(elem.Id.IntegerValue)
-    except Exception as e:
-        return "(err)"
+    except:
+        pass
+    return safe_str(elem)
 
 
 def all_parameters_for_category(doc, category):
@@ -4852,6 +5128,20 @@ class OllamaAIChat(forms.WPFWindow):
             entry.get("canonical_prompt", entry.get("prompt_text", "")),
         )
 
+    def _resolve_prompt_details_entry(self, entry):
+        if not isinstance(entry, dict):
+            return entry
+        if entry.get("source") != "recent_prompt":
+            return entry
+        prompt_text = entry.get("canonical_prompt") or entry.get("prompt_text") or entry.get("title")
+        canonical = self.resolve_prompt_entry(prompt_text)
+        if canonical:
+            merged = dict(canonical)
+            merged["source"] = "recent_prompt"
+            merged["recent_prompt_text"] = entry.get("prompt_text")
+            return merged
+        return entry
+
     def update_prompt_details(self, entry):
         title = "Select a reviewed action"
         meta = "Role, risk, and validation status will appear here."
@@ -4860,6 +5150,7 @@ class OllamaAIChat(forms.WPFWindow):
             "They do not create duplicate catalog nodes."
         )
         if entry:
+            entry = self._resolve_prompt_details_entry(entry)
             title = entry.get("title", entry.get("prompt_text", "Selected action"))
             meta = "Role: {0} | Risk: {1} | Validation: {2} | Agent: {3}".format(
                 entry.get("role", "read"),
@@ -4884,7 +5175,7 @@ class OllamaAIChat(forms.WPFWindow):
             if entry.get("source") == "approved_recipe":
                 lines.append("Approved recipe source: reviewed code store")
             elif entry.get("source") == "recent_prompt":
-                lines.append("Recent prompt shortcut only; not a canonical reviewed action.")
+                lines.append("Recent prompt shortcut resolved to canonical reviewed action metadata.")
             body = "\n".join(lines)
         try:
             self.PromptDetailTitle.Text = title

@@ -638,3 +638,105 @@ The reviewed create-sheet action was already working through AI Agent, ModelMind
 
 - live Revit confirmation that created sheets are deleted correctly by undo
 - live confirmation of honest failure handling when the created sheet no longer exists or cannot be deleted safely
+
+---
+
+## ISSUE-2026-04-15-002
+
+**Title:** Existing QA/BIM reviewed actions were too thin for trustworthy coordination output  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** Read-only QA/BIM output quality
+
+### Description
+
+The QA/BIM reviewed actions existed in the shared registry, but their runtime output was still too minimal for reliable coordination use. The biggest weaknesses were:
+
+- no clear total/grouped breakdowns
+- blanket missing-parameter counts for irrelevant fields/categories
+- weak active-view health summary for MEP inspection
+
+### Action Taken
+
+- hardened the four existing QA/BIM handlers in place
+- added grouped counts, sample ids, explicit no-selection/nothing-missing notes, and truncation behavior
+- narrowed parameter inspection to a smaller meaningful baseline and skipped irrelevant categories
+- improved the active-view health check with system/unconnected/electrical summary findings
+
+### Remaining Work
+
+- live Revit confirmation that the new QA/BIM summaries are useful and trustworthy on real mixed-discipline views and selections
+
+---
+
+## ISSUE-2026-04-15-003
+
+**Title:** QA/BIM planner prompts and scope assumptions were not explicit enough for multi-project runtime use  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** Planner usability / scope messaging
+
+### Description
+
+Live findings showed that selected-element QA actions can correctly operate only on the active Revit document selection, but users may have manual selections in other open Revit projects and still expect them to count. At the same time, several natural-language QA prompts were not matching the intended reviewed actions.
+
+### Action Taken
+
+- added explicit active-document/active-view scope text to the QA/BIM outputs
+- improved shared-catalog aliases/examples for the existing QA/BIM reviewed actions
+- preserved canonical reviewed actions and kept aliases as metadata only
+
+### Remaining Work
+
+- confirm in live runtime that the new scope messaging prevents confusion
+- confirm in live runtime that the new QA/BIM aliases cover common planner phrasing sufficiently
+
+---
+
+## ISSUE-2026-04-15-004
+
+**Title:** QA/BIM selected-elements-by-category rendered `(err)` instead of real category groups  
+**Status:** Structurally fixed, live runtime confirmation pending  
+**Type:** Reviewed output defect / helper robustness
+
+### Description
+
+Live findings showed that `report selected elements by category` reported the correct total selected count but rendered grouped lines as `(err): <count> | sample ids: ...` instead of real Revit category names.
+
+### Root Cause
+
+- `get_elem_name()` assumed the object being named was a full Revit element and attempted `Document.GetElement(GetTypeId())`
+- category grouping passes Revit `Category` objects through that helper
+- for category objects, that assumption failed and the helper returned the literal fallback `(err)`
+
+### Action Taken
+
+- hardened `get_elem_name()` to read `Name` first and only use type lookup when the object actually supports it
+- hardened the category report so valid selections group by real category name and actual grouping exceptions return an honest message
+- standardized the missing-category label to `<No Category>`
+
+### Remaining Work
+
+- confirm in live runtime that non-empty active selections now render real grouped category names
+
+---
+
+## ISSUE-2026-04-15-005
+
+**Title:** QA/BIM validation metadata and recent-prompt action details lagged behind confirmed runtime behavior  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** Metadata consistency / UX hardening
+
+### Description
+
+Four QA/BIM reviewed actions now have explicit live runtime evidence, but the shared catalog still treated them as structural only. In addition, Recent Prompts could leave the Selected Action panel showing the history entry instead of the canonical reviewed-action metadata.
+
+### Action Taken
+
+- promoted the four confirmed QA/BIM reviewed actions to `live_validated`
+- preserved prior validation states for actions without equivalent live evidence
+- added compact active document / active view / current selection count lines to selection-based QA/BIM outputs
+- resolved Recent Prompt details back through the canonical reviewed catalog before rendering the Selected Action panel
+
+### Remaining Work
+
+- confirm in live runtime that the Selected Action panel now shows the promoted validation state for the targeted QA/BIM actions
+- confirm the compact context lines are useful without adding noise

@@ -423,3 +423,119 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - actual Revit sheet deletion by undo
 - approved-recipe create-sheet undo in live runtime
+
+## 2026-04-15 Runtime Targets for QA/BIM Hardening
+
+### QA / BIM actions
+
+- run `report selected elements by category` on a mixed selection and confirm:
+  - total selected count
+  - grouped breakdown
+  - sample ids
+  - truncation behavior when many groups exist
+- run `report selected elements by type` and confirm the same structure
+- run `report missing key parameters from selected elements` and confirm:
+  - only meaningful/applicable checks are included
+  - explicit nothing-missing or no-selection notes appear when appropriate
+- run `health check of active view for supported MEP categories` and confirm:
+  - per-category counts
+  - unconnected fitting findings where supported
+  - missing system/electrical assignment findings where supported
+
+### What was actually executed in this workspace pass
+
+- local syntax/tokenization check on the updated script
+- local XML parse of `UI.xaml`
+- local inspection of the hardened QA/BIM output paths in code
+
+### Live checks not executed in this pass
+
+- all runtime confirmation for the hardened QA/BIM summaries
+
+## 2026-04-15 Runtime Targets for QA/BIM Scope/Alias Hardening
+
+### Scope messaging
+
+- run selected-element QA/BIM actions with no active selection and confirm output explicitly says:
+  - no selected elements found in the active Revit document
+  - selections in other open Revit projects are not included
+- run the active-view health check and confirm output explicitly says:
+  - `View scope: active view in active document`
+
+### Planner alias coverage
+
+- confirm the planner normalizes:
+  - `show selected elements by category`
+  - `group selected elements by type`
+  - `check missing key parameters in selection`
+  - `health check this active view`
+  - `inspect active view for MEP issues`
+
+### What was actually executed in this workspace pass
+
+- local alias-normalization checks through the shared catalog/planner path
+- local verification of scope-message text in the QA/BIM handlers
+- local JSON parse of `prompt_catalog.json`
+
+### Live checks not executed in this pass
+
+- all live confirmation for the new scope wording and QA/BIM alias behavior
+
+## 2026-04-15 Runtime Targets for QA/BIM Category Grouping Defect Fix
+
+### Reviewed action under test
+
+- `report selected elements by category`
+
+### Runtime checks to execute
+
+- select a known mixed set of elements in the active Revit document
+- run `report selected elements by category`
+- confirm output includes:
+  - `Selection scope: active document only`
+  - `Total selected elements: <n>`
+  - real category groups such as `Ducts: <count>` and `Duct Fittings: <count>` when applicable
+- confirm valid selections no longer render:
+  - `(err): <count> | sample ids: ...`
+
+### What was actually executed in this workspace pass
+
+- local code inspection of the category report and shared naming helper
+- local sanity verification after hardening `get_elem_name()`
+
+### Live checks not executed in this pass
+
+- all live confirmation for corrected grouped category output
+
+## 2026-04-15 Runtime Targets for QA/BIM Validation-State Promotion and Context UX
+
+### Metadata checks
+
+- confirm the Selected Action panel shows `Validation: live_validated` for:
+  - report selected elements by category
+  - report selected elements by type
+  - report missing key parameters from selected elements
+  - health check of active view for supported MEP categories
+
+### Recent Prompt consistency checks
+
+- select one of the live-validated QA/BIM actions through Recent Prompts
+- confirm the Selected Action panel resolves to canonical reviewed-action metadata instead of appearing empty or history-only
+
+### Context-UX checks
+
+- confirm selection-based QA/BIM outputs now include:
+  - active document
+  - active view
+  - current selection count
+- confirm the active-view health check now includes the active document line
+
+### What was actually executed in this workspace pass
+
+- local JSON and shared-registry verification of promoted validation states
+- local code verification of canonical Recent Prompt detail resolution
+- local tokenization/indentation sanity check of `script.py`
+
+### Live checks not executed in this pass
+
+- all live confirmation for validation-state promotion and context-UX presentation

@@ -652,3 +652,117 @@ Reported as already live-validated before this code pass:
 - actual delete-on-undo behavior for created sheets
 - honest runtime failure reporting when a created sheet is gone or not deletable
 - approved-recipe create-sheet undo behavior in the live session
+
+---
+
+## EV-2026-04-15-002 - QA/BIM reviewed-action hardening
+
+### Scope
+
+- improve runtime trustworthiness of the existing QA/BIM read-only reviewed actions
+- keep the shared registry/catalog architecture unchanged
+- avoid cloud work and avoid undo-framework expansion outside direct bug fixes
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+
+### What was actually verified locally
+
+- the four QA/BIM handlers were refactored without syntax regressions
+- grouped/sample-id output paths are present for category/type reports
+- the parameter-check path now includes explicit nothing-missing handling
+- the active-view health-check path now includes unconnected-fitting and missing-system summary lines
+
+### What remains unvalidated in live Revit
+
+- usefulness/correctness of the hardened QA/BIM outputs on real selections and active views
+- parameter applicability behavior across mixed-discipline runtime selections
+
+---
+
+## EV-2026-04-15-003 - QA/BIM scope messaging and alias hardening
+
+### Scope
+
+- clarify active-document / active-view scope for the existing QA/BIM reviewed actions
+- improve natural-language alias coverage without changing canonical actions or catalog structure
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/lib/prompt_catalog.json`
+
+### What was actually verified locally
+
+- the following prompts now normalize to the intended reviewed actions:
+  - `show selected elements by category`
+  - `group selected elements by type`
+  - `check missing key parameters in selection`
+  - `health check this active view`
+  - `inspect active view for MEP issues`
+- scope messaging lines are present in the QA/BIM handler output
+- QA/BIM catalog metadata now correctly distinguishes `selection` vs `active_view` scope
+
+### What remains unvalidated in live Revit
+
+- runtime usefulness of the new scope wording when users have selections in other open Revit projects
+- live confirmation that the added aliases cover the intended prompt phrasing well enough
+
+---
+
+## EV-2026-04-15-004 - QA/BIM category grouping defect fix
+
+### Scope
+
+- fix the existing reviewed action `report selected elements by category` so it renders real category groups instead of the fallback `(err)` label
+- preserve active-document scope messaging and the existing shared reviewed catalog architecture
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+
+### What was actually verified locally
+
+- `script.py` passes local indentation/tokenization sanity checks
+- the category-grouping path now uses hardened naming logic for Revit `Category` objects
+- the action still preserves:
+  - `Selection scope: active document only`
+  - `Total selected elements: <n>`
+- actual grouping failures now return:
+  - `Unable to group selected elements by category.`
+
+### What remains unvalidated in live Revit
+
+- runtime confirmation that grouped category output now renders real Revit category names such as `Ducts` and `Duct Fittings`
+
+---
+
+## EV-2026-04-15-005 - QA/BIM validation metadata promotion and context UX
+
+### Scope
+
+- promote only the QA/BIM reviewed actions with explicit runtime evidence to `live_validated`
+- improve low-noise context awareness in QA/BIM output
+- keep Recent Prompts as convenience history while resolving their details through canonical reviewed metadata
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/lib/ai_prompt_registry.py`
+- `AI.extension/lib/prompt_catalog.json`
+
+### What was actually verified locally
+
+- the following actions now resolve as `live_validated` through the shared reviewed registry:
+  - `report-selected-elements-by-category`
+  - `report-selected-elements-by-type`
+  - `report-missing-parameters-from-selection`
+  - `health-check-active-view-selection`
+- `script.py` still passes local tokenization/indentation sanity checks
+- Recent Prompt details now resolve through canonical action lookup before the Selected Action panel is built
+
+### What remains unvalidated in live Revit
+
+- runtime confirmation of the promoted validation-state display in the Selected Action panel
+- runtime confirmation of the compact context lines and recent-prompt canonical-details behavior

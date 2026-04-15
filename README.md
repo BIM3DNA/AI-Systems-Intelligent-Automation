@@ -236,6 +236,94 @@ What still needs live confirmation:
 - honest failure messaging when the created sheet is gone or cannot be deleted safely
 - approved-recipe create-sheet undo behavior in live runtime
 
+## 2026-04-15 QA/BIM Hardening Pass
+
+This pass does not change the catalog architecture or reviewed action inventory. It tightens the usefulness and trustworthiness of the existing QA / BIM read-only actions.
+
+What changed:
+
+- `report selected elements by category` now returns total count, grouped counts, sample ids, and truncation
+- `report selected elements by type` now returns total count, grouped counts, sample ids, and truncation
+- `report missing key parameters from selected elements` now checks a smaller reviewed baseline:
+  - `Mark`
+  - `Comments`
+  - `Family and Type`
+  - `System assignment` where applicable
+  - `Electrical circuit/system` where applicable
+- `health check of active view for supported MEP categories` now includes clearer counts and read-only summary findings for missing system assignment, unconnected fittings, and electrical assignment gaps
+
+What was verified locally in this pass:
+
+- no syntax/tokenization regressions in the updated script
+- `UI.xaml` remains well-formed
+- the hardened QA/BIM output paths are present in code
+
+What still needs live confirmation:
+
+- usefulness/correctness of the hardened QA/BIM summaries on real selections and active views
+- parameter applicability behavior across mixed-discipline runtime selections
+
+## 2026-04-15 QA/BIM Scope and Alias Pass
+
+This pass does not add QA/BIM actions. It clarifies scope and improves natural-language matching for the existing reviewed QA/BIM actions.
+
+What changed:
+
+- selected-element QA/BIM outputs now explicitly state:
+  - `Selection scope: active document only`
+- empty-selection QA/BIM outputs now explicitly state that selections in other open Revit projects are not included
+- the active-view health check now explicitly states:
+  - `View scope: active view in active document`
+- shared-catalog aliases/examples were expanded for the existing QA/BIM actions so the planner can better normalize natural phrasing
+
+What was verified locally in this pass:
+
+- the new QA/BIM alias prompts normalize through the shared planner/catalog path
+- scope-message text is present in the QA/BIM handler output
+- the QA/BIM catalog metadata correctly distinguishes `selection` and `active_view` scope
+
+What still needs live confirmation:
+
+- the new scope wording in multi-project runtime scenarios
+- the new QA/BIM alias coverage during real planner use
+
+## 2026-04-15 QA/BIM Category Grouping Fix
+
+What changed:
+
+- fixed the existing reviewed action `report selected elements by category` so valid selections should render real category groups instead of the fallback `(err)` bucket
+- preserved the active-document selection scope messaging and total selection count line
+- hardened the shared naming helper so Revit `Category` objects are named safely
+
+What was verified locally in this pass:
+
+- the category-report code path now groups by category names without relying on the broken `(err)` fallback
+- `script.py` still passes local sanity checks
+
+What still needs live confirmation:
+
+- grouped category output on non-empty active-document selections in Revit
+
+## 2026-04-15 QA/BIM Validation Metadata Promotion and Context UX
+
+What changed:
+
+- promoted the four QA/BIM reviewed actions with confirmed runtime evidence to `live_validated`
+- added compact active document / active view / current selection count lines to selection-based QA/BIM outputs
+- made Recent Prompts resolve through canonical reviewed-action metadata for the Selected Action panel
+
+What was verified locally in this pass:
+
+- the four targeted QA/BIM reviewed actions now resolve as `live_validated` from the shared registry
+- `script.py` still passes local sanity checks
+- Recent Prompt details now resolve through canonical action lookup before the Selected Action panel is built
+
+What still needs live confirmation:
+
+- Selected Action panel display of the promoted validation states
+- compact context-line presentation in pyRevit/Revit
+- Recent Prompt canonical-details behavior in the live ModelMind UI
+
 ## Current Workspace Cloud Planner Finding
 
 The current workspace self-test through the actual service path reports:

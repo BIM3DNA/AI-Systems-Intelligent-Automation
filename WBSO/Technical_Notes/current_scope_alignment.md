@@ -191,3 +191,53 @@ Still outside proven live scope after this pass:
 
 - live confirmation of create-sheet undo in Revit
 - live confirmation of approved-recipe create-sheet undo behavior
+
+## 2026-04-15 QA/BIM Hardening Scope Note
+
+The current aligned scope now also includes:
+
+- hardened read-only QA/BIM summaries for:
+  - selected elements by category
+  - selected elements by type
+  - missing key parameters from selection
+  - active-view MEP health check
+
+Still outside proven live scope after this pass:
+
+- live confirmation of the improved QA/BIM summaries on real mixed-discipline selections and active views
+
+## 2026-04-15 QA/BIM Scope/Alias Note
+
+The current aligned scope now also includes:
+
+- explicit active-document scope messaging for selected-element QA/BIM actions
+- explicit active-view scope messaging for the QA/BIM health-check action
+- improved metadata-only alias coverage for the existing QA/BIM reviewed actions
+
+Still outside proven live scope after this pass:
+
+- live confirmation of the new scope wording in multi-project runtime scenarios
+- live confirmation of the new QA/BIM alias coverage during real planner use
+
+## 2026-04-15 QA/BIM Category Grouping Note
+
+The current aligned scope now also includes:
+
+- a targeted fix for the existing reviewed action `report selected elements by category`
+- hardened category-name resolution for valid Revit category objects
+
+Still outside proven live scope after this pass:
+
+- live confirmation that grouped category output now renders correctly on active-document selections
+
+## 2026-04-15 QA/BIM Validation Metadata Alignment Note
+
+The current aligned scope now also includes:
+
+- explicit `live_validated` metadata for the four QA/BIM actions with confirmed runtime evidence
+- compact active document / active view / selection-count context lines for the existing QA/BIM outputs
+- canonical reviewed-action detail resolution for Recent Prompts in ModelMind
+
+Still outside proven live scope after this pass:
+
+- runtime confirmation of the promoted validation-state display and Recent Prompt detail behavior in the UI

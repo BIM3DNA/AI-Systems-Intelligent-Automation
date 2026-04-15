@@ -975,11 +975,20 @@
     "scope_type": "selection",
     "planner_aliases": [
       "report selected elements by category",
-      "selected elements by category"
+      "selected elements by category",
+      "show selected elements by category",
+      "group selected elements by category",
+      "summarize selected elements by category"
+    ],
+    "example_prompts": [
+      "show selected elements by category",
+      "group selected elements by category",
+      "summarize selected elements by category"
     ],
     "deterministic_handler": "report_selected_elements_by_category",
     "requires_confirmation": false,
     "enabled": true,
+    "validation_state": "live_validated",
     "prompt_text": "report selected elements by category",
     "mode": "deterministic"
   },
@@ -993,11 +1002,20 @@
     "scope_type": "selection",
     "planner_aliases": [
       "report selected elements by type",
-      "selected elements by type"
+      "selected elements by type",
+      "show selected elements by type",
+      "group selected elements by type",
+      "summarize selected elements by type"
+    ],
+    "example_prompts": [
+      "show selected elements by type",
+      "group selected elements by type",
+      "summarize selected elements by type"
     ],
     "deterministic_handler": "report_selected_elements_by_type",
     "requires_confirmation": false,
     "enabled": true,
+    "validation_state": "live_validated",
     "prompt_text": "report selected elements by type",
     "mode": "deterministic"
   },
@@ -1008,16 +1026,29 @@
     "discipline": "QA / BIM",
     "role": "read",
     "risk_level": "low",
-    "scope_type": "selection",
+    "scope_type": "active_view",
     "planner_aliases": [
       "health check for active view selection",
       "selection health check",
       "health check selection",
-      "health check of active view for supported mep categories"
+      "health check of active view for supported mep categories",
+      "health check this active view",
+      "check this active view",
+      "run health check on active view",
+      "inspect active view for mep issues",
+      "summarize active view health"
+    ],
+    "example_prompts": [
+      "health check this active view",
+      "check this active view",
+      "run health check on active view",
+      "inspect active view for MEP issues",
+      "summarize active view health"
     ],
     "deterministic_handler": "health_check_for_active_view_selection",
     "requires_confirmation": false,
     "enabled": true,
+    "validation_state": "live_validated",
     "prompt_text": "health check for active view selection",
     "mode": "deterministic"
   },
@@ -1032,11 +1063,22 @@
     "planner_aliases": [
       "report missing parameters from selection",
       "missing parameters from selection",
-      "report missing key parameters from selected elements"
+      "report missing key parameters from selected elements",
+      "check missing key parameters in selection",
+      "show missing parameters in selected elements",
+      "find missing key parameters in selection",
+      "check selected elements for missing parameters"
+    ],
+    "example_prompts": [
+      "check missing key parameters in selection",
+      "show missing parameters in selected elements",
+      "find missing key parameters in selection",
+      "check selected elements for missing parameters"
     ],
     "deterministic_handler": "report_missing_parameters_from_selection",
     "requires_confirmation": false,
     "enabled": true,
+    "validation_state": "live_validated",
     "prompt_text": "report missing parameters from selection",
     "mode": "deterministic"
   },
