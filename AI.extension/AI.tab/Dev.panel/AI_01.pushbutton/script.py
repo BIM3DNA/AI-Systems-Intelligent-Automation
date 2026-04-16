@@ -10,6 +10,7 @@ import subprocess
 import requests
 import re
 import time
+import math
 import System
 
 from System import Action
@@ -2459,6 +2460,327 @@ def _is_unconnected_fitting(elem):
     return False
 
 
+def _meters_to_feet(value_m):
+    return float(value_m) / 0.3048
+
+
+def _feet_to_meters(value_ft):
+    return float(value_ft) * 0.3048
+
+
+def _feet3_to_m3(value_ft3):
+    return float(value_ft3) * 0.0283168
+
+
+def _safe_int_id(elem):
+    try:
+        return elem.Id.IntegerValue
+    except:
+        return None
+
+
+def _round_key(value, precision=4):
+    try:
+        return round(float(value), precision)
+    except:
+        return 0.0
+
+
+def _parse_metric_length_meters(text, default_m=1.5):
+    lowered = (text or "").lower()
+    mm_match = re.search(r"(\d+(?:\.\d+)?)\s*mm\b", lowered)
+    if mm_match:
+        try:
+            return float(mm_match.group(1)) / 1000.0
+        except:
+            return default_m
+    meter_match = re.search(r"(\d+(?:\.\d+)?)\s*m\b", lowered)
+    if meter_match:
+        try:
+            return float(meter_match.group(1))
+        except:
+            return default_m
+    return default_m
+
+
+def _all_view_names(doc):
+    names = set()
+    try:
+        for view in DB.FilteredElementCollector(doc).OfClass(DB.View):
+            name = get_elem_name(view)
+            if name:
+                names.add(name)
+    except:
+        pass
+    return names
+
+
+def _unique_name(base_name, existing_names):
+    if base_name not in existing_names:
+        return base_name
+    index = 2
+    while True:
+        candidate = "{0} ({1})".format(base_name, index)
+        if candidate not in existing_names:
+            return candidate
+        index += 1
+
+
+def _prompt_text_from_context(context):
+    if isinstance(context, dict):
+        return context.get("requested_prompt") or context.get("canonical_prompt") or context.get("prompt_text") or ""
+    return str(context or "")
+
+
+def _selection_scope_preamble(doc, uidoc, selection_count):
+    return [
+        "Selection scope: active document only",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Current selection count: {0}".format(selection_count),
+    ]
+
+
+def _all_doc_categories(doc):
+    categories = []
+    try:
+        for category in doc.Settings.Categories:
+            try:
+                if category is not None and getattr(category, "Name", None):
+                    categories.append(category)
+            except:
+                continue
+    except:
+        pass
+    return categories
+
+
+def _normalize_category_token(text):
+    token = re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+    if token.endswith("ies"):
+        token = token[:-3] + "y"
+    elif token.endswith("s") and not token.endswith("ss"):
+        token = token[:-1]
+    return token.strip()
+
+
+def _extract_category_query(prompt_text):
+    text = (prompt_text or "").lower()
+    match = re.search(r"category\s+(.+)$", text)
+    if match:
+        return match.group(1).strip()
+    prefixes = [
+        "select all elements of category",
+        "count all elements of category",
+        "list all elements of category",
+        "select all",
+        "count all",
+        "list all",
+        "select",
+        "count",
+        "list",
+    ]
+    for prefix in prefixes:
+        if text.startswith(prefix):
+            return text[len(prefix):].strip()
+    return text.strip()
+
+
+def _resolve_category_from_prompt(doc, prompt_text):
+    query = _extract_category_query(prompt_text)
+    query = re.sub(r"\b(in|on)\s+active\s+view\b", "", query).strip()
+    query = re.sub(r"\bfrom\s+selection\b", "", query).strip()
+    if not query:
+        return (None, "Specify a category, for example: count all elements of category ducts.")
+
+    alias_map = {
+        "duct": "Ducts",
+        "duct fitting": "Duct Fittings",
+        "pipe": "Pipes",
+        "pipe fitting": "Pipe Fittings",
+        "wall": "Walls",
+        "door": "Doors",
+        "window": "Windows",
+        "room": "Rooms",
+        "space": "Spaces",
+        "electrical fixture": "Electrical Fixtures",
+        "electrical equipment": "Electrical Equipment",
+        "lighting fixture": "Lighting Fixtures",
+        "tag": "Tags",
+    }
+    normalized_query = _normalize_category_token(query)
+    target_names = [alias_map.get(normalized_query, query)]
+    matches = []
+    for category in _all_doc_categories(doc):
+        cat_name = getattr(category, "Name", "")
+        normalized_name = _normalize_category_token(cat_name)
+        if normalized_name == normalized_query:
+            matches.append(category)
+        elif normalized_query and normalized_query in normalized_name:
+            matches.append(category)
+        elif cat_name in target_names:
+            matches.append(category)
+
+    unique = []
+    seen_ids = set()
+    for category in matches:
+        try:
+            category_id = category.Id.IntegerValue
+        except:
+            category_id = id(category)
+        if category_id in seen_ids:
+            continue
+        seen_ids.add(category_id)
+        unique.append(category)
+
+    if not unique:
+        return (None, "No matching Revit category was found for '{0}'.".format(query))
+    if len(unique) > 1:
+        suggestions = ", ".join([category.Name for category in unique[:5]])
+        return (None, "Category '{0}' is ambiguous. Possible matches: {1}".format(query, suggestions))
+    return (unique[0], None)
+
+
+def _elements_of_category(doc, uidoc, category, active_view_only=False):
+    if category is None:
+        return []
+    try:
+        collector = (
+            DB.FilteredElementCollector(doc, uidoc.ActiveView.Id)
+            if active_view_only
+            else DB.FilteredElementCollector(doc)
+        )
+        return list(
+            collector.OfCategoryId(category.Id).WhereElementIsNotElementType().ToElements()
+        )
+    except:
+        return []
+
+
+def _element_location_signature(elem):
+    location = getattr(elem, "Location", None)
+    if location is None:
+        return None
+    try:
+        point = getattr(location, "Point", None)
+        if point is not None:
+            return (
+                "point",
+                _round_key(point.X),
+                _round_key(point.Y),
+                _round_key(point.Z),
+            )
+    except:
+        pass
+    try:
+        curve = getattr(location, "Curve", None)
+        if curve is not None:
+            start = curve.GetEndPoint(0)
+            end = curve.GetEndPoint(1)
+            points = sorted(
+                [
+                    (_round_key(start.X), _round_key(start.Y), _round_key(start.Z)),
+                    (_round_key(end.X), _round_key(end.Y), _round_key(end.Z)),
+                ]
+            )
+            return (
+                "curve",
+                points[0],
+                points[1],
+                _round_key(curve.Length),
+            )
+    except:
+        pass
+    return None
+
+
+def _duplicate_scope_elements(doc, uidoc, prompt_text):
+    prompt = (prompt_text or "").lower()
+    if "active view" in prompt:
+        elements = list(
+            DB.FilteredElementCollector(doc, uidoc.ActiveView.Id)
+            .WhereElementIsNotElementType()
+            .ToElements()
+        )
+        return ("active view", elements)
+    selected = _selected_elements(doc, uidoc)
+    if selected:
+        return ("selection", selected)
+    elements = list(
+        DB.FilteredElementCollector(doc, uidoc.ActiveView.Id)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    return ("active view", elements)
+
+
+def _find_duplicate_groups(elements):
+    grouped = {}
+    skipped = []
+    for elem in elements:
+        signature = _element_location_signature(elem)
+        if signature is None:
+            skipped.append(elem)
+            continue
+        try:
+            key = (
+                elem.Category.Id.IntegerValue if elem.Category else None,
+                elem.GetTypeId().IntegerValue if hasattr(elem, "GetTypeId") else None,
+                signature,
+            )
+        except:
+            skipped.append(elem)
+            continue
+        grouped.setdefault(key, []).append(elem)
+    duplicates = []
+    for items in grouped.values():
+        if len(items) > 1:
+            duplicates.append(sorted(items, key=lambda item: _safe_int_id(item) or 0))
+    duplicates.sort(key=lambda group: (-(len(group)), _safe_int_id(group[0]) or 0))
+    return duplicates, skipped
+
+
+def _room_space_collections(doc):
+    room_category = DB.BuiltInCategory.OST_Rooms
+    space_category = getattr(DB.BuiltInCategory, "OST_MEPSpaces", None)
+    rooms = list(
+        DB.FilteredElementCollector(doc)
+        .OfCategory(room_category)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    spaces = []
+    if space_category is not None:
+        spaces = list(
+            DB.FilteredElementCollector(doc)
+            .OfCategory(space_category)
+            .WhereElementIsNotElementType()
+            .ToElements()
+        )
+    return rooms, spaces
+
+
+def _room_space_number(elem):
+    value = _lookup_first_param_value(elem, ["Number"])
+    return value or "(no number)"
+
+
+def _room_space_name(elem):
+    value = _lookup_first_param_value(elem, ["Name"])
+    return value or get_elem_name(elem) or "(no name)"
+
+
+def _room_space_maps(doc):
+    rooms, spaces = _room_space_collections(doc)
+    room_map = {}
+    space_map = {}
+    for room in rooms:
+        room_map.setdefault(_room_space_number(room), []).append(room)
+    for space in spaces:
+        space_map.setdefault(_room_space_number(space), []).append(space)
+    return room_map, space_map
+
+
 def report_selected_elements_by_category(doc, uidoc):
     elems = _selected_elements(doc, uidoc)
     lines = [
@@ -2652,6 +2974,499 @@ def report_missing_parameters_from_selection(doc, uidoc):
     return "\n".join(lines)
 
 
+def split_selected_pipes(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    selected_elements = _selected_elements(doc, uidoc)
+    selected_pipes = _selected_elements_by_categories(doc, uidoc, [DB.BuiltInCategory.OST_PipeCurves])
+    skipped_non_pipes = max(len(selected_elements) - len(selected_pipes), 0)
+    interval_m = _parse_metric_length_meters(prompt_text, default_m=1.5)
+    interval_ft = _meters_to_feet(interval_m)
+    if not selected_elements:
+        lines = [
+            "Split selected pipes",
+        ]
+        lines.extend(_selection_scope_preamble(doc, uidoc, 0))
+        lines.append("No selected elements found in the active Revit document.")
+        return "\n".join(lines)
+    if not selected_pipes:
+        lines = [
+            "Split selected pipes",
+        ]
+        lines.extend(_selection_scope_preamble(doc, uidoc, len(selected_elements)))
+        lines.append("No selected pipes were found. Non-pipe elements were ignored.")
+        return "\n".join(lines)
+
+    try:
+        from Autodesk.Revit.DB.Plumbing import PlumbingUtils
+    except:
+        from Autodesk.Revit.DB import PlumbingUtils
+
+    transaction = DB.Transaction(doc, "AI Split Selected Pipes")
+    transaction.Start()
+    created_segment_ids = []
+    changed_pipes = 0
+    skipped_ids = []
+    try:
+        for pipe in selected_pipes:
+            current_pipe = pipe
+            splits_for_pipe = 0
+            while True:
+                location_curve = getattr(getattr(current_pipe, "Location", None), "Curve", None)
+                if location_curve is None:
+                    skipped_ids.append(_safe_int_id(current_pipe))
+                    break
+                try:
+                    current_length_ft = float(location_curve.Length)
+                except:
+                    skipped_ids.append(_safe_int_id(current_pipe))
+                    break
+                if current_length_ft <= interval_ft + 0.01:
+                    break
+                try:
+                    split_point = location_curve.Evaluate(interval_ft / current_length_ft, True)
+                    new_pipe_id = PlumbingUtils.BreakCurve(doc, current_pipe.Id, split_point)
+                    if new_pipe_id is None or new_pipe_id == DB.ElementId.InvalidElementId:
+                        skipped_ids.append(_safe_int_id(current_pipe))
+                        break
+                    created_segment_ids.append(new_pipe_id.IntegerValue)
+                    changed_pipes += 1
+                    splits_for_pipe += 1
+                    current_pipe = doc.GetElement(new_pipe_id)
+                    if current_pipe is None:
+                        break
+                except:
+                    skipped_ids.append(_safe_int_id(current_pipe))
+                    break
+            if splits_for_pipe == 0 and current_pipe is pipe and _safe_int_id(pipe) not in skipped_ids:
+                pass
+        transaction.Commit()
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return "Failed to split selected pipes: {0}".format(str(exc))
+
+    lines = ["Split selected pipes"]
+    lines.extend(_selection_scope_preamble(doc, uidoc, len(selected_elements)))
+    lines.append("Selected pipe count: {0}".format(len(selected_pipes)))
+    lines.append("Split rule used: max segment length {0:.3f} m".format(interval_m))
+    lines.append("New segments created: {0}".format(len(created_segment_ids)))
+    lines.append("Changed pipe operations: {0}".format(changed_pipes))
+    if skipped_non_pipes:
+        lines.append("Skipped non-pipe selected elements: {0}".format(skipped_non_pipes))
+    if skipped_ids:
+        lines.append("Skipped pipes: {0}".format(", ".join([str(item) for item in skipped_ids[:10]])))
+        if len(skipped_ids) > 10:
+            lines.append("...showing first 10 of {0} skipped pipe ids".format(len(skipped_ids)))
+    lines.append("Undo unavailable: split-pipe rollback is not safely implemented in this pass.")
+    return "\n".join(lines)
+
+
+def report_duplicates(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    scope_label, elements = _duplicate_scope_elements(doc, uidoc, prompt_text)
+    duplicates, skipped = _find_duplicate_groups(elements)
+    lines = [
+        "Report duplicates",
+        "Matching rule: same category, same type, and same point/curve location signature in the current scope.",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Scope used: {0}".format(scope_label),
+        "Elements inspected: {0}".format(len(elements)),
+        "Duplicate groups found: {0}".format(len(duplicates)),
+    ]
+    for index, group in enumerate(duplicates[:20]):
+        keep_elem = group[0]
+        remove_elems = group[1:]
+        lines.append(
+            "Group {0}: {1} x {2} | keep id {3} | remove ids {4}".format(
+                index + 1,
+                _category_name(keep_elem),
+                len(group),
+                _safe_int_id(keep_elem),
+                ", ".join([str(_safe_int_id(elem)) for elem in remove_elems[:5]]),
+            )
+        )
+    if len(duplicates) > 20:
+        lines.append("...showing first 20 of {0} duplicate groups".format(len(duplicates)))
+    if skipped:
+        lines.append("Skipped elements without reliable location signature: {0}".format(len(skipped)))
+    if not duplicates:
+        lines.append("No duplicates were detected in the reviewed scope.")
+    return "\n".join(lines)
+
+
+def remove_duplicates(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    scope_label, elements = _duplicate_scope_elements(doc, uidoc, prompt_text)
+    duplicates, skipped = _find_duplicate_groups(elements)
+    remove_ids = []
+    kept_ids = []
+    for group in duplicates:
+        kept_ids.append(_safe_int_id(group[0]))
+        for elem in group[1:]:
+            remove_ids.append(elem.Id)
+    lines = [
+        "Remove duplicates",
+        "Matching rule: same category, same type, and same point/curve location signature in the current scope.",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Scope used: {0}".format(scope_label),
+        "Duplicate groups found: {0}".format(len(duplicates)),
+        "Elements kept: {0}".format(len(kept_ids)),
+        "Elements removed: {0}".format(len(remove_ids)),
+    ]
+    if not remove_ids:
+        if skipped:
+            lines.append("Skipped elements without reliable location signature: {0}".format(len(skipped)))
+        lines.append("No duplicates were removed because no duplicate groups were detected.")
+        return "\n".join(lines)
+
+    transaction = DB.Transaction(doc, "AI Remove Duplicates")
+    transaction.Start()
+    try:
+        doc.Delete(System.Collections.Generic.List[DB.ElementId](remove_ids))
+        transaction.Commit()
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return "Failed to remove duplicates: {0}".format(str(exc))
+
+    lines.append("Kept sample ids: {0}".format(", ".join([str(item) for item in kept_ids[:10]])))
+    lines.append(
+        "Removed sample ids: {0}".format(
+            ", ".join([str(item.IntegerValue) for item in remove_ids[:10]])
+        )
+    )
+    if skipped:
+        lines.append("Skipped elements without reliable location signature: {0}".format(len(skipped)))
+    lines.append("Undo unavailable: duplicate-removal rollback is not safely implemented in this pass.")
+    return "\n".join(lines)
+
+
+def categories_list_and_id(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context).lower()
+    categories = []
+    if "selection" in prompt_text:
+        seen = {}
+        for elem in _selected_elements(doc, uidoc):
+            category = getattr(elem, "Category", None)
+            if category is None:
+                continue
+            seen[category.Id.IntegerValue] = category
+        categories = list(seen.values())
+        scope_label = "selection categories in active document"
+    elif "active view" in prompt_text:
+        seen = {}
+        for elem in DB.FilteredElementCollector(doc, uidoc.ActiveView.Id).WhereElementIsNotElementType().ToElements():
+            category = getattr(elem, "Category", None)
+            if category is None:
+                continue
+            seen[category.Id.IntegerValue] = category
+        categories = list(seen.values())
+        scope_label = "categories present in active view"
+    else:
+        categories = _all_doc_categories(doc)
+        scope_label = "all categories in active document"
+
+    categories = sorted(categories, key=lambda category: getattr(category, "Name", ""))
+    lines = [
+        "Categories list + ID",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Scope used: {0}".format(scope_label),
+        "Categories found: {0}".format(len(categories)),
+    ]
+    for category in categories[:50]:
+        try:
+            lines.append("{0}: {1}".format(category.Name, category.Id.IntegerValue))
+        except:
+            continue
+    if len(categories) > 50:
+        lines.append("...showing first 50 of {0}".format(len(categories)))
+    return "\n".join(lines)
+
+
+def select_all_elements_of_category(doc, uidoc, context=None):
+    from System.Collections.Generic import List
+
+    prompt_text = _prompt_text_from_context(context)
+    category, issue = _resolve_category_from_prompt(doc, prompt_text)
+    if issue:
+        return issue
+    elements = _elements_of_category(doc, uidoc, category, active_view_only=False)
+    uidoc.Selection.SetElementIds(List[DB.ElementId]([elem.Id for elem in elements]))
+    lines = ["Select all elements of category"]
+    lines.extend(_selection_scope_preamble(doc, uidoc, len(elements)))
+    lines.append("Category: {0}".format(category.Name))
+    lines.append("Selected elements: {0}".format(len(elements)))
+    return "\n".join(lines)
+
+
+def count_all_elements_of_category(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    category, issue = _resolve_category_from_prompt(doc, prompt_text)
+    if issue:
+        return issue
+    elements = _elements_of_category(doc, uidoc, category, active_view_only=False)
+    lines = [
+        "Count all elements of category",
+        "Active document: {0}".format(_document_title(doc)),
+        "Category: {0}".format(category.Name),
+        "Total elements: {0}".format(len(elements)),
+    ]
+    return "\n".join(lines)
+
+
+def list_all_elements_of_category(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    category, issue = _resolve_category_from_prompt(doc, prompt_text)
+    if issue:
+        return issue
+    elements = _elements_of_category(doc, uidoc, category, active_view_only=False)
+    lines = [
+        "List all elements of category",
+        "Active document: {0}".format(_document_title(doc)),
+        "Category: {0}".format(category.Name),
+        "Total elements: {0}".format(len(elements)),
+    ]
+    for elem in elements[:20]:
+        lines.append(
+            "Id: {0}, Type: {1}".format(
+                _safe_int_id(elem),
+                _family_and_type_text(doc, elem) or "(no type)",
+            )
+        )
+    if len(elements) > 20:
+        lines.append("...showing first 20 of {0}".format(len(elements)))
+    return "\n".join(lines)
+
+
+def report_rooms_without_matching_spaces(doc, uidoc, context=None):
+    room_map, space_map = _room_space_maps(doc)
+    missing = []
+    for number, rooms in room_map.items():
+        if number not in space_map:
+            missing.extend(rooms)
+    lines = [
+        "Report rooms without matching spaces",
+        "Active document: {0}".format(_document_title(doc)),
+        "Matching rule: room Number must match space Number in the active document.",
+        "Rooms without matching spaces: {0}".format(len(missing)),
+    ]
+    for room in missing[:20]:
+        lines.append(
+            "{0} | {1} | id {2}".format(
+                _room_space_number(room),
+                _room_space_name(room),
+                _safe_int_id(room),
+            )
+        )
+    if len(missing) > 20:
+        lines.append("...showing first 20 of {0}".format(len(missing)))
+    return "\n".join(lines)
+
+
+def report_spaces_without_matching_rooms(doc, uidoc, context=None):
+    room_map, space_map = _room_space_maps(doc)
+    missing = []
+    for number, spaces in space_map.items():
+        if number not in room_map:
+            missing.extend(spaces)
+    lines = [
+        "Report spaces without matching rooms",
+        "Active document: {0}".format(_document_title(doc)),
+        "Matching rule: space Number must match room Number in the active document.",
+        "Spaces without matching rooms: {0}".format(len(missing)),
+    ]
+    for space in missing[:20]:
+        lines.append(
+            "{0} | {1} | id {2}".format(
+                _room_space_number(space),
+                _room_space_name(space),
+                _safe_int_id(space),
+            )
+        )
+    if len(missing) > 20:
+        lines.append("...showing first 20 of {0}".format(len(missing)))
+    return "\n".join(lines)
+
+
+def report_room_space_mismatches(doc, uidoc, context=None):
+    room_map, space_map = _room_space_maps(doc)
+    mismatches = []
+    for number in sorted(set(room_map.keys()).intersection(set(space_map.keys()))):
+        room_names = sorted(set([_room_space_name(item) for item in room_map[number]]))
+        space_names = sorted(set([_room_space_name(item) for item in space_map[number]]))
+        if room_names != space_names:
+            mismatches.append((number, room_map[number], space_map[number], room_names, space_names))
+    lines = [
+        "Report room/space mismatches",
+        "Active document: {0}".format(_document_title(doc)),
+        "Matching rule: room Number must match space Number; mismatch is reported when the paired names differ.",
+        "Room/space mismatches: {0}".format(len(mismatches)),
+    ]
+    for number, rooms, spaces, room_names, space_names in mismatches[:20]:
+        lines.append(
+            "Number {0} | rooms: {1} | spaces: {2} | sample room ids: {3} | sample space ids: {4}".format(
+                number,
+                ", ".join(room_names[:3]),
+                ", ".join(space_names[:3]),
+                _sample_id_text(rooms),
+                _sample_id_text(spaces),
+            )
+        )
+    if len(mismatches) > 20:
+        lines.append("...showing first 20 of {0}".format(len(mismatches)))
+    if not mismatches:
+        lines.append("No room/space mismatches were detected with the reviewed number-plus-name rule.")
+    return "\n".join(lines)
+
+
+def rename_active_view(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    active_view = uidoc.ActiveView
+    explicit_match = re.search(r"rename active view to\s+(.+)$", prompt_text, re.IGNORECASE)
+    if explicit_match:
+        base_name = explicit_match.group(1).strip()
+    else:
+        view_type = ""
+        try:
+            view_type = active_view.ViewType.ToString()
+        except:
+            view_type = "View"
+        base_name = "AI - {0} - {1}".format(view_type, get_elem_name(active_view))
+    existing_names = _all_view_names(doc)
+    old_name = get_elem_name(active_view) or "(unnamed view)"
+    new_name = _unique_name(base_name, existing_names.difference(set([old_name])))
+    transaction = DB.Transaction(doc, "AI Rename Active View")
+    transaction.Start()
+    try:
+        active_view.Name = new_name
+        transaction.Commit()
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return "Failed to rename active view: {0}".format(str(exc))
+    return {
+        "message": "Renamed active view from '{0}' to '{1}'.".format(old_name, new_name),
+        "undo_context": {
+            "action_id": "rename-active-view",
+            "action_title": "Rename active view",
+            "role": "modifying",
+            "document_identity": _document_identity(doc),
+            "view_id": active_view.Id.IntegerValue,
+            "old_view_name": old_name,
+            "new_view_name": new_name,
+            "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "session_marker": "reviewed-current-session",
+            "undo_available": True,
+        },
+    }
+
+
+def align_selected_tags(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context).lower()
+    mode = "vertical" if "vertical" in prompt_text else "horizontal"
+    selected = _selected_elements(doc, uidoc)
+    tags = []
+    skipped = 0
+    for elem in selected:
+        if isinstance(elem, DB.IndependentTag):
+            tags.append(elem)
+        else:
+            skipped += 1
+    if len(tags) < 2:
+        return "Select at least two tags in the active view to align them."
+    anchor = tags[0]
+    anchor_point = anchor.TagHeadPosition
+    transaction = DB.Transaction(doc, "AI Align Selected Tags")
+    transaction.Start()
+    moved = 0
+    try:
+        for tag in tags[1:]:
+            point = tag.TagHeadPosition
+            if mode == "vertical":
+                tag.TagHeadPosition = DB.XYZ(anchor_point.X, point.Y, point.Z)
+            else:
+                tag.TagHeadPosition = DB.XYZ(point.X, anchor_point.Y, point.Z)
+            moved += 1
+        transaction.Commit()
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return "Failed to align selected tags: {0}".format(str(exc))
+    lines = [
+        "Align selected tags",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Alignment mode: {0}".format(mode),
+        "Tags aligned: {0}".format(moved + 1),
+    ]
+    if skipped:
+        lines.append("Skipped non-tag selected elements: {0}".format(skipped))
+    lines.append("Undo unavailable: tag-alignment rollback is not safely implemented in this pass.")
+    return "\n".join(lines)
+
+
+def report_total_length_selected_linear_mep(doc, uidoc, context=None):
+    categories = [
+        DB.BuiltInCategory.OST_DuctCurves,
+        DB.BuiltInCategory.OST_PipeCurves,
+        DB.BuiltInCategory.OST_CableTray,
+        DB.BuiltInCategory.OST_Conduit,
+    ]
+    elems = _selected_elements_by_categories(doc, uidoc, categories)
+    total_m = 0.0
+    for elem in elems:
+        length_ft = _lookup_param_double(elem, ["Length", "Centerline Length"]) or 0.0
+        total_m += _feet_to_meters(length_ft)
+    lines = ["Report total length of selected linear MEP elements"]
+    lines.extend(_selection_scope_preamble(doc, uidoc, len(_selected_elements(doc, uidoc))))
+    lines.append("Supported linear MEP elements found: {0}".format(len(elems)))
+    lines.append("Total length: {0:.2f} m".format(total_m))
+    return "\n".join(lines)
+
+
+def report_total_length_active_view_linear_mep(doc, uidoc, context=None):
+    categories = [
+        DB.BuiltInCategory.OST_DuctCurves,
+        DB.BuiltInCategory.OST_PipeCurves,
+        DB.BuiltInCategory.OST_CableTray,
+        DB.BuiltInCategory.OST_Conduit,
+    ]
+    elems = []
+    for category in categories:
+        elems.extend(
+            list(
+                DB.FilteredElementCollector(doc, uidoc.ActiveView.Id)
+                .OfCategory(category)
+                .WhereElementIsNotElementType()
+                .ToElements()
+            )
+        )
+    total_m = 0.0
+    for elem in elems:
+        length_ft = _lookup_param_double(elem, ["Length", "Centerline Length"]) or 0.0
+        total_m += _feet_to_meters(length_ft)
+    return "\n".join(
+        [
+            "Report total length in active view for supported linear MEP categories",
+            "Active document: {0}".format(_document_title(doc)),
+            "Active view: {0}".format(_active_view_title(doc, uidoc)),
+            "Supported linear MEP elements in active view: {0}".format(len(elems)),
+            "Total length: {0:.2f} m".format(total_m),
+        ]
+    )
+
+
 def create_3d_view_from_selection(doc, uidoc):
     from Autodesk.Revit.DB import FilteredElementCollector, Transaction, View3D, ViewFamily, ViewFamilyType
 
@@ -2818,6 +3633,46 @@ def undo_create_sheet_action(doc, undo_context):
                 sheet_number,
                 sheet_name,
             ),
+        }
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return {"ok": False, "message": "Undo failed: {0}".format(str(exc))}
+
+
+def undo_rename_active_view_action(doc, undo_context):
+    if not undo_context:
+        return {"ok": False, "message": "Undo unavailable: no undo context recorded."}
+    if undo_context.get("action_id") != "rename-active-view":
+        return {"ok": False, "message": "Undo unavailable: last action is not a reversible rename-active-view action."}
+    if not undo_context.get("undo_available"):
+        return {"ok": False, "message": "Undo unavailable: context is not marked reversible."}
+    if undo_context.get("document_identity") != _document_identity(doc):
+        return {"ok": False, "message": "Undo unavailable: document changed or invalid context."}
+
+    view_id_value = undo_context.get("view_id")
+    old_name = undo_context.get("old_view_name")
+    if view_id_value is None or not old_name:
+        return {"ok": False, "message": "Undo unavailable: rename metadata is incomplete."}
+
+    renamed_view = None
+    try:
+        renamed_view = doc.GetElement(DB.ElementId(int(view_id_value)))
+    except:
+        renamed_view = None
+    if renamed_view is None:
+        return {"ok": False, "message": "Undo failed: renamed view no longer exists."}
+
+    transaction = DB.Transaction(doc, "Undo AI Rename Active View")
+    transaction.Start()
+    try:
+        renamed_view.Name = old_name
+        transaction.Commit()
+        return {
+            "ok": True,
+            "message": "UNDONE: Rename active view\nRestored active view name: {0}".format(old_name),
         }
     except Exception as exc:
         try:
@@ -3896,18 +4751,69 @@ REVIEWED_ACTION_HANDLERS = {
     "health_check_for_active_view_selection": health_check_for_active_view_selection,
     "report_missing_parameters_from_selection": report_missing_parameters_from_selection,
     "create_3d_view_from_selection": create_3d_view_from_selection,
+    "split_selected_pipes": split_selected_pipes,
+    "report_duplicates": report_duplicates,
+    "remove_duplicates": remove_duplicates,
+    "categories_list_and_id": categories_list_and_id,
+    "select_all_elements_of_category": select_all_elements_of_category,
+    "count_all_elements_of_category": count_all_elements_of_category,
+    "list_all_elements_of_category": list_all_elements_of_category,
+    "report_rooms_without_matching_spaces": report_rooms_without_matching_spaces,
+    "report_spaces_without_matching_rooms": report_spaces_without_matching_rooms,
+    "report_room_space_mismatches": report_room_space_mismatches,
+    "rename_active_view": rename_active_view,
+    "align_selected_tags": align_selected_tags,
+    "report_total_length_selected_linear_mep": report_total_length_selected_linear_mep,
+    "report_total_length_active_view_linear_mep": report_total_length_active_view_linear_mep,
 }
 
 
-def execute_reviewed_action_handler(handler_name, doc, uidoc):
+def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
     handler = REVIEWED_ACTION_HANDLERS.get(handler_name)
     if handler is None:
         return None
-    return handler(doc, uidoc)
+    try:
+        return handler(doc, uidoc, context)
+    except TypeError:
+        return handler(doc, uidoc)
 
 
 def handle_public_command(prompt, doc, uidoc):
     p = prompt.lower()
+    if "split" in p and "pipe" in p:
+        return split_selected_pipes(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "remove duplicates" in p or "remove duplicate" in p or "clean duplicates" in p or "delete duplicate" in p:
+        return remove_duplicates(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "report duplicates" in p or "find duplicates" in p or "duplicate elements" in p:
+        return report_duplicates(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "categories list" in p or "category ids" in p or "categories list + id" in p:
+        return categories_list_and_id(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if (p.startswith("select all ") or "select all elements of category" in p) and p.strip() not in ("select all ducts", "select all pipes") and "electrical fixtures in active view" not in p:
+        generic_result = select_all_elements_of_category(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+        if generic_result and not str(generic_result).startswith("No matching Revit category"):
+            return generic_result
+    if (p.startswith("count all ") or "count all elements of category" in p) and "active view" not in p:
+        generic_result = count_all_elements_of_category(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+        if generic_result and not str(generic_result).startswith("No matching Revit category"):
+            return generic_result
+    if (p.startswith("list all ") or "list all elements of category" in p) and "active view" not in p:
+        generic_result = list_all_elements_of_category(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+        if generic_result and not str(generic_result).startswith("No matching Revit category"):
+            return generic_result
+    if "rooms without spaces" in p:
+        return report_rooms_without_matching_spaces(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "spaces without rooms" in p:
+        return report_spaces_without_matching_rooms(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "room to space" in p or "space vs room" in p or "room space check" in p or "rooms vs spaces" in p:
+        return report_room_space_mismatches(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "rename active view" in p:
+        return rename_active_view(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "align" in p and "tag" in p:
+        return align_selected_tags(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "total length" in p and ("linear" in p or "mep" in p):
+        if "active view" in p:
+            return report_total_length_active_view_linear_mep(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+        return report_total_length_selected_linear_mep(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
     if "report total selected duct length" in p or "total selected duct length" in p or "length of selected ducts" in p:
         return report_total_selected_duct_length(doc, uidoc)
     if (
@@ -4505,8 +5411,14 @@ class OllamaAIChat(forms.WPFWindow):
             "example_prompts": list(source_entry.get("example_prompts") or []),
             "validation_state": source_entry.get("validation_state", "recent"),
             "visible_in_modelmind": False,
-            "available_to_agent": bool(source_entry.get("available_to_agent", bool(source_entry.get("deterministic_handler")))),
+            "available_to_agent": bool(
+                source_entry.get(
+                    "available_to_agent",
+                    bool(source_entry.get("deterministic_handler") or source_entry.get("reviewed_steps")),
+                )
+            ),
             "deterministic_handler": source_entry.get("deterministic_handler", ""),
+            "reviewed_steps": list(source_entry.get("reviewed_steps") or []),
             "source": "recent_prompt",
         }
 
@@ -5172,6 +6084,8 @@ class OllamaAIChat(forms.WPFWindow):
                 lines.append("Aliases: {0}".format(", ".join(aliases[:6])))
             if examples:
                 lines.append("Examples: {0}".format(", ".join(examples[:4])))
+            if entry.get("reviewed_steps"):
+                lines.append("Reviewed preset steps: {0}".format(len(entry.get("reviewed_steps") or [])))
             if entry.get("source") == "approved_recipe":
                 lines.append("Approved recipe source: reviewed code store")
             elif entry.get("source") == "recent_prompt":
@@ -5379,6 +6293,15 @@ class OllamaAIChat(forms.WPFWindow):
                 self.reset_reviewed_code_state("saved", "Approved recipe executed from reviewed store.")
                 return
 
+            if source_entry and source_entry.get("reviewed_steps"):
+                preset_result = self.run_reviewed_preset(source_entry)
+                self.ModelMindHistory.AppendText(
+                    "Reviewed preset result\n{0}\n\n".format(preset_result)
+                )
+                self.reset_reviewed_code_state("draft", "Reviewed preset executed from shared registry.")
+                self.update_window_status("ready_to_execute", "Reviewed preset complete")
+                return
+
             if source_entry and source_entry.get("deterministic_handler"):
                 if source_entry.get("deterministic_handler") == "create_sheet_reviewed_template":
                     reviewed_code = build_create_sheet_reviewed_code()
@@ -5401,6 +6324,12 @@ class OllamaAIChat(forms.WPFWindow):
                     source_entry.get("deterministic_handler"),
                     doc,
                     uidoc,
+                    {
+                        "requested_prompt": prompt,
+                        "prompt_text": source_entry.get("canonical_prompt") or source_entry.get("prompt_text"),
+                        "canonical_prompt": source_entry.get("canonical_prompt") or source_entry.get("prompt_text"),
+                        "id": source_entry.get("id"),
+                    },
                 )
                 if reviewed_result:
                     self.apply_undo_context_from_execution_result(reviewed_result)
@@ -5601,6 +6530,52 @@ class OllamaAIChat(forms.WPFWindow):
             if prompt_text == target or title == target:
                 return approved
         return None
+
+    def run_reviewed_preset(self, entry):
+        preset_title = entry.get("title", "Reviewed preset")
+        step_ids = list(entry.get("reviewed_steps") or [])
+        if not step_ids:
+            return "{0} has no reviewed steps.".format(preset_title)
+        lines = [
+            "{0}".format(preset_title),
+            "Active document: {0}".format(_document_title(doc)),
+            "Active view: {0}".format(_active_view_title(doc, uidoc)),
+            "Reviewed steps: {0}".format(len(step_ids)),
+        ]
+        for index, step_id in enumerate(step_ids):
+            step_entry = self.catalog.get_entry_by_id(step_id)
+            if not step_entry:
+                lines.append("{0}. Missing reviewed step: {1}".format(index + 1, step_id))
+                continue
+            handler_name = step_entry.get("deterministic_handler")
+            if not handler_name:
+                lines.append(
+                    "{0}. {1}\nNo deterministic handler is registered for this reviewed step.".format(
+                        index + 1,
+                        step_entry.get("title", step_id),
+                    )
+                )
+                continue
+            result = execute_reviewed_action_handler(
+                handler_name,
+                doc,
+                uidoc,
+                {
+                    "requested_prompt": self.pending_ai_prompt or entry.get("canonical_prompt") or entry.get("prompt_text"),
+                    "prompt_text": step_entry.get("canonical_prompt") or step_entry.get("prompt_text"),
+                    "canonical_prompt": step_entry.get("canonical_prompt") or step_entry.get("prompt_text"),
+                    "id": step_entry.get("id"),
+                },
+            )
+            self.apply_undo_context_from_execution_result(result)
+            lines.append(
+                "{0}. {1}\n{2}".format(
+                    index + 1,
+                    step_entry.get("title", step_id),
+                    execution_result_message(result),
+                )
+            )
+        return "\n\n".join(lines)
 
     def run_approved_recipe(self, entry):
         code_text = entry.get("stored_code")
@@ -5869,7 +6844,7 @@ class OllamaAIChat(forms.WPFWindow):
         if step.get("deterministic_handler") == "create_3d_view_from_selection" or step.get("id") == "create-3d-view-from-selection":
             return execute_create_3d_view_with_undo(doc, uidoc)
         if step.get("deterministic_handler"):
-            result = execute_reviewed_action_handler(step.get("deterministic_handler"), doc, uidoc)
+            result = execute_reviewed_action_handler(step.get("deterministic_handler"), doc, uidoc, step)
             if result is not None:
                 return result
         result = handle_public_command(step.get("prompt_text", ""), doc, uidoc)
@@ -5921,6 +6896,7 @@ class OllamaAIChat(forms.WPFWindow):
             action_id,
             result.get("confidence", 0.0),
             result.get("summary", "OpenAI planner matched a supported action."),
+            requested_prompt=goal,
         )
         return {"provider_state": "provider_ready", "plan": plan}
 
@@ -6001,6 +6977,8 @@ class OllamaAIChat(forms.WPFWindow):
             result = undo_create_3d_view_action(doc, undo_context)
         elif action_id == "create-sheet-reviewed-template":
             result = undo_create_sheet_action(doc, undo_context)
+        elif action_id == "rename-active-view":
+            result = undo_rename_active_view_action(doc, undo_context)
         else:
             result = {
                 "ok": False,

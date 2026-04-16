@@ -324,6 +324,27 @@ What still needs live confirmation:
 - compact context-line presentation in pyRevit/Revit
 - Recent Prompt canonical-details behavior in the live ModelMind UI
 
+## 2026-04-16 Reviewed Production-Assistant Expansion
+
+What changed:
+
+- added canonical reviewed QA presets to the shared reviewed catalog
+- added new native deterministic reviewed helpers for split pipes, duplicates, categories, room/space checks, selected view/tag utilities, and broader linear-MEP quantities
+- preserved ModelMind as the canonical catalog and AI Agent as the planner/router over the same reviewed actions
+
+What was verified locally in this pass:
+
+- `script.py` passed `tabnanny`
+- support modules compiled successfully where applicable
+- `prompt_catalog.json` parsed successfully
+- shared reviewed registry grouping looked structurally correct
+- planner alias matching worked for the newly added presets/actions in local checks
+
+What still needs live confirmation:
+
+- all new presets and actions added in this pass
+- rename-active-view undo behavior in live runtime
+
 ## Current Workspace Cloud Planner Finding
 
 The current workspace self-test through the actual service path reports:

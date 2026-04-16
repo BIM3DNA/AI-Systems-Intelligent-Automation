@@ -766,3 +766,50 @@ Reported as already live-validated before this code pass:
 
 - runtime confirmation of the promoted validation-state display in the Selected Action panel
 - runtime confirmation of the compact context lines and recent-prompt canonical-details behavior
+
+---
+
+## EV-2026-04-16-001 - Reviewed production-assistant expansion pass
+
+### Scope
+
+- expand the shared reviewed registry with discipline QA presets and additional deterministic production-assistant actions
+- preserve the one-catalog ModelMind/AI Agent architecture
+- add only native deterministic reviewed implementations where safe and available
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/lib/ai_prompt_registry.py`
+- `AI.extension/lib/ai_agent_session.py`
+- `AI.extension/lib/prompt_catalog.json`
+
+### What was actually verified locally
+
+- `script.py` passed local `tabnanny` indentation/tokenization sanity
+- `ai_prompt_registry.py` and `ai_agent_session.py` compiled successfully
+- `prompt_catalog.json` parsed successfully
+- shared reviewed registry now exposes the new top-level groupings:
+  - `QA Presets`
+  - `Selection / Categories`
+  - `Coordination / Spaces`
+  - `Cleanup / Repair`
+  - `Views / Sheets / Tags`
+  - `Quantities`
+- planner normalization matched the newly added presets/actions for:
+  - `run hvac qa preset`
+  - `run piping qa preset`
+  - `run electrical qa preset`
+  - `run bim qa preset`
+  - `split selected pipes every 1.5 m`
+  - `report duplicates`
+  - `remove duplicates`
+  - `count all walls`
+  - `list all pipe fittings`
+  - `room to space check`
+  - `rename active view`
+  - `align selected tags`
+
+### What remains unvalidated in live Revit
+
+- all new presets and actions added in this pass

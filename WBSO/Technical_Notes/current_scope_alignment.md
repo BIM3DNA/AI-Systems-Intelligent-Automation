@@ -241,3 +241,24 @@ The current aligned scope now also includes:
 Still outside proven live scope after this pass:
 
 - runtime confirmation of the promoted validation-state display and Recent Prompt detail behavior in the UI
+
+## 2026-04-16 Reviewed Production-Assistant Scope Note
+
+The current aligned scope now also includes structural implementation for:
+
+- QA presets:
+  - HVAC
+  - Piping
+  - Electrical
+  - Coordination / BIM
+- pipe splitting
+- duplicate reporting and duplicate removal
+- category-driven select/count/list helpers
+- room/space checks
+- rename active view
+- align selected tags
+- broader linear-MEP total-length helpers
+
+Still outside proven live scope after this pass:
+
+- live validation of every new preset/action added in this pass

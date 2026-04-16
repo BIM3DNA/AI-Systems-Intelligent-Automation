@@ -539,3 +539,45 @@ The refactor should only be considered runtime-proven after the scenario set abo
 ### Live checks not executed in this pass
 
 - all live confirmation for validation-state promotion and context-UX presentation
+
+## 2026-04-16 Runtime Targets for Reviewed Production-Assistant Expansion
+
+### QA presets
+
+- run:
+  - HVAC QA preset
+  - Piping QA preset
+  - Electrical QA preset
+  - Coordination / BIM QA preset
+- confirm each preset executes its reviewed steps without crashing when selection-based steps have no active-document selection
+
+### New reviewed actions
+
+- validate in live Revit:
+  - split selected pipes
+  - report duplicates
+  - remove duplicates
+  - categories list + id
+  - select/count/list all elements of category
+  - report rooms without matching spaces
+  - report spaces without matching rooms
+  - report room/space mismatches
+  - rename active view
+  - align selected tags
+  - total length of selected linear MEP elements
+  - total length in active view for supported linear MEP categories
+
+### Undo checks
+
+- confirm rename active view creates a real reversible undo context
+- confirm Undo Last Action restores the prior active-view name
+
+### What was actually executed in this workspace pass
+
+- local syntax/tokenization/JSON/XAML sanity checks
+- shared-registry grouping sanity checks
+- planner alias matching checks for new presets/actions
+
+### Live checks not executed in this pass
+
+- all live confirmation for the new presets/actions added in this pass

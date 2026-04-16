@@ -740,3 +740,28 @@ Four QA/BIM reviewed actions now have explicit live runtime evidence, but the sh
 
 - confirm in live runtime that the Selected Action panel now shows the promoted validation state for the targeted QA/BIM actions
 - confirm the compact context lines are useful without adding noise
+
+---
+
+## ISSUE-2026-04-16-001
+
+**Title:** Broader reviewed production-assistant coverage was missing for presets, category helpers, duplicates, room/space checks, and common repetitive BIM utilities  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** Reviewed action coverage / deterministic workflow expansion
+
+### Description
+
+The validated AI Workbench baseline was useful for reviewed MEP and QA/BIM inspection, but it still lacked a governed reviewed surface for higher-value production-assistant workflows such as discipline QA presets, pipe splitting, duplicate review/removal, category-driven helpers, room/space checks, and a small set of safe view/tag/quantity helpers.
+
+### Action Taken
+
+- added canonical reviewed QA presets to the shared reviewed registry
+- added native deterministic reviewed actions for the requested high-value helpers where a safe implementation was feasible
+- preserved destructive-tools gating and the shared ModelMind/AI Agent architecture
+- added reversible undo only for the new modifying action where a real safe rollback path was practical:
+  - rename active view
+
+### Remaining Work
+
+- live Revit validation for every new preset/action added in this pass
+- future decision on whether quick dimension, batch view rename, and add couplings can be implemented safely enough for the reviewed architecture

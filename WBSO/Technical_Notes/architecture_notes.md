@@ -753,3 +753,54 @@ Other reviewed actions keep their previous validation state unless they already 
 
 - runtime confirmation of the promoted validation-state display in the Selected Action panel
 - runtime confirmation of the compact context lines and canonical recent-prompt details behavior
+
+## 2026-04-16 Reviewed Production-Assistant Expansion Pass
+
+This pass expands the validated reviewed MEP/QA baseline into a broader reviewed production-assistant surface while preserving the shared-catalog architecture:
+
+- ModelMind remains the canonical reviewed catalog and approved-recipe surface
+- AI Agent remains the planner/router/executor over the same shared reviewed actions and presets
+- no separate AI Agent catalog tree was added
+
+### Structural additions completed
+
+- discipline QA presets implemented as canonical reviewed multi-step presets:
+  - HVAC QA preset
+  - Piping QA preset
+  - Electrical QA preset
+  - Coordination / BIM QA preset
+- new native deterministic reviewed actions added for:
+  - split selected pipes
+  - duplicate reporting and duplicate removal
+  - categories list + id
+  - select/count/list all elements of category
+  - room/space checks
+  - rename active view
+  - align selected tags
+  - total length for selected linear MEP elements
+  - total length in active view for supported linear MEP categories
+
+### Governance notes
+
+- all new items default to `structural_only`
+- destructive-tools gating remains in place for new modifying actions
+- no fake undo was added for actions without a safe reversible model
+- real undo was added only where practical for the new modifying set:
+  - rename active view
+
+### Deliberately deferred items
+
+- quick dimension selected elements
+- add couplings to selected pipes / by interval
+- batch rename selected views
+
+These were left out because a safe first-pass deterministic implementation was not yet defensible within this pass.
+
+### External-tool reuse check
+
+- local repository search did not expose reusable native source for the requested split/duplicate/room-space/tag-alignment helpers
+- native deterministic reviewed equivalents were implemented instead of brittle button-click bridges
+
+### Still pending live validation after this pass
+
+- all new presets and actions added in this pass remain pending live Revit validation

@@ -6,17 +6,28 @@ import time
 
 class PromptCatalog(object):
     MODELMIND_CATEGORY_ORDER = [
+        "QA Presets",
         "HVAC",
         "Piping",
         "Electrical",
         "QA / BIM",
-        "Views / Sheets",
+        "Selection / Categories",
+        "Coordination / Spaces",
+        "Cleanup / Repair",
+        "Views / Sheets / Tags",
+        "Quantities",
     ]
     MODELMIND_GROUP_ORDER = [
+        "HVAC",
+        "Piping",
+        "Electrical",
+        "Coordination / BIM",
         "Select",
         "Count",
         "List",
         "Report",
+        "Cleanup / Split",
+        "Cleanup / Repair",
         "Create",
     ]
     def __init__(self, catalog_path, approved_path):
@@ -52,6 +63,15 @@ class PromptCatalog(object):
                 items.append(self._normalize_entry(entry))
         return items
 
+    def get_entry_by_id(self, entry_id):
+        target = (entry_id or "").strip().lower()
+        if not target:
+            return None
+        for entry in self.get_enabled_entries():
+            if (entry.get("id") or "").strip().lower() == target:
+                return entry
+        return None
+
     def _normalize_entry(self, entry):
         normalized = dict(entry or {})
         normalized["discipline"] = normalized.get("discipline", "General")
@@ -61,12 +81,23 @@ class PromptCatalog(object):
         normalized["canonical_prompt"] = normalized.get("canonical_prompt", normalized.get("prompt_text", ""))
         normalized["example_prompts"] = list(normalized.get("example_prompts") or normalized.get("aliases") or normalized.get("planner_aliases") or [])
         normalized["deterministic_handler"] = normalized.get("deterministic_handler", "")
+        normalized["reviewed_steps"] = list(normalized.get("reviewed_steps") or [])
         normalized["requires_confirmation"] = bool(normalized.get("requires_confirmation", False))
-        normalized["available_to_agent"] = bool(normalized.get("available_to_agent", bool(normalized["deterministic_handler"])))
-        normalized["visible_in_modelmind"] = bool(normalized.get("visible_in_modelmind", bool(normalized["deterministic_handler"])))
+        normalized["available_to_agent"] = bool(
+            normalized.get(
+                "available_to_agent",
+                bool(normalized["deterministic_handler"] or normalized["reviewed_steps"]),
+            )
+        )
+        normalized["visible_in_modelmind"] = bool(
+            normalized.get(
+                "visible_in_modelmind",
+                bool(normalized["deterministic_handler"] or normalized["reviewed_steps"]),
+            )
+        )
         normalized["validation_state"] = normalized.get("validation_state", self._default_validation_state(normalized))
         existing_category = normalized.get("category", "")
-        if normalized["deterministic_handler"]:
+        if normalized["deterministic_handler"] or normalized["reviewed_steps"]:
             normalized["category"] = (
                 existing_category
                 if existing_category in self.MODELMIND_CATEGORY_ORDER
@@ -93,7 +124,7 @@ class PromptCatalog(object):
         )
         if entry.get("id") in live_validated:
             return "live_validated"
-        if entry.get("deterministic_handler"):
+        if entry.get("deterministic_handler") or entry.get("reviewed_steps"):
             return "structural_only"
         return entry.get("validation_state", "legacy")
 
@@ -101,10 +132,26 @@ class PromptCatalog(object):
         title = (entry.get("title") or "").lower()
         handler = (entry.get("deterministic_handler") or "").lower()
         discipline = (entry.get("discipline") or "").lower()
+        if "preset" in title:
+            return "QA Presets"
+        if "room" in title or "space" in title:
+            return "Coordination / Spaces"
+        if "duplicate" in title:
+            return "Cleanup / Repair"
+        if "split" in title:
+            return "Piping"
+        if "category" in title:
+            return "Selection / Categories"
+        if "tag" in title:
+            return "Views / Sheets / Tags"
+        if "rename active view" in title:
+            return "Views / Sheets / Tags"
+        if "total length" in title and "selected" in title:
+            return "Quantities"
         if handler in ("create_sheet_reviewed_template", "create_3d_view_from_selection"):
-            return "Views / Sheets"
-        if "sheet" in title or "3d view" in title or "view from" in title:
-            return "Views / Sheets"
+            return "Views / Sheets / Tags"
+        if "sheet" in title or "3d view" in title or "view from" in title or "view" in title:
+            return "Views / Sheets / Tags"
         if "hvac" in discipline or "duct" in discipline:
             return "HVAC"
         if "piping" in discipline or "pipe" in discipline:
@@ -119,8 +166,14 @@ class PromptCatalog(object):
         category = (entry.get("category") or "").lower()
         title = (entry.get("title") or "").lower()
         role = (entry.get("role") or "").lower()
+        if category == "qa presets":
+            return entry.get("group", entry.get("discipline", "Coordination / BIM"))
         if role == "modify" or "create " in title:
             return "Create"
+        if "split" in title:
+            return "Cleanup / Split"
+        if "duplicate" in title:
+            return "Cleanup / Repair"
         if category in ("select all", "select"):
             return "Select"
         if category == "count":
@@ -139,7 +192,10 @@ class PromptCatalog(object):
 
     def is_shared_reviewed_action(self, entry):
         entry = self._normalize_entry(entry)
-        return bool(entry.get("enabled", True) and entry.get("deterministic_handler"))
+        return bool(
+            entry.get("enabled", True)
+            and (entry.get("deterministic_handler") or entry.get("reviewed_steps"))
+        )
 
     def get_entry_by_prompt(self, prompt_text):
         target = (prompt_text or "").strip().lower()
@@ -153,6 +209,42 @@ class PromptCatalog(object):
             examples = [str(example).strip().lower() for example in entry.get("example_prompts") or []]
             if prompt == target or title == target or target in aliases or target in examples:
                 return entry
+        if "hvac qa preset" in target:
+            return self.get_entry_by_id("hvac-qa-preset")
+        if "piping qa preset" in target:
+            return self.get_entry_by_id("piping-qa-preset")
+        if "electrical qa preset" in target:
+            return self.get_entry_by_id("electrical-qa-preset")
+        if "coordination qa preset" in target or "bim qa preset" in target:
+            return self.get_entry_by_id("coordination-bim-qa-preset")
+        if "split" in target and "pipe" in target:
+            return self.get_entry_by_id("split-selected-pipes")
+        if "duplicate" in target:
+            if "remove" in target or "delete" in target or "clean" in target:
+                return self.get_entry_by_id("remove-duplicates")
+            return self.get_entry_by_id("report-duplicates")
+        if "room to space" in target or "space vs room" in target or "room space check" in target or "rooms vs spaces" in target:
+            return self.get_entry_by_id("report-room-space-mismatches")
+        if "rooms without spaces" in target:
+            return self.get_entry_by_id("report-rooms-without-matching-spaces")
+        if "spaces without rooms" in target:
+            return self.get_entry_by_id("report-spaces-without-matching-rooms")
+        if "categories list" in target or "category ids" in target:
+            return self.get_entry_by_id("categories-list-and-id")
+        if "rename active view" in target:
+            return self.get_entry_by_id("rename-active-view")
+        if "align" in target and "tag" in target:
+            return self.get_entry_by_id("align-selected-tags")
+        if "total length" in target and ("linear" in target or "mep" in target):
+            if "active view" in target:
+                return self.get_entry_by_id("report-total-length-active-view-linear-mep")
+            return self.get_entry_by_id("report-total-length-selected-linear-mep")
+        if target.startswith("select all ") or "select all elements of category" in target:
+            return self.get_entry_by_id("select-all-elements-of-category")
+        if target.startswith("count all ") or "count all elements of category" in target:
+            return self.get_entry_by_id("count-all-elements-of-category")
+        if target.startswith("list all ") or "list all elements of category" in target:
+            return self.get_entry_by_id("list-all-elements-of-category")
         return None
 
     def _matches_filter(self, entry, filter_text):

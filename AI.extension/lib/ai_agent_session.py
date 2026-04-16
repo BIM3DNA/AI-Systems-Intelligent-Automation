@@ -32,7 +32,7 @@ class AgentSession(object):
     def set_allow_destructive(self, enabled):
         self.allow_destructive = bool(enabled)
 
-    def _add_step(self, command_id):
+    def _add_step(self, command_id, requested_prompt=None):
         command = self.catalog.get(command_id)
         if not command:
             return
@@ -45,6 +45,7 @@ class AgentSession(object):
         step["executed"] = False
         step["blocked_reason"] = ""
         step["undo_available"] = False
+        step["requested_prompt"] = requested_prompt or self.goal
         self.plan.append(step)
 
     def has_plan(self):
@@ -106,6 +107,9 @@ class AgentSession(object):
 
     def _match_goal(self, goal_text):
         goal = (goal_text or "").lower()
+        special_action_id = self._infer_special_action_id(goal)
+        if special_action_id:
+            return [(500, special_action_id)]
         matches = []
         for command_id, command in self.catalog.items():
             phrases = []
@@ -129,6 +133,48 @@ class AgentSession(object):
                 matches.append((best_score, command_id))
         matches.sort(reverse=True)
         return matches
+
+    def _infer_special_action_id(self, goal):
+        goal = (goal or "").lower()
+        if not goal:
+            return None
+        if "hvac qa preset" in goal:
+            return "hvac-qa-preset"
+        if "piping qa preset" in goal:
+            return "piping-qa-preset"
+        if "electrical qa preset" in goal:
+            return "electrical-qa-preset"
+        if "coordination qa preset" in goal or "bim qa preset" in goal:
+            return "coordination-bim-qa-preset"
+        if "split" in goal and "pipe" in goal:
+            return "split-selected-pipes"
+        if "duplicate" in goal:
+            if any(token in goal for token in ("remove", "delete", "clean")):
+                return "remove-duplicates"
+            return "report-duplicates"
+        if "room to space" in goal or "space vs room" in goal or "rooms vs spaces" in goal or "room space check" in goal:
+            return "report-room-space-mismatches"
+        if "rooms without spaces" in goal:
+            return "report-rooms-without-matching-spaces"
+        if "spaces without rooms" in goal:
+            return "report-spaces-without-matching-rooms"
+        if "categories list" in goal or "category ids" in goal or "categories list + id" in goal:
+            return "categories-list-and-id"
+        if "rename active view" in goal:
+            return "rename-active-view"
+        if "align" in goal and "tag" in goal:
+            return "align-selected-tags"
+        if "total length" in goal and ("linear" in goal or "mep" in goal):
+            if "active view" in goal:
+                return "report-total-length-active-view-linear-mep"
+            return "report-total-length-selected-linear-mep"
+        if (goal.startswith("select all ") and goal.strip() not in ("select all ducts", "select all pipes") and "electrical fixtures in active view" not in goal) or ("category" in goal and goal.startswith("select ")):
+            return "select-all-elements-of-category"
+        if (goal.startswith("count all ") and "active view" not in goal) or ("category" in goal and goal.startswith("count ")):
+            return "count-all-elements-of-category"
+        if (goal.startswith("list all ") and "active view" not in goal) or ("category" in goal and goal.startswith("list ")):
+            return "list-all-elements-of-category"
+        return None
 
     def _build_unsupported_summary(self, goal_text):
         goal = (goal_text or "").lower()
@@ -179,6 +225,7 @@ class AgentSession(object):
                 matches[0][1],
                 confidence=0.75,
                 summary="Planner matched a shared reviewed action.",
+                requested_prompt=goal_text,
             )
         else:
             self.plan_object = {
@@ -194,7 +241,7 @@ class AgentSession(object):
             self.guidance = self.plan_object["summary"]
         return list(self.plan)
 
-    def build_plan_from_action(self, action_id, confidence, summary):
+    def build_plan_from_action(self, action_id, confidence, summary, requested_prompt=None):
         self.reset()
         command = self.catalog.get(action_id)
         if not command:
@@ -211,14 +258,26 @@ class AgentSession(object):
             self.guidance = self.plan_object["summary"]
             return None
 
-        self._add_step(action_id)
+        reviewed_steps = list(command.get("reviewed_steps") or [])
+        if reviewed_steps:
+            for step_id in reviewed_steps:
+                self._add_step(step_id, requested_prompt=requested_prompt)
+        else:
+            self._add_step(action_id, requested_prompt=requested_prompt)
+        requires_modification = False
+        destructive = False
+        for step in self.plan:
+            if step.get("command_role") == "modify":
+                requires_modification = True
+            if step.get("risk_level") == "high":
+                destructive = True
         self.plan_object = {
             "matched_action": action_id,
             "confidence": float(confidence),
-            "requires_modification": command.get("role") == "modify",
-            "destructive": command.get("risk_level") == "high",
+            "requires_modification": requires_modification,
+            "destructive": destructive,
             "summary": summary,
-            "execution_ready": True,
+            "execution_ready": bool(self.plan),
         }
         self.status = "ready_to_execute"
         self.message = "Ready to execute"

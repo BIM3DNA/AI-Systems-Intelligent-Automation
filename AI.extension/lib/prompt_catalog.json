@@ -1155,5 +1155,430 @@
     "enabled": true,
     "prompt_text": "list electrical fixtures in active view",
     "mode": "deterministic"
+  },
+  {
+    "id": "hvac-qa-preset",
+    "title": "HVAC QA preset",
+    "category": "QA Presets",
+    "group": "HVAC",
+    "discipline": "HVAC",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "mixed",
+    "canonical_prompt": "hvac qa preset",
+    "planner_aliases": [
+      "hvac qa preset",
+      "run hvac qa preset"
+    ],
+    "example_prompts": [
+      "run hvac qa preset"
+    ],
+    "reviewed_steps": [
+      "health-check-active-view-selection",
+      "count-ducts-active-view",
+      "list-ducts-active-view",
+      "find-unconnected-fittings",
+      "report-ducts-without-system-assignment",
+      "report-selected-duct-length",
+      "report-selected-duct-volume-cubic-meters",
+      "report-missing-parameters-from-selection"
+    ],
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "hvac qa preset",
+    "mode": "deterministic"
+  },
+  {
+    "id": "piping-qa-preset",
+    "title": "Piping QA preset",
+    "category": "QA Presets",
+    "group": "Piping",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "mixed",
+    "canonical_prompt": "piping qa preset",
+    "planner_aliases": [
+      "piping qa preset",
+      "run piping qa preset"
+    ],
+    "example_prompts": [
+      "run piping qa preset"
+    ],
+    "reviewed_steps": [
+      "count-pipes-active-view",
+      "list-pipes-active-view",
+      "find-unconnected-pipe-fittings",
+      "report-pipes-without-system-assignment",
+      "report-selected-pipe-length",
+      "report-missing-parameters-from-selection"
+    ],
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "piping qa preset",
+    "mode": "deterministic"
+  },
+  {
+    "id": "electrical-qa-preset",
+    "title": "Electrical QA preset",
+    "category": "QA Presets",
+    "group": "Electrical",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "mixed",
+    "canonical_prompt": "electrical qa preset",
+    "planner_aliases": [
+      "electrical qa preset",
+      "run electrical qa preset"
+    ],
+    "example_prompts": [
+      "run electrical qa preset"
+    ],
+    "reviewed_steps": [
+      "select-all-electrical-fixtures-active-view",
+      "count-selected-fixtures-devices",
+      "list-electrical-fixtures-active-view",
+      "report-devices-without-circuit-info",
+      "report-missing-parameters-from-selection"
+    ],
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "electrical qa preset",
+    "mode": "deterministic"
+  },
+  {
+    "id": "coordination-bim-qa-preset",
+    "title": "Coordination / BIM QA preset",
+    "category": "QA Presets",
+    "group": "Coordination / BIM",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "mixed",
+    "canonical_prompt": "coordination / bim qa preset",
+    "planner_aliases": [
+      "coordination / bim qa preset",
+      "run coordination qa preset",
+      "run bim qa preset",
+      "run coordination bim qa preset"
+    ],
+    "example_prompts": [
+      "run coordination qa preset",
+      "run bim qa preset"
+    ],
+    "reviewed_steps": [
+      "report-selected-elements-by-category",
+      "report-selected-elements-by-type",
+      "report-missing-parameters-from-selection",
+      "health-check-active-view-selection"
+    ],
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "coordination / bim qa preset",
+    "mode": "deterministic"
+  },
+  {
+    "id": "split-selected-pipes",
+    "title": "Split selected pipes",
+    "category": "Piping",
+    "group": "Cleanup / Split",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "selection",
+    "canonical_prompt": "split selected pipes",
+    "planner_aliases": [
+      "split selected pipes",
+      "split these pipes",
+      "split selected pipes at interval",
+      "split selected pipes by max length",
+      "split these pipes every 1500 mm",
+      "split selected pipes every 1.5 m"
+    ],
+    "example_prompts": [
+      "split selected pipes",
+      "split these pipes every 1500 mm",
+      "split selected pipes every 1.5 m"
+    ],
+    "deterministic_handler": "split_selected_pipes",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "split selected pipes",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-duplicates",
+    "title": "Report duplicates in selection or active view",
+    "category": "Cleanup / Repair",
+    "group": "Cleanup / Repair",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection_or_active_view",
+    "canonical_prompt": "report duplicates",
+    "planner_aliases": [
+      "report duplicates",
+      "find duplicates",
+      "report duplicate elements",
+      "check duplicates in selection",
+      "check duplicates in active view"
+    ],
+    "deterministic_handler": "report_duplicates",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report duplicates",
+    "mode": "deterministic"
+  },
+  {
+    "id": "remove-duplicates",
+    "title": "Remove duplicates",
+    "category": "Cleanup / Repair",
+    "group": "Cleanup / Repair",
+    "discipline": "QA / BIM",
+    "role": "modify",
+    "risk_level": "high",
+    "scope_type": "selection_or_active_view",
+    "canonical_prompt": "remove duplicates",
+    "planner_aliases": [
+      "remove duplicates",
+      "remove duplicate elements",
+      "clean duplicates",
+      "delete duplicates in selection",
+      "delete duplicate elements in active view"
+    ],
+    "deterministic_handler": "remove_duplicates",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "remove duplicates",
+    "mode": "deterministic"
+  },
+  {
+    "id": "categories-list-and-id",
+    "title": "Categories list + ID",
+    "category": "Selection / Categories",
+    "group": "Report",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "categories list + id",
+    "planner_aliases": [
+      "categories list + id",
+      "categories list",
+      "category ids"
+    ],
+    "deterministic_handler": "categories_list_and_id",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "categories list + id",
+    "mode": "deterministic"
+  },
+  {
+    "id": "select-all-elements-of-category",
+    "title": "Select all elements of category",
+    "category": "Selection / Categories",
+    "group": "Select",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "select all elements of category",
+    "planner_aliases": [
+      "select all elements of category",
+      "select all walls",
+      "select all elements of category ducts",
+      "select all elements of category doors"
+    ],
+    "deterministic_handler": "select_all_elements_of_category",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "select all elements of category",
+    "mode": "deterministic"
+  },
+  {
+    "id": "count-all-elements-of-category",
+    "title": "Count all elements of category",
+    "category": "Selection / Categories",
+    "group": "Count",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "count all elements of category",
+    "planner_aliases": [
+      "count all elements of category",
+      "count all walls",
+      "count all pipe fittings"
+    ],
+    "deterministic_handler": "count_all_elements_of_category",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "count all elements of category",
+    "mode": "deterministic"
+  },
+  {
+    "id": "list-all-elements-of-category",
+    "title": "List all elements of category",
+    "category": "Selection / Categories",
+    "group": "List",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "list all elements of category",
+    "planner_aliases": [
+      "list all elements of category",
+      "list all pipe fittings",
+      "list all elements of category doors"
+    ],
+    "deterministic_handler": "list_all_elements_of_category",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "list all elements of category",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-rooms-without-matching-spaces",
+    "title": "Report rooms without matching spaces",
+    "category": "Coordination / Spaces",
+    "group": "Report",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "report rooms without matching spaces",
+    "planner_aliases": [
+      "room to space check",
+      "report rooms without spaces"
+    ],
+    "deterministic_handler": "report_rooms_without_matching_spaces",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report rooms without matching spaces",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-spaces-without-matching-rooms",
+    "title": "Report spaces without matching rooms",
+    "category": "Coordination / Spaces",
+    "group": "Report",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "report spaces without matching rooms",
+    "planner_aliases": [
+      "space vs room check",
+      "report spaces without rooms"
+    ],
+    "deterministic_handler": "report_spaces_without_matching_rooms",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report spaces without matching rooms",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-room-space-mismatches",
+    "title": "Report room/space mismatches",
+    "category": "Coordination / Spaces",
+    "group": "Report",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "report room/space mismatches",
+    "planner_aliases": [
+      "room to space check",
+      "space vs room check",
+      "report room space mismatches",
+      "check rooms vs spaces",
+      "run room space check"
+    ],
+    "deterministic_handler": "report_room_space_mismatches",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report room/space mismatches",
+    "mode": "deterministic"
+  },
+  {
+    "id": "rename-active-view",
+    "title": "Rename active view",
+    "category": "Views / Sheets / Tags",
+    "group": "Create",
+    "discipline": "QA / BIM",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "active_view",
+    "canonical_prompt": "rename active view",
+    "planner_aliases": [
+      "rename active view"
+    ],
+    "deterministic_handler": "rename_active_view",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "rename active view",
+    "mode": "deterministic"
+  },
+  {
+    "id": "align-selected-tags",
+    "title": "Align selected tags",
+    "category": "Views / Sheets / Tags",
+    "group": "Create",
+    "discipline": "QA / BIM",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "selection",
+    "canonical_prompt": "align selected tags",
+    "planner_aliases": [
+      "align selected tags",
+      "align selected tags horizontally",
+      "align selected tags vertically"
+    ],
+    "deterministic_handler": "align_selected_tags",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "align selected tags",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-total-length-selected-linear-mep",
+    "title": "Report total length of selected linear MEP elements",
+    "category": "Quantities",
+    "group": "Report",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "canonical_prompt": "report total length of selected linear mep elements",
+    "planner_aliases": [
+      "report total length of selected linear mep elements",
+      "total length of selected linear mep elements"
+    ],
+    "deterministic_handler": "report_total_length_selected_linear_mep",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report total length of selected linear mep elements",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-total-length-active-view-linear-mep",
+    "title": "Report total length in active view for supported linear MEP categories",
+    "category": "Quantities",
+    "group": "Report",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "report total length in active view for supported linear mep categories",
+    "planner_aliases": [
+      "report total length in active view for supported linear mep categories",
+      "total length in active view for supported linear mep categories"
+    ],
+    "deterministic_handler": "report_total_length_active_view_linear_mep",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "report total length in active view for supported linear mep categories",
+    "mode": "deterministic"
   }
 ]
