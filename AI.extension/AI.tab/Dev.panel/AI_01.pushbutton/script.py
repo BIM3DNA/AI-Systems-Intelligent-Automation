@@ -2184,12 +2184,58 @@ def _electrical_selection_categories():
         DB.BuiltInCategory.OST_ElectricalFixtures,
         DB.BuiltInCategory.OST_ElectricalEquipment,
         DB.BuiltInCategory.OST_LightingFixtures,
+        DB.BuiltInCategory.OST_LightingDevices,
         DB.BuiltInCategory.OST_DataDevices,
         DB.BuiltInCategory.OST_FireAlarmDevices,
         DB.BuiltInCategory.OST_CommunicationDevices,
         DB.BuiltInCategory.OST_SecurityDevices,
         DB.BuiltInCategory.OST_NurseCallDevices,
     ]
+
+
+def _electrical_qa_categories():
+    return [
+        DB.BuiltInCategory.OST_ElectricalFixtures,
+        DB.BuiltInCategory.OST_ElectricalEquipment,
+        DB.BuiltInCategory.OST_LightingFixtures,
+        DB.BuiltInCategory.OST_LightingDevices,
+        DB.BuiltInCategory.OST_DataDevices,
+        DB.BuiltInCategory.OST_FireAlarmDevices,
+        DB.BuiltInCategory.OST_CommunicationDevices,
+        DB.BuiltInCategory.OST_SecurityDevices,
+        DB.BuiltInCategory.OST_NurseCallDevices,
+    ]
+
+
+def _electrical_qa_category_labels():
+    return [
+        "Electrical Fixtures",
+        "Electrical Equipment",
+        "Lighting Fixtures",
+        "Lighting Devices",
+        "Data Devices",
+        "Fire Alarm Devices",
+        "Communication Devices",
+        "Security Devices",
+        "Nurse Call Devices",
+    ]
+
+
+def _collect_active_view_elements_by_categories(doc, uidoc, categories):
+    collected = []
+    for category in categories:
+        try:
+            collected.extend(
+                list(
+                    DB.FilteredElementCollector(doc, uidoc.ActiveView.Id)
+                    .OfCategory(category)
+                    .WhereElementIsNotElementType()
+                    .ToElements()
+                )
+            )
+        except:
+            continue
+    return collected
 
 
 def select_all_electrical_fixtures_in_active_view(doc, uidoc):
@@ -2274,6 +2320,92 @@ def list_electrical_fixtures_in_active_view(doc, uidoc):
         )
     if len(fixtures) > 10:
         lines.append("...showing first 10 of {0}".format(len(fixtures)))
+    return "\n".join(lines)
+
+
+def select_electrical_qa_elements_in_active_view(doc, uidoc, context=None):
+    from System.Collections.Generic import List
+
+    elems = _collect_active_view_elements_by_categories(doc, uidoc, _electrical_qa_categories())
+    uidoc.Selection.SetElementIds(List[DB.ElementId]([elem.Id for elem in elems]))
+    return "\n".join(
+        [
+            "Select electrical QA elements in active view",
+            "Active document: {0}".format(_document_title(doc)),
+            "Active view: {0}".format(_active_view_title(doc, uidoc)),
+            "Categories inspected: {0}".format(", ".join(_electrical_qa_category_labels())),
+            "Selected electrical QA elements: {0}".format(len(elems)),
+        ]
+    )
+
+
+def count_selected_electrical_qa_elements(doc, uidoc, context=None):
+    elems = _selected_elements_by_categories(doc, uidoc, _electrical_qa_categories())
+    return "\n".join(
+        [
+            "Count selected electrical QA elements",
+            "Selection scope: active document only",
+            "Active document: {0}".format(_document_title(doc)),
+            "Active view: {0}".format(_active_view_title(doc, uidoc)),
+            "Categories inspected: {0}".format(", ".join(_electrical_qa_category_labels())),
+            "Selected electrical QA elements: {0}".format(len(elems)),
+        ]
+    )
+
+
+def list_electrical_qa_elements_in_active_view(doc, uidoc, context=None):
+    elems = _collect_active_view_elements_by_categories(doc, uidoc, _electrical_qa_categories())
+    lines = [
+        "List electrical QA elements in active view",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Categories inspected: {0}".format(", ".join(_electrical_qa_category_labels())),
+        "Elements found: {0}".format(len(elems)),
+    ]
+    for elem in elems[:20]:
+        lines.append(
+            "Id: {0}, Category: {1}, Type: {2}".format(
+                _safe_int_id(elem),
+                _category_name(elem),
+                _family_and_type_text(doc, elem) or "(no type)",
+            )
+        )
+    if len(elems) > 20:
+        lines.append("...showing first 20 of {0}".format(len(elems)))
+    return "\n".join(lines)
+
+
+def report_electrical_qa_elements_without_assignment(doc, uidoc, context=None):
+    elems = _selected_elements_by_categories(doc, uidoc, _electrical_qa_categories())
+    if not elems:
+        elems = _collect_active_view_elements_by_categories(doc, uidoc, _electrical_qa_categories())
+        scope_text = "active view in active document"
+    else:
+        scope_text = "active document selection"
+    missing = []
+    for elem in elems:
+        electrical_value = _electrical_assignment_value(elem)
+        system_value = _system_assignment_value(elem) if _supports_system_assignment(elem) else None
+        if not electrical_value and not system_value:
+            missing.append(elem)
+    lines = [
+        "Report electrical QA elements without circuit or system assignment",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Scope used: {0}".format(scope_text),
+        "Categories inspected: {0}".format(", ".join(_electrical_qa_category_labels())),
+        "Elements inspected: {0}".format(len(elems)),
+        "Elements without circuit/system assignment: {0}".format(len(missing)),
+    ]
+    for elem in missing[:20]:
+        lines.append(
+            "Id: {0}, Category: {1}".format(
+                _safe_int_id(elem),
+                _category_name(elem),
+            )
+        )
+    if len(missing) > 20:
+        lines.append("...showing first 20 of {0}".format(len(missing)))
     return "\n".join(lines)
 
 
@@ -2541,6 +2673,58 @@ def _selection_scope_preamble(doc, uidoc, selection_count):
     ]
 
 
+def _snapshot_selection_ids(uidoc):
+    try:
+        return list(uidoc.Selection.GetElementIds())
+    except:
+        return []
+
+
+def _restore_selection_ids(uidoc, element_ids):
+    from System.Collections.Generic import List
+
+    try:
+        uidoc.Selection.SetElementIds(List[DB.ElementId](element_ids or []))
+    except:
+        pass
+
+
+def _category_ids_from_scope_spec(categories):
+    resolved = []
+    for category in categories or []:
+        try:
+            if isinstance(category, str):
+                resolved.append(getattr(DB.BuiltInCategory, category))
+            else:
+                resolved.append(category)
+        except:
+            continue
+    return resolved
+
+
+def _collect_scope_element_ids(doc, uidoc, scope_spec):
+    scope_spec = scope_spec or {}
+    mode = scope_spec.get("mode")
+    categories = _category_ids_from_scope_spec(scope_spec.get("categories") or [])
+    elements = []
+    if mode == "active_view_categories":
+        for category in categories:
+            try:
+                elements.extend(
+                    list(
+                        DB.FilteredElementCollector(doc, uidoc.ActiveView.Id)
+                        .OfCategory(category)
+                        .WhereElementIsNotElementType()
+                        .ToElements()
+                    )
+                )
+            except:
+                continue
+    elif mode == "selection_categories":
+        elements = _selected_elements_by_categories(doc, uidoc, categories)
+    return [elem.Id for elem in elements if elem is not None]
+
+
 def _all_doc_categories(doc):
     categories = []
     try:
@@ -2555,6 +2739,18 @@ def _all_doc_categories(doc):
     return categories
 
 
+def _is_annotation_like_category(category):
+    if category is None:
+        return False
+    name = (getattr(category, "Name", "") or "").lower()
+    if " tag" in name or name.endswith(" tags"):
+        return True
+    try:
+        return category.CategoryType == DB.CategoryType.Annotation
+    except:
+        return False
+
+
 def _normalize_category_token(text):
     token = re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
     if token.endswith("ies"):
@@ -2566,6 +2762,12 @@ def _normalize_category_token(text):
 
 def _extract_category_query(prompt_text):
     text = (prompt_text or "").lower()
+    exact_multi = re.search(r"categories\s*:\s*(.+)$", text)
+    if exact_multi:
+        return exact_multi.group(1).strip()
+    exact_single = re.search(r"category\s*:\s*(.+)$", text)
+    if exact_single:
+        return exact_single.group(1).strip()
     match = re.search(r"category\s+(.+)$", text)
     if match:
         return match.group(1).strip()
@@ -2586,8 +2788,18 @@ def _extract_category_query(prompt_text):
     return text.strip()
 
 
-def _resolve_category_from_prompt(doc, prompt_text):
-    query = _extract_category_query(prompt_text)
+def _split_exact_category_terms(query):
+    query = (query or "").strip()
+    if not query:
+        return []
+    quoted = re.findall(r"\"([^\"]+)\"", query)
+    if quoted:
+        return quoted
+    return [item.strip() for item in query.split(",") if item.strip()]
+
+
+def _resolve_single_category_term(doc, query):
+    query = (query or "").strip()
     query = re.sub(r"\b(in|on)\s+active\s+view\b", "", query).strip()
     query = re.sub(r"\bfrom\s+selection\b", "", query).strip()
     if not query:
@@ -2635,10 +2847,52 @@ def _resolve_category_from_prompt(doc, prompt_text):
 
     if not unique:
         return (None, "No matching Revit category was found for '{0}'.".format(query))
+    preferred = [category for category in unique if not _is_annotation_like_category(category)]
+    if len(preferred) == 1:
+        return (preferred[0], None)
+    if len(preferred) > 1:
+        unique = preferred
     if len(unique) > 1:
         suggestions = ", ".join([category.Name for category in unique[:5]])
         return (None, "Category '{0}' is ambiguous. Possible matches: {1}".format(query, suggestions))
     return (unique[0], None)
+
+
+def _resolve_categories_from_prompt(doc, prompt_text):
+    text = (prompt_text or "")
+    lowered = text.lower()
+    if "categories:" in lowered:
+        terms = _split_exact_category_terms(text.split(":", 1)[1])
+    elif "category:" in lowered:
+        terms = _split_exact_category_terms(text.split(":", 1)[1])
+    else:
+        terms = [_extract_category_query(text)]
+    categories = []
+    seen_ids = set()
+    for term in terms:
+        category, issue = _resolve_single_category_term(doc, term)
+        if issue:
+            return (None, issue)
+        if category is None:
+            continue
+        category_id = category.Id.IntegerValue
+        if category_id in seen_ids:
+            continue
+        seen_ids.add(category_id)
+        categories.append(category)
+    if not categories:
+        return (None, "Specify a category, for example: category:walls or categories:doors,windows")
+    return (categories, None)
+
+
+def _resolve_category_from_prompt(doc, prompt_text):
+    categories, issue = _resolve_categories_from_prompt(doc, prompt_text)
+    if issue:
+        return (None, issue)
+    if len(categories) > 1:
+        names = ", ".join([category.Name for category in categories])
+        return (None, "Multiple categories were provided. Use the multi-category syntax only with the generic category actions. Parsed categories: {0}".format(names))
+    return (categories[0], None)
 
 
 def _elements_of_category(doc, uidoc, category, active_view_only=False):
@@ -3069,7 +3323,7 @@ def report_duplicates(doc, uidoc, context=None):
     duplicates, skipped = _find_duplicate_groups(elements)
     lines = [
         "Report duplicates",
-        "Matching rule: same category, same type, and same point/curve location signature in the current scope.",
+        "Exact duplicate rule: same category, same type, and same point/curve location signature in the current scope.",
         "Active document: {0}".format(_document_title(doc)),
         "Active view: {0}".format(_active_view_title(doc, uidoc)),
         "Scope used: {0}".format(scope_label),
@@ -3109,7 +3363,7 @@ def remove_duplicates(doc, uidoc, context=None):
             remove_ids.append(elem.Id)
     lines = [
         "Remove duplicates",
-        "Matching rule: same category, same type, and same point/curve location signature in the current scope.",
+        "Exact duplicate rule: same category, same type, and same point/curve location signature in the current scope.",
         "Active document: {0}".format(_document_title(doc)),
         "Active view: {0}".format(_active_view_title(doc, uidoc)),
         "Scope used: {0}".format(scope_label),
@@ -3194,28 +3448,32 @@ def select_all_elements_of_category(doc, uidoc, context=None):
     from System.Collections.Generic import List
 
     prompt_text = _prompt_text_from_context(context)
-    category, issue = _resolve_category_from_prompt(doc, prompt_text)
+    categories, issue = _resolve_categories_from_prompt(doc, prompt_text)
     if issue:
         return issue
-    elements = _elements_of_category(doc, uidoc, category, active_view_only=False)
+    elements = []
+    for category in categories:
+        elements.extend(_elements_of_category(doc, uidoc, category, active_view_only=False))
     uidoc.Selection.SetElementIds(List[DB.ElementId]([elem.Id for elem in elements]))
     lines = ["Select all elements of category"]
     lines.extend(_selection_scope_preamble(doc, uidoc, len(elements)))
-    lines.append("Category: {0}".format(category.Name))
+    lines.append("Categories: {0}".format(", ".join([category.Name for category in categories])))
     lines.append("Selected elements: {0}".format(len(elements)))
     return "\n".join(lines)
 
 
 def count_all_elements_of_category(doc, uidoc, context=None):
     prompt_text = _prompt_text_from_context(context)
-    category, issue = _resolve_category_from_prompt(doc, prompt_text)
+    categories, issue = _resolve_categories_from_prompt(doc, prompt_text)
     if issue:
         return issue
-    elements = _elements_of_category(doc, uidoc, category, active_view_only=False)
+    elements = []
+    for category in categories:
+        elements.extend(_elements_of_category(doc, uidoc, category, active_view_only=False))
     lines = [
         "Count all elements of category",
         "Active document: {0}".format(_document_title(doc)),
-        "Category: {0}".format(category.Name),
+        "Categories: {0}".format(", ".join([category.Name for category in categories])),
         "Total elements: {0}".format(len(elements)),
     ]
     return "\n".join(lines)
@@ -3223,14 +3481,16 @@ def count_all_elements_of_category(doc, uidoc, context=None):
 
 def list_all_elements_of_category(doc, uidoc, context=None):
     prompt_text = _prompt_text_from_context(context)
-    category, issue = _resolve_category_from_prompt(doc, prompt_text)
+    categories, issue = _resolve_categories_from_prompt(doc, prompt_text)
     if issue:
         return issue
-    elements = _elements_of_category(doc, uidoc, category, active_view_only=False)
+    elements = []
+    for category in categories:
+        elements.extend(_elements_of_category(doc, uidoc, category, active_view_only=False))
     lines = [
         "List all elements of category",
         "Active document: {0}".format(_document_title(doc)),
-        "Category: {0}".format(category.Name),
+        "Categories: {0}".format(", ".join([category.Name for category in categories])),
         "Total elements: {0}".format(len(elements)),
     ]
     for elem in elements[:20]:
@@ -4744,7 +5004,9 @@ REVIEWED_ACTION_HANDLERS = {
     "select_all_electrical_fixtures_in_active_view": select_all_electrical_fixtures_in_active_view,
     "count_selected_fixtures_devices": count_selected_fixtures_devices,
     "list_electrical_fixtures_in_active_view": list_electrical_fixtures_in_active_view,
+    "list_electrical_qa_elements_in_active_view": list_electrical_qa_elements_in_active_view,
     "report_devices_without_circuit_info": report_devices_without_circuit_info,
+    "report_electrical_qa_elements_without_assignment": report_electrical_qa_elements_without_assignment,
     "list_fixtures_by_type_in_active_view": list_fixtures_by_type_in_active_view,
     "report_selected_elements_by_category": report_selected_elements_by_category,
     "report_selected_elements_by_type": report_selected_elements_by_type,
@@ -5287,6 +5549,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.ModelMindSendButton.Click += self.on_modelmind_send
         self.ApproveCodeButton.Click += self.on_approve_code
         self.SaveRecipeButton.Click += self.on_save_recipe
+        self.ModelMindUndoButton.Click += self.on_modelmind_undo
         self.ToggleReviewedCodeButton.Click += self.on_toggle_reviewed_code
         self.ModelMindInput.KeyDown += self.on_modelmindinput_keydown
         self.PromptTree.MouseDoubleClick += self.on_prompt_tree_doubleclick
@@ -5317,6 +5580,7 @@ class OllamaAIChat(forms.WPFWindow):
 
         self.ApproveCodeButton.IsEnabled = False
         self.SaveRecipeButton.IsEnabled = False
+        self.ModelMindUndoButton.IsEnabled = False
         self.ToggleReviewedCodeButton.IsEnabled = False
         self.AgentAllowDestructive.IsChecked = False
         self.AgentUndoButton.IsEnabled = False
@@ -5531,6 +5795,18 @@ class OllamaAIChat(forms.WPFWindow):
                 )
             except:
                 pass
+        if hasattr(self, "ModelMindUndoButton"):
+            self.ModelMindUndoButton.IsEnabled = bool(
+                hasattr(self, "agent_session") and self.agent_session.has_undo_context()
+            )
+            try:
+                self.ModelMindUndoButton.ToolTip = (
+                    "Undo the last reversible reviewed action in this session."
+                    if self.ModelMindUndoButton.IsEnabled
+                    else "Undo is available only when a real reversible reviewed action completed successfully in this session."
+                )
+            except:
+                pass
 
         self._apply_button_state_style(
             "AgentExecuteButton",
@@ -5541,6 +5817,12 @@ class OllamaAIChat(forms.WPFWindow):
         self._apply_button_state_style(
             "AgentUndoButton",
             bool(self.AgentUndoButton.IsEnabled),
+            THEMES.get(self.current_theme, THEMES["light"])["panel_alt"],
+            THEMES.get(self.current_theme, THEMES["light"])["text"],
+        )
+        self._apply_button_state_style(
+            "ModelMindUndoButton",
+            bool(self.ModelMindUndoButton.IsEnabled),
             THEMES.get(self.current_theme, THEMES["light"])["panel_alt"],
             THEMES.get(self.current_theme, THEMES["light"])["text"],
         )
@@ -5835,6 +6117,7 @@ class OllamaAIChat(forms.WPFWindow):
         self._apply_control_style("ModelMindSendButton", palette["accent_alt"], "#ffffff", palette["accent_alt"])
         self._apply_control_style("ApproveCodeButton", palette["accent"], "#ffffff", palette["accent"])
         self._apply_control_style("SaveRecipeButton", palette["accent_alt"], "#ffffff", palette["accent_alt"])
+        self._apply_control_style("ModelMindUndoButton", palette["panel_alt"], palette["text"], palette["border"])
         self._apply_control_style("ToggleReviewedCodeButton", "#475569", "#ffffff", "#475569")
         self._apply_control_style("ReviewedCodeStateLabel", None, palette["accent"])
         self._apply_control_style("PromptDetailsGroup", palette["panel_bg"], palette["text"], palette["border"])
@@ -6533,48 +6816,88 @@ class OllamaAIChat(forms.WPFWindow):
 
     def run_reviewed_preset(self, entry):
         preset_title = entry.get("title", "Reviewed preset")
-        step_ids = list(entry.get("reviewed_steps") or [])
-        if not step_ids:
+        step_defs = list(entry.get("reviewed_steps") or [])
+        if not step_defs:
             return "{0} has no reviewed steps.".format(preset_title)
+        original_selection = _snapshot_selection_ids(uidoc)
         lines = [
             "{0}".format(preset_title),
             "Active document: {0}".format(_document_title(doc)),
             "Active view: {0}".format(_active_view_title(doc, uidoc)),
-            "Reviewed steps: {0}".format(len(step_ids)),
+            "Reviewed steps: {0}".format(len(step_defs)),
         ]
-        for index, step_id in enumerate(step_ids):
-            step_entry = self.catalog.get_entry_by_id(step_id)
-            if not step_entry:
-                lines.append("{0}. Missing reviewed step: {1}".format(index + 1, step_id))
-                continue
-            handler_name = step_entry.get("deterministic_handler")
-            if not handler_name:
+        try:
+            for index, step_def in enumerate(step_defs):
+                if isinstance(step_def, dict):
+                    step_id = step_def.get("action_id")
+                    scope_behavior = step_def.get("scope_behavior", "use_active_view")
+                else:
+                    step_id = step_def
+                    scope_behavior = "use_active_view"
+                    step_def = {}
+                step_entry = self.catalog.get_entry_by_id(step_id)
+                if not step_entry:
+                    lines.append("{0}. Missing reviewed step: {1}".format(index + 1, step_id))
+                    continue
+                handler_name = step_entry.get("deterministic_handler")
+                if not handler_name:
+                    lines.append(
+                        "{0}. {1}\nNo deterministic handler is registered for this reviewed step.".format(
+                            index + 1,
+                            step_entry.get("title", step_id),
+                        )
+                    )
+                    continue
+
+                selection_before_step = _snapshot_selection_ids(uidoc)
+                active_selection = _snapshot_selection_ids(uidoc)
+                if step_def.get("skip_if_selection_empty") and not active_selection:
+                    lines.append(
+                        "{0}. {1}\n{2}".format(
+                            index + 1,
+                            step_entry.get("title", step_id),
+                            step_def.get(
+                                "skip_message",
+                                "Skipped because there is no active-document selection.",
+                            ),
+                        )
+                    )
+                    continue
+
+                scope_note = "Preset scope: active view"
+                if scope_behavior == "use_current_selection":
+                    scope_note = "Preset scope: current active-document selection"
+                elif scope_behavior == "use_generated_selection":
+                    generated_ids = _collect_scope_element_ids(doc, uidoc, step_def.get("generated_selection"))
+                    _restore_selection_ids(uidoc, generated_ids)
+                    scope_note = "Preset scope: generated working selection ({0} element(s))".format(len(generated_ids))
+                elif scope_behavior == "use_active_view":
+                    scope_note = "Preset scope: active view in active document"
+
+                result = execute_reviewed_action_handler(
+                    handler_name,
+                    doc,
+                    uidoc,
+                    {
+                        "requested_prompt": self.pending_ai_prompt or entry.get("canonical_prompt") or entry.get("prompt_text"),
+                        "prompt_text": step_entry.get("canonical_prompt") or step_entry.get("prompt_text"),
+                        "canonical_prompt": step_entry.get("canonical_prompt") or step_entry.get("prompt_text"),
+                        "id": step_entry.get("id"),
+                    },
+                )
+                self.apply_undo_context_from_execution_result(result)
                 lines.append(
-                    "{0}. {1}\nNo deterministic handler is registered for this reviewed step.".format(
+                    "{0}. {1}\n{2}\n{3}".format(
                         index + 1,
                         step_entry.get("title", step_id),
+                        scope_note,
+                        execution_result_message(result),
                     )
                 )
-                continue
-            result = execute_reviewed_action_handler(
-                handler_name,
-                doc,
-                uidoc,
-                {
-                    "requested_prompt": self.pending_ai_prompt or entry.get("canonical_prompt") or entry.get("prompt_text"),
-                    "prompt_text": step_entry.get("canonical_prompt") or step_entry.get("prompt_text"),
-                    "canonical_prompt": step_entry.get("canonical_prompt") or step_entry.get("prompt_text"),
-                    "id": step_entry.get("id"),
-                },
-            )
-            self.apply_undo_context_from_execution_result(result)
-            lines.append(
-                "{0}. {1}\n{2}".format(
-                    index + 1,
-                    step_entry.get("title", step_id),
-                    execution_result_message(result),
-                )
-            )
+                if step_def.get("restore_previous_selection_after_step", False):
+                    _restore_selection_ids(uidoc, selection_before_step)
+        finally:
+            _restore_selection_ids(uidoc, original_selection)
         return "\n\n".join(lines)
 
     def run_approved_recipe(self, entry):
@@ -6833,24 +7156,37 @@ class OllamaAIChat(forms.WPFWindow):
         self.refresh_action_button_states()
 
     def _execute_agent_step(self, step):
-        if step.get("deterministic_handler") == "create_sheet_reviewed_template" or step.get("id") == "create-sheet-reviewed-template":
-            validation = self.validate_and_prepare_reviewed_code(
-                build_create_sheet_reviewed_code(),
-                "create sheet",
+        selection_before_step = _snapshot_selection_ids(uidoc)
+        if step.get("skip_if_selection_empty") and not selection_before_step:
+            return step.get(
+                "skip_message",
+                "Skipped because there is no active-document selection.",
             )
-            if not validation.get("is_valid"):
-                return "Reviewed create-sheet template is blocked."
-            return run_code_in_revit(validation.get("sanitized_code"), doc, uidoc)
-        if step.get("deterministic_handler") == "create_3d_view_from_selection" or step.get("id") == "create-3d-view-from-selection":
-            return execute_create_3d_view_with_undo(doc, uidoc)
-        if step.get("deterministic_handler"):
-            result = execute_reviewed_action_handler(step.get("deterministic_handler"), doc, uidoc, step)
-            if result is not None:
-                return result
-        result = handle_public_command(step.get("prompt_text", ""), doc, uidoc)
-        if result is None:
-            return "No deterministic executor is available for this step."
-        return result
+        if step.get("scope_behavior") == "use_generated_selection":
+            generated_ids = _collect_scope_element_ids(doc, uidoc, step.get("generated_selection"))
+            _restore_selection_ids(uidoc, generated_ids)
+        try:
+            if step.get("deterministic_handler") == "create_sheet_reviewed_template" or step.get("id") == "create-sheet-reviewed-template":
+                validation = self.validate_and_prepare_reviewed_code(
+                    build_create_sheet_reviewed_code(),
+                    "create sheet",
+                )
+                if not validation.get("is_valid"):
+                    return "Reviewed create-sheet template is blocked."
+                return run_code_in_revit(validation.get("sanitized_code"), doc, uidoc)
+            if step.get("deterministic_handler") == "create_3d_view_from_selection" or step.get("id") == "create-3d-view-from-selection":
+                return execute_create_3d_view_with_undo(doc, uidoc)
+            if step.get("deterministic_handler"):
+                result = execute_reviewed_action_handler(step.get("deterministic_handler"), doc, uidoc, step)
+                if result is not None:
+                    return result
+            result = handle_public_command(step.get("prompt_text", ""), doc, uidoc)
+            if result is None:
+                return "No deterministic executor is available for this step."
+            return result
+        finally:
+            if step.get("restore_previous_selection_after_step", False):
+                _restore_selection_ids(uidoc, selection_before_step)
 
     def _planner_supported_actions(self):
         return self.agent_session.get_supported_actions()
@@ -6962,15 +7298,10 @@ class OllamaAIChat(forms.WPFWindow):
         self.refresh_agent_undo_status()
         self.refresh_action_button_states()
 
-    def on_agent_undo(self, sender, args):
+    def _run_shared_undo(self):
         undo_context = self.agent_session.get_undo_context()
         if not undo_context:
-            self.AgentHistory.AppendText(
-                "Undo unavailable: no undo context recorded.\n\n"
-            )
-            self.refresh_agent_undo_status()
-            self.refresh_action_button_states()
-            return
+            return {"ok": False, "message": "Undo unavailable: no undo context recorded."}
 
         action_id = undo_context.get("action_id")
         if action_id == "create-3d-view-from-selection":
@@ -6984,12 +7315,23 @@ class OllamaAIChat(forms.WPFWindow):
                 "ok": False,
                 "message": "Undo unavailable: last action is not a supported reversible reviewed action.",
             }
-        self.AgentHistory.AppendText("{0}\n\n".format(result.get("message", "")))
         if result.get("ok"):
             self.agent_session.clear_undo_context()
             self.update_window_status("idle", "Undo completed")
         else:
             self.update_window_status("failed", "Undo failed")
+        return result
+
+    def on_agent_undo(self, sender, args):
+        result = self._run_shared_undo()
+        self.AgentHistory.AppendText("{0}\n\n".format(result.get("message", "")))
+        self.refresh_agent_undo_status()
+        self.populate_agent_command_selector()
+        self.refresh_action_button_states()
+
+    def on_modelmind_undo(self, sender, args):
+        result = self._run_shared_undo()
+        self.ModelMindHistory.AppendText("Undo result\n{0}\n\n".format(result.get("message", "")))
         self.refresh_agent_undo_status()
         self.populate_agent_command_selector()
         self.refresh_action_button_states()

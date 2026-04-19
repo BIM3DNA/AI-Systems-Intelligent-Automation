@@ -1174,14 +1174,60 @@
       "run hvac qa preset"
     ],
     "reviewed_steps": [
-      "health-check-active-view-selection",
-      "count-ducts-active-view",
-      "list-ducts-active-view",
-      "find-unconnected-fittings",
-      "report-ducts-without-system-assignment",
-      "report-selected-duct-length",
-      "report-selected-duct-volume-cubic-meters",
-      "report-missing-parameters-from-selection"
+      {
+        "action_id": "health-check-active-view-selection",
+        "scope_behavior": "use_active_view"
+      },
+      {
+        "action_id": "count-ducts-active-view",
+        "scope_behavior": "use_active_view"
+      },
+      {
+        "action_id": "list-ducts-active-view",
+        "scope_behavior": "use_active_view"
+      },
+      {
+        "action_id": "find-unconnected-fittings",
+        "scope_behavior": "use_active_view",
+        "restore_previous_selection_after_step": true
+      },
+      {
+        "action_id": "report-ducts-without-system-assignment",
+        "scope_behavior": "use_active_view"
+      },
+      {
+        "action_id": "report-selected-duct-length",
+        "scope_behavior": "use_generated_selection",
+        "generated_selection": {
+          "mode": "active_view_categories",
+          "categories": [
+            "OST_DuctCurves"
+          ]
+        },
+        "restore_previous_selection_after_step": true
+      },
+      {
+        "action_id": "report-selected-duct-volume-cubic-meters",
+        "scope_behavior": "use_generated_selection",
+        "generated_selection": {
+          "mode": "active_view_categories",
+          "categories": [
+            "OST_DuctCurves"
+          ]
+        },
+        "restore_previous_selection_after_step": true
+      },
+      {
+        "action_id": "report-missing-parameters-from-selection",
+        "scope_behavior": "use_generated_selection",
+        "generated_selection": {
+          "mode": "active_view_categories",
+          "categories": [
+            "OST_DuctCurves"
+          ]
+        },
+        "restore_previous_selection_after_step": true
+      }
     ],
     "requires_confirmation": false,
     "enabled": true,
@@ -1206,12 +1252,45 @@
       "run piping qa preset"
     ],
     "reviewed_steps": [
-      "count-pipes-active-view",
-      "list-pipes-active-view",
-      "find-unconnected-pipe-fittings",
-      "report-pipes-without-system-assignment",
-      "report-selected-pipe-length",
-      "report-missing-parameters-from-selection"
+      {
+        "action_id": "count-pipes-active-view",
+        "scope_behavior": "use_active_view"
+      },
+      {
+        "action_id": "list-pipes-active-view",
+        "scope_behavior": "use_active_view"
+      },
+      {
+        "action_id": "find-unconnected-pipe-fittings",
+        "scope_behavior": "use_active_view",
+        "restore_previous_selection_after_step": true
+      },
+      {
+        "action_id": "report-pipes-without-system-assignment",
+        "scope_behavior": "use_active_view"
+      },
+      {
+        "action_id": "report-selected-pipe-length",
+        "scope_behavior": "use_generated_selection",
+        "generated_selection": {
+          "mode": "active_view_categories",
+          "categories": [
+            "OST_PipeCurves"
+          ]
+        },
+        "restore_previous_selection_after_step": true
+      },
+      {
+        "action_id": "report-missing-parameters-from-selection",
+        "scope_behavior": "use_generated_selection",
+        "generated_selection": {
+          "mode": "active_view_categories",
+          "categories": [
+            "OST_PipeCurves"
+          ]
+        },
+        "restore_previous_selection_after_step": true
+      }
     ],
     "requires_confirmation": false,
     "enabled": true,
@@ -1236,11 +1315,52 @@
       "run electrical qa preset"
     ],
     "reviewed_steps": [
-      "select-all-electrical-fixtures-active-view",
-      "count-selected-fixtures-devices",
-      "list-electrical-fixtures-active-view",
-      "report-devices-without-circuit-info",
-      "report-missing-parameters-from-selection"
+      {
+        "action_id": "list-electrical-qa-elements-active-view",
+        "scope_behavior": "use_active_view"
+      },
+      {
+        "action_id": "report-electrical-qa-elements-without-assignment",
+        "scope_behavior": "use_active_view"
+      },
+      {
+        "action_id": "count-selected-fixtures-devices",
+        "scope_behavior": "use_generated_selection",
+        "generated_selection": {
+          "mode": "active_view_categories",
+          "categories": [
+            "OST_ElectricalFixtures",
+            "OST_ElectricalEquipment",
+            "OST_LightingFixtures",
+            "OST_LightingDevices",
+            "OST_DataDevices",
+            "OST_FireAlarmDevices",
+            "OST_CommunicationDevices",
+            "OST_SecurityDevices",
+            "OST_NurseCallDevices"
+          ]
+        },
+        "restore_previous_selection_after_step": true
+      },
+      {
+        "action_id": "report-missing-parameters-from-selection",
+        "scope_behavior": "use_generated_selection",
+        "generated_selection": {
+          "mode": "active_view_categories",
+          "categories": [
+            "OST_ElectricalFixtures",
+            "OST_ElectricalEquipment",
+            "OST_LightingFixtures",
+            "OST_LightingDevices",
+            "OST_DataDevices",
+            "OST_FireAlarmDevices",
+            "OST_CommunicationDevices",
+            "OST_SecurityDevices",
+            "OST_NurseCallDevices"
+          ]
+        },
+        "restore_previous_selection_after_step": true
+      }
     ],
     "requires_confirmation": false,
     "enabled": true,
@@ -1268,10 +1388,28 @@
       "run bim qa preset"
     ],
     "reviewed_steps": [
-      "report-selected-elements-by-category",
-      "report-selected-elements-by-type",
-      "report-missing-parameters-from-selection",
-      "health-check-active-view-selection"
+      {
+        "action_id": "report-selected-elements-by-category",
+        "scope_behavior": "use_current_selection",
+        "skip_if_selection_empty": true,
+        "skip_message": "Skipped current-selection category report because there is no active-document selection."
+      },
+      {
+        "action_id": "report-selected-elements-by-type",
+        "scope_behavior": "use_current_selection",
+        "skip_if_selection_empty": true,
+        "skip_message": "Skipped current-selection type report because there is no active-document selection."
+      },
+      {
+        "action_id": "report-missing-parameters-from-selection",
+        "scope_behavior": "use_current_selection",
+        "skip_if_selection_empty": true,
+        "skip_message": "Skipped current-selection missing-parameter report because there is no active-document selection."
+      },
+      {
+        "action_id": "health-check-active-view-selection",
+        "scope_behavior": "use_active_view"
+      }
     ],
     "requires_confirmation": false,
     "enabled": true,
@@ -1293,17 +1431,28 @@
       "split these pipes",
       "split selected pipes at interval",
       "split selected pipes by max length",
+      "split selected pipes 1.5 m each",
+      "split selected pipes at 1.5 m",
+      "split selected pipes into 1500 mm segments",
+      "split selected pipes to max 1500 mm",
       "split these pipes every 1500 mm",
+      "split selected pipes every 1500 mm",
       "split selected pipes every 1.5 m"
     ],
     "example_prompts": [
       "split selected pipes",
+      "split selected pipes 1.5 m each",
+      "split selected pipes at 1.5 m",
+      "split selected pipes into 1500 mm segments",
+      "split selected pipes to max 1500 mm",
       "split these pipes every 1500 mm",
+      "split selected pipes every 1500 mm",
       "split selected pipes every 1.5 m"
     ],
     "deterministic_handler": "split_selected_pipes",
     "requires_confirmation": true,
     "enabled": true,
+    "validation_state": "structural_only",
     "prompt_text": "split selected pipes",
     "mode": "deterministic"
   },
@@ -1327,6 +1476,7 @@
     "deterministic_handler": "report_duplicates",
     "requires_confirmation": false,
     "enabled": true,
+    "validation_state": "structural_only",
     "prompt_text": "report duplicates",
     "mode": "deterministic"
   },
@@ -1350,7 +1500,46 @@
     "deterministic_handler": "remove_duplicates",
     "requires_confirmation": true,
     "enabled": true,
+    "validation_state": "structural_only",
     "prompt_text": "remove duplicates",
+    "mode": "deterministic"
+  },
+  {
+    "id": "list-electrical-qa-elements-active-view",
+    "title": "List electrical QA elements in active view",
+    "category": "Electrical",
+    "group": "List",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "list electrical qa elements in active view",
+    "deterministic_handler": "list_electrical_qa_elements_in_active_view",
+    "requires_confirmation": false,
+    "enabled": true,
+    "visible_in_modelmind": false,
+    "available_to_agent": false,
+    "validation_state": "structural_only",
+    "prompt_text": "list electrical qa elements in active view",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-electrical-qa-elements-without-assignment",
+    "title": "Report electrical QA elements without circuit or system assignment",
+    "category": "Electrical",
+    "group": "Report",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "report electrical qa elements without circuit or system assignment",
+    "deterministic_handler": "report_electrical_qa_elements_without_assignment",
+    "requires_confirmation": false,
+    "enabled": true,
+    "visible_in_modelmind": false,
+    "available_to_agent": false,
+    "validation_state": "structural_only",
+    "prompt_text": "report electrical qa elements without circuit or system assignment",
     "mode": "deterministic"
   },
   {
@@ -1388,7 +1577,16 @@
       "select all elements of category",
       "select all walls",
       "select all elements of category ducts",
-      "select all elements of category doors"
+      "select all elements of category doors",
+      "category:walls",
+      "category:\"Pipe Fittings\"",
+      "categories:doors,windows"
+    ],
+    "example_prompts": [
+      "select all walls",
+      "select all elements of category ducts",
+      "category:\"Pipe Fittings\"",
+      "categories:doors,windows"
     ],
     "deterministic_handler": "select_all_elements_of_category",
     "requires_confirmation": false,
@@ -1409,7 +1607,16 @@
     "planner_aliases": [
       "count all elements of category",
       "count all walls",
-      "count all pipe fittings"
+      "count all pipe fittings",
+      "category:walls",
+      "category:\"Pipe Fittings\"",
+      "categories:doors,windows"
+    ],
+    "example_prompts": [
+      "count all walls",
+      "count all pipe fittings",
+      "category:\"Pipe Fittings\"",
+      "categories:doors,windows"
     ],
     "deterministic_handler": "count_all_elements_of_category",
     "requires_confirmation": false,
@@ -1430,7 +1637,16 @@
     "planner_aliases": [
       "list all elements of category",
       "list all pipe fittings",
-      "list all elements of category doors"
+      "list all elements of category doors",
+      "category:walls",
+      "category:\"Pipe Fittings\"",
+      "categories:doors,windows"
+    ],
+    "example_prompts": [
+      "list all pipe fittings",
+      "list all elements of category doors",
+      "category:\"Pipe Fittings\"",
+      "categories:doors,windows"
     ],
     "deterministic_handler": "list_all_elements_of_category",
     "requires_confirmation": false,

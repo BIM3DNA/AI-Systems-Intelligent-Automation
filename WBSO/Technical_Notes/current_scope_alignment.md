@@ -262,3 +262,17 @@ The current aligned scope now also includes structural implementation for:
 Still outside proven live scope after this pass:
 
 - live validation of every new preset/action added in this pass
+
+## 2026-04-19 Preset Scope-Governance Note
+
+The current aligned scope now also includes structural implementation for:
+
+- preset-local selection snapshot/restore behavior
+- explicit per-step scope behavior for reviewed presets
+- broader Electrical QA preset inspected-category coverage
+- hybrid Coordination / BIM QA preset behavior when no current selection exists
+- ModelMind access to the shared undo surface
+
+Still outside proven live scope after this pass:
+
+- live confirmation of the hardened preset semantics and shared ModelMind undo behavior

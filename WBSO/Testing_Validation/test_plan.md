@@ -581,3 +581,47 @@ The refactor should only be considered runtime-proven after the scenario set abo
 ### Live checks not executed in this pass
 
 - all live confirmation for the new presets/actions added in this pass
+
+## 2026-04-19 Runtime Targets for Preset Hardening and Scope Governance
+
+### Presets
+
+- run and validate:
+  - HVAC QA preset
+  - Piping QA preset
+  - Electrical QA preset
+  - Coordination / BIM QA preset
+- confirm one preset step does not contaminate downstream selected-element inputs unless explicitly intended
+
+### Category helpers
+
+- validate category disambiguation for:
+  - walls
+  - doors
+  - pipe fittings
+- validate exact syntax:
+  - `category:walls`
+  - `category:\"Pipe Fittings\"`
+  - `categories:doors,windows`
+
+### Undo
+
+- validate ModelMind shared undo on a real reversible reviewed action
+
+### Split-pipe aliases
+
+- validate:
+  - `split selected pipes 1.5 m each`
+  - `split selected pipes at 1.5 m`
+  - `split selected pipes into 1500 mm segments`
+  - `split selected pipes to max 1500 mm`
+  - `split selected pipes every 1500 mm`
+
+### What was actually executed in this workspace pass
+
+- local syntax/tokenization/JSON/XAML sanity checks
+- planner alias checks for hardened presets and expanded split-pipe variants
+
+### Live checks not executed in this pass
+
+- all live validation targets listed above

@@ -813,3 +813,42 @@ Reported as already live-validated before this code pass:
 ### What remains unvalidated in live Revit
 
 - all new presets and actions added in this pass
+
+---
+
+## EV-2026-04-19-001 - Preset hardening and scope-governance pass
+
+### Scope
+
+- harden preset-step scope semantics
+- improve category resolution governance
+- add ModelMind access to the shared reviewed undo surface
+- keep duplicate actions structural only until proven in runtime
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/lib/ai_prompt_registry.py`
+- `AI.extension/lib/ai_agent_session.py`
+- `AI.extension/lib/prompt_catalog.json`
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+
+### What was actually verified locally
+
+- `script.py` passed local `tabnanny`
+- `ai_prompt_registry.py` and `ai_agent_session.py` compiled successfully
+- `prompt_catalog.json` parsed successfully
+- `UI.xaml` remained well-formed
+- planner normalization matched the expanded split-pipe aliases
+- planner normalization still matched the four hardened presets
+- hidden preset-support electrical actions remained available for preset execution without becoming top-level planner targets
+
+### What remains unvalidated in live Revit
+
+- hardened HVAC QA preset
+- hardened Piping QA preset
+- redesigned Electrical QA preset
+- hardened Coordination / BIM QA preset
+- category disambiguation on walls / doors / pipe fittings
+- ModelMind shared undo
+- expanded split-pipe prompt variants

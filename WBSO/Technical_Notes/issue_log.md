@@ -765,3 +765,29 @@ The validated AI Workbench baseline was useful for reviewed MEP and QA/BIM inspe
 
 - live Revit validation for every new preset/action added in this pass
 - future decision on whether quick dimension, batch view rename, and add couplings can be implemented safely enough for the reviewed architecture
+
+---
+
+## ISSUE-2026-04-19-001
+
+**Title:** Reviewed presets were not explicitly governing selection scope, allowing selection-state contamination between steps  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** Preset semantics / scope governance
+
+### Description
+
+The newly added QA presets executed reviewed steps sequentially but did not explicitly control selection handoff. As a result, selection-changing steps such as unconnected-fitting detection could contaminate later selected-element steps.
+
+### Action Taken
+
+- added preset-level selection snapshot/restore behavior
+- added per-step scope behavior metadata
+- refactored HVAC and Piping presets to use explicit generated working selections for selected-only quantity/parameter steps
+- refactored Coordination / BIM QA preset into an explicit hybrid behavior that skips selection-only steps when no current selection exists
+- broadened Electrical QA preset coverage and made the inspected categories explicit in runtime output
+- added a shared Undo Last Action button to ModelMind using the same reviewed session undo context
+
+### Remaining Work
+
+- live runtime validation of the hardened preset semantics
+- live runtime validation of ModelMind shared undo

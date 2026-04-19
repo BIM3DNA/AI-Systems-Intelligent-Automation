@@ -32,11 +32,16 @@ class AgentSession(object):
     def set_allow_destructive(self, enabled):
         self.allow_destructive = bool(enabled)
 
-    def _add_step(self, command_id, requested_prompt=None):
+    def _add_step(self, command_id, requested_prompt=None, step_overrides=None):
         command = self.catalog.get(command_id)
         if not command:
             return
         step = dict(command)
+        if step_overrides:
+            for key, value in step_overrides.items():
+                if key == "action_id":
+                    continue
+                step[key] = value
         original_role = step.get("role", "read")
         step["command_role"] = original_role
         step["role"] = "modifying" if original_role == "modify" else "read_only"
@@ -89,6 +94,8 @@ class AgentSession(object):
     def get_supported_actions(self):
         actions = []
         for command in self.catalog.values():
+            if not command.get("available_to_agent", True):
+                continue
             actions.append(
                 {
                     "id": command.get("id"),
@@ -112,6 +119,8 @@ class AgentSession(object):
             return [(500, special_action_id)]
         matches = []
         for command_id, command in self.catalog.items():
+            if not command.get("available_to_agent", True):
+                continue
             phrases = []
             phrases.extend(command.get("aliases") or command.get("planner_aliases") or [])
             phrases.extend(command.get("example_prompts") or [])
@@ -260,8 +269,15 @@ class AgentSession(object):
 
         reviewed_steps = list(command.get("reviewed_steps") or [])
         if reviewed_steps:
-            for step_id in reviewed_steps:
-                self._add_step(step_id, requested_prompt=requested_prompt)
+            for step_def in reviewed_steps:
+                if isinstance(step_def, dict):
+                    self._add_step(
+                        step_def.get("action_id"),
+                        requested_prompt=requested_prompt,
+                        step_overrides=step_def,
+                    )
+                else:
+                    self._add_step(step_def, requested_prompt=requested_prompt)
         else:
             self._add_step(action_id, requested_prompt=requested_prompt)
         requires_modification = False

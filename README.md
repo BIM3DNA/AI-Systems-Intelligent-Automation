@@ -345,6 +345,35 @@ What still needs live confirmation:
 - all new presets and actions added in this pass
 - rename-active-view undo behavior in live runtime
 
+## 2026-04-19 Preset Hardening and Scope Governance
+
+What changed:
+
+- hardened preset execution with explicit scope behavior and selection snapshot/restore
+- fixed HVAC and Piping preset selected-step semantics
+- broadened Electrical QA preset inspected categories
+- hardened Coordination / BIM QA preset so selection-only steps are skipped explicitly when there is no current selection
+- added ModelMind access to the shared Undo Last Action surface
+- expanded split-pipe aliases/examples and improved category disambiguation
+
+What was verified locally in this pass:
+
+- `script.py` passed `tabnanny`
+- support modules compiled successfully where applicable
+- `prompt_catalog.json` parsed successfully
+- `UI.xaml` remained well-formed
+- planner alias matching worked for the hardened presets and expanded split-pipe variants
+
+What still needs live confirmation:
+
+- hardened HVAC QA preset
+- hardened Piping QA preset
+- redesigned Electrical QA preset
+- hardened Coordination / BIM QA preset
+- category disambiguation on walls / doors / pipe fittings
+- ModelMind shared undo
+- expanded split-pipe prompt variants
+
 ## Current Workspace Cloud Planner Finding
 
 The current workspace self-test through the actual service path reports:

@@ -804,3 +804,39 @@ These were left out because a safe first-pass deterministic implementation was n
 ### Still pending live validation after this pass
 
 - all new presets and actions added in this pass remain pending live Revit validation
+
+## 2026-04-19 Preset Hardening and Scope-Governance Pass
+
+This pass does not expand broad feature scope. It hardens preset semantics, selection safety, category disambiguation, and shared undo consistency.
+
+### Preset governance changes
+
+- preset execution now snapshots the current selection before execution
+- each preset step can declare explicit scope behavior:
+  - `use_current_selection`
+  - `use_generated_selection`
+  - `use_active_view`
+  - `restore_previous_selection_after_step`
+- preset-local generated working selections are now used where selected-element actions would otherwise depend on accidental UI state
+- the original selection is restored after preset execution
+
+### Presets hardened in this pass
+
+- HVAC QA preset
+- Piping QA preset
+- Electrical QA preset
+- Coordination / BIM QA preset
+
+### Additional governance changes
+
+- category resolution now prefers physical model categories over annotation/tag categories
+- exact category syntax is supported for the generic category helper actions:
+  - `category:walls`
+  - `category:\"Pipe Fittings\"`
+  - `categories:doors,windows`
+- ModelMind now exposes the same honest Undo Last Action surface as AI Agent
+- duplicate actions remain `structural_only`; output now explicitly says `Exact duplicate rule`
+
+### Still pending live validation after this pass
+
+- all hardened preset/runtime behaviors added in this pass
