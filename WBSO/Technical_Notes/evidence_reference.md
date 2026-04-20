@@ -852,3 +852,86 @@ Reported as already live-validated before this code pass:
 - category disambiguation on walls / doors / pipe fittings
 - ModelMind shared undo
 - expanded split-pipe prompt variants
+
+---
+
+## EV-2026-04-20-002 - Stability-fenced catalog routing hardening
+
+### Scope
+
+- improve safe deterministic reviewed prompt routing without touching lifecycle or execution plumbing
+- expand aliases/examples for already validated presets and category helpers only
+
+### Files changed
+
+- `AI.extension/lib/ai_prompt_registry.py`
+- `AI.extension/lib/prompt_catalog.json`
+
+### What was actually verified locally
+
+- `ai_prompt_registry.py` compiled successfully
+- `prompt_catalog.json` parsed successfully
+- local routing checks confirmed:
+  - `run the hvac qa preset`
+  - `run piping preset`
+  - `electrical coordination preset`
+  - `run the bim qa preset`
+  - `select categories:doors, windows`
+  - `count categories:doors, windows`
+  - `list category:"Pipe Fittings"`
+  resolve through the shared reviewed registry
+
+### What remains unvalidated in live Revit
+
+- runtime confirmation that the new alias/example variants are actually used successfully through the stable fenced Workbench
+
+---
+
+## EV-2026-04-20-003 - Stable-baseline UI polish
+
+### Scope
+
+- improve dark-mode button-state readability only
+- clarify close-button wording only
+- do not touch execution or lifecycle architecture
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+
+### What was actually verified locally
+
+- `UI.xaml` remained well-formed XML
+- local inspection confirmed:
+  - shared disabled-button brushes are present
+  - shared disabled-button trigger style is present
+  - close-button tooltip text is clarified
+
+### What remains unvalidated in live Revit
+
+- whether enabled vs disabled buttons are now clearly distinguishable in dark mode
+
+---
+
+## EV-2026-04-20-004 - Stable-baseline ModelMind catalog usability
+
+### Scope
+
+- improve ModelMind catalog discoverability and details-panel readability only
+- do not touch execution or lifecycle architecture
+
+### Files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+
+### What was actually verified locally
+
+- `UI.xaml` remained well-formed XML
+- local inspection confirmed:
+  - the main ModelMind input now explains the existing live filter behavior
+  - the catalog hint text now explains filtering and Recent Prompt resolution more clearly
+  - the details group/header text was updated for readability
+
+### What remains unvalidated in live Revit
+
+- whether the improved hints/details make the growing ModelMind catalog easier to browse in runtime

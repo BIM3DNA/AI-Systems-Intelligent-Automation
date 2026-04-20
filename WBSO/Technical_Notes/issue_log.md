@@ -791,3 +791,70 @@ The newly added QA presets executed reviewed steps sequentially but did not expl
 
 - live runtime validation of the hardened preset semantics
 - live runtime validation of ModelMind shared undo
+
+---
+
+## ISSUE-2026-04-20-002
+
+**Title:** Stable reviewed routing remained overly sensitive to harmless prompt formatting differences for validated presets and generic category helpers  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** Deterministic routing / reviewed metadata hardening
+
+### Description
+
+The restored stable baseline preserved execution safety, but some validated presets and generic category helper actions still relied on sparse examples and exact spacing-sensitive prompt matching.
+
+### Action Taken
+
+- normalized prompt matching for whitespace, comma spacing, and category-syntax formatting in `ai_prompt_registry.py`
+- expanded metadata-only aliases/examples in `prompt_catalog.json` for validated QA presets and generic category helper forms
+- intentionally avoided any changes to reviewed execution, lifecycle, dispatcher state, timeout logic, or modifying action paths
+
+### Remaining Work
+
+- live confirmation that the new prompt variants are useful in the stable fenced build
+
+---
+
+## ISSUE-2026-04-20-003
+
+**Title:** Stable-baseline dark mode still made disabled Workbench buttons too visually similar to enabled controls  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** UI readability / state clarity
+
+### Description
+
+On the stable baseline, dark-mode button states were still too close visually. Unavailable controls did not read as clearly unavailable at a glance.
+
+### Action Taken
+
+- added a shared disabled-button style in `UI.xaml`
+- tuned disabled foreground/background/border values to be visibly muted without making enabled controls dim
+- clarified the close-button tooltip so the stable baseline does not imply background continuity behavior
+
+### Remaining Work
+
+- live confirmation that dark-mode button states are clearly distinguishable in runtime
+
+---
+
+## ISSUE-2026-04-20-004
+
+**Title:** ModelMind catalog filtering existed in the stable baseline but was not clearly discoverable as a catalog usability feature  
+**Status:** Structurally addressed, live runtime confirmation pending  
+**Type:** UI/catalog usability
+
+### Description
+
+The stable baseline already supported read-only catalog filtering through the main ModelMind input, but the UI did not explain that clearly. The Selected Action panel also remained a bit terse for a growing reviewed catalog.
+
+### Action Taken
+
+- clarified in `UI.xaml` that the main ModelMind input already filters the catalog by canonical titles, aliases, and examples
+- improved the PromptTree hint text to explain Recent Prompt behavior more explicitly
+- renamed the details group and improved details placeholder wording/space
+- intentionally did not add a separate search box or favorites branch because that would require additional script/state wiring outside the safe scope
+
+### Remaining Work
+
+- live confirmation that the improved hints/details materially improve catalog usability

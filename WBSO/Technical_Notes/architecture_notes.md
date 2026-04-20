@@ -840,3 +840,87 @@ This pass does not expand broad feature scope. It hardens preset semantics, sele
 ### Still pending live validation after this pass
 
 - all hardened preset/runtime behaviors added in this pass
+
+## 2026-04-20 Stability-Fenced Catalog Routing Hardening
+
+This pass intentionally avoids all window lifecycle, dispatcher, ExternalEvent, timeout, and reviewed modify execution boundaries.
+
+### Safe scope only
+
+- normalize reviewed prompt matching in the shared catalog loader
+- expand metadata-only aliases/examples for already validated QA presets and generic category helpers
+- keep the stable reviewed execution architecture unchanged
+
+### What changed
+
+- added normalized prompt matching for:
+  - repeated whitespace
+  - comma spacing in multi-category prompts
+  - exact `category:` / `categories:` syntax formatting
+- expanded metadata-only aliases/examples for:
+  - HVAC QA preset
+  - Piping QA preset
+  - Electrical QA preset
+  - Coordination / BIM QA preset
+  - generic select/count/list category helpers
+
+### Explicitly unchanged
+
+- Workbench launch/bootstrap flow
+- modal/modeless behavior
+- ExternalEvent lifecycle/state management
+- create sheet / create 3D view / rename active view execution paths
+- shared undo architecture
+
+## 2026-04-20 Stable-Baseline UI Polish
+
+This pass is styling/text only on the restored stable baseline.
+
+### Safe scope only
+
+- improve button-state readability in dark mode
+- clarify close-button wording/tooltips
+- preserve the current layout and execution behavior
+
+### What changed
+
+- added a shared disabled-button style in `UI.xaml`
+- disabled buttons now use:
+  - muted gray-blue text
+  - subdued dark background
+  - subdued border
+- added small shared button padding for clearer text spacing
+- clarified the close-button tooltip so it does not imply special continuity behavior
+
+### Explicitly unchanged
+
+- `script.py`
+- window lifecycle
+- modal/modeless behavior
+- ExternalEvent / reviewed request dispatch
+- create sheet / create 3D view / rename active view execution
+- shared undo behavior
+
+## 2026-04-20 Stable-Baseline ModelMind Catalog Usability
+
+This pass remains UI/catalog-only and does not touch reviewed execution behavior.
+
+### Safe scope only
+
+- clarify how the existing ModelMind catalog filter already works
+- improve Selected Action panel readability
+- preserve Recent Prompts semantics
+
+### What changed
+
+- updated the main ModelMind input tooltip to state that it already filters the catalog by titles, aliases, and examples while typing
+- updated the catalog hint text to explain the existing filter behavior and the Recent Prompts to canonical metadata relationship
+- renamed the details group to `Selected Action Details`
+- clarified the details meta placeholder text
+- increased the details body height slightly for better readability
+
+### Explicitly unchanged
+
+- no dedicated new search control was added because that would require script wiring
+- no favorites/pinning branch was added because that would require new UI/state plumbing beyond this safe pass
+- all execution/lifecycle/dispatcher behavior remains unchanged

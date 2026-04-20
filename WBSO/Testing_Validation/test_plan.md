@@ -625,3 +625,72 @@ The refactor should only be considered runtime-proven after the scenario set abo
 ### Live checks not executed in this pass
 
 - all live validation targets listed above
+
+## 2026-04-20 Runtime Targets for Stable-Baseline UI Polish
+
+### Dark mode
+
+- validate that disabled buttons are clearly visually unavailable
+- validate that enabled buttons remain readable and distinct from disabled controls
+- check especially:
+  - Show reviewed code
+  - Approve & Run Code
+  - Save as Approved Recipe
+  - Undo Last Action
+  - AI Agent control-strip buttons
+
+### Header wording
+
+- validate that close wording/tooltips are clear and do not imply special continuity behavior
+
+### What was actually executed in this workspace pass
+
+- local `UI.xaml` well-formedness validation
+- local inspection of disabled-button resource/style definitions
+
+### Live checks not executed in this pass
+
+- all live validation targets listed above
+
+## 2026-04-20 Runtime Targets for Stable-Baseline ModelMind Catalog Usability
+
+### Catalog usability
+
+- validate that users understand the existing catalog filtering behavior from the revised input tooltip/hint text
+- validate that the Selected Action details panel is easier to read for larger reviewed catalog entries
+- validate that Recent Prompts still read as shortcuts resolving back to canonical metadata
+
+### What was actually executed in this workspace pass
+
+- local `UI.xaml` well-formedness validation
+- local inspection of the revised catalog hint/detail text
+
+### Live checks not executed in this pass
+
+- all live validation targets listed above
+
+## 2026-04-20 Runtime Targets for Stability-Fenced Catalog Routing
+
+### QA presets
+
+- validate prompt variants:
+  - `run the hvac qa preset`
+  - `run piping preset`
+  - `electrical coordination preset`
+  - `run the bim qa preset`
+
+### Category helpers
+
+- validate deterministic reviewed routing for:
+  - `select categories:doors, windows`
+  - `count categories:doors, windows`
+  - `list category:"Pipe Fittings"`
+
+### What was actually executed in this workspace pass
+
+- local compile/JSON sanity checks
+- local shared-registry routing checks for the new alias/example variants
+
+### Live checks not executed in this pass
+
+- all live validation targets listed above

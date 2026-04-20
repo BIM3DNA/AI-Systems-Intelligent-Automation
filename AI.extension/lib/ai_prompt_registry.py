@@ -2,6 +2,7 @@
 import json
 import os
 import time
+import re
 
 
 class PromptCatalog(object):
@@ -71,6 +72,18 @@ class PromptCatalog(object):
             if (entry.get("id") or "").strip().lower() == target:
                 return entry
         return None
+
+    def _normalize_match_text(self, text):
+        value = (text or "").strip().lower()
+        if not value:
+            return ""
+        value = value.replace("\\", "/")
+        value = re.sub(r"\s+", " ", value)
+        value = re.sub(r"\s*,\s*", ",", value)
+        value = re.sub(r"\s*:\s*", ":", value)
+        value = re.sub(r"\s*/\s*", " / ", value)
+        value = re.sub(r"\s+", " ", value).strip()
+        return value
 
     def _normalize_entry(self, entry):
         normalized = dict(entry or {})
@@ -198,15 +211,15 @@ class PromptCatalog(object):
         )
 
     def get_entry_by_prompt(self, prompt_text):
-        target = (prompt_text or "").strip().lower()
+        target = self._normalize_match_text(prompt_text)
         for entry in self.get_enabled_entries():
-            prompt = (entry.get("canonical_prompt") or entry.get("prompt_text") or "").strip().lower()
-            title = (entry.get("title") or "").strip().lower()
+            prompt = self._normalize_match_text(entry.get("canonical_prompt") or entry.get("prompt_text") or "")
+            title = self._normalize_match_text(entry.get("title") or "")
             aliases = [
-                str(alias).strip().lower()
+                self._normalize_match_text(alias)
                 for alias in (entry.get("aliases") or entry.get("planner_aliases") or [])
             ]
-            examples = [str(example).strip().lower() for example in entry.get("example_prompts") or []]
+            examples = [self._normalize_match_text(example) for example in entry.get("example_prompts") or []]
             if prompt == target or title == target or target in aliases or target in examples:
                 return entry
         if "hvac qa preset" in target:

@@ -1168,10 +1168,15 @@
     "canonical_prompt": "hvac qa preset",
     "planner_aliases": [
       "hvac qa preset",
-      "run hvac qa preset"
+      "run hvac qa preset",
+      "run the hvac qa preset",
+      "run hvac preset",
+      "hvac coordination preset"
     ],
     "example_prompts": [
-      "run hvac qa preset"
+      "run hvac qa preset",
+      "run the hvac qa preset",
+      "hvac coordination preset"
     ],
     "reviewed_steps": [
       {
@@ -1246,10 +1251,15 @@
     "canonical_prompt": "piping qa preset",
     "planner_aliases": [
       "piping qa preset",
-      "run piping qa preset"
+      "run piping qa preset",
+      "run the piping qa preset",
+      "run piping preset",
+      "piping coordination preset"
     ],
     "example_prompts": [
-      "run piping qa preset"
+      "run piping qa preset",
+      "run the piping qa preset",
+      "piping coordination preset"
     ],
     "reviewed_steps": [
       {
@@ -1309,10 +1319,15 @@
     "canonical_prompt": "electrical qa preset",
     "planner_aliases": [
       "electrical qa preset",
-      "run electrical qa preset"
+      "run electrical qa preset",
+      "run the electrical qa preset",
+      "run electrical preset",
+      "electrical coordination preset"
     ],
     "example_prompts": [
-      "run electrical qa preset"
+      "run electrical qa preset",
+      "run the electrical qa preset",
+      "electrical coordination preset"
     ],
     "reviewed_steps": [
       {
@@ -1381,11 +1396,16 @@
       "coordination / bim qa preset",
       "run coordination qa preset",
       "run bim qa preset",
-      "run coordination bim qa preset"
+      "run coordination bim qa preset",
+      "run the bim qa preset",
+      "run coordination / bim qa preset",
+      "bim coordination preset"
     ],
     "example_prompts": [
       "run coordination qa preset",
-      "run bim qa preset"
+      "run bim qa preset",
+      "run the bim qa preset",
+      "bim coordination preset"
     ],
     "reviewed_steps": [
       {
@@ -1578,6 +1598,10 @@
       "select all walls",
       "select all elements of category ducts",
       "select all elements of category doors",
+      "select category:walls",
+      "select category:\"Pipe Fittings\"",
+      "select categories:doors,windows",
+      "select categories:doors, windows",
       "category:walls",
       "category:\"Pipe Fittings\"",
       "categories:doors,windows"
@@ -1585,6 +1609,8 @@
     "example_prompts": [
       "select all walls",
       "select all elements of category ducts",
+      "select category:walls",
+      "select categories:doors, windows",
       "category:\"Pipe Fittings\"",
       "categories:doors,windows"
     ],
@@ -1608,6 +1634,10 @@
       "count all elements of category",
       "count all walls",
       "count all pipe fittings",
+      "count category:walls",
+      "count category:\"Pipe Fittings\"",
+      "count categories:doors,windows",
+      "count categories:doors, windows",
       "category:walls",
       "category:\"Pipe Fittings\"",
       "categories:doors,windows"
@@ -1615,6 +1645,8 @@
     "example_prompts": [
       "count all walls",
       "count all pipe fittings",
+      "count category:walls",
+      "count categories:doors, windows",
       "category:\"Pipe Fittings\"",
       "categories:doors,windows"
     ],
@@ -1638,6 +1670,10 @@
       "list all elements of category",
       "list all pipe fittings",
       "list all elements of category doors",
+      "list category:walls",
+      "list category:\"Pipe Fittings\"",
+      "list categories:doors,windows",
+      "list categories:doors, windows",
       "category:walls",
       "category:\"Pipe Fittings\"",
       "categories:doors,windows"
@@ -1645,6 +1681,8 @@
     "example_prompts": [
       "list all pipe fittings",
       "list all elements of category doors",
+      "list category:walls",
+      "list categories:doors, windows",
       "category:\"Pipe Fittings\"",
       "categories:doors,windows"
     ],

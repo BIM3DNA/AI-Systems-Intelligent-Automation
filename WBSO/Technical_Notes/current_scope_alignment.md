@@ -276,3 +276,39 @@ The current aligned scope now also includes structural implementation for:
 Still outside proven live scope after this pass:
 
 - live confirmation of the hardened preset semantics and shared ModelMind undo behavior
+
+## 2026-04-20 Stability-Fenced Routing Note
+
+The current aligned scope now also includes structural hardening for:
+
+- normalized reviewed prompt matching for safe alias/example routing
+- broader metadata-only aliases/examples for validated QA presets and generic category helpers
+
+Still intentionally outside scope in this pass:
+
+- any Workbench lifecycle or reviewed execution architecture changes
+
+## 2026-04-20 Stable-Baseline UI Polish Note
+
+The current aligned scope now also includes structural UI-only hardening for:
+
+- shared disabled-button styling in dark mode
+- clearer close-button wording on the stable baseline
+
+Still intentionally outside scope in this pass:
+
+- any execution, dispatcher, session, or lifecycle changes
+
+## 2026-04-20 Stable-Baseline ModelMind Catalog Usability Note
+
+The current aligned scope now also includes UI-only catalog usability polish for:
+
+- clearer discovery of the existing ModelMind filter behavior
+- more readable Selected Action details framing
+- clearer explanation of Recent Prompts as convenience shortcuts
+
+Still intentionally outside scope in this pass:
+
+- new search control wiring
+- favorites/pinning state
+- any execution or lifecycle changes

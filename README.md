@@ -374,6 +374,66 @@ What still needs live confirmation:
 - ModelMind shared undo
 - expanded split-pipe prompt variants
 
+## 2026-04-20 Stability-Fenced Catalog Routing Hardening
+
+What changed:
+
+- normalized reviewed prompt matching in the shared catalog loader so harmless whitespace/comma/category-syntax variations resolve more consistently
+- expanded metadata-only aliases/examples for validated QA presets and generic category helper actions
+
+What was verified locally in this pass:
+
+- `ai_prompt_registry.py` compiled successfully
+- `prompt_catalog.json` parsed successfully
+- local routing checks confirmed the new preset/category prompt variants resolve through the shared reviewed registry
+
+What was intentionally left unchanged:
+
+- window lifecycle architecture
+- reviewed Revit execution dispatch
+- create sheet / create 3D view / rename active view execution paths
+- shared undo architecture
+
+## 2026-04-20 Stable-Baseline UI Polish
+
+What changed:
+
+- added shared disabled-button styling in `UI.xaml`
+- clarified the close-button tooltip so it does not imply special continuity behavior
+
+What was verified locally in this pass:
+
+- `UI.xaml` parsed successfully
+- local inspection confirmed disabled-button brushes and trigger styling are present
+
+What was intentionally left unchanged:
+
+- `script.py`
+- all execution architecture
+- all lifecycle / dispatcher behavior
+- create sheet / create 3D view / rename active view paths
+
+## 2026-04-20 Stable-Baseline ModelMind Catalog Usability
+
+What changed:
+
+- clarified in `UI.xaml` that the main ModelMind input already filters the catalog while typing
+- clarified the catalog hint text and Recent Prompt explanation
+- improved the Selected Action details group/header wording and body height
+
+What was verified locally in this pass:
+
+- `UI.xaml` parsed successfully
+- local inspection confirmed the revised tooltip/hint/detail text is present
+
+What was intentionally left unchanged:
+
+- `script.py`
+- all execution architecture
+- all lifecycle / dispatcher behavior
+- no separate search control was added
+- no favorites/pinning state was added
+
 ## Current Workspace Cloud Planner Finding
 
 The current workspace self-test through the actual service path reports:
