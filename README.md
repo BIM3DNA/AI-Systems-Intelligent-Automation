@@ -31,6 +31,16 @@ The earlier migration baseline was runtime-validated in pyRevit at UI-launch lev
 - `Ollama Chat` remains the low-risk conversation area
 - `AI Agent` is currently a smaller deterministic reviewed-planner, not a broad autonomous agent
 
+## Stable-Baseline Catalog Usability
+
+The current stable baseline now includes a dedicated ModelMind catalog filter in the right-hand catalog pane. That filter is read-only: it narrows reviewed catalog browsing by title, aliases, examples, and grouping metadata without changing the main prompt input or triggering execution.
+
+## Stable-Baseline Reviewed Schedule Generation
+
+The stable baseline now also includes deterministic reviewed schedule-generation actions for supported MEP categories. These actions stay inside the shared reviewed catalog, support detailed vs summary schedule modes, and prefer duplicating an existing schedule template when a matching source schedule is available before falling back to a native deterministic schedule definition.
+
+The promoted generic schedule family is now grouped under a dedicated `Schedules` catalog branch. Separate ACO template-only schedule actions also exist under `Schedules / Template-Based`; they do not silently fall back into the generic native schedule family when no matching project template is found.
+
 ## Planner Provider Configuration
 
 - local planning is always available through the deterministic action matcher

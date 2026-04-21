@@ -38,6 +38,80 @@ The ModelMind prompt tree was populated directly from a hardcoded dictionary emb
 
 **Title:** AI Agent tab lacked implemented safety semantics despite visible controls  
 **Status:** Partially resolved  
+
+---
+
+## ISSUE-2026-04-21-001
+
+**Title:** ModelMind catalog browsing depended on the main prompt box instead of a dedicated filter surface  
+**Status:** Resolved in code, live runtime confirmation pending  
+**Type:** UI usability / operator clarity
+
+### Description
+
+On the restored stable baseline, the growing ModelMind catalog remained browsable, but filtering still piggybacked on the main prompt input. That mixed prompt authoring with catalog exploration and made the catalog harder to understand as a separate read-only surface.
+
+### Action Taken
+
+- added a dedicated catalog filter box in the ModelMind catalog pane
+- added read-only match-status text plus clear/reset behavior
+- added low-risk expand/collapse controls for the catalog tree
+- improved Selected Action Details readability without touching reviewed execution paths
+
+### Remaining Work
+
+- confirm the dedicated filter feels clearer in live pyRevit/Revit
+- confirm Recent Prompts and canonical metadata resolution remain intuitive under filtered browsing
+
+---
+
+## ISSUE-2026-04-21-002
+
+**Title:** Stable baseline lacked reviewed deterministic schedule-generation for governed MEP quantity workflows  
+**Status:** Resolved in code, live runtime confirmation pending  
+**Type:** Workflow coverage / governed automation
+
+### Description
+
+The stable Workbench baseline had deterministic reviewed actions for counts, lists, reports, sheets, and views, but not for governed schedule generation. Users needed category-specific schedule creation by level/reference level without opening the door to freeform code approval or broad execution changes.
+
+### Action Taken
+
+- added deterministic reviewed schedule actions for pipe, pipe fitting, duct, duct fitting, conduit, and electrical fixture/equipment schedules by level
+- added a reviewed schedule-bundle action for supported categories
+- implemented detailed vs summary schedule modes, with grand-total intent where supported
+- added template-first duplication with native schedule fallback
+- kept unrestricted shared code-approval flow unchanged
+
+### Remaining Work
+
+- live-validate schedule creation in Revit across supported categories
+- confirm field availability and grouping behavior in real project templates
+- decide later whether prefab-code filtering should be expanded beyond the low-risk exact-value support added here
+
+---
+
+## ISSUE-2026-04-21-003
+
+**Title:** Generic native schedules and project-specific template-backed schedules needed explicit separation in the reviewed catalog  
+**Status:** Resolved in code, live runtime confirmation pending  
+**Type:** Governance / catalog structure
+
+### Description
+
+After the first reviewed schedule pass, generic native schedules and future template-backed project-specific schedules were still too close conceptually. The stable baseline needed explicit separation so validated native schedule actions could be promoted without implying that template matching, prefab filtering, or project-specific ACO/Bunge behavior had the same runtime proof.
+
+### Action Taken
+
+- promoted only the validated generic schedule actions to `live_validated`
+- moved schedule entries into a dedicated `Schedules` category in the shared reviewed catalog
+- added separate template-only ACO schedule actions under `Schedules / Template-Based`
+- kept template actions honest: they fail clearly when no matching template is found and do not silently fall back to the generic native schedule family
+
+### Remaining Work
+
+- live-validate the new template-backed ACO actions
+- decide whether explicit Bunge-branded template actions should be added separately once matching examples are proven at runtime
 **Type:** UX / safety architecture
 
 ### Description

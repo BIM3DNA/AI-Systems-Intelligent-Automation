@@ -39,6 +39,33 @@ Snowdon Towers Sample HVAC
 - run representative counts/totals/report prompts
 - confirm structured prompt-tree navigation and filtering
 
+## 2026-04-21 Stable-Baseline Catalog Usability Checks
+
+1. confirm the dedicated ModelMind catalog filter narrows the tree without modifying the main prompt input
+2. confirm clear/reset restores the full grouped catalog
+3. confirm Expand All / Collapse All only affect catalog browsing state
+4. confirm Selected Action Details remain readable for canonical entries, approved recipes, and Recent Prompts
+5. confirm no regression to validated create-sheet, create-3d-view, rename-active-view, preset, or category-helper execution paths
+
+## 2026-04-21 Stable-Baseline Reviewed Schedule Checks
+
+1. create pipe schedule by level in detailed mode
+2. create duct fitting schedule by level in summary mode
+3. create conduit schedule by reference level
+4. create electrical fixture/equipment schedule by level and confirm whether separate fixture/equipment schedules are created as designed
+5. create schedule bundle by level and confirm supported categories are created deterministically
+6. confirm template-first duplication works when an explicit source schedule exists
+7. confirm native fallback is honest when no schedule template is found
+8. confirm no regression to validated create-sheet, create-3d-view, rename-active-view, preset, or category-helper execution paths
+
+## 2026-04-21 Schedule Promotion And Template Checks
+
+1. confirm generic validated schedule actions appear under `Schedules` with the expected Pipes / Ducts / Electrical / Bundles grouping
+2. confirm `create pipe schedule by level`, `create duct fitting summary by level`, `create schedule bundle by reference level`, and `create electrical fixture/equipment schedule by level` resolve as `live_validated`
+3. confirm ACO template actions appear under `Schedules / Template-Based`
+4. confirm template-only actions fail honestly when no matching source schedule exists
+5. confirm template actions do not silently fall back to the generic native schedule family
+
 ### 3. General chat
 
 - send a simple Ollama Chat prompt and confirm response

@@ -8,6 +8,7 @@ import re
 class PromptCatalog(object):
     MODELMIND_CATEGORY_ORDER = [
         "QA Presets",
+        "Schedules",
         "HVAC",
         "Piping",
         "Electrical",
@@ -23,6 +24,11 @@ class PromptCatalog(object):
         "Piping",
         "Electrical",
         "Coordination / BIM",
+        "Pipes",
+        "Ducts",
+        "Electrical",
+        "Bundles",
+        "Template-Based",
         "Select",
         "Count",
         "List",
@@ -133,6 +139,12 @@ class PromptCatalog(object):
                 "report-selected-elements-by-type",
                 "report-missing-parameters-from-selection",
                 "health-check-active-view-selection",
+                "create-pipe-schedule-by-level",
+                "create-pipe-fitting-schedule-by-level",
+                "create-duct-schedule-by-level",
+                "create-duct-fitting-schedule-by-level",
+                "create-electrical-fixture-equipment-schedule-by-level",
+                "create-schedule-bundle-by-level",
             ]
         )
         if entry.get("id") in live_validated:
@@ -153,6 +165,8 @@ class PromptCatalog(object):
             return "Cleanup / Repair"
         if "split" in title:
             return "Piping"
+        if "schedule" in title:
+            return "Schedules"
         if "category" in title:
             return "Selection / Categories"
         if "tag" in title:
@@ -242,6 +256,31 @@ class PromptCatalog(object):
             return self.get_entry_by_id("report-rooms-without-matching-spaces")
         if "spaces without rooms" in target:
             return self.get_entry_by_id("report-spaces-without-matching-rooms")
+        if "aco" in target and "template" in target:
+            if "prefab" in target:
+                return self.get_entry_by_id("create-aco-prefab-schedule-bundle-from-template")
+            if "pipe fitting" in target and "summary" in target:
+                return self.get_entry_by_id("create-aco-pipe-fitting-summary-from-template")
+            if "pipe fitting" in target:
+                return self.get_entry_by_id("create-aco-pipe-fitting-schedule-from-template")
+            if "pipe" in target and "summary" in target:
+                return self.get_entry_by_id("create-aco-pipe-summary-from-template")
+            if "pipe" in target:
+                return self.get_entry_by_id("create-aco-pipe-schedule-from-template")
+        if "schedule bundle" in target and ("level" in target or "reference level" in target):
+            return self.get_entry_by_id("create-schedule-bundle-by-level")
+        if "pipe fitting" in target and "schedule" in target and ("level" in target or "reference level" in target):
+            return self.get_entry_by_id("create-pipe-fitting-schedule-by-level")
+        if "duct fitting" in target and "schedule" in target and ("level" in target or "reference level" in target):
+            return self.get_entry_by_id("create-duct-fitting-schedule-by-level")
+        if "pipe" in target and "schedule" in target and ("level" in target or "reference level" in target):
+            return self.get_entry_by_id("create-pipe-schedule-by-level")
+        if "duct" in target and "schedule" in target and ("level" in target or "reference level" in target):
+            return self.get_entry_by_id("create-duct-schedule-by-level")
+        if "conduit" in target and "schedule" in target and ("level" in target or "reference level" in target):
+            return self.get_entry_by_id("create-conduit-schedule-by-level")
+        if "electrical" in target and "schedule" in target and ("fixture" in target or "equipment" in target):
+            return self.get_entry_by_id("create-electrical-fixture-equipment-schedule-by-level")
         if "categories list" in target or "category ids" in target:
             return self.get_entry_by_id("categories-list-and-id")
         if "rename active view" in target:
@@ -330,6 +369,8 @@ class PromptCatalog(object):
         title = (entry.get("title") or "").lower()
         if category in self.MODELMIND_CATEGORY_ORDER:
             return category
+        if "schedule" in prompt_text or "schedule" in title:
+            return "Schedules"
         if "pipe" in prompt_text or "pipe" in title:
             return "Piping"
         if "electrical" in prompt_text or "fixture" in prompt_text or "device" in prompt_text or "circuit" in prompt_text:

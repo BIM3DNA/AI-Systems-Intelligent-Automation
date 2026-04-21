@@ -39,6 +39,26 @@ ModelMind now treats reviewed code as a governed path rather than a generic exec
 - approved recipes are only created from successful reviewed-code executions
 - `create sheet` now has a pyRevit-safe reviewed template path
 
+## 2026-04-21 Scope Guardrail Update
+
+- this pass is limited to ModelMind catalog browsing clarity on the restored stable baseline
+- dedicated catalog filtering, tree expansion controls, and details readability are in scope
+- reviewed dispatch, modify execution, timeout handling, undo behavior, and validated modifying paths remain intentionally untouched
+
+## 2026-04-21 Reviewed Schedule Scope Update
+
+- this pass adds only deterministic reviewed schedule-generation actions on the stable baseline
+- template-first duplication and native schedule fallback are in scope
+- unrestricted shared code approval/promotion remains out of scope
+- reviewed dispatch, ExternalEvent behavior, modify/undo plumbing, and validated create-sheet/create-3d-view/rename-active-view paths remain intentionally untouched
+
+## 2026-04-21 Schedule Promotion Scope Update
+
+- this pass promotes only runtime-proven generic schedule actions
+- template-backed ACO actions are added as separate `structural_only` reviewed actions
+- project-specific template logic remains separate from the generic native schedule family
+- unrestricted shared promotion remains out of scope
+
 ## 2026-04-09 Scope Clarification
 
 The current product scope is now:

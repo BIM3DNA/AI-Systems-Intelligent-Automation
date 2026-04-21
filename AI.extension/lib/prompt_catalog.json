@@ -484,6 +484,348 @@
     "requires_confirmation": true
   },
   {
+    "id": "create-pipe-schedule-by-level",
+    "title": "Create pipe schedule by level",
+    "category": "Schedules",
+    "group": "Pipes",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create pipe schedule by level",
+    "planner_aliases": [
+      "create pipe schedule by level",
+      "create pipe summary by level",
+      "create pipe schedule by reference level",
+      "create pipe summary schedule by level",
+      "create prefab pipe schedule from template"
+    ],
+    "example_prompts": [
+      "create pipe schedule by level",
+      "create pipe summary by level",
+      "create pipe schedule by reference level",
+      "create prefab pipe schedule from template"
+    ],
+    "deterministic_handler": "create_pipe_schedule_by_level",
+    "validation_state": "live_validated",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create pipe schedule by level",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-pipe-fitting-schedule-by-level",
+    "title": "Create pipe fitting schedule by level",
+    "category": "Schedules",
+    "group": "Pipes",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create pipe fitting schedule by level",
+    "planner_aliases": [
+      "create pipe fitting schedule by level",
+      "create pipe fitting summary by level",
+      "create pipe fitting schedule by reference level",
+      "create prefab pipe fitting schedule from template"
+    ],
+    "example_prompts": [
+      "create pipe fitting schedule by level",
+      "create pipe fitting summary by level",
+      "create pipe fitting schedule by reference level",
+      "create prefab pipe fitting schedule from template"
+    ],
+    "deterministic_handler": "create_pipe_fitting_schedule_by_level",
+    "validation_state": "live_validated",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create pipe fitting schedule by level",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-duct-schedule-by-level",
+    "title": "Create duct schedule by level",
+    "category": "Schedules",
+    "group": "Ducts",
+    "discipline": "HVAC",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create duct schedule by level",
+    "planner_aliases": [
+      "create duct schedule by level",
+      "create duct summary by level",
+      "create duct schedule by reference level",
+      "create duct summary schedule by level",
+      "create prefab duct schedule from template"
+    ],
+    "example_prompts": [
+      "create duct schedule by level",
+      "create duct summary by level",
+      "create duct schedule by reference level",
+      "create prefab duct schedule from template"
+    ],
+    "deterministic_handler": "create_duct_schedule_by_level",
+    "validation_state": "live_validated",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create duct schedule by level",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-duct-fitting-schedule-by-level",
+    "title": "Create duct fitting schedule by level",
+    "category": "Schedules",
+    "group": "Ducts",
+    "discipline": "HVAC",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create duct fitting schedule by level",
+    "planner_aliases": [
+      "create duct fitting schedule by level",
+      "create duct fitting summary by level",
+      "create duct fitting schedule by reference level",
+      "create prefab duct fitting schedule from template"
+    ],
+    "example_prompts": [
+      "create duct fitting schedule by level",
+      "create duct fitting summary by level",
+      "create duct fitting schedule by reference level",
+      "create prefab duct fitting schedule from template"
+    ],
+    "deterministic_handler": "create_duct_fitting_schedule_by_level",
+    "validation_state": "live_validated",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create duct fitting schedule by level",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-conduit-schedule-by-level",
+    "title": "Create conduit schedule by level",
+    "category": "Schedules",
+    "group": "Electrical",
+    "discipline": "Electrical",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create conduit schedule by level",
+    "planner_aliases": [
+      "create conduit schedule by level",
+      "create conduit summary by level",
+      "create conduit schedule by reference level",
+      "create prefab conduit schedule from template"
+    ],
+    "example_prompts": [
+      "create conduit schedule by level",
+      "create conduit summary by level",
+      "create conduit schedule by reference level",
+      "create prefab conduit schedule from template"
+    ],
+    "deterministic_handler": "create_conduit_schedule_by_level",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create conduit schedule by level",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-electrical-fixture-equipment-schedule-by-level",
+    "title": "Create electrical fixture/equipment schedule by level",
+    "category": "Schedules",
+    "group": "Electrical",
+    "discipline": "Electrical",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create electrical fixture/equipment schedule by level",
+    "planner_aliases": [
+      "create electrical fixture/equipment schedule by level",
+      "create electrical fixture and equipment schedule by level",
+      "create electrical fixture/equipment summary by level",
+      "create electrical fixture/equipment schedule by reference level",
+      "create prefab electrical fixture and equipment schedules from template"
+    ],
+    "example_prompts": [
+      "create electrical fixture/equipment schedule by level",
+      "create electrical fixture/equipment summary by level",
+      "create electrical fixture/equipment schedule by reference level",
+      "create prefab electrical fixture and equipment schedules from template"
+    ],
+    "deterministic_handler": "create_electrical_fixture_equipment_schedule_by_level",
+    "validation_state": "live_validated",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create electrical fixture/equipment schedule by level",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-schedule-bundle-by-level",
+    "title": "Create schedule bundle by level for supported categories",
+    "category": "Schedules",
+    "group": "Bundles",
+    "discipline": "QA / BIM",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create schedule bundle by level",
+    "planner_aliases": [
+      "create schedule bundle by level",
+      "create schedule bundle by reference level",
+      "create prefab pipe and fitting schedules from template",
+      "create prefab duct and fitting schedules from template",
+      "create supported schedules by level"
+    ],
+    "example_prompts": [
+      "create schedule bundle by level",
+      "create schedule bundle by reference level",
+      "create prefab pipe and fitting schedules from template",
+      "create prefab duct and fitting schedules from template"
+    ],
+    "deterministic_handler": "create_schedule_bundle_by_level",
+    "validation_state": "live_validated",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create schedule bundle by level",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-aco-pipe-schedule-from-template",
+    "title": "Create ACO pipe schedule from template",
+    "category": "Schedules",
+    "group": "Template-Based",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO pipe schedule from template",
+    "planner_aliases": [
+      "create ACO pipe schedule from template",
+      "create ACO pipe schedule for Ground Floor from template",
+      "create ACO pipe schedule for L2 from template",
+      "create ACO pipe schedule by reference level from template"
+    ],
+    "example_prompts": [
+      "create ACO pipe schedule from template",
+      "create ACO pipe schedule for Ground Floor from template",
+      "create ACO pipe schedule for L2 from template",
+      "create ACO pipe schedule by reference level from template"
+    ],
+    "deterministic_handler": "create_aco_pipe_schedule_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO pipe schedule from template",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-aco-pipe-fitting-schedule-from-template",
+    "title": "Create ACO pipe fitting schedule from template",
+    "category": "Schedules",
+    "group": "Template-Based",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO pipe fitting schedule from template",
+    "planner_aliases": [
+      "create ACO pipe fitting schedule from template",
+      "create ACO pipe fitting schedule for Ground Floor from template",
+      "create ACO pipe fitting schedule for L2 from template",
+      "create ACO pipe fitting schedule by reference level from template"
+    ],
+    "example_prompts": [
+      "create ACO pipe fitting schedule from template",
+      "create ACO pipe fitting schedule for Ground Floor from template",
+      "create ACO pipe fitting schedule for L2 from template",
+      "create ACO pipe fitting schedule by reference level from template"
+    ],
+    "deterministic_handler": "create_aco_pipe_fitting_schedule_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO pipe fitting schedule from template",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-aco-pipe-summary-from-template",
+    "title": "Create ACO pipe summary from template",
+    "category": "Schedules",
+    "group": "Template-Based",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO pipe summary from template",
+    "planner_aliases": [
+      "create ACO pipe summary from template",
+      "create ACO pipe summary schedule from template",
+      "create ACO pipe summary for Ground Floor from template"
+    ],
+    "example_prompts": [
+      "create ACO pipe summary from template",
+      "create ACO pipe summary schedule from template",
+      "create ACO pipe summary for Ground Floor from template"
+    ],
+    "deterministic_handler": "create_aco_pipe_summary_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO pipe summary from template",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-aco-pipe-fitting-summary-from-template",
+    "title": "Create ACO pipe fitting summary from template",
+    "category": "Schedules",
+    "group": "Template-Based",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO pipe fitting summary from template",
+    "planner_aliases": [
+      "create ACO pipe fitting summary from template",
+      "create ACO pipe fitting summary schedule from template",
+      "create ACO pipe fitting summary for Ground Floor from template"
+    ],
+    "example_prompts": [
+      "create ACO pipe fitting summary from template",
+      "create ACO pipe fitting summary schedule from template",
+      "create ACO pipe fitting summary for Ground Floor from template"
+    ],
+    "deterministic_handler": "create_aco_pipe_fitting_summary_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO pipe fitting summary from template",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-aco-prefab-schedule-bundle-from-template",
+    "title": "Create ACO prefab schedule bundle from template",
+    "category": "Schedules",
+    "group": "Template-Based",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO prefab schedule bundle from template",
+    "planner_aliases": [
+      "create ACO prefab schedule bundle from template",
+      "create ACO prefab schedules from template",
+      "create ACO pipe and fitting schedules from template",
+      "create ACO prefab schedules for Ground Floor from template"
+    ],
+    "example_prompts": [
+      "create ACO prefab schedule bundle from template",
+      "create ACO prefab schedules from template",
+      "create ACO pipe and fitting schedules from template",
+      "create ACO prefab schedules for Ground Floor from template"
+    ],
+    "deterministic_handler": "create_aco_prefab_schedule_bundle_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO prefab schedule bundle from template",
+    "mode": "deterministic"
+  },
+  {
     "category": "Select All",
     "enabled": true,
     "id": "select-all-columns",

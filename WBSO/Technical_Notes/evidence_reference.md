@@ -38,6 +38,90 @@ This pass was needed to:
 
 ### WBSO Files Updated
 
+---
+
+## EV-2026-04-21-001 - Stable-baseline ModelMind catalog usability polish
+
+### Summary
+
+Added a dedicated read-only catalog filter surface, compact catalog status text, low-risk expand/collapse controls, and clearer Selected Action Details framing for the stable ModelMind catalog.
+
+### Why It Changed
+
+This pass was needed to:
+
+- separate catalog browsing from the main ModelMind prompt input
+- make the larger reviewed catalog easier to search without triggering execution
+- improve operator understanding of canonical metadata, aliases, examples, and validation state
+- preserve the restored stable execution baseline
+
+### Code / Repo Areas Affected
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+
+### Validation Position
+
+- local XML/tabnanny verification only in this pass
+- no reviewed execution architecture changes
+- no new live pyRevit/Revit confirmation claimed
+
+---
+
+## EV-2026-04-21-002 - Stable-baseline reviewed schedule generation
+
+### Summary
+
+Added deterministic reviewed schedule-generation actions for supported MEP categories, with level/reference-level grouping, detailed vs summary schedule modes, and template-first duplication where available.
+
+### Why It Changed
+
+This pass was needed to:
+
+- extend governed Workbench coverage into schedule creation without introducing freeform generic code generation
+- support practical MEP quantity workflows by category rather than one unrestricted universal schedule
+- keep schedule generation on the stable reviewed deterministic baseline
+
+### Code / Repo Areas Affected
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/lib/prompt_catalog.json`
+
+### Validation Position
+
+- local tabnanny/json/alias-resolution verification completed
+- no execution architecture changes
+- no live pyRevit/Revit schedule-creation confirmation claimed in this pass
+
+---
+
+## EV-2026-04-21-003 - Schedule promotion and template-backed catalog separation
+
+### Summary
+
+Promoted only the validated generic schedule family to `live_validated`, reorganized schedules into a dedicated `Schedules` catalog branch, and added separate template-only ACO actions that do not fall back silently into the native schedule family.
+
+### Why It Changed
+
+This pass was needed to:
+
+- keep runtime-validated generic schedule actions distinct from still-unproven template heuristics
+- place schedules in a clearer ModelMind tree structure
+- support project-specific template-backed schedule creation without contaminating the shared native schedule family
+
+### Code / Repo Areas Affected
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/lib/prompt_catalog.json`
+- `AI.extension/lib/ai_prompt_registry.py`
+
+### Validation Position
+
+- local tabnanny/json/registry-resolution verification completed
+- generic promoted schedule actions now resolve as `live_validated`
+- ACO template actions remain `structural_only`
+- no new live Revit confirmation claimed in this pass
+
 - `WBSO/Technical_Notes/architecture_notes.md`
 - `WBSO/Technical_Notes/issue_log.md`
 - `WBSO/Technical_Notes/evidence_reference.md`

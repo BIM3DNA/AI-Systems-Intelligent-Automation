@@ -12,6 +12,28 @@ AI Systems & Intelligent Automation
 
 This file records the current architecture after restructuring the single pyRevit AI window around clearer product roles and safer local state.
 
+## 2026-04-21 Stable-Baseline Catalog Usability Update
+
+- added a dedicated ModelMind catalog filter surface in the right-hand catalog pane
+- kept filtering read-only and separate from the main ModelMind prompt input
+- kept grouping intact while exposing lightweight expand/collapse controls and match-status text
+- improved Selected Action Details readability using existing reviewed metadata only
+- left reviewed execution, window lifecycle, ExternalEvent behavior, timeout handling, and undo architecture unchanged
+
+## 2026-04-21 Stable-Baseline Reviewed Schedule Update
+
+- added deterministic reviewed schedule-creation handlers for MEP category schedules grouped by level/reference-level
+- kept schedule generation inside the existing reviewed deterministic action model rather than introducing freeform code generation
+- added template-first schedule duplication when an explicit or heuristically matched schedule template exists, with native schedule definition fallback
+- kept execution architecture unchanged: no window-lifecycle, dispatch, timeout, create-sheet, create-3d-view, rename-active-view, or undo-architecture changes were made
+
+## 2026-04-21 Schedule Promotion And Template Separation Update
+
+- promoted only the schedule actions backed by real runtime evidence to `live_validated`
+- moved generic native schedule actions into a dedicated `Schedules` catalog branch with subgroups for Pipes, Ducts, Electrical, and Bundles
+- added separate template-only ACO schedule actions under `Schedules / Template-Based`
+- kept generic native schedule actions separate from project-specific template-backed actions so template heuristics do not contaminate the native schedule family
+
 ## Current Product Architecture
 
 ### 1. Single pyRevit Entry Point

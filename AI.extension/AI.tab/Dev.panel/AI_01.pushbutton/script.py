@@ -3727,6 +3727,1006 @@ def report_total_length_active_view_linear_mep(doc, uidoc, context=None):
     )
 
 
+def _bip(name):
+    try:
+        return getattr(DB.BuiltInParameter, name)
+    except:
+        return None
+
+
+def _schedule_action_configs():
+    return {
+        "pipe": {
+            "key": "pipe",
+            "title": "Pipe",
+            "discipline": "Piping",
+            "category": DB.BuiltInCategory.OST_PipeCurves,
+            "keywords": ["pipe", "pipes"],
+            "level_bips": [
+                "RBS_START_LEVEL_PARAM",
+                "INSTANCE_REFERENCE_LEVEL_PARAM",
+                "SCHEDULE_LEVEL_PARAM",
+                "FAMILY_LEVEL_PARAM",
+            ],
+            "level_names": ["Reference Level", "Level"],
+        },
+        "pipe_fitting": {
+            "key": "pipe_fitting",
+            "title": "Pipe Fitting",
+            "discipline": "Piping",
+            "category": DB.BuiltInCategory.OST_PipeFitting,
+            "keywords": ["pipe fitting", "pipe fittings"],
+            "level_bips": [
+                "FAMILY_LEVEL_PARAM",
+                "INSTANCE_REFERENCE_LEVEL_PARAM",
+                "RBS_REFERENCE_LEVEL_PARAM",
+                "SCHEDULE_LEVEL_PARAM",
+            ],
+            "level_names": ["Reference Level", "Level"],
+        },
+        "duct": {
+            "key": "duct",
+            "title": "Duct",
+            "discipline": "HVAC",
+            "category": DB.BuiltInCategory.OST_DuctCurves,
+            "keywords": ["duct", "ducts"],
+            "level_bips": [
+                "RBS_START_LEVEL_PARAM",
+                "INSTANCE_REFERENCE_LEVEL_PARAM",
+                "SCHEDULE_LEVEL_PARAM",
+                "FAMILY_LEVEL_PARAM",
+            ],
+            "level_names": ["Reference Level", "Level"],
+        },
+        "duct_fitting": {
+            "key": "duct_fitting",
+            "title": "Duct Fitting",
+            "discipline": "HVAC",
+            "category": DB.BuiltInCategory.OST_DuctFitting,
+            "keywords": ["duct fitting", "duct fittings"],
+            "level_bips": [
+                "FAMILY_LEVEL_PARAM",
+                "INSTANCE_REFERENCE_LEVEL_PARAM",
+                "RBS_REFERENCE_LEVEL_PARAM",
+                "SCHEDULE_LEVEL_PARAM",
+            ],
+            "level_names": ["Reference Level", "Level"],
+        },
+        "conduit": {
+            "key": "conduit",
+            "title": "Conduit",
+            "discipline": "Electrical",
+            "category": DB.BuiltInCategory.OST_Conduit,
+            "keywords": ["conduit", "conduits"],
+            "level_bips": [
+                "RBS_START_LEVEL_PARAM",
+                "INSTANCE_REFERENCE_LEVEL_PARAM",
+                "SCHEDULE_LEVEL_PARAM",
+                "FAMILY_LEVEL_PARAM",
+            ],
+            "level_names": ["Reference Level", "Level"],
+        },
+        "electrical_fixture": {
+            "key": "electrical_fixture",
+            "title": "Electrical Fixture",
+            "discipline": "Electrical",
+            "category": DB.BuiltInCategory.OST_ElectricalFixtures,
+            "keywords": ["electrical fixture", "electrical fixtures", "fixture", "fixtures"],
+            "level_bips": [
+                "FAMILY_LEVEL_PARAM",
+                "INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM",
+                "INSTANCE_REFERENCE_LEVEL_PARAM",
+                "SCHEDULE_LEVEL_PARAM",
+            ],
+            "level_names": ["Level", "Reference Level"],
+        },
+        "electrical_equipment": {
+            "key": "electrical_equipment",
+            "title": "Electrical Equipment",
+            "discipline": "Electrical",
+            "category": DB.BuiltInCategory.OST_ElectricalEquipment,
+            "keywords": ["electrical equipment", "equipment"],
+            "level_bips": [
+                "FAMILY_LEVEL_PARAM",
+                "INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM",
+                "INSTANCE_REFERENCE_LEVEL_PARAM",
+                "SCHEDULE_LEVEL_PARAM",
+            ],
+            "level_names": ["Level", "Reference Level"],
+        },
+    }
+
+
+def _schedule_mode_from_prompt(prompt_text):
+    lowered = (prompt_text or "").lower()
+    if "summary" in lowered:
+        return "summary"
+    return "detailed"
+
+
+def _prefer_reference_level(prompt_text):
+    return "reference level" in (prompt_text or "").lower()
+
+
+def _parse_schedule_prefab_filter(prompt_text):
+    text = prompt_text or ""
+    patterns = [
+        r'ai_prefabcode\s*:\s*"([^"]+)"',
+        r'prefabcode\s*:\s*"([^"]+)"',
+        r'ai_prefabcode\s*:\s*([^\s,]+)',
+        r'prefabcode\s*:\s*([^\s,]+)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            value = match.group(1).strip()
+            if value:
+                return value
+    return None
+
+
+def _parse_template_request(prompt_text):
+    lowered = (prompt_text or "").lower()
+    if "template" not in lowered and "source schedule" not in lowered:
+        return (False, None)
+    patterns = [
+        r'from template\s+"([^"]+)"',
+        r'template\s*:\s*"([^"]+)"',
+        r'from source schedule\s+"([^"]+)"',
+        r'from template\s+([^\n]+)$',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, prompt_text or "", re.IGNORECASE)
+        if match:
+            candidate = (match.group(1) or "").strip()
+            candidate = re.sub(r"\s+(by|with|in)\s+.*$", "", candidate, flags=re.IGNORECASE).strip()
+            if candidate:
+                return (True, candidate)
+    return (True, None)
+
+
+def _all_schedule_names(doc):
+    names = set()
+    try:
+        for schedule in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule):
+            try:
+                names.add(get_elem_name(schedule))
+            except:
+                pass
+    except:
+        pass
+    return names
+
+
+def _schedulable_field_name(field, doc):
+    try:
+        return field.GetName(doc)
+    except:
+        pass
+    try:
+        return field.GetName()
+    except:
+        pass
+    return ""
+
+
+def _schedule_field_name(field, doc):
+    try:
+        return field.GetName()
+    except:
+        pass
+    try:
+        schedulable = field.GetSchedulableField()
+        return _schedulable_field_name(schedulable, doc)
+    except:
+        pass
+    try:
+        return getattr(field, "ColumnHeading", "")
+    except:
+        return ""
+
+
+def _schedule_field_matches(field_or_schedulable, doc, bip_names=None, field_names=None):
+    bip_names = bip_names or []
+    field_names = field_names or []
+    try:
+        param_id = field_or_schedulable.ParameterId
+        for bip_name in bip_names:
+            bip = _bip(bip_name)
+            if bip is None:
+                continue
+            try:
+                if param_id.IntegerValue == int(bip):
+                    return True
+            except:
+                pass
+    except:
+        pass
+    try:
+        display_name = (_schedulable_field_name(field_or_schedulable, doc) or "").lower()
+    except:
+        display_name = (_schedule_field_name(field_or_schedulable, doc) or "").lower()
+    wanted = [name.lower() for name in field_names or []]
+    return display_name in wanted
+
+
+def _existing_schedule_field(definition, doc, bip_names=None, field_names=None):
+    try:
+        for field_id in definition.GetFieldOrder():
+            field = definition.GetField(field_id)
+            if _schedule_field_matches(field, doc, bip_names, field_names):
+                return field
+    except:
+        pass
+    return None
+
+
+def _ensure_schedule_field(definition, doc, bip_names=None, field_names=None):
+    existing = _existing_schedule_field(definition, doc, bip_names, field_names)
+    if existing is not None:
+        return existing
+    try:
+        for schedulable in definition.GetSchedulableFields():
+            if _schedule_field_matches(schedulable, doc, bip_names, field_names):
+                return definition.AddField(schedulable)
+    except:
+        pass
+    return None
+
+
+def _clear_schedule_grouping(definition):
+    try:
+        while definition.GetSortGroupFieldCount() > 0:
+            definition.RemoveSortGroupField(0)
+    except:
+        pass
+
+
+def _clear_schedule_filters(definition):
+    try:
+        while definition.GetFilterCount() > 0:
+            definition.RemoveFilter(0)
+    except:
+        pass
+
+
+def _add_schedule_sort_group(definition, field, show_header=False, show_footer=False):
+    if field is None:
+        return False
+    try:
+        sort_group = DB.ScheduleSortGroupField(field.FieldId)
+        try:
+            sort_group.ShowHeader = show_header
+        except:
+            pass
+        try:
+            sort_group.ShowFooter = show_footer
+        except:
+            pass
+        definition.AddSortGroupField(sort_group)
+        return True
+    except:
+        return False
+
+
+def _enable_schedule_grand_totals(definition):
+    try:
+        definition.ShowGrandTotal = True
+    except:
+        pass
+    try:
+        definition.ShowGrandTotalCount = True
+    except:
+        pass
+    try:
+        definition.ShowGrandTotalTitle = True
+    except:
+        pass
+
+
+def _find_schedule_template(doc, config, prompt_text):
+    template_requested, requested_name = _parse_template_request(prompt_text)
+    if not template_requested:
+        return (None, "Native schedule definition used.")
+
+    schedules = []
+    try:
+        schedules = list(DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule))
+    except:
+        schedules = []
+
+    chosen = None
+    if requested_name:
+        requested_lower = requested_name.lower()
+        exact = []
+        partial = []
+        for schedule in schedules:
+            schedule_name = (get_elem_name(schedule) or "").strip()
+            if not schedule_name:
+                continue
+            if schedule_name.lower() == requested_lower:
+                exact.append(schedule)
+            elif requested_lower in schedule_name.lower():
+                partial.append(schedule)
+        if exact:
+            chosen = exact[0]
+        elif partial:
+            chosen = sorted(partial, key=lambda item: len(get_elem_name(item) or ""))[0]
+        if chosen is not None:
+            return (chosen, "Template schedule duplicated: {0}".format(get_elem_name(chosen)))
+        return (None, "Template '{0}' was not found. Native schedule definition used.".format(requested_name))
+
+    heuristic = []
+    for schedule in schedules:
+        schedule_name = (get_elem_name(schedule) or "").lower()
+        if "template" not in schedule_name:
+            continue
+        if any(keyword in schedule_name for keyword in config.get("keywords", [])):
+            heuristic.append(schedule)
+    if heuristic:
+        chosen = sorted(heuristic, key=lambda item: len(get_elem_name(item) or ""))[0]
+        return (chosen, "Template schedule duplicated: {0}".format(get_elem_name(chosen)))
+    return (None, "No matching schedule template was found. Native schedule definition used.")
+
+
+def _schedule_name_for_config(config, mode, prefer_reference_level):
+    level_phrase = "Reference Level" if prefer_reference_level else "Level"
+    if mode == "summary":
+        return "AI {0} Summary Schedule by {1}".format(config.get("title"), level_phrase)
+    return "AI {0} Schedule by {1}".format(config.get("title"), level_phrase)
+
+
+def _configure_schedule_definition(schedule, doc, config, mode, prompt_text, prefab_value=None):
+    definition = schedule.Definition
+    _clear_schedule_grouping(definition)
+    _clear_schedule_filters(definition)
+
+    prefer_reference_level = _prefer_reference_level(prompt_text)
+    level_names = list(config.get("level_names") or [])
+    if prefer_reference_level:
+        level_names = sorted(level_names, key=lambda name: 0 if "reference" in name.lower() else 1)
+
+    level_field = _ensure_schedule_field(definition, doc, config.get("level_bips"), level_names)
+    family_type_field = _ensure_schedule_field(
+        definition,
+        doc,
+        ["ELEM_FAMILY_AND_TYPE_PARAM", "SYMBOL_FAMILY_AND_TYPE_NAMES_PARAM"],
+        ["Family and Type", "Type", "Type Name"],
+    )
+    count_field = _ensure_schedule_field(definition, doc, [], ["Count"])
+    mark_field = None
+    comments_field = None
+    if mode != "summary":
+        mark_field = _ensure_schedule_field(definition, doc, ["ALL_MODEL_MARK"], ["Mark"])
+        comments_field = _ensure_schedule_field(definition, doc, ["ALL_MODEL_INSTANCE_COMMENTS"], ["Comments"])
+
+    notes = []
+    if level_field is None:
+        notes.append("Level/reference-level field could not be resolved for this category.")
+    if family_type_field is None:
+        notes.append("Family/type field could not be resolved; grouping uses the available level field only.")
+
+    try:
+        definition.IsItemized = (mode != "summary")
+    except:
+        notes.append("Schedule itemization mode could not be adjusted.")
+
+    if level_field is not None:
+        _add_schedule_sort_group(definition, level_field, show_header=True, show_footer=(mode == "summary"))
+    if family_type_field is not None:
+        _add_schedule_sort_group(definition, family_type_field, show_header=(mode == "summary"), show_footer=(mode == "summary"))
+
+    if mode == "summary":
+        _enable_schedule_grand_totals(definition)
+        if count_field is None:
+            notes.append("Grand total count field was not available in this schedule definition.")
+    elif mark_field is None and comments_field is None:
+        notes.append("Detailed mode used the native available fields; Mark/Comments were not both available.")
+
+    if prefab_value:
+        prefab_field = _ensure_schedule_field(
+            definition,
+            doc,
+            [],
+            ["AI_PrefabCode", "PrefabCode"],
+        )
+        if prefab_field is not None:
+            try:
+                definition.AddFilter(DB.ScheduleFilter(prefab_field.FieldId, DB.ScheduleFilterType.Equal, prefab_value))
+                notes.append("Applied prefab filter: {0}".format(prefab_value))
+            except Exception as exc:
+                notes.append("Prefab filter could not be applied: {0}".format(str(exc)))
+        else:
+            notes.append("Prefab filter requested, but no AI_PrefabCode/PrefabCode schedulable field was available.")
+
+    return notes
+
+
+def _create_schedule_for_config(doc, config, prompt_text):
+    mode = _schedule_mode_from_prompt(prompt_text)
+    prefer_reference_level = _prefer_reference_level(prompt_text)
+    prefab_value = _parse_schedule_prefab_filter(prompt_text)
+    source_schedule, template_note = _find_schedule_template(doc, config, prompt_text)
+    existing_names = _all_schedule_names(doc)
+    schedule_name = _unique_name(_schedule_name_for_config(config, mode, prefer_reference_level), existing_names)
+    transaction = DB.Transaction(doc, "AI {0} Schedule".format(config.get("title")))
+    transaction.Start()
+    try:
+        if source_schedule is not None:
+            new_id = source_schedule.Duplicate(DB.ViewDuplicateOption.Duplicate)
+            schedule = doc.GetElement(new_id)
+        else:
+            schedule = DB.ViewSchedule.CreateSchedule(doc, DB.ElementId(config.get("category")))
+        if schedule is None:
+            transaction.RollBack()
+            return {"ok": False, "message": "Failed to create {0} schedule: no schedule view was returned.".format(config.get("title").lower())}
+        schedule.Name = schedule_name
+        notes = _configure_schedule_definition(schedule, doc, config, mode, prompt_text, prefab_value=prefab_value)
+        transaction.Commit()
+        return {
+            "ok": True,
+            "schedule_name": schedule_name,
+            "mode": mode,
+            "template_note": template_note,
+            "notes": notes,
+        }
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return {"ok": False, "message": "Failed to create {0} schedule: {1}".format(config.get("title").lower(), str(exc))}
+
+
+def _format_schedule_creation_result(header, doc, uidoc, results, scope_note=None):
+    lines = [
+        header,
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+    ]
+    if scope_note:
+        lines.append(scope_note)
+    lines.append("Schedules processed: {0}".format(len(results)))
+    created = [item for item in results if item.get("ok")]
+    failed = [item for item in results if not item.get("ok")]
+    lines.append("Schedules created: {0}".format(len(created)))
+    if failed:
+        lines.append("Schedules failed: {0}".format(len(failed)))
+    for item in created:
+        lines.append(
+            "{0}: {1} | mode: {2} | {3}".format(
+                item.get("label", "Schedule"),
+                item.get("schedule_name"),
+                item.get("mode", "detailed"),
+                item.get("template_note", "Native schedule definition used."),
+            )
+        )
+        for note in item.get("notes", [])[:4]:
+            lines.append("  - {0}".format(note))
+    for item in failed[:10]:
+        lines.append("{0}: {1}".format(item.get("label", "Schedule"), item.get("message")))
+    if len(failed) > 10:
+        lines.append("...showing first 10 of {0} failures".format(len(failed)))
+    return "\n".join(lines)
+
+
+def _create_single_schedule_action(doc, uidoc, config_key, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    config = _schedule_action_configs().get(config_key)
+    if config is None:
+        return "Failed: unsupported schedule configuration '{0}'.".format(config_key)
+    result = _create_schedule_for_config(doc, config, prompt_text)
+    result["label"] = config.get("title")
+    header = "Create {0} schedule by level".format(config.get("title").lower())
+    return _format_schedule_creation_result(
+        header,
+        doc,
+        uidoc,
+        [result],
+        scope_note="Reviewed mode: {0} schedule grouped by category-specific level/reference-level and family/type.".format(result.get("mode", _schedule_mode_from_prompt(prompt_text))),
+    )
+
+
+def create_pipe_schedule_by_level(doc, uidoc, context=None):
+    return _create_single_schedule_action(doc, uidoc, "pipe", context)
+
+
+def create_pipe_fitting_schedule_by_level(doc, uidoc, context=None):
+    return _create_single_schedule_action(doc, uidoc, "pipe_fitting", context)
+
+
+def create_duct_schedule_by_level(doc, uidoc, context=None):
+    return _create_single_schedule_action(doc, uidoc, "duct", context)
+
+
+def create_duct_fitting_schedule_by_level(doc, uidoc, context=None):
+    return _create_single_schedule_action(doc, uidoc, "duct_fitting", context)
+
+
+def create_conduit_schedule_by_level(doc, uidoc, context=None):
+    return _create_single_schedule_action(doc, uidoc, "conduit", context)
+
+
+def create_electrical_fixture_equipment_schedule_by_level(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    configs = _schedule_action_configs()
+    results = []
+    for key in ["electrical_fixture", "electrical_equipment"]:
+        result = _create_schedule_for_config(doc, configs[key], prompt_text)
+        result["label"] = configs[key].get("title")
+        results.append(result)
+    return _format_schedule_creation_result(
+        "Create electrical fixture/equipment schedule by level",
+        doc,
+        uidoc,
+        results,
+        scope_note="Reviewed mode: {0} schedule set. This action creates separate category-specific schedules for fixtures and equipment.".format(
+            _schedule_mode_from_prompt(prompt_text)
+        ),
+    )
+
+
+def create_schedule_bundle_by_level(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    configs = _schedule_action_configs()
+    lowered = (prompt_text or "").lower()
+    requested_keys = []
+    ordered_keys = [
+        "pipe_fitting",
+        "pipe",
+        "duct_fitting",
+        "duct",
+        "conduit",
+        "electrical_fixture",
+        "electrical_equipment",
+    ]
+    for key in ordered_keys:
+        config = configs.get(key)
+        if config and any(keyword in lowered for keyword in config.get("keywords", [])):
+            requested_keys.append(key)
+    if not requested_keys:
+        requested_keys = ordered_keys
+
+    results = []
+    for key in requested_keys:
+        result = _create_schedule_for_config(doc, configs[key], prompt_text)
+        result["label"] = configs[key].get("title")
+        results.append(result)
+
+    return _format_schedule_creation_result(
+        "Create schedule bundle by level",
+        doc,
+        uidoc,
+        results,
+        scope_note="Reviewed bundle mode: {0}. Supported categories are created as separate deterministic schedules grouped by category-specific level/reference-level and family/type.".format(
+            _schedule_mode_from_prompt(prompt_text)
+        ),
+    )
+
+
+def _schedule_tokens(text):
+    return [token for token in re.split(r"[^a-z0-9]+", (text or "").lower()) if token]
+
+
+def _schedule_definition_field_names(schedule, doc):
+    names = []
+    try:
+        definition = schedule.Definition
+        for field_id in definition.GetFieldOrder():
+            try:
+                field = definition.GetField(field_id)
+                name = _schedule_field_name(field, doc)
+                if name:
+                    names.append(name)
+            except:
+                continue
+    except:
+        pass
+    return names
+
+
+def _schedule_filter_field_names(schedule, doc):
+    names = []
+    try:
+        definition = schedule.Definition
+        for index in range(definition.GetFilterCount()):
+            try:
+                sched_filter = definition.GetFilter(index)
+                field = definition.GetField(sched_filter.FieldId)
+                name = _schedule_field_name(field, doc)
+                if name:
+                    names.append(name)
+            except:
+                continue
+    except:
+        pass
+    return names
+
+
+def _aco_template_profiles():
+    return {
+        "aco_pipe_schedule": {
+            "label": "ACO Pipe Schedule",
+            "base_name": "ACO Pipe Schedule",
+            "summary": False,
+            "name_tokens": ["aco", "pipe"],
+            "field_tokens": [
+                "segment description",
+                "size",
+                "dn",
+                "outside diameter",
+                "length",
+                "article number",
+                "gtin",
+                "manufacturer",
+                "reference level",
+                "count",
+            ],
+            "filter_tokens": ["manufacturer", "reference level", "description", "article"],
+        },
+        "aco_pipe_fitting_schedule": {
+            "label": "ACO Pipe Fitting Schedule",
+            "base_name": "ACO Pipe Fitting Schedule",
+            "summary": False,
+            "name_tokens": ["aco", "pipe", "fitting"],
+            "field_tokens": [
+                "count",
+                "family",
+                "description",
+                "manufacturer",
+                "level",
+                "productrange",
+                "rsen_",
+            ],
+            "filter_tokens": ["manufacturer", "level", "description", "productrange"],
+        },
+        "aco_pipe_summary": {
+            "label": "ACO Pipe Summary",
+            "base_name": "ACO Pipe Summary",
+            "summary": True,
+            "name_tokens": ["aco", "pipe", "summary"],
+            "field_tokens": [
+                "segment description",
+                "size",
+                "dn",
+                "length",
+                "manufacturer",
+                "reference level",
+                "count",
+            ],
+            "filter_tokens": ["manufacturer", "reference level", "description"],
+        },
+        "aco_pipe_fitting_summary": {
+            "label": "ACO Pipe Fitting Summary",
+            "base_name": "ACO Pipe Fitting Summary",
+            "summary": True,
+            "name_tokens": ["aco", "pipe", "fitting", "summary"],
+            "field_tokens": [
+                "count",
+                "family",
+                "description",
+                "manufacturer",
+                "level",
+                "productrange",
+                "rsen_",
+            ],
+            "filter_tokens": ["manufacturer", "level", "description", "productrange"],
+        },
+    }
+
+
+def _parse_schedule_template_filters(prompt_text):
+    text = prompt_text or ""
+    filters = {
+        "prefer_reference_level": _prefer_reference_level(text),
+    }
+    level_match = re.search(r"\bfor\s+(.+?)\s+from template\b", text, re.IGNORECASE)
+    if level_match:
+        filters["level_value"] = level_match.group(1).strip()
+    else:
+        level_match = re.search(r"\b(?:reference level|level)\s*:\s*([^\n,]+)", text, re.IGNORECASE)
+        if level_match:
+            filters["level_value"] = level_match.group(1).strip()
+
+    manufacturer_match = re.search(r"\bmanufacturer\s*:\s*([^\n,]+)", text, re.IGNORECASE)
+    if manufacturer_match:
+        filters["manufacturer"] = manufacturer_match.group(1).strip()
+
+    description_match = re.search(r"\bdescription contains\s*:\s*([^\n,]+)", text, re.IGNORECASE)
+    if description_match:
+        filters["description_contains"] = description_match.group(1).strip()
+
+    productrange_match = re.search(r"\bproductrange\s*:\s*([^\n,]+)", text, re.IGNORECASE)
+    if productrange_match:
+        filters["productrange"] = productrange_match.group(1).strip()
+
+    article_match = re.search(r"\b(?:article|code)\s*:\s*([^\n,]+)", text, re.IGNORECASE)
+    if article_match:
+        filters["article_code"] = article_match.group(1).strip()
+
+    return filters
+
+
+def _score_template_schedule(schedule, doc, profile, prompt_text):
+    score = 0
+    schedule_name = (get_elem_name(schedule) or "").lower()
+    field_names = [name.lower() for name in _schedule_definition_field_names(schedule, doc)]
+    filter_names = [name.lower() for name in _schedule_filter_field_names(schedule, doc)]
+    all_text = " ".join([schedule_name] + field_names + filter_names)
+
+    for token in profile.get("name_tokens", []):
+        token = token.lower()
+        if token in schedule_name:
+            score += 5
+        elif token in all_text:
+            score += 2
+
+    for token in profile.get("field_tokens", []):
+        token = token.lower()
+        if any(token in field_name for field_name in field_names):
+            score += 3
+
+    for token in profile.get("filter_tokens", []):
+        token = token.lower()
+        if any(token in filter_name for filter_name in filter_names):
+            score += 2
+
+    if profile.get("summary"):
+        if "summary" in schedule_name:
+            score += 5
+    elif "summary" not in schedule_name:
+        score += 1
+
+    prompt_lower = (prompt_text or "").lower()
+    if "bunge" in prompt_lower and "bunge" in all_text:
+        score += 4
+    if "aco" in prompt_lower and "aco" in all_text:
+        score += 4
+    return score
+
+
+def _find_template_schedule_by_profile(doc, profile, prompt_text):
+    schedules = []
+    try:
+        schedules = list(DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule))
+    except:
+        schedules = []
+    scored = []
+    for schedule in schedules:
+        score = _score_template_schedule(schedule, doc, profile, prompt_text)
+        if score > 0:
+            scored.append((score, schedule))
+    if not scored:
+        return (None, "No matching template schedule was found for {0}.".format(profile.get("label")))
+    scored.sort(key=lambda item: (-item[0], len(get_elem_name(item[1]) or "")))
+    best_score, best_schedule = scored[0]
+    if best_score < 6:
+        return (None, "No confident template schedule match was found for {0}.".format(profile.get("label")))
+    return (best_schedule, "Template schedule duplicated: {0}".format(get_elem_name(best_schedule)))
+
+
+def _find_matching_filter_index(definition, doc, field_names=None):
+    wanted = [name.lower() for name in (field_names or [])]
+    try:
+        for index in range(definition.GetFilterCount()):
+            try:
+                sched_filter = definition.GetFilter(index)
+                field = definition.GetField(sched_filter.FieldId)
+                field_name = (_schedule_field_name(field, doc) or "").lower()
+                if field_name in wanted:
+                    return index
+            except:
+                continue
+    except:
+        pass
+    return None
+
+
+def _replace_or_add_schedule_filter(definition, doc, field, filter_type, value, field_names):
+    if field is None or value in (None, ""):
+        return False
+    new_filter = DB.ScheduleFilter(field.FieldId, filter_type, value)
+    existing_index = _find_matching_filter_index(definition, doc, field_names)
+    try:
+        if existing_index is not None:
+            try:
+                definition.SetFilter(existing_index, new_filter)
+            except:
+                definition.RemoveFilter(existing_index)
+                definition.AddFilter(new_filter)
+        else:
+            definition.AddFilter(new_filter)
+        return True
+    except:
+        return False
+
+
+def _apply_template_schedule_adjustments(schedule, doc, profile, prompt_text):
+    filters = _parse_schedule_template_filters(prompt_text)
+    notes = []
+    definition = schedule.Definition
+
+    level_field_names = ["Reference Level", "Level"] if filters.get("prefer_reference_level") else ["Level", "Reference Level"]
+    if filters.get("level_value"):
+        level_field = _ensure_schedule_field(
+            definition,
+            doc,
+            ["INSTANCE_REFERENCE_LEVEL_PARAM", "RBS_REFERENCE_LEVEL_PARAM", "RBS_START_LEVEL_PARAM", "FAMILY_LEVEL_PARAM", "SCHEDULE_LEVEL_PARAM"],
+            level_field_names,
+        )
+        if _replace_or_add_schedule_filter(definition, doc, level_field, DB.ScheduleFilterType.Equal, filters.get("level_value"), level_field_names):
+            notes.append("Applied level filter: {0}".format(filters.get("level_value")))
+        else:
+            notes.append("Level/reference-level filter could not be safely adjusted.")
+
+    if filters.get("manufacturer"):
+        manufacturer_field = _ensure_schedule_field(definition, doc, ["ALL_MODEL_MANUFACTURER"], ["Manufacturer"])
+        if _replace_or_add_schedule_filter(definition, doc, manufacturer_field, DB.ScheduleFilterType.Contains, filters.get("manufacturer"), ["Manufacturer"]):
+            notes.append("Applied manufacturer filter: {0}".format(filters.get("manufacturer")))
+        else:
+            notes.append("Manufacturer filter could not be safely adjusted.")
+
+    if filters.get("description_contains"):
+        description_field = _ensure_schedule_field(definition, doc, [], ["Description", "Segment Description"])
+        if _replace_or_add_schedule_filter(definition, doc, description_field, DB.ScheduleFilterType.Contains, filters.get("description_contains"), ["Description", "Segment Description"]):
+            notes.append("Applied description filter: {0}".format(filters.get("description_contains")))
+        else:
+            notes.append("Description filter could not be safely adjusted.")
+
+    if filters.get("productrange"):
+        productrange_field = _ensure_schedule_field(definition, doc, [], ["productrange", "ProductRange"])
+        if _replace_or_add_schedule_filter(definition, doc, productrange_field, DB.ScheduleFilterType.Contains, filters.get("productrange"), ["productrange", "ProductRange"]):
+            notes.append("Applied productrange filter: {0}".format(filters.get("productrange")))
+        else:
+            notes.append("productrange filter could not be safely adjusted.")
+
+    if filters.get("article_code"):
+        article_field = _ensure_schedule_field(definition, doc, [], ["Article number", "Article Number", "Code", "Article", "GTIN"])
+        if _replace_or_add_schedule_filter(definition, doc, article_field, DB.ScheduleFilterType.Contains, filters.get("article_code"), ["Article number", "Article Number", "Code", "Article", "GTIN"]):
+            notes.append("Applied article/code filter: {0}".format(filters.get("article_code")))
+        else:
+            notes.append("Article/code filter could not be safely adjusted.")
+
+    if not notes:
+        notes.append("No filter adjustments were requested; template formatting and grouping were preserved.")
+    return notes
+
+
+def _template_schedule_name(profile, prompt_text):
+    filters = _parse_schedule_template_filters(prompt_text)
+    base_name = profile.get("base_name")
+    suffix_parts = []
+    if filters.get("level_value"):
+        suffix_parts.append(filters.get("level_value"))
+    elif filters.get("prefer_reference_level"):
+        suffix_parts.append("Reference Level")
+    if filters.get("manufacturer"):
+        suffix_parts.append(filters.get("manufacturer"))
+    if suffix_parts:
+        return "{0} - {1}".format(base_name, " - ".join(suffix_parts))
+    return base_name
+
+
+def _create_template_only_schedule_action(doc, uidoc, profile_key, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    profile = _aco_template_profiles().get(profile_key)
+    if profile is None:
+        return "Failed: unsupported template schedule profile '{0}'.".format(profile_key)
+    source_schedule, template_note = _find_template_schedule_by_profile(doc, profile, prompt_text)
+    if source_schedule is None:
+        return "\n".join(
+            [
+                profile.get("label"),
+                "Active document: {0}".format(_document_title(doc)),
+                "Active view: {0}".format(_active_view_title(doc, uidoc)),
+                template_note,
+                "Generic native fallback was not used because this reviewed action is template-only.",
+            ]
+        )
+
+    existing_names = _all_schedule_names(doc)
+    schedule_name = _unique_name(_template_schedule_name(profile, prompt_text), existing_names)
+    transaction = DB.Transaction(doc, "AI {0}".format(profile.get("label")))
+    transaction.Start()
+    try:
+        new_id = source_schedule.Duplicate(DB.ViewDuplicateOption.Duplicate)
+        schedule = doc.GetElement(new_id)
+        if schedule is None:
+            transaction.RollBack()
+            return "Failed to duplicate template schedule for {0}.".format(profile.get("label"))
+        schedule.Name = schedule_name
+        notes = _apply_template_schedule_adjustments(schedule, doc, profile, prompt_text)
+        transaction.Commit()
+    except Exception as exc:
+        try:
+            transaction.RollBack()
+        except:
+            pass
+        return "Failed to create {0}: {1}".format(profile.get("label").lower(), str(exc))
+
+    lines = [
+        profile.get("label"),
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "{0}".format(template_note),
+        "Created schedule: {0}".format(schedule_name),
+        "Template-only action: generic native fallback was not used.",
+    ]
+    for note in notes[:6]:
+        lines.append(note)
+    return "\n".join(lines)
+
+
+def create_aco_pipe_schedule_from_template(doc, uidoc, context=None):
+    return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_schedule", context)
+
+
+def create_aco_pipe_fitting_schedule_from_template(doc, uidoc, context=None):
+    return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_fitting_schedule", context)
+
+
+def create_aco_pipe_summary_from_template(doc, uidoc, context=None):
+    return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_summary", context)
+
+
+def create_aco_pipe_fitting_summary_from_template(doc, uidoc, context=None):
+    return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_fitting_summary", context)
+
+
+def create_aco_prefab_schedule_bundle_from_template(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    results = []
+    for profile_key in [
+        "aco_pipe_schedule",
+        "aco_pipe_fitting_schedule",
+        "aco_pipe_summary",
+        "aco_pipe_fitting_summary",
+    ]:
+        profile = _aco_template_profiles().get(profile_key)
+        source_schedule, template_note = _find_template_schedule_by_profile(doc, profile, prompt_text)
+        if source_schedule is None:
+            results.append({"ok": False, "label": profile.get("label"), "message": template_note})
+            continue
+        existing_names = _all_schedule_names(doc)
+        schedule_name = _unique_name(_template_schedule_name(profile, prompt_text), existing_names)
+        transaction = DB.Transaction(doc, "AI {0}".format(profile.get("label")))
+        transaction.Start()
+        try:
+            new_id = source_schedule.Duplicate(DB.ViewDuplicateOption.Duplicate)
+            schedule = doc.GetElement(new_id)
+            if schedule is None:
+                transaction.RollBack()
+                results.append({"ok": False, "label": profile.get("label"), "message": "Template duplication returned no schedule."})
+                continue
+            schedule.Name = schedule_name
+            notes = _apply_template_schedule_adjustments(schedule, doc, profile, prompt_text)
+            transaction.Commit()
+            results.append(
+                {
+                    "ok": True,
+                    "label": profile.get("label"),
+                    "schedule_name": schedule_name,
+                    "mode": "template",
+                    "template_note": template_note,
+                    "notes": notes,
+                }
+            )
+        except Exception as exc:
+            try:
+                transaction.RollBack()
+            except:
+                pass
+            results.append({"ok": False, "label": profile.get("label"), "message": str(exc)})
+
+    return _format_schedule_creation_result(
+        "Create ACO prefab schedule bundle from template",
+        doc,
+        uidoc,
+        results,
+        scope_note="Template-only reviewed action. Generic native fallback is intentionally disabled for this bundle.",
+    )
+
+
 def create_3d_view_from_selection(doc, uidoc):
     from Autodesk.Revit.DB import FilteredElementCollector, Transaction, View3D, ViewFamily, ViewFamilyType
 
@@ -5027,6 +6027,18 @@ REVIEWED_ACTION_HANDLERS = {
     "align_selected_tags": align_selected_tags,
     "report_total_length_selected_linear_mep": report_total_length_selected_linear_mep,
     "report_total_length_active_view_linear_mep": report_total_length_active_view_linear_mep,
+    "create_pipe_schedule_by_level": create_pipe_schedule_by_level,
+    "create_pipe_fitting_schedule_by_level": create_pipe_fitting_schedule_by_level,
+    "create_duct_schedule_by_level": create_duct_schedule_by_level,
+    "create_duct_fitting_schedule_by_level": create_duct_fitting_schedule_by_level,
+    "create_conduit_schedule_by_level": create_conduit_schedule_by_level,
+    "create_electrical_fixture_equipment_schedule_by_level": create_electrical_fixture_equipment_schedule_by_level,
+    "create_schedule_bundle_by_level": create_schedule_bundle_by_level,
+    "create_aco_pipe_schedule_from_template": create_aco_pipe_schedule_from_template,
+    "create_aco_pipe_fitting_schedule_from_template": create_aco_pipe_fitting_schedule_from_template,
+    "create_aco_pipe_summary_from_template": create_aco_pipe_summary_from_template,
+    "create_aco_pipe_fitting_summary_from_template": create_aco_pipe_fitting_summary_from_template,
+    "create_aco_prefab_schedule_bundle_from_template": create_aco_prefab_schedule_bundle_from_template,
 }
 
 
@@ -5076,6 +6088,20 @@ def handle_public_command(prompt, doc, uidoc):
         if "active view" in p:
             return report_total_length_active_view_linear_mep(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
         return report_total_length_selected_linear_mep(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "schedule bundle" in p and ("level" in p or "reference level" in p):
+        return create_schedule_bundle_by_level(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "pipe fitting" in p and "schedule" in p and ("level" in p or "reference level" in p):
+        return create_pipe_fitting_schedule_by_level(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "duct fitting" in p and "schedule" in p and ("level" in p or "reference level" in p):
+        return create_duct_fitting_schedule_by_level(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "pipe" in p and "schedule" in p and ("level" in p or "reference level" in p):
+        return create_pipe_schedule_by_level(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "duct" in p and "schedule" in p and ("level" in p or "reference level" in p):
+        return create_duct_schedule_by_level(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "conduit" in p and "schedule" in p and ("level" in p or "reference level" in p):
+        return create_conduit_schedule_by_level(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "electrical" in p and "schedule" in p and ("fixture" in p or "equipment" in p) and ("level" in p or "reference level" in p):
+        return create_electrical_fixture_equipment_schedule_by_level(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
     if "report total selected duct length" in p or "total selected duct length" in p or "length of selected ducts" in p:
         return report_total_selected_duct_length(doc, uidoc)
     if (
@@ -5552,6 +6578,10 @@ class OllamaAIChat(forms.WPFWindow):
         self.ModelMindUndoButton.Click += self.on_modelmind_undo
         self.ToggleReviewedCodeButton.Click += self.on_toggle_reviewed_code
         self.ModelMindInput.KeyDown += self.on_modelmindinput_keydown
+        self.PromptCatalogSearchBox.TextChanged += self.on_prompt_catalog_search_changed
+        self.PromptCatalogClearButton.Click += self.on_prompt_catalog_clear
+        self.PromptTreeExpandButton.Click += self.on_prompt_tree_expand_all
+        self.PromptTreeCollapseButton.Click += self.on_prompt_tree_collapse_all
         self.PromptTree.MouseDoubleClick += self.on_prompt_tree_doubleclick
         self.PromptTree.KeyDown += self.on_prompt_tree_keydown
         self.PromptTree.SelectedItemChanged += self.on_prompt_tree_selected
@@ -6124,6 +7154,11 @@ class OllamaAIChat(forms.WPFWindow):
         self._apply_control_style("PromptDetailTitle", None, palette["text"])
         self._apply_control_style("PromptDetailMeta", None, palette["muted"])
         self._apply_control_style("PromptDetailBody", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("PromptCatalogSearchBox", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("PromptCatalogClearButton", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("PromptTreeExpandButton", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("PromptTreeCollapseButton", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("PromptCatalogStatusText", None, palette["muted"])
         self._apply_control_style("PromptTreeHint", None, palette["muted"])
         self._apply_control_style("PromptTreeGroup", palette["panel_bg"], palette["text"], palette["border"])
         self._apply_control_style("PromptTree", palette["panel_alt"], palette["text"], palette["border"])
@@ -6277,6 +7312,55 @@ class OllamaAIChat(forms.WPFWindow):
             self.PromptTree.Items.Add(
                 self._build_prompt_tree_node(section, filter_text=filter_text, depth=0)
             )
+        self.update_prompt_tree_status(filter_text, sections)
+
+    def get_catalog_filter_text(self):
+        try:
+            return (self.PromptCatalogSearchBox.Text or "").strip()
+        except:
+            return ""
+
+    def _count_prompt_tree_matches(self, node):
+        total = len(node.get("items", []) or [])
+        for child in node.get("groups", []) or []:
+            total += self._count_prompt_tree_matches(child)
+        return total
+
+    def update_prompt_tree_status(self, filter_text, sections):
+        filter_text = (filter_text or "").strip()
+        match_count = 0
+        for section in sections or []:
+            match_count += self._count_prompt_tree_matches(section)
+        if filter_text:
+            status = (
+                "Showing {0} matching actions/presets for '{1}'. "
+                "Catalog search filters titles, aliases, examples, and grouping only."
+            ).format(match_count, filter_text)
+        else:
+            status = (
+                "Showing the full reviewed catalog. "
+                "Use the catalog filter to narrow actions, aliases, and examples without running anything."
+            )
+        try:
+            self.PromptCatalogStatusText.Text = status
+            self.PromptCatalogClearButton.IsEnabled = bool(filter_text)
+        except:
+            pass
+
+    def _set_prompt_tree_expansion(self, expanded):
+        def _walk(items):
+            for item in items:
+                try:
+                    item.IsExpanded = expanded
+                    if hasattr(item, "Items") and item.Items.Count:
+                        _walk(item.Items)
+                except:
+                    pass
+
+        try:
+            _walk(self.PromptTree.Items)
+        except:
+            pass
 
     def _build_prompt_tree_node(self, node, filter_text=None, depth=0):
         from System.Windows.Controls import TreeViewItem
@@ -6339,7 +7423,7 @@ class OllamaAIChat(forms.WPFWindow):
 
     def update_prompt_details(self, entry):
         title = "Select a reviewed action"
-        meta = "Role, risk, and validation status will appear here."
+        meta = "Role, risk, validation state, and agent availability will appear here."
         body = (
             "Canonical prompt, aliases, and examples stay attached to the selected reviewed action. "
             "They do not create duplicate catalog nodes."
@@ -6355,13 +7439,24 @@ class OllamaAIChat(forms.WPFWindow):
             )
             aliases = entry.get("aliases") or entry.get("planner_aliases") or []
             examples = entry.get("example_prompts") or []
+            purpose = (
+                entry.get("description")
+                or entry.get("purpose")
+                or entry.get("summary")
+                or self._derive_prompt_purpose(entry)
+            )
             lines = [
+                "Purpose: {0}".format(purpose),
+                "Domain: {0}".format(entry.get("category", "General")),
+                "Group: {0}".format(entry.get("group", "Report")),
                 "Canonical prompt: {0}".format(
                     entry.get("canonical_prompt", entry.get("prompt_text", ""))
                 ),
                 "Discipline: {0}".format(entry.get("discipline", "General")),
                 "Scope: {0}".format(entry.get("scope_type", "project")),
-                "Group: {0}".format(entry.get("group", "Report")),
+                "Available to agent: {0}".format(
+                    "Yes" if entry.get("available_to_agent", False) else "No"
+                ),
             ]
             if aliases:
                 lines.append("Aliases: {0}".format(", ".join(aliases[:6])))
@@ -6380,6 +7475,26 @@ class OllamaAIChat(forms.WPFWindow):
             self.PromptDetailBody.Text = body
         except:
             pass
+
+    def _derive_prompt_purpose(self, entry):
+        if entry.get("source") == "approved_recipe":
+            return "Reviewed reusable recipe kept separate from the canonical action catalog."
+        if entry.get("source") == "recent_prompt":
+            return "Recent prompt shortcut that resolves back to the canonical reviewed action when available."
+        steps = entry.get("reviewed_steps") or []
+        group = entry.get("group", "workflow").lower()
+        category = entry.get("category", "General")
+        if steps:
+            return "Reviewed preset for {0} with {1} governed step(s).".format(
+                category, len(steps)
+            )
+        if entry.get("role") == "modify":
+            return "Deterministic modifying reviewed action for {0} {1} work.".format(
+                category, group
+            )
+        return "Deterministic read-only reviewed action for {0} {1} work.".format(
+            category, group
+        )
 
     def _select_prompt_entry(self, entry, run_if_recipe=False):
         if not entry:
@@ -6439,9 +7554,24 @@ class OllamaAIChat(forms.WPFWindow):
         # simple rebuild with filter
         self.populate_prompt_tree(filter_text=text)
 
+    def on_prompt_catalog_search_changed(self, sender, args):
+        self.filter_prompt_tree(self.get_catalog_filter_text())
+
+    def on_prompt_catalog_clear(self, sender, args):
+        try:
+            self.PromptCatalogSearchBox.Text = ""
+            self.PromptCatalogSearchBox.Focus()
+        except:
+            pass
+
+    def on_prompt_tree_expand_all(self, sender, args):
+        self._set_prompt_tree_expansion(True)
+
+    def on_prompt_tree_collapse_all(self, sender, args):
+        self._set_prompt_tree_expansion(False)
+
     def on_modelmind_input_changed(self, sender, args):
         typed = self.ModelMindInput.Text or ""
-        self.filter_prompt_tree(typed)
         selected_prompt = ""
         if self.selected_prompt_entry:
             selected_prompt = self.selected_prompt_entry.get(
@@ -6553,7 +7683,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.pending_ai_prompt = prompt
         self.pending_source_entry = source_entry
         self.remember_recent_prompt(prompt)
-        self.populate_prompt_tree(self.ModelMindInput.Text or "")
+        self.populate_prompt_tree(self.get_catalog_filter_text())
         self.last_successful_reviewed_code = None
         self.last_reviewed_recipe_metadata = None
         self.reset_reviewed_code_state("draft", "Preparing request.")
@@ -6781,7 +7911,7 @@ class OllamaAIChat(forms.WPFWindow):
                     recipe.get("title"), recipe.get("id")
                 )
             )
-            self.populate_prompt_tree(self.ModelMindInput.Text or "")
+            self.populate_prompt_tree(self.get_catalog_filter_text())
             self.SaveRecipeButton.IsEnabled = False
             self.last_successful_reviewed_code = None
             self.last_reviewed_recipe_metadata = None
