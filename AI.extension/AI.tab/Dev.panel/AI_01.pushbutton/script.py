@@ -4348,69 +4348,113 @@ def _aco_template_profiles():
         "aco_pipe_schedule": {
             "label": "ACO Pipe Schedule",
             "base_name": "ACO Pipe Schedule",
+            "source_kind": "blocked_missing_neutral_master",
             "summary": False,
-            "name_tokens": ["aco", "pipe"],
-            "field_tokens": [
+            "canonical_master_source_names": [],
+            "known_project_master_names": [
+                "ACO pipe EPDM 1.4301 single socket",
+                "ACO pipe EPDM 1.4404 single socket",
+                "ACO pipe EPDM 1.4404 double socket",
+            ],
+            "required_field_tokens": [
                 "segment description",
                 "size",
-                "dn",
                 "outside diameter",
                 "length",
+                "inside diameter",
+                "roughness",
                 "article number",
+                "definition",
                 "gtin",
+                "weight",
                 "manufacturer",
-                "reference level",
                 "count",
+                "reference level",
             ],
-            "filter_tokens": ["manufacturer", "reference level", "description", "article"],
+            "minimum_field_hits": 7,
+            "level_field_names": ["Reference Level"],
+            "block_reason": "No neutral all-ACO pipe master template is registered for this project family. Reviewed template creation is blocked until a true master source exists or separate reviewed product-family actions are added for 1.4301 single socket, 1.4404 single socket, and 1.4404 double socket pipe schedules.",
         },
         "aco_pipe_fitting_schedule": {
             "label": "ACO Pipe Fitting Schedule",
             "base_name": "ACO Pipe Fitting Schedule",
+            "source_kind": "exact_master_only",
             "summary": False,
-            "name_tokens": ["aco", "pipe", "fitting"],
-            "field_tokens": [
+            "canonical_master_source_names": ["ACO pipe fittings"],
+            "required_field_tokens": [
                 "count",
                 "family",
-                "description",
+                "rsen_p_c01_diameter",
+                "rsen_p_c02_diameter",
+                "rsen_p_c03_diameter",
+                "rsen_p_c01_angle",
+                "rsen_c_description",
+                "rsen_c_type_comments",
+                "rsen_c_code_article",
+                "rsen_c_code_gtin",
+                "rsen_s_net_mass",
+                "option",
                 "manufacturer",
-                "level",
+                "description",
+                "category",
                 "productrange",
-                "rsen_",
+                "level",
             ],
-            "filter_tokens": ["manufacturer", "level", "description", "productrange"],
+            "minimum_field_hits": 8,
+            "level_field_names": ["Level"],
         },
         "aco_pipe_summary": {
             "label": "ACO Pipe Summary",
             "base_name": "ACO Pipe Summary",
+            "source_kind": "blocked_missing_neutral_master",
             "summary": True,
-            "name_tokens": ["aco", "pipe", "summary"],
-            "field_tokens": [
+            "canonical_summary_source_names": [],
+            "canonical_master_source_names": [],
+            "known_project_master_names": [
+                "ACO pipe EPDM 1.4301 single socket",
+                "ACO pipe EPDM 1.4404 single socket",
+                "ACO pipe EPDM 1.4404 double socket",
+            ],
+            "required_field_tokens": [
                 "segment description",
                 "size",
-                "dn",
                 "length",
+                "article number",
                 "manufacturer",
-                "reference level",
                 "count",
+                "reference level",
             ],
-            "filter_tokens": ["manufacturer", "reference level", "description"],
+            "minimum_field_hits": 5,
+            "summary_group_fields": ["Segment Description", "Size", "Article number", "Reference Level"],
+            "level_field_names": ["Reference Level"],
+            "block_reason": "No neutral all-ACO pipe master or summary template is registered for this project family. Reviewed template summary creation is blocked until a true summary-compatible canonical source exists or separate reviewed product-family summary actions are added.",
         },
         "aco_pipe_fitting_summary": {
             "label": "ACO Pipe Fitting Summary",
             "base_name": "ACO Pipe Fitting Summary",
+            "source_kind": "exact_summary_or_master",
             "summary": True,
-            "name_tokens": ["aco", "pipe", "fitting", "summary"],
-            "field_tokens": [
+            "canonical_summary_source_names": [],
+            "canonical_master_source_names": ["ACO pipe fittings"],
+            "required_field_tokens": [
                 "count",
                 "family",
-                "description",
+                "rsen_p_c01_diameter",
+                "rsen_p_c03_diameter",
+                "rsen_c_code_article",
                 "manufacturer",
-                "level",
+                "description",
                 "productrange",
-                "rsen_",
+                "level",
             ],
-            "filter_tokens": ["manufacturer", "level", "description", "productrange"],
+            "minimum_field_hits": 6,
+            "summary_group_fields": [
+                "Description",
+                "RSen_P_c01_diameter",
+                "RSen_P_c03_diameter",
+                "RSen_C_code_article",
+            ],
+            "level_field_names": ["Level"],
         },
     }
 
@@ -4447,62 +4491,165 @@ def _parse_schedule_template_filters(prompt_text):
     return filters
 
 
-def _score_template_schedule(schedule, doc, profile, prompt_text):
-    score = 0
-    schedule_name = (get_elem_name(schedule) or "").lower()
-    field_names = [name.lower() for name in _schedule_definition_field_names(schedule, doc)]
-    filter_names = [name.lower() for name in _schedule_filter_field_names(schedule, doc)]
-    all_text = " ".join([schedule_name] + field_names + filter_names)
+def _is_generated_schedule_name(schedule_name):
+    name = (schedule_name or "").strip().lower()
+    if not name:
+        return True
+    generated_prefixes = [
+        "ai ",
+        "ai-",
+        "ai_",
+        "aco pipe schedule",
+        "aco pipe summary",
+        "aco pipe fitting schedule",
+        "aco pipe fitting summary",
+    ]
+    return any(name.startswith(prefix) for prefix in generated_prefixes)
 
-    for token in profile.get("name_tokens", []):
-        token = token.lower()
-        if token in schedule_name:
-            score += 5
-        elif token in all_text:
-            score += 2
 
-    for token in profile.get("field_tokens", []):
-        token = token.lower()
+def _schedule_name_has_level_token(schedule_name):
+    name = (schedule_name or "").lower()
+    patterns = [
+        r"\bground floor\b",
+        r"\bfirst floor\b",
+        r"\bsecond floor\b",
+        r"\bthird floor\b",
+        r"\bfourth floor\b",
+        r"\bfifth floor\b",
+        r"\bl\d+\b",
+        r"\blevel\s+\d+\b",
+    ]
+    for pattern in patterns:
+        if re.search(pattern, name):
+            return True
+    return False
+
+
+def _schedule_field_hits(info, recipe):
+    hits = 0
+    field_names = info.get("field_names", [])
+    for token in recipe.get("required_field_tokens", []):
         if any(token in field_name for field_name in field_names):
-            score += 3
-
-    for token in profile.get("filter_tokens", []):
-        token = token.lower()
-        if any(token in filter_name for filter_name in filter_names):
-            score += 2
-
-    if profile.get("summary"):
-        if "summary" in schedule_name:
-            score += 5
-    elif "summary" not in schedule_name:
-        score += 1
-
-    prompt_lower = (prompt_text or "").lower()
-    if "bunge" in prompt_lower and "bunge" in all_text:
-        score += 4
-    if "aco" in prompt_lower and "aco" in all_text:
-        score += 4
-    return score
+            hits += 1
+    return hits
 
 
-def _find_template_schedule_by_profile(doc, profile, prompt_text):
-    schedules = []
+def _build_schedule_candidate_info(schedule, doc):
+    name = (get_elem_name(schedule) or "").strip()
+    field_names = [item.lower() for item in _schedule_definition_field_names(schedule, doc)]
+    filter_names = [item.lower() for item in _schedule_filter_field_names(schedule, doc)]
+    return {
+        "schedule": schedule,
+        "name": name,
+        "name_lower": name.lower(),
+        "field_names": field_names,
+        "filter_names": filter_names,
+        "all_text": " ".join([name.lower()] + field_names + filter_names),
+    }
+
+
+def _is_disallowed_template_source_name(schedule_name, summary_expected=False):
+    name = (schedule_name or "").strip()
+    name_lower = name.lower()
+    if _is_generated_schedule_name(name_lower):
+        return True
+    if "sheet" in name_lower:
+        return True
+    if not summary_expected and "summary" in name_lower:
+        return True
+    if _schedule_name_has_level_token(name_lower):
+        return True
+    return False
+
+
+def _schedule_meets_recipe_requirements(info, recipe):
+    minimum_field_hits = recipe.get("minimum_field_hits", 0)
+    if minimum_field_hits and _schedule_field_hits(info, recipe) < minimum_field_hits:
+        return False
+    return True
+
+
+def _all_schedule_infos(doc):
+    infos = []
     try:
-        schedules = list(DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule))
+        for schedule in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule):
+            infos.append(_build_schedule_candidate_info(schedule, doc))
     except:
-        schedules = []
-    scored = []
-    for schedule in schedules:
-        score = _score_template_schedule(schedule, doc, profile, prompt_text)
-        if score > 0:
-            scored.append((score, schedule))
-    if not scored:
-        return (None, "No matching template schedule was found for {0}.".format(profile.get("label")))
-    scored.sort(key=lambda item: (-item[0], len(get_elem_name(item[1]) or "")))
-    best_score, best_schedule = scored[0]
-    if best_score < 6:
-        return (None, "No confident template schedule match was found for {0}.".format(profile.get("label")))
-    return (best_schedule, "Template schedule duplicated: {0}".format(get_elem_name(best_schedule)))
+        pass
+    return infos
+
+
+def _find_explicit_template_source(doc, recipe, candidate_names, summary_expected=False):
+    if not candidate_names:
+        return None
+    wanted = {}
+    for candidate_name in candidate_names:
+        wanted[(candidate_name or "").strip().lower()] = candidate_name
+    for info in _all_schedule_infos(doc):
+        schedule_name = info.get("name") or ""
+        lookup_name = schedule_name.strip().lower()
+        if lookup_name not in wanted:
+            continue
+        if _is_disallowed_template_source_name(schedule_name, summary_expected=summary_expected):
+            continue
+        if not _schedule_meets_recipe_requirements(info, recipe):
+            continue
+        return info
+    return None
+
+
+def _select_recipe_source_schedule(doc, recipe, prompt_text):
+    source_kind = recipe.get("source_kind")
+    label = recipe.get("label") or "template action"
+    if source_kind == "blocked_missing_neutral_master":
+        known_sources = recipe.get("known_project_master_names") or []
+        lines = [recipe.get("block_reason") or "Canonical reviewed source template is missing for {0}.".format(label)]
+        if known_sources:
+            lines.append("Known narrower project templates: {0}".format(", ".join(known_sources)))
+        return (None, None, "\n".join(lines))
+
+    if source_kind == "exact_master_only":
+        info = _find_explicit_template_source(doc, recipe, recipe.get("canonical_master_source_names"), summary_expected=False)
+        if info is None:
+            return (
+                None,
+                None,
+                "Missing canonical reviewed master template for {0}. Expected one of: {1}".format(
+                    label,
+                    ", ".join(recipe.get("canonical_master_source_names") or []),
+                ),
+            )
+        return (
+            info.get("schedule"),
+            "master",
+            "Canonical reviewed master template selected: {0}".format(info.get("name")),
+        )
+
+    if source_kind == "exact_summary_or_master":
+        summary_info = _find_explicit_template_source(doc, recipe, recipe.get("canonical_summary_source_names"), summary_expected=True)
+        if summary_info is not None:
+            return (
+                summary_info.get("schedule"),
+                "summary",
+                "Canonical reviewed summary template selected: {0}".format(summary_info.get("name")),
+            )
+        master_info = _find_explicit_template_source(doc, recipe, recipe.get("canonical_master_source_names"), summary_expected=False)
+        if master_info is not None:
+            return (
+                master_info.get("schedule"),
+                "master",
+                "Canonical reviewed master template selected for summary transform: {0}".format(master_info.get("name")),
+            )
+        return (
+            None,
+            None,
+            "Missing canonical reviewed source template for {0}. Expected summary or master source from: {1}".format(
+                label,
+                ", ".join((recipe.get("canonical_summary_source_names") or []) + (recipe.get("canonical_master_source_names") or [])),
+            ),
+        )
+
+    return (None, None, "Unsupported reviewed source-template policy for {0}.".format(label))
 
 
 def _find_matching_filter_index(definition, doc, field_names=None):
@@ -4541,67 +4688,207 @@ def _replace_or_add_schedule_filter(definition, doc, field, filter_type, value, 
         return False
 
 
-def _apply_template_schedule_adjustments(schedule, doc, profile, prompt_text):
+def _all_doc_level_names(doc):
+    names = []
+    try:
+        for level in DB.FilteredElementCollector(doc).OfClass(DB.Level):
+            level_name = get_elem_name(level)
+            if level_name:
+                names.append(level_name)
+    except:
+        pass
+    return names
+
+
+def _normalize_level_alias(text):
+    return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
+
+
+def _resolve_doc_level_name(doc, raw_level_name):
+    if not raw_level_name:
+        return (None, None)
+    level_names = _all_doc_level_names(doc)
+    if not level_names:
+        return (None, "No levels were found in the active document.")
+
+    raw = raw_level_name.strip()
+    raw_norm = _normalize_level_alias(raw)
+    if not raw_norm:
+        return (None, "Requested level name is empty.")
+
+    exact_matches = []
+    for level_name in level_names:
+        if _normalize_level_alias(level_name) == raw_norm:
+            exact_matches.append(level_name)
+    unique_exact = sorted(set(exact_matches))
+    if len(unique_exact) == 1:
+        return (unique_exact[0], None)
+    if len(unique_exact) > 1:
+        return (None, "Requested level '{0}' matches multiple exact document levels: {1}".format(raw, ", ".join(unique_exact[:5])))
+
+    alias_map = {
+        "groundfloor": ["groundfloor", "gf", "level0", "l0"],
+        "firstfloor": ["firstfloor", "1stfloor", "level1", "l1"],
+        "secondfloor": ["secondfloor", "2ndfloor", "level2", "l2"],
+        "thirdfloor": ["thirdfloor", "3rdfloor", "level3", "l3"],
+        "fourthfloor": ["fourthfloor", "4thfloor", "level4", "l4"],
+        "fifthfloor": ["fifthfloor", "5thfloor", "level5", "l5"],
+    }
+
+    target_canonical = None
+    for canonical, variants in alias_map.items():
+        if raw_norm == canonical or raw_norm in variants:
+            target_canonical = canonical
+            break
+    if target_canonical is None:
+        return (None, "Requested level '{0}' could not be mapped safely to an active-document level.".format(raw))
+
+    matches = []
+    for level_name in level_names:
+        norm = _normalize_level_alias(level_name)
+        if norm == target_canonical or norm.endswith(target_canonical):
+            matches.append(level_name)
+    unique = sorted(set(matches))
+    if len(unique) == 1:
+        return (unique[0], None)
+    if len(unique) > 1:
+        return (None, "Requested level '{0}' is ambiguous across document levels: {1}".format(raw, ", ".join(unique[:5])))
+    return (None, "Requested level '{0}' could not be mapped safely to an active-document level.".format(raw))
+
+
+def _validate_template_recipe_request(doc, recipe, prompt_text):
     filters = _parse_schedule_template_filters(prompt_text)
+    resolved_level_name = None
+    if filters.get("level_value"):
+        resolved_level_name, level_issue = _resolve_doc_level_name(doc, filters.get("level_value"))
+        if level_issue:
+            return (None, level_issue)
+    filters["resolved_level_name"] = resolved_level_name
+    return (filters, None)
+
+
+def _apply_summary_transform(schedule, doc, recipe):
+    definition = schedule.Definition
+    notes = []
+    group_fields = []
+    for field_name in recipe.get("summary_group_fields", []):
+        field = _ensure_schedule_field(definition, doc, [], [field_name])
+        if field is None:
+            return (False, ["Summary transform blocked: required field '{0}' is unavailable.".format(field_name)])
+        group_fields.append(field)
+    try:
+        definition.IsItemized = False
+    except:
+        return (False, ["Summary transform blocked: schedule could not be made non-itemized."])
+    _clear_schedule_grouping(definition)
+    for field in group_fields:
+        _add_schedule_sort_group(definition, field, show_header=True, show_footer=True)
+    _enable_schedule_grand_totals(definition)
+    notes.append("Applied reviewed summary transform using the canonical master template.")
+    return (True, notes)
+
+
+def _schedule_can_resolve_field(definition, doc, bip_names=None, field_names=None):
+    if _existing_schedule_field(definition, doc, bip_names, field_names) is not None:
+        return True
+    try:
+        for schedulable in definition.GetSchedulableFields():
+            if _schedule_field_matches(schedulable, doc, bip_names, field_names):
+                return True
+    except:
+        pass
+    return False
+
+
+def _preflight_template_schedule_request(source_schedule, doc, recipe, request_filters, source_kind):
+    definition = source_schedule.Definition
+    if request_filters.get("resolved_level_name"):
+        if not _schedule_can_resolve_field(
+            definition,
+            doc,
+            ["INSTANCE_REFERENCE_LEVEL_PARAM", "RBS_REFERENCE_LEVEL_PARAM", "RBS_START_LEVEL_PARAM", "FAMILY_LEVEL_PARAM", "SCHEDULE_LEVEL_PARAM"],
+            recipe.get("level_field_names", ["Reference Level", "Level"]),
+        ):
+            return (False, "Level retargeting could not be applied safely to the canonical source template.")
+    if recipe.get("summary") and source_kind == "master":
+        for field_name in recipe.get("summary_group_fields", []):
+            if not _schedule_can_resolve_field(definition, doc, [], [field_name]):
+                return (False, "Summary transform blocked: required field '{0}' is unavailable on the canonical source template.".format(field_name))
+    return (True, None)
+
+
+def _apply_template_schedule_adjustments(schedule, doc, recipe, prompt_text, request_filters, source_kind):
     notes = []
     definition = schedule.Definition
 
-    level_field_names = ["Reference Level", "Level"] if filters.get("prefer_reference_level") else ["Level", "Reference Level"]
-    if filters.get("level_value"):
+    if request_filters.get("resolved_level_name"):
         level_field = _ensure_schedule_field(
             definition,
             doc,
             ["INSTANCE_REFERENCE_LEVEL_PARAM", "RBS_REFERENCE_LEVEL_PARAM", "RBS_START_LEVEL_PARAM", "FAMILY_LEVEL_PARAM", "SCHEDULE_LEVEL_PARAM"],
-            level_field_names,
+            recipe.get("level_field_names", ["Reference Level", "Level"]),
         )
-        if _replace_or_add_schedule_filter(definition, doc, level_field, DB.ScheduleFilterType.Equal, filters.get("level_value"), level_field_names):
-            notes.append("Applied level filter: {0}".format(filters.get("level_value")))
-        else:
-            notes.append("Level/reference-level filter could not be safely adjusted.")
+        if not _replace_or_add_schedule_filter(
+            definition,
+            doc,
+            level_field,
+            DB.ScheduleFilterType.Equal,
+            request_filters.get("resolved_level_name"),
+            recipe.get("level_field_names", ["Reference Level", "Level"]),
+        ):
+            return (False, ["Level retargeting could not be applied safely to this source template."])
+        notes.append("Applied level retargeting: {0}".format(request_filters.get("resolved_level_name")))
+    else:
+        notes.append("No level retargeting requested.")
 
-    if filters.get("manufacturer"):
+    if request_filters.get("manufacturer"):
         manufacturer_field = _ensure_schedule_field(definition, doc, ["ALL_MODEL_MANUFACTURER"], ["Manufacturer"])
-        if _replace_or_add_schedule_filter(definition, doc, manufacturer_field, DB.ScheduleFilterType.Contains, filters.get("manufacturer"), ["Manufacturer"]):
-            notes.append("Applied manufacturer filter: {0}".format(filters.get("manufacturer")))
+        if _replace_or_add_schedule_filter(definition, doc, manufacturer_field, DB.ScheduleFilterType.Contains, request_filters.get("manufacturer"), ["Manufacturer"]):
+            notes.append("Applied manufacturer filter: {0}".format(request_filters.get("manufacturer")))
         else:
             notes.append("Manufacturer filter could not be safely adjusted.")
 
-    if filters.get("description_contains"):
+    if request_filters.get("description_contains"):
         description_field = _ensure_schedule_field(definition, doc, [], ["Description", "Segment Description"])
-        if _replace_or_add_schedule_filter(definition, doc, description_field, DB.ScheduleFilterType.Contains, filters.get("description_contains"), ["Description", "Segment Description"]):
-            notes.append("Applied description filter: {0}".format(filters.get("description_contains")))
+        if _replace_or_add_schedule_filter(definition, doc, description_field, DB.ScheduleFilterType.Contains, request_filters.get("description_contains"), ["Description", "Segment Description"]):
+            notes.append("Applied description filter: {0}".format(request_filters.get("description_contains")))
         else:
             notes.append("Description filter could not be safely adjusted.")
 
-    if filters.get("productrange"):
+    if request_filters.get("productrange"):
         productrange_field = _ensure_schedule_field(definition, doc, [], ["productrange", "ProductRange"])
-        if _replace_or_add_schedule_filter(definition, doc, productrange_field, DB.ScheduleFilterType.Contains, filters.get("productrange"), ["productrange", "ProductRange"]):
-            notes.append("Applied productrange filter: {0}".format(filters.get("productrange")))
+        if _replace_or_add_schedule_filter(definition, doc, productrange_field, DB.ScheduleFilterType.Contains, request_filters.get("productrange"), ["productrange", "ProductRange"]):
+            notes.append("Applied productrange filter: {0}".format(request_filters.get("productrange")))
         else:
             notes.append("productrange filter could not be safely adjusted.")
 
-    if filters.get("article_code"):
+    if request_filters.get("article_code"):
         article_field = _ensure_schedule_field(definition, doc, [], ["Article number", "Article Number", "Code", "Article", "GTIN"])
-        if _replace_or_add_schedule_filter(definition, doc, article_field, DB.ScheduleFilterType.Contains, filters.get("article_code"), ["Article number", "Article Number", "Code", "Article", "GTIN"]):
-            notes.append("Applied article/code filter: {0}".format(filters.get("article_code")))
+        if _replace_or_add_schedule_filter(definition, doc, article_field, DB.ScheduleFilterType.Contains, request_filters.get("article_code"), ["Article number", "Article Number", "Code", "Article", "GTIN"]):
+            notes.append("Applied article/code filter: {0}".format(request_filters.get("article_code")))
         else:
             notes.append("Article/code filter could not be safely adjusted.")
 
-    if not notes:
-        notes.append("No filter adjustments were requested; template formatting and grouping were preserved.")
-    return notes
+    if recipe.get("summary") and source_kind == "master":
+        ok, summary_notes = _apply_summary_transform(schedule, doc, recipe)
+        if not ok:
+            return (False, summary_notes)
+        notes.extend(summary_notes)
+    elif recipe.get("summary"):
+        notes.append("Summary-compatible canonical source template preserved.")
+
+    return (True, notes)
 
 
-def _template_schedule_name(profile, prompt_text):
-    filters = _parse_schedule_template_filters(prompt_text)
-    base_name = profile.get("base_name")
+def _template_schedule_name(recipe, prompt_text, request_filters):
+    base_name = recipe.get("base_name")
     suffix_parts = []
-    if filters.get("level_value"):
-        suffix_parts.append(filters.get("level_value"))
-    elif filters.get("prefer_reference_level"):
+    if request_filters.get("resolved_level_name"):
+        suffix_parts.append(request_filters.get("resolved_level_name"))
+    elif request_filters.get("prefer_reference_level"):
         suffix_parts.append("Reference Level")
-    if filters.get("manufacturer"):
-        suffix_parts.append(filters.get("manufacturer"))
+    if request_filters.get("manufacturer"):
+        suffix_parts.append(request_filters.get("manufacturer"))
     if suffix_parts:
         return "{0} - {1}".format(base_name, " - ".join(suffix_parts))
     return base_name
@@ -4612,7 +4899,18 @@ def _create_template_only_schedule_action(doc, uidoc, profile_key, context=None)
     profile = _aco_template_profiles().get(profile_key)
     if profile is None:
         return "Failed: unsupported template schedule profile '{0}'.".format(profile_key)
-    source_schedule, template_note = _find_template_schedule_by_profile(doc, profile, prompt_text)
+    request_filters, request_issue = _validate_template_recipe_request(doc, profile, prompt_text)
+    if request_issue:
+        return "\n".join(
+            [
+                profile.get("label"),
+                "Active document: {0}".format(_document_title(doc)),
+                "Active view: {0}".format(_active_view_title(doc, uidoc)),
+                request_issue,
+                "Template-only action: generic native fallback was not used.",
+            ]
+        )
+    source_schedule, source_kind, template_note = _select_recipe_source_schedule(doc, profile, prompt_text)
     if source_schedule is None:
         return "\n".join(
             [
@@ -4620,12 +4918,24 @@ def _create_template_only_schedule_action(doc, uidoc, profile_key, context=None)
                 "Active document: {0}".format(_document_title(doc)),
                 "Active view: {0}".format(_active_view_title(doc, uidoc)),
                 template_note,
-                "Generic native fallback was not used because this reviewed action is template-only.",
+                "Template-only action: generic native fallback was not used.",
+            ]
+        )
+    preflight_ok, preflight_issue = _preflight_template_schedule_request(source_schedule, doc, profile, request_filters, source_kind)
+    if not preflight_ok:
+        return "\n".join(
+            [
+                profile.get("label"),
+                "Active document: {0}".format(_document_title(doc)),
+                "Active view: {0}".format(_active_view_title(doc, uidoc)),
+                template_note,
+                preflight_issue,
+                "Template-only action: generic native fallback was not used.",
             ]
         )
 
     existing_names = _all_schedule_names(doc)
-    schedule_name = _unique_name(_template_schedule_name(profile, prompt_text), existing_names)
+    schedule_name = _unique_name(_template_schedule_name(profile, prompt_text, request_filters), existing_names)
     transaction = DB.Transaction(doc, "AI {0}".format(profile.get("label")))
     transaction.Start()
     try:
@@ -4634,8 +4944,20 @@ def _create_template_only_schedule_action(doc, uidoc, profile_key, context=None)
         if schedule is None:
             transaction.RollBack()
             return "Failed to duplicate template schedule for {0}.".format(profile.get("label"))
+        ok, notes = _apply_template_schedule_adjustments(schedule, doc, profile, prompt_text, request_filters, source_kind)
+        if not ok:
+            transaction.RollBack()
+            return "\n".join(
+                [
+                    profile.get("label"),
+                    "Active document: {0}".format(_document_title(doc)),
+                    "Active view: {0}".format(_active_view_title(doc, uidoc)),
+                    template_note,
+                    notes[0],
+                    "Template-only action: generic native fallback was not used.",
+                ]
+            )
         schedule.Name = schedule_name
-        notes = _apply_template_schedule_adjustments(schedule, doc, profile, prompt_text)
         transaction.Commit()
     except Exception as exc:
         try:
@@ -4650,6 +4972,8 @@ def _create_template_only_schedule_action(doc, uidoc, profile_key, context=None)
         "Active view: {0}".format(_active_view_title(doc, uidoc)),
         "{0}".format(template_note),
         "Created schedule: {0}".format(schedule_name),
+        "Recipe type: {0}".format(source_kind),
+        "Level retargeting: {0}".format("applied" if request_filters.get("resolved_level_name") else "not requested"),
         "Template-only action: generic native fallback was not used.",
     ]
     for note in notes[:6]:
@@ -4676,6 +5000,15 @@ def create_aco_pipe_fitting_summary_from_template(doc, uidoc, context=None):
 def create_aco_prefab_schedule_bundle_from_template(doc, uidoc, context=None):
     prompt_text = _prompt_text_from_context(context)
     results = []
+    request_filters, request_issue = _validate_template_recipe_request(doc, _aco_template_profiles().get("aco_pipe_schedule"), prompt_text)
+    if request_issue:
+        return _format_schedule_creation_result(
+            "Create ACO prefab schedule bundle from template",
+            doc,
+            uidoc,
+            [{"ok": False, "label": "ACO Prefab Bundle", "message": request_issue}],
+            scope_note="Template-only reviewed action. Generic native fallback is intentionally disabled for this bundle.",
+        )
     for profile_key in [
         "aco_pipe_schedule",
         "aco_pipe_fitting_schedule",
@@ -4683,12 +5016,16 @@ def create_aco_prefab_schedule_bundle_from_template(doc, uidoc, context=None):
         "aco_pipe_fitting_summary",
     ]:
         profile = _aco_template_profiles().get(profile_key)
-        source_schedule, template_note = _find_template_schedule_by_profile(doc, profile, prompt_text)
+        source_schedule, source_kind, template_note = _select_recipe_source_schedule(doc, profile, prompt_text)
         if source_schedule is None:
             results.append({"ok": False, "label": profile.get("label"), "message": template_note})
             continue
+        preflight_ok, preflight_issue = _preflight_template_schedule_request(source_schedule, doc, profile, request_filters, source_kind)
+        if not preflight_ok:
+            results.append({"ok": False, "label": profile.get("label"), "message": "{0}\n{1}".format(template_note, preflight_issue)})
+            continue
         existing_names = _all_schedule_names(doc)
-        schedule_name = _unique_name(_template_schedule_name(profile, prompt_text), existing_names)
+        schedule_name = _unique_name(_template_schedule_name(profile, prompt_text, request_filters), existing_names)
         transaction = DB.Transaction(doc, "AI {0}".format(profile.get("label")))
         transaction.Start()
         try:
@@ -4698,15 +5035,19 @@ def create_aco_prefab_schedule_bundle_from_template(doc, uidoc, context=None):
                 transaction.RollBack()
                 results.append({"ok": False, "label": profile.get("label"), "message": "Template duplication returned no schedule."})
                 continue
+            ok, notes = _apply_template_schedule_adjustments(schedule, doc, profile, prompt_text, request_filters, source_kind)
+            if not ok:
+                transaction.RollBack()
+                results.append({"ok": False, "label": profile.get("label"), "message": notes[0]})
+                continue
             schedule.Name = schedule_name
-            notes = _apply_template_schedule_adjustments(schedule, doc, profile, prompt_text)
             transaction.Commit()
             results.append(
                 {
                     "ok": True,
                     "label": profile.get("label"),
                     "schedule_name": schedule_name,
-                    "mode": "template",
+                    "mode": source_kind,
                     "template_note": template_note,
                     "notes": notes,
                 }

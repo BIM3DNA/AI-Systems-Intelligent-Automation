@@ -653,6 +653,13 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+### Added local checks for 2026-04-22
+
+- verify generic native schedule actions still resolve unchanged through the shared reviewed catalog
+- verify ACO/BUNGE template actions resolve through explicit reviewed template recipes
+- verify floor-specific and sheet schedules are excluded as canonical master sources
+- verify level-targeted template actions block before creation when safe level retargeting cannot be established
+
 ## 2026-04-20 Runtime Targets for Stable-Baseline UI Polish
 
 ### Dark mode

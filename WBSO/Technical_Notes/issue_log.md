@@ -932,3 +932,8 @@ The stable baseline already supported read-only catalog filtering through the ma
 ### Remaining Work
 
 - live confirmation that the improved hints/details materially improve catalog usability
+
+### 2026-04-22
+
+- tightened BUNGE/ACO template actions to stop heuristic self-duplication and block narrow floor/sheet/generated schedules from being reused as canonical sources
+- generic all-ACO pipe template actions now block honestly when no neutral master template exists instead of silently using a narrow product-family schedule

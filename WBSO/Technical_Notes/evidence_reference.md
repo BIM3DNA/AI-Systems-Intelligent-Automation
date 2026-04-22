@@ -1019,3 +1019,8 @@ Reported as already live-validated before this code pass:
 ### What remains unvalidated in live Revit
 
 - whether the improved hints/details make the growing ModelMind catalog easier to browse in runtime
+
+### 2026-04-22 template-recipe hardening evidence
+
+- local verification covered explicit shared-catalog routing for ACO/BUNGE template actions after moving source selection to exact reviewed recipe definitions
+- static inspection confirmed canonical-master exclusions for floor-specific, sheet, AI-generated, and previously generated ACO output schedules

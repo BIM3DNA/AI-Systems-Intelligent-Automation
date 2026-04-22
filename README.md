@@ -454,3 +454,9 @@ The current workspace self-test through the actual service path reports:
 - `failure_category: network_failed`
 
 That points to provider/network reachability as the next likely fix for cloud planning in the runtime used by the subprocess service.
+
+## 2026-04-22 Stability-Fenced Schedule Template Update
+
+- generic native schedule actions remain the validated path and were not changed in behavior
+- ACO/BUNGE template-backed actions now use explicit reviewed source-template recipes with hard exclusions for floor-specific, sheet, AI-generated, and previously generated ACO output schedules
+- template actions remain structural_only and template-only; if no safe canonical master exists or level retargeting cannot be applied safely, the action blocks honestly instead of creating a misleading schedule

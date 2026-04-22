@@ -701,13 +701,19 @@
     "canonical_prompt": "create ACO pipe schedule from template",
     "planner_aliases": [
       "create ACO pipe schedule from template",
+      "create ACO pipe schedule for 02_Ground Floor from template",
+      "create ACO pipe schedule for 03_First Floor from template",
       "create ACO pipe schedule for Ground Floor from template",
+      "create ACO pipe schedule for First Floor from template",
       "create ACO pipe schedule for L2 from template",
       "create ACO pipe schedule by reference level from template"
     ],
     "example_prompts": [
       "create ACO pipe schedule from template",
+      "create ACO pipe schedule for 02_Ground Floor from template",
+      "create ACO pipe schedule for 03_First Floor from template",
       "create ACO pipe schedule for Ground Floor from template",
+      "create ACO pipe schedule for First Floor from template",
       "create ACO pipe schedule for L2 from template",
       "create ACO pipe schedule by reference level from template"
     ],
@@ -729,13 +735,19 @@
     "canonical_prompt": "create ACO pipe fitting schedule from template",
     "planner_aliases": [
       "create ACO pipe fitting schedule from template",
+      "create ACO pipe fitting schedule for 02_Ground Floor from template",
+      "create ACO pipe fitting schedule for 03_First Floor from template",
       "create ACO pipe fitting schedule for Ground Floor from template",
+      "create ACO pipe fitting schedule for First Floor from template",
       "create ACO pipe fitting schedule for L2 from template",
       "create ACO pipe fitting schedule by reference level from template"
     ],
     "example_prompts": [
       "create ACO pipe fitting schedule from template",
+      "create ACO pipe fitting schedule for 02_Ground Floor from template",
+      "create ACO pipe fitting schedule for 03_First Floor from template",
       "create ACO pipe fitting schedule for Ground Floor from template",
+      "create ACO pipe fitting schedule for First Floor from template",
       "create ACO pipe fitting schedule for L2 from template",
       "create ACO pipe fitting schedule by reference level from template"
     ],

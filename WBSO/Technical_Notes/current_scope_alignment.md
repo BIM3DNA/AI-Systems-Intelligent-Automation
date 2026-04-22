@@ -332,3 +332,8 @@ Still intentionally outside scope in this pass:
 - new search control wiring
 - favorites/pinning state
 - any execution or lifecycle changes
+
+### 2026-04-22 scope alignment
+
+- within scope: explicit BUNGE/ACO template recipe mapping, exact level-target validation, and metadata/example updates for template-backed schedule actions
+- intentionally unchanged: window lifecycle, reviewed dispatch, ExternalEvent behavior, timeout handling, undo plumbing, and the validated generic native schedule family

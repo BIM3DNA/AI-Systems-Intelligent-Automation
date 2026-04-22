@@ -946,3 +946,9 @@ This pass remains UI/catalog-only and does not touch reviewed execution behavior
 - no dedicated new search control was added because that would require script wiring
 - no favorites/pinning branch was added because that would require new UI/state plumbing beyond this safe pass
 - all execution/lifecycle/dispatcher behavior remains unchanged
+
+## 2026-04-22 BUNGE Template Recipe Hardening
+
+- replaced heuristic ACO template-source ranking with explicit reviewed BUNGE/ACO recipe mappings for the known project schedule family
+- template source selection now blocks floor-specific, sheet, AI-generated, and previously generated ACO output schedules from acting as canonical masters
+- generic native schedule actions were left unchanged; only template-backed source selection and exact level retarget validation were tightened
