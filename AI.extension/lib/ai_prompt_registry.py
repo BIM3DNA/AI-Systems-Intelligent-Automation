@@ -29,6 +29,9 @@ class PromptCatalog(object):
         "Electrical",
         "Bundles",
         "Template-Based",
+        "Template-Based / ACO / Bunge",
+        "Template-Based / ACO / Bunge / Pipe Product Families",
+        "Template-Based / ACO / Bunge / Pipe Fittings",
         "Select",
         "Count",
         "List",
@@ -257,6 +260,18 @@ class PromptCatalog(object):
         if "spaces without rooms" in target:
             return self.get_entry_by_id("report-spaces-without-matching-rooms")
         if "aco" in target and "template" in target:
+            if "1.4301" in target and "single socket" in target:
+                if "summary" in target:
+                    return self.get_entry_by_id("create-aco-14301-single-socket-pipe-summary-from-template")
+                return self.get_entry_by_id("create-aco-14301-single-socket-pipe-schedule-from-template")
+            if "1.4404" in target and "single socket" in target:
+                if "summary" in target:
+                    return self.get_entry_by_id("create-aco-14404-single-socket-pipe-summary-from-template")
+                return self.get_entry_by_id("create-aco-14404-single-socket-pipe-schedule-from-template")
+            if "1.4404" in target and "double socket" in target:
+                if "summary" in target:
+                    return self.get_entry_by_id("create-aco-14404-double-socket-pipe-summary-from-template")
+                return self.get_entry_by_id("create-aco-14404-double-socket-pipe-schedule-from-template")
             if "prefab" in target:
                 return self.get_entry_by_id("create-aco-prefab-schedule-bundle-from-template")
             if "pipe fitting" in target and "summary" in target:

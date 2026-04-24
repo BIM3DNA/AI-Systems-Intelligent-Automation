@@ -937,3 +937,8 @@ The stable baseline already supported read-only catalog filtering through the ma
 
 - tightened BUNGE/ACO template actions to stop heuristic self-duplication and block narrow floor/sheet/generated schedules from being reused as canonical sources
 - generic all-ACO pipe template actions now block honestly when no neutral master template exists instead of silently using a narrow product-family schedule
+
+### 2026-04-24
+
+- added product-family reviewed template actions instead of allowing the generic ACO pipe template action to pick a narrow source
+- kept pipe-fitting level retargeting under investigation; exact coded level prompts are routed and guarded, but live Revit proof is still pending

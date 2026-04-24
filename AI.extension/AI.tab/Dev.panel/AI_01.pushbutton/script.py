@@ -3947,7 +3947,11 @@ def _schedule_field_matches(field_or_schedulable, doc, bip_names=None, field_nam
     except:
         display_name = (_schedule_field_name(field_or_schedulable, doc) or "").lower()
     wanted = [name.lower() for name in field_names or []]
-    return display_name in wanted
+    if display_name in wanted:
+        return True
+    display_norm = re.sub(r"[^a-z0-9]+", "", display_name)
+    wanted_norm = [re.sub(r"[^a-z0-9]+", "", name.lower()) for name in field_names or []]
+    return display_norm in wanted_norm
 
 
 def _existing_schedule_field(definition, doc, bip_names=None, field_names=None):
@@ -4343,6 +4347,37 @@ def _schedule_filter_field_names(schedule, doc):
     return names
 
 
+def _aco_pipe_product_profile(label, base_name, product_tokens, summary=False):
+    recipe = {
+        "label": label,
+        "base_name": base_name,
+        "source_kind": "token_summary_or_master" if summary else "token_master_only",
+        "summary": summary,
+        "require_non_empty_source": True,
+        "required_source_tokens": ["aco", "pipe"] + list(product_tokens or []),
+        "required_field_tokens": [
+            "segment description",
+            "size",
+            "outside diameter",
+            "length",
+            "inside diameter",
+            "roughness",
+            "article number",
+            "definition",
+            "gtin",
+            "weight",
+            "manufacturer",
+            "count",
+            "reference level",
+        ],
+        "minimum_field_hits": 7,
+        "level_field_names": ["Reference Level"],
+    }
+    if summary:
+        recipe["summary_group_fields"] = ["Segment Description", "Size", "Article number", "Reference Level"]
+    return recipe
+
+
 def _aco_template_profiles():
     return {
         "aco_pipe_schedule": {
@@ -4456,6 +4491,42 @@ def _aco_template_profiles():
             ],
             "level_field_names": ["Level"],
         },
+        "aco_pipe_14301_single_socket_schedule": _aco_pipe_product_profile(
+            "ACO 1.4301 Single Socket Pipe Schedule",
+            "ACO 1.4301 Single Socket Pipe Schedule",
+            ["1.4301", "single", "socket"],
+            summary=False,
+        ),
+        "aco_pipe_14404_single_socket_schedule": _aco_pipe_product_profile(
+            "ACO 1.4404 Single Socket Pipe Schedule",
+            "ACO 1.4404 Single Socket Pipe Schedule",
+            ["1.4404", "single", "socket"],
+            summary=False,
+        ),
+        "aco_pipe_14404_double_socket_schedule": _aco_pipe_product_profile(
+            "ACO 1.4404 Double Socket Pipe Schedule",
+            "ACO 1.4404 Double Socket Pipe Schedule",
+            ["1.4404", "double", "socket"],
+            summary=False,
+        ),
+        "aco_pipe_14301_single_socket_summary": _aco_pipe_product_profile(
+            "ACO 1.4301 Single Socket Pipe Summary",
+            "ACO 1.4301 Single Socket Pipe Summary",
+            ["1.4301", "single", "socket"],
+            summary=True,
+        ),
+        "aco_pipe_14404_single_socket_summary": _aco_pipe_product_profile(
+            "ACO 1.4404 Single Socket Pipe Summary",
+            "ACO 1.4404 Single Socket Pipe Summary",
+            ["1.4404", "single", "socket"],
+            summary=True,
+        ),
+        "aco_pipe_14404_double_socket_summary": _aco_pipe_product_profile(
+            "ACO 1.4404 Double Socket Pipe Summary",
+            "ACO 1.4404 Double Socket Pipe Summary",
+            ["1.4404", "double", "socket"],
+            summary=True,
+        ),
     }
 
 
@@ -4503,6 +4574,12 @@ def _is_generated_schedule_name(schedule_name):
         "aco pipe summary",
         "aco pipe fitting schedule",
         "aco pipe fitting summary",
+        "aco 1.4301 single socket pipe schedule",
+        "aco 1.4301 single socket pipe summary",
+        "aco 1.4404 single socket pipe schedule",
+        "aco 1.4404 single socket pipe summary",
+        "aco 1.4404 double socket pipe schedule",
+        "aco 1.4404 double socket pipe summary",
     ]
     return any(name.startswith(prefix) for prefix in generated_prefixes)
 
@@ -4598,6 +4675,27 @@ def _find_explicit_template_source(doc, recipe, candidate_names, summary_expecte
     return None
 
 
+def _find_token_template_source(doc, recipe, summary_expected=False):
+    tokens = [token.lower() for token in recipe.get("required_source_tokens", []) if token]
+    if not tokens:
+        return None
+    matches = []
+    for info in _all_schedule_infos(doc):
+        schedule_name = info.get("name") or ""
+        name_lower = schedule_name.lower()
+        if _is_disallowed_template_source_name(schedule_name, summary_expected=summary_expected):
+            continue
+        if not all(token in name_lower for token in tokens):
+            continue
+        if not _schedule_meets_recipe_requirements(info, recipe):
+            continue
+        matches.append(info)
+    if not matches:
+        return None
+    matches.sort(key=lambda item: (len(item.get("name") or ""), item.get("name") or ""))
+    return matches[0]
+
+
 def _select_recipe_source_schedule(doc, recipe, prompt_text):
     source_kind = recipe.get("source_kind")
     label = recipe.get("label") or "template action"
@@ -4649,18 +4747,61 @@ def _select_recipe_source_schedule(doc, recipe, prompt_text):
             ),
         )
 
+    if source_kind == "token_master_only":
+        info = _find_token_template_source(doc, recipe, summary_expected=False)
+        if info is None:
+            return (
+                None,
+                None,
+                "Missing matching product-family source template for {0}. Required source-name tokens: {1}".format(
+                    label,
+                    ", ".join(recipe.get("required_source_tokens") or []),
+                ),
+            )
+        return (
+            info.get("schedule"),
+            "master",
+            "Product-family source template selected: {0}".format(info.get("name")),
+        )
+
+    if source_kind == "token_summary_or_master":
+        summary_info = _find_token_template_source(doc, recipe, summary_expected=True)
+        if summary_info is not None:
+            return (
+                summary_info.get("schedule"),
+                "summary",
+                "Product-family summary source template selected: {0}".format(summary_info.get("name")),
+            )
+        master_info = _find_token_template_source(doc, recipe, summary_expected=False)
+        if master_info is not None:
+            return (
+                master_info.get("schedule"),
+                "master",
+                "Product-family source template selected for summary transform: {0}".format(master_info.get("name")),
+            )
+        return (
+            None,
+            None,
+            "Missing matching product-family source template for {0}. Required source-name tokens: {1}".format(
+                label,
+                ", ".join(recipe.get("required_source_tokens") or []),
+            ),
+        )
+
     return (None, None, "Unsupported reviewed source-template policy for {0}.".format(label))
 
 
 def _find_matching_filter_index(definition, doc, field_names=None):
     wanted = [name.lower() for name in (field_names or [])]
+    wanted_norm = [re.sub(r"[^a-z0-9]+", "", name) for name in wanted]
     try:
         for index in range(definition.GetFilterCount()):
             try:
                 sched_filter = definition.GetFilter(index)
                 field = definition.GetField(sched_filter.FieldId)
                 field_name = (_schedule_field_name(field, doc) or "").lower()
-                if field_name in wanted:
+                field_norm = re.sub(r"[^a-z0-9]+", "", field_name)
+                if field_name in wanted or field_norm in wanted_norm:
                     return index
             except:
                 continue
@@ -4800,8 +4941,27 @@ def _schedule_can_resolve_field(definition, doc, bip_names=None, field_names=Non
     return False
 
 
+def _schedule_visible_body_row_count(schedule):
+    try:
+        table_data = schedule.GetTableData()
+        try:
+            section_data = table_data.GetSectionData(DB.SectionType.Body)
+        except:
+            section_data = table_data.GetSectionData(1)
+        return int(section_data.NumberOfRows)
+    except:
+        return None
+
+
 def _preflight_template_schedule_request(source_schedule, doc, recipe, request_filters, source_kind):
     definition = source_schedule.Definition
+    if recipe.get("require_non_empty_source"):
+        row_count = _schedule_visible_body_row_count(source_schedule)
+        if row_count == 0:
+            return (
+                False,
+                "Selected source template exists but has no visible schedule rows/elements, so reviewed creation was blocked to avoid producing an empty schedule.",
+            )
     if request_filters.get("resolved_level_name"):
         if not _schedule_can_resolve_field(
             definition,
@@ -4995,6 +5155,30 @@ def create_aco_pipe_summary_from_template(doc, uidoc, context=None):
 
 def create_aco_pipe_fitting_summary_from_template(doc, uidoc, context=None):
     return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_fitting_summary", context)
+
+
+def create_aco_14301_single_socket_pipe_schedule_from_template(doc, uidoc, context=None):
+    return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_14301_single_socket_schedule", context)
+
+
+def create_aco_14404_single_socket_pipe_schedule_from_template(doc, uidoc, context=None):
+    return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_14404_single_socket_schedule", context)
+
+
+def create_aco_14404_double_socket_pipe_schedule_from_template(doc, uidoc, context=None):
+    return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_14404_double_socket_schedule", context)
+
+
+def create_aco_14301_single_socket_pipe_summary_from_template(doc, uidoc, context=None):
+    return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_14301_single_socket_summary", context)
+
+
+def create_aco_14404_single_socket_pipe_summary_from_template(doc, uidoc, context=None):
+    return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_14404_single_socket_summary", context)
+
+
+def create_aco_14404_double_socket_pipe_summary_from_template(doc, uidoc, context=None):
+    return _create_template_only_schedule_action(doc, uidoc, "aco_pipe_14404_double_socket_summary", context)
 
 
 def create_aco_prefab_schedule_bundle_from_template(doc, uidoc, context=None):
@@ -6379,6 +6563,12 @@ REVIEWED_ACTION_HANDLERS = {
     "create_aco_pipe_fitting_schedule_from_template": create_aco_pipe_fitting_schedule_from_template,
     "create_aco_pipe_summary_from_template": create_aco_pipe_summary_from_template,
     "create_aco_pipe_fitting_summary_from_template": create_aco_pipe_fitting_summary_from_template,
+    "create_aco_14301_single_socket_pipe_schedule_from_template": create_aco_14301_single_socket_pipe_schedule_from_template,
+    "create_aco_14404_single_socket_pipe_schedule_from_template": create_aco_14404_single_socket_pipe_schedule_from_template,
+    "create_aco_14404_double_socket_pipe_schedule_from_template": create_aco_14404_double_socket_pipe_schedule_from_template,
+    "create_aco_14301_single_socket_pipe_summary_from_template": create_aco_14301_single_socket_pipe_summary_from_template,
+    "create_aco_14404_single_socket_pipe_summary_from_template": create_aco_14404_single_socket_pipe_summary_from_template,
+    "create_aco_14404_double_socket_pipe_summary_from_template": create_aco_14404_double_socket_pipe_summary_from_template,
     "create_aco_prefab_schedule_bundle_from_template": create_aco_prefab_schedule_bundle_from_template,
 }
 

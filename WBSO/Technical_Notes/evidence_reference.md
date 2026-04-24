@@ -1024,3 +1024,8 @@ Reported as already live-validated before this code pass:
 
 - local verification covered explicit shared-catalog routing for ACO/BUNGE template actions after moving source selection to exact reviewed recipe definitions
 - static inspection confirmed canonical-master exclusions for floor-specific, sheet, AI-generated, and previously generated ACO output schedules
+
+### 2026-04-24 schedule-template evidence
+
+- live evidence provided by user confirms generic native schedules remain valid, generic all-ACO pipe template actions block honestly, and ACO pipe-fitting summary from canonical master produced a populated summary with Grand total 141
+- local verification added routing coverage for the new structural product-family ACO pipe actions and exact coded level prompts

@@ -693,7 +693,7 @@
     "id": "create-aco-pipe-schedule-from-template",
     "title": "Create ACO pipe schedule from template",
     "category": "Schedules",
-    "group": "Template-Based",
+    "group": "Template-Based / ACO / Bunge / Pipe Product Families",
     "discipline": "Piping",
     "role": "modify",
     "risk_level": "medium",
@@ -727,7 +727,7 @@
     "id": "create-aco-pipe-fitting-schedule-from-template",
     "title": "Create ACO pipe fitting schedule from template",
     "category": "Schedules",
-    "group": "Template-Based",
+    "group": "Template-Based / ACO / Bunge / Pipe Fittings",
     "discipline": "Piping",
     "role": "modify",
     "risk_level": "medium",
@@ -761,7 +761,7 @@
     "id": "create-aco-pipe-summary-from-template",
     "title": "Create ACO pipe summary from template",
     "category": "Schedules",
-    "group": "Template-Based",
+    "group": "Template-Based / ACO / Bunge / Pipe Product Families",
     "discipline": "Piping",
     "role": "modify",
     "risk_level": "medium",
@@ -784,10 +784,157 @@
     "mode": "deterministic"
   },
   {
+    "id": "create-aco-14301-single-socket-pipe-schedule-from-template",
+    "title": "Create ACO 1.4301 single socket pipe schedule from template",
+    "category": "Schedules",
+    "group": "Template-Based / ACO / Bunge / Pipe Product Families",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO 1.4301 single socket pipe schedule from template",
+    "planner_aliases": [
+      "create ACO 1.4301 single socket pipe schedule from template",
+      "create ACO 1.4301 single socket pipe schedule for 02_Ground Floor from template",
+      "create ACO 1.4301 single socket pipe schedule for Ground Floor from template"
+    ],
+    "example_prompts": [
+      "create ACO 1.4301 single socket pipe schedule from template",
+      "create ACO 1.4301 single socket pipe schedule for 02_Ground Floor from template"
+    ],
+    "deterministic_handler": "create_aco_14301_single_socket_pipe_schedule_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO 1.4301 single socket pipe schedule from template",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-aco-14404-single-socket-pipe-schedule-from-template",
+    "title": "Create ACO 1.4404 single socket pipe schedule from template",
+    "category": "Schedules",
+    "group": "Template-Based / ACO / Bunge / Pipe Product Families",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO 1.4404 single socket pipe schedule from template",
+    "planner_aliases": [
+      "create ACO 1.4404 single socket pipe schedule from template",
+      "create ACO 1.4404 single socket pipe schedule for 03_First Floor from template",
+      "create ACO 1.4404 single socket pipe schedule for First Floor from template"
+    ],
+    "example_prompts": [
+      "create ACO 1.4404 single socket pipe schedule from template",
+      "create ACO 1.4404 single socket pipe schedule for 03_First Floor from template"
+    ],
+    "deterministic_handler": "create_aco_14404_single_socket_pipe_schedule_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO 1.4404 single socket pipe schedule from template",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-aco-14404-double-socket-pipe-schedule-from-template",
+    "title": "Create ACO 1.4404 double socket pipe schedule from template",
+    "category": "Schedules",
+    "group": "Template-Based / ACO / Bunge / Pipe Product Families",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO 1.4404 double socket pipe schedule from template",
+    "planner_aliases": [
+      "create ACO 1.4404 double socket pipe schedule from template",
+      "create ACO 1.4404 double socket pipe schedule for Second Floor from template",
+      "create ACO 1.4404 double socket pipe schedule for 04_Second Floor from template"
+    ],
+    "example_prompts": [
+      "create ACO 1.4404 double socket pipe schedule from template",
+      "create ACO 1.4404 double socket pipe schedule for 04_Second Floor from template"
+    ],
+    "deterministic_handler": "create_aco_14404_double_socket_pipe_schedule_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO 1.4404 double socket pipe schedule from template",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-aco-14301-single-socket-pipe-summary-from-template",
+    "title": "Create ACO 1.4301 single socket pipe summary from template",
+    "category": "Schedules",
+    "group": "Template-Based / ACO / Bunge / Pipe Product Families",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO 1.4301 single socket pipe summary from template",
+    "planner_aliases": [
+      "create ACO 1.4301 single socket pipe summary from template",
+      "create ACO 1.4301 single socket pipe summary for 02_Ground Floor from template"
+    ],
+    "example_prompts": [
+      "create ACO 1.4301 single socket pipe summary from template",
+      "create ACO 1.4301 single socket pipe summary for 02_Ground Floor from template"
+    ],
+    "deterministic_handler": "create_aco_14301_single_socket_pipe_summary_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO 1.4301 single socket pipe summary from template",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-aco-14404-single-socket-pipe-summary-from-template",
+    "title": "Create ACO 1.4404 single socket pipe summary from template",
+    "category": "Schedules",
+    "group": "Template-Based / ACO / Bunge / Pipe Product Families",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO 1.4404 single socket pipe summary from template",
+    "planner_aliases": [
+      "create ACO 1.4404 single socket pipe summary from template",
+      "create ACO 1.4404 single socket pipe summary for 03_First Floor from template"
+    ],
+    "example_prompts": [
+      "create ACO 1.4404 single socket pipe summary from template",
+      "create ACO 1.4404 single socket pipe summary for 03_First Floor from template"
+    ],
+    "deterministic_handler": "create_aco_14404_single_socket_pipe_summary_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO 1.4404 single socket pipe summary from template",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-aco-14404-double-socket-pipe-summary-from-template",
+    "title": "Create ACO 1.4404 double socket pipe summary from template",
+    "category": "Schedules",
+    "group": "Template-Based / ACO / Bunge / Pipe Product Families",
+    "discipline": "Piping",
+    "role": "modify",
+    "risk_level": "medium",
+    "scope_type": "project",
+    "canonical_prompt": "create ACO 1.4404 double socket pipe summary from template",
+    "planner_aliases": [
+      "create ACO 1.4404 double socket pipe summary from template",
+      "create ACO 1.4404 double socket pipe summary for 04_Second Floor from template"
+    ],
+    "example_prompts": [
+      "create ACO 1.4404 double socket pipe summary from template",
+      "create ACO 1.4404 double socket pipe summary for 04_Second Floor from template"
+    ],
+    "deterministic_handler": "create_aco_14404_double_socket_pipe_summary_from_template",
+    "requires_confirmation": true,
+    "enabled": true,
+    "prompt_text": "create ACO 1.4404 double socket pipe summary from template",
+    "mode": "deterministic"
+  },
+  {
     "id": "create-aco-pipe-fitting-summary-from-template",
     "title": "Create ACO pipe fitting summary from template",
     "category": "Schedules",
-    "group": "Template-Based",
+    "group": "Template-Based / ACO / Bunge / Pipe Fittings",
     "discipline": "Piping",
     "role": "modify",
     "risk_level": "medium",
@@ -795,15 +942,14 @@
     "canonical_prompt": "create ACO pipe fitting summary from template",
     "planner_aliases": [
       "create ACO pipe fitting summary from template",
-      "create ACO pipe fitting summary schedule from template",
-      "create ACO pipe fitting summary for Ground Floor from template"
+      "create ACO pipe fitting summary schedule from template"
     ],
     "example_prompts": [
       "create ACO pipe fitting summary from template",
-      "create ACO pipe fitting summary schedule from template",
-      "create ACO pipe fitting summary for Ground Floor from template"
+      "create ACO pipe fitting summary schedule from template"
     ],
     "deterministic_handler": "create_aco_pipe_fitting_summary_from_template",
+    "validation_state": "live_validated",
     "requires_confirmation": true,
     "enabled": true,
     "prompt_text": "create ACO pipe fitting summary from template",
@@ -813,7 +959,7 @@
     "id": "create-aco-prefab-schedule-bundle-from-template",
     "title": "Create ACO prefab schedule bundle from template",
     "category": "Schedules",
-    "group": "Template-Based",
+    "group": "Template-Based / ACO / Bunge",
     "discipline": "Piping",
     "role": "modify",
     "risk_level": "medium",

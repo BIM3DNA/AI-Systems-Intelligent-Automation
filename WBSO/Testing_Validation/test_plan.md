@@ -660,6 +660,13 @@ The refactor should only be considered runtime-proven after the scenario set abo
 - verify floor-specific and sheet schedules are excluded as canonical master sources
 - verify level-targeted template actions block before creation when safe level retargeting cannot be established
 
+### Added local checks for 2026-04-24
+
+- verify product-family ACO pipe schedule and summary prompts resolve to separate structural reviewed actions
+- verify exact coded level prompts such as 02_Ground Floor route to the intended template actions
+- verify ACO pipe-fitting summary remains the only promoted ACO/template action based on current runtime evidence
+- verify generic native schedule actions continue resolving as live_validated entries
+
 ## 2026-04-20 Runtime Targets for Stable-Baseline UI Polish
 
 ### Dark mode

@@ -460,3 +460,9 @@ That points to provider/network reachability as the next likely fix for cloud pl
 - generic native schedule actions remain the validated path and were not changed in behavior
 - ACO/BUNGE template-backed actions now use explicit reviewed source-template recipes with hard exclusions for floor-specific, sheet, AI-generated, and previously generated ACO output schedules
 - template actions remain structural_only and template-only; if no safe canonical master exists or level retargeting cannot be applied safely, the action blocks honestly instead of creating a misleading schedule
+
+## 2026-04-24 ACO/Bunge Product-Family Schedule Update
+
+- added structural reviewed template-only actions for ACO 1.4301 single socket, 1.4404 single socket, and 1.4404 double socket pipe schedule/summary variants
+- generic all-ACO pipe schedule/summary prompts continue to block without a neutral master template
+- only the live-confirmed ACO pipe-fitting summary action is promoted; product-family actions and pipe-fitting level retargeting remain pending live validation

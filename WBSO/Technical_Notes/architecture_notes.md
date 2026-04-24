@@ -952,3 +952,9 @@ This pass remains UI/catalog-only and does not touch reviewed execution behavior
 - replaced heuristic ACO template-source ranking with explicit reviewed BUNGE/ACO recipe mappings for the known project schedule family
 - template source selection now blocks floor-specific, sheet, AI-generated, and previously generated ACO output schedules from acting as canonical masters
 - generic native schedule actions were left unchanged; only template-backed source selection and exact level retarget validation were tightened
+
+## 2026-04-24 ACO/Bunge Product-Family Schedule Recipes
+
+- added separate structural reviewed ACO pipe product-family template actions for 1.4301 single socket, 1.4404 single socket, and 1.4404 double socket sources
+- generic all-ACO pipe template actions remain blocked when no neutral all-pipe master exists
+- pipe-fitting level retargeting now uses stricter level-name resolution and normalized Level-field matching before creating schedules

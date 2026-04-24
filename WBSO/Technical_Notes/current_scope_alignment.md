@@ -337,3 +337,8 @@ Still intentionally outside scope in this pass:
 
 - within scope: explicit BUNGE/ACO template recipe mapping, exact level-target validation, and metadata/example updates for template-backed schedule actions
 - intentionally unchanged: window lifecycle, reviewed dispatch, ExternalEvent behavior, timeout handling, undo plumbing, and the validated generic native schedule family
+
+### 2026-04-24 scope alignment
+
+- within scope: product-family ACO pipe template actions, catalog routing, cautious validation promotion for the already live-confirmed pipe-fitting summary action, and safer Level-field retarget preflight
+- intentionally unchanged: generic native schedule behavior, lifecycle/dispatch architecture, undo, create-sheet, create-3d-view, and rename-active-view paths
