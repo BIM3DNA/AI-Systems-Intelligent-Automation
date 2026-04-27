@@ -8,6 +8,7 @@ import re
 class PromptCatalog(object):
     MODELMIND_CATEGORY_ORDER = [
         "QA Presets",
+        "Project Intelligence",
         "Schedules",
         "HVAC",
         "Piping",
@@ -24,6 +25,10 @@ class PromptCatalog(object):
         "Piping",
         "Electrical",
         "Coordination / BIM",
+        "Project Context",
+        "Links / Imports",
+        "AI Agent Planning",
+        "Developer Briefs",
         "Pipes",
         "Ducts",
         "Electrical",
@@ -247,6 +252,14 @@ class PromptCatalog(object):
             return self.get_entry_by_id("electrical-qa-preset")
         if "coordination qa preset" in target or "bim qa preset" in target:
             return self.get_entry_by_id("coordination-bim-qa-preset")
+        if "scan current project" in target or target == "project context" or "scan this revit model" in target:
+            return self.get_entry_by_id("scan-current-project")
+        if "summarize current project" in target or "what is in this revit model" in target or "what is in this model" in target:
+            return self.get_entry_by_id("summarize-current-project")
+        if "ask ai agent for a plan" in target or "ask agent for project plan" in target or "what should i check first in this project" in target:
+            return self.get_entry_by_id("ask-agent-for-project-plan")
+        if "create codex task brief" in target or "generate developer task" in target or "prepare codex instruction" in target or "make implementation brief" in target:
+            return self.get_entry_by_id("create-codex-task-brief")
         if "split" in target and "pipe" in target:
             return self.get_entry_by_id("split-selected-pipes")
         if "duplicate" in target:

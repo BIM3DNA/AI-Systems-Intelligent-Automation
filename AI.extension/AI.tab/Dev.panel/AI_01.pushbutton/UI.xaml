@@ -23,6 +23,10 @@
         <SolidColorBrush x:Key="ComboItemHighlightForegroundBrush" Color="#1f2937"/>
         <SolidColorBrush x:Key="TreeBackgroundBrush" Color="#f8fafd"/>
         <SolidColorBrush x:Key="TreeForegroundBrush" Color="#1f2937"/>
+        <SolidColorBrush x:Key="TreeItemHoverBrush" Color="#e0efff"/>
+        <SolidColorBrush x:Key="TreeItemSelectedBrush" Color="#dbeafe"/>
+        <SolidColorBrush x:Key="TreeItemSelectedForegroundBrush" Color="#1f2937"/>
+        <SolidColorBrush x:Key="TreeBorderBrush" Color="#b3cef6"/>
         <SolidColorBrush x:Key="ButtonDisabledBackgroundBrush" Color="#233143"/>
         <SolidColorBrush x:Key="ButtonDisabledForegroundBrush" Color="#8a97ab"/>
         <SolidColorBrush x:Key="ButtonDisabledBorderBrush" Color="#42526a"/>
@@ -62,10 +66,22 @@
         <Style TargetType="TreeView">
             <Setter Property="Background" Value="{DynamicResource TreeBackgroundBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TreeForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TreeBorderBrush}"/>
         </Style>
         <Style TargetType="TreeViewItem">
             <Setter Property="Foreground" Value="{DynamicResource TreeForegroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource TreeBackgroundBrush}"/>
             <Setter Property="Padding" Value="2"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource TreeItemHoverBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TreeItemSelectedForegroundBrush}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource TreeItemSelectedBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TreeItemSelectedForegroundBrush}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
     <Border x:Name="MainBorder" CornerRadius="16" BorderBrush="#7aaef7" BorderThickness="2" Background="White" Padding="10">
@@ -113,14 +129,19 @@
             <TabControl x:Name="MainTabs" Grid.Row="3" Margin="0,10,0,0">
                 <TabItem Header="Ollama Chat" ToolTip="Low-risk conversational help and prompt experimentation using the selected Ollama model.">
                     <Grid Margin="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="6"/>
+                            <ColumnDefinition Width="360" MinWidth="280"/>
+                        </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <TextBlock x:Name="ChatHelpText" Grid.Row="0" Margin="0,0,0,8" TextWrapping="Wrap" Foreground="#4b5563" Text="Ollama Chat is the low-risk conversation surface for quick BIM help, prompt drafting, and model discussion. It is not the primary execution workflow."/>
-                        <RichTextBox x:Name="ChatHistory" Grid.Row="1" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="#f8fafd" FontSize="15" BorderBrush="#b3cef6" BorderThickness="1"/>
-                        <Grid Grid.Row="2" Margin="0,10,0,0">
+                        <TextBlock x:Name="ChatHelpText" Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" TextWrapping="Wrap" Foreground="#4b5563" Text="Ollama Chat can answer from a read-only Revit project-context scan. Start with Scan Project, then ask project questions or ask AI Agent for a reviewed plan."/>
+                        <RichTextBox x:Name="ChatHistory" Grid.Row="1" Grid.Column="0" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="#f8fafd" FontSize="15" BorderBrush="#b3cef6" BorderThickness="1" Margin="0,0,8,0"/>
+                        <Grid Grid.Row="2" Grid.Column="0" Margin="0,10,8,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="100"/>
@@ -128,6 +149,43 @@
                             <TextBox x:Name="ChatInput" Height="32" MaxHeight="80" MinWidth="390" MaxWidth="760" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontSize="14" BorderBrush="#b3cef6" BorderThickness="1" Margin="0,0,10,0" Grid.Column="0"/>
                             <Button x:Name="SendButton" Content="Send" Width="90" Height="32" Background="#0085ff" Foreground="White" FontWeight="Bold" BorderBrush="#0085ff" BorderThickness="1" FontSize="14" Grid.Column="1"/>
                         </Grid>
+                        <GridSplitter x:Name="ProjectContextSplitter" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="#dbeafe" ResizeBehavior="PreviousAndNext" ShowsPreview="True"/>
+                        <Border x:Name="ProjectContextPanelBorder" Grid.Row="0" Grid.RowSpan="3" Grid.Column="2" MinWidth="280" BorderBrush="#b3cef6" BorderThickness="1" Background="#f8fafd" Padding="8">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock x:Name="ProjectContextTitleText" Text="Project Context" FontWeight="Bold" Foreground="#1f2937" Margin="0,0,0,4"/>
+                                <TextBlock x:Name="ProjectContextStatusText" Grid.Row="1" Text="Not scanned" TextWrapping="Wrap" Foreground="#4b5563" Margin="0,0,0,8"/>
+                                <WrapPanel Grid.Row="2" Margin="0,0,0,8">
+                                    <Button x:Name="ProjectScanButton" Content="Scan Project" Width="104" Height="26" Margin="0,0,6,6" Background="#0085ff" Foreground="White" BorderBrush="#0085ff" BorderThickness="1" ToolTip="Run a standard read-only project context scan."/>
+                                    <Button x:Name="ProjectRefreshButton" Content="Refresh Context" Width="120" Height="26" Margin="0,0,6,6" Background="#f8fafd" Foreground="#1f2937" BorderBrush="#b3cef6" BorderThickness="1" ToolTip="Refresh the standard project context scan."/>
+                                    <Button x:Name="ProjectAgentPlanButton" Content="Ask Agent for Plan" Width="132" Height="26" Margin="0,0,6,6" Background="#6c5ce7" Foreground="White" BorderBrush="#6c5ce7" BorderThickness="1" ToolTip="Create a reviewed AI Agent plan from the latest scan."/>
+                                    <Button x:Name="ProjectCodexBriefButton" Content="Create Codex Brief" Width="132" Height="26" Margin="0,0,6,6" Background="#475569" Foreground="White" BorderBrush="#475569" BorderThickness="1" ToolTip="Create a copyable developer task brief from the latest scan."/>
+                                </WrapPanel>
+                                <WrapPanel Grid.Row="3" Margin="0,0,0,8">
+                                    <Button x:Name="ProjectQuickSummaryButton" Tag="summary" Content="Summary" Width="76" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickLevelsButton" Tag="levels" Content="Levels" Width="68" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickViewsButton" Tag="views" Content="Views" Width="64" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickSheetsButton" Tag="sheets" Content="Sheets" Width="66" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickLinksButton" Tag="links" Content="Links" Width="62" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickImportsButton" Tag="imports" Content="CAD / Imports" Width="104" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickCategoriesButton" Tag="categories" Content="Categories" Width="88" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickSchedulesButton" Tag="schedules" Content="Schedules" Width="82" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickEmptySchedulesButton" Tag="empty schedules" Content="Empty / Suspicious" Width="126" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickWarningsButton" Tag="warnings" Content="Warnings" Width="82" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickIssuesButton" Tag="issues" Content="Issues" Width="64" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickFirstChecksButton" Tag="first checks" Content="First Checks" Width="92" Height="24" Margin="0,0,5,5"/>
+                                </WrapPanel>
+                                <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Background="{DynamicResource TreeBackgroundBrush}" BorderBrush="{DynamicResource TreeBorderBrush}" BorderThickness="1">
+                                    <TreeView x:Name="ProjectContextTree" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled"/>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </TabItem>
 

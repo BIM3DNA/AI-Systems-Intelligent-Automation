@@ -942,3 +942,20 @@ The stable baseline already supported read-only catalog filtering through the ma
 
 - added product-family reviewed template actions instead of allowing the generic ACO pipe template action to pick a narrow source
 - kept pipe-fitting level retargeting under investigation; exact coded level prompts are routed and guarded, but live Revit proof is still pending
+
+### 2026-04-27
+
+- added read-only project scan support for document/view/levels/links/imports/categories/schedules/selection/warnings context
+- runtime validation is still pending for scanner completeness and Ollama grounding behavior
+
+### 2026-04-27 Context UX/Q&A follow-up
+
+- live Revit validation showed bootstrap and standard scans succeed, but simple structured context questions could time out when routed through Ollama
+- deterministic context-answer routing was added for schedules, CAD/imports, links, categories, warnings, detected issues, levels/views/sheets, and first-check prompts
+- Project Context panel readability/detail was expanded; live validation remains pending for the new deterministic answer buttons and dark-theme tree styling
+
+### 2026-04-27 Context cache consistency follow-up
+
+- live Revit validation showed schedule and warning counts could diverge between Scan Project, tree, deterministic chat answers, AI Agent plan, and Codex brief
+- cache access was centralized so standard Scan Project becomes the authoritative latest context for all Project Context consumers
+- first-check/test-first phrasing now routes to deterministic BIM context guidance, and Revit link path/name output avoids raw API object representations

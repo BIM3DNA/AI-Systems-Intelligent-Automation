@@ -984,6 +984,111 @@
     "mode": "deterministic"
   },
   {
+    "id": "scan-current-project",
+    "title": "Scan current project",
+    "category": "Project Intelligence",
+    "group": "Project Context",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "scan current project",
+    "planner_aliases": [
+      "scan current project",
+      "project context",
+      "scan this Revit model"
+    ],
+    "example_prompts": [
+      "scan current project",
+      "project context"
+    ],
+    "deterministic_handler": "scan_current_project_context",
+    "validation_state": "structural_only",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "scan current project",
+    "mode": "deterministic"
+  },
+  {
+    "id": "summarize-current-project",
+    "title": "Summarize current project",
+    "category": "Project Intelligence",
+    "group": "Project Context",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "summarize current project",
+    "planner_aliases": [
+      "summarize current project",
+      "what is in this Revit model",
+      "what is in this model"
+    ],
+    "example_prompts": [
+      "summarize current project",
+      "what is in this Revit model"
+    ],
+    "deterministic_handler": "summarize_current_project_context",
+    "validation_state": "structural_only",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "summarize current project",
+    "mode": "deterministic"
+  },
+  {
+    "id": "ask-agent-for-project-plan",
+    "title": "Ask AI Agent for project plan",
+    "category": "Project Intelligence",
+    "group": "AI Agent Planning",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "ask AI Agent for a project plan",
+    "planner_aliases": [
+      "ask AI Agent for a plan",
+      "ask agent for project plan",
+      "what should I check first in this project"
+    ],
+    "example_prompts": [
+      "ask AI Agent for a plan",
+      "what should I check first in this project"
+    ],
+    "deterministic_handler": "ask_agent_for_project_plan_action",
+    "validation_state": "structural_only",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "ask AI Agent for a project plan",
+    "mode": "deterministic"
+  },
+  {
+    "id": "create-codex-task-brief",
+    "title": "Create Codex task brief",
+    "category": "Project Intelligence",
+    "group": "Developer Briefs",
+    "discipline": "Development",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "create Codex task brief",
+    "planner_aliases": [
+      "create Codex task brief",
+      "generate developer task from this issue",
+      "prepare Codex instruction",
+      "make implementation brief"
+    ],
+    "example_prompts": [
+      "create Codex task brief",
+      "prepare Codex instruction"
+    ],
+    "deterministic_handler": "create_codex_task_brief_action",
+    "validation_state": "structural_only",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "create Codex task brief",
+    "mode": "deterministic"
+  },
+  {
     "category": "Select All",
     "enabled": true,
     "id": "select-all-columns",

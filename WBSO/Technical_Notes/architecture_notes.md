@@ -958,3 +958,21 @@ This pass remains UI/catalog-only and does not touch reviewed execution behavior
 - added separate structural reviewed ACO pipe product-family template actions for 1.4301 single socket, 1.4404 single socket, and 1.4404 double socket sources
 - generic all-ACO pipe template actions remain blocked when no neutral all-pipe master exists
 - pipe-fitting level retargeting now uses stricter level-name resolution and normalized Level-field matching before creating schedules
+
+## 2026-04-27 Read-Only Project Context Scanner
+
+- added a deterministic read-only Revit project context scanner with bootstrap and standard scan depths
+- scanner output is cached in the AI Workbench session for Ollama Chat grounding, AI Agent reviewed-plan suggestions, and Codex task brief generation
+- no model transactions, reviewed execution lifecycle changes, ExternalEvent changes, or free-form AI Agent execution paths were added
+
+## 2026-04-27 Project Context UX and Deterministic Q&A Hardening
+
+- expanded the cached Project Context tree so names/status for views, sheets, links, imports, schedules, warnings, issues, and suggested reviewed actions are visible without sending prompts to Ollama
+- added deterministic fast-path answers for common structured project-context questions such as schedules, CAD/imports, links, warnings, categories, and first checks
+- kept the scanner and context Q&A read-only; no transactions, lifecycle changes, reviewed dispatch changes, or schedule/template creation behavior changes were introduced
+
+## 2026-04-27 Project Context Cache Consistency Fix
+
+- centralized Project Context cache reads through a latest-context helper so the tree, deterministic chat answers, quick actions, AI Agent plan, and Codex brief use the same newest scan snapshot
+- standard project scans replace bootstrap context for downstream schedule/warning summaries
+- Revit link display now prefers human-readable link names/status/path text instead of raw API object representations

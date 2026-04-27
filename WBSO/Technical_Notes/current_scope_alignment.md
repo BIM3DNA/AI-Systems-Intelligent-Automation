@@ -342,3 +342,13 @@ Still intentionally outside scope in this pass:
 
 - within scope: product-family ACO pipe template actions, catalog routing, cautious validation promotion for the already live-confirmed pipe-fitting summary action, and safer Level-field retarget preflight
 - intentionally unchanged: generic native schedule behavior, lifecycle/dispatch architecture, undo, create-sheet, create-3d-view, and rename-active-view paths
+
+### 2026-04-27 scope alignment
+
+- within scope: read-only project awareness, Ollama grounding from cached context, reviewed AI Agent plan suggestions, and copyable Codex task brief output
+- intentionally unchanged: ACO/Bunge schedule creation behavior, reviewed dispatch, timeout/request lifecycle, undo, create-sheet, create-3d-view, and rename-active-view paths
+
+### 2026-04-27 context UX/Q&A scope alignment
+
+- within scope: resizable/readable Project Context panel, richer cached context tree display, deterministic answers for known structured project-context prompts, and clean Ollama timeout messaging
+- intentionally unchanged: model mutation, transactions, reviewed execution governance, ExternalEvent/request lifecycle, undo, and ACO/Bunge schedule creation paths

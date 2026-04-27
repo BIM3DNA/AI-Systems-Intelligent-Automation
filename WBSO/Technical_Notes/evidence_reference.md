@@ -1029,3 +1029,14 @@ Reported as already live-validated before this code pass:
 
 - live evidence provided by user confirms generic native schedules remain valid, generic all-ACO pipe template actions block honestly, and ACO pipe-fitting summary from canonical master produced a populated summary with Grand total 141
 - local verification added routing coverage for the new structural product-family ACO pipe actions and exact coded level prompts
+
+### 2026-04-27 project-context scanner evidence
+
+- local verification covered script tabnanny, registry/session compile, prompt_catalog parsing, UI.xaml parsing, and shared-catalog routing for scanner/planner/brief prompts
+- no live Revit validation was executed for scanner collector completeness in this pass
+
+### 2026-04-27 project-context UX/Q&A evidence
+
+- user-provided live validation confirms bootstrap and standard scans succeed in Snowdon Towers Sample HVAC and return expected project counts
+- this pass adds deterministic context-answer routing to avoid Ollama timeouts for known structured questions
+- local verification covers static syntax/XML/JSON checks only; live validation of the new quick actions and dark-theme tree styling remains pending

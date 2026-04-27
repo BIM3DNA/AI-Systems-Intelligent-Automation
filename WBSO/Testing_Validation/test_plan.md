@@ -653,6 +653,34 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-04-27 Project Context UX/Q&A Validation Targets
+
+### Local/static checks
+
+- run `python -m tabnanny AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- compile `AI.extension/lib/ai_prompt_registry.py`
+- compile `AI.extension/lib/ai_agent_session.py`
+- parse `AI.extension/lib/prompt_catalog.json`
+- parse `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+- inspect that no project-context scanner or context-answer code adds Revit transactions
+
+### Live Revit checks pending
+
+- Workbench opens without freeze and bootstrap context loads
+- Project Context panel can be resized and remains readable in dark theme
+- tree shows link names/status, schedule names/status, category counts, warning groups, and detected issues
+- deterministic prompts `what schedules exist`, `what CAD imports are in this model`, and `what are the main BIM issues` answer without Ollama timeout
+- Ask Agent for Plan remains plan-only and Create Codex Brief remains copy-only
+
+## 2026-04-27 Project Context Consistency Validation Targets
+
+- run Scan Project after bootstrap context loads
+- confirm scan summary, Project Context tree, `what schedules exist`, AI Agent observed context, and Codex brief report matching schedule sampled/populated/empty/unknown counts
+- confirm warning count matches across scan summary, tree, `show warnings`, AI Agent observed context, and Codex brief
+- confirm `what should I test first in this project` returns BIM/project first checks rather than generic software testing guidance
+- confirm Revit links display human-readable link names/status and no raw `Autodesk.Revit.DB.FilePath object at ...` text
+- confirm no model mutation occurs
+
 ### Added local checks for 2026-04-22
 
 - verify generic native schedule actions still resolve unchanged through the shared reviewed catalog
@@ -666,6 +694,13 @@ The refactor should only be considered runtime-proven after the scenario set abo
 - verify exact coded level prompts such as 02_Ground Floor route to the intended template actions
 - verify ACO pipe-fitting summary remains the only promoted ACO/template action based on current runtime evidence
 - verify generic native schedule actions continue resolving as live_validated entries
+
+### Added local checks for 2026-04-27
+
+- verify `scan current project`, `summarize current project`, `ask AI Agent for a plan`, and `create Codex task brief` resolve through the shared reviewed catalog
+- verify scanner code adds no new Transaction usage
+- verify no reviewed execution lifecycle, ExternalEvent, create-sheet, create-3d-view, rename-view, or undo paths were modified
+- live runtime validation remains required for collector accuracy and UI behavior
 
 ## 2026-04-20 Runtime Targets for Stable-Baseline UI Polish
 

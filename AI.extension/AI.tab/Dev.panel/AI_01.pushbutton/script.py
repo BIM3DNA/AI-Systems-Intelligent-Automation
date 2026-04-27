@@ -71,6 +71,9 @@ THEMES = {
         "dropdown_highlight_fg": "#1f2937",
         "tree_bg": "#f8fafd",
         "tree_fg": "#1f2937",
+        "tree_hover_bg": "#e0efff",
+        "tree_selected_bg": "#dbeafe",
+        "tree_selected_fg": "#1f2937",
     },
     "dark": {
         "window_bg": "#0f172a",
@@ -92,6 +95,9 @@ THEMES = {
         "dropdown_highlight_fg": "#f8fafc",
         "tree_bg": "#111827",
         "tree_fg": "#f8fafc",
+        "tree_hover_bg": "#243244",
+        "tree_selected_bg": "#0f766e",
+        "tree_selected_fg": "#f8fafc",
     },
 }
 
@@ -2515,6 +2521,922 @@ def _active_view_title(doc, uidoc=None):
     except:
         pass
     return "(unknown view)"
+
+
+PROJECT_CONTEXT_MAX_ITEMS = 20
+
+
+def _safe_int(value, default=0):
+    try:
+        return int(value)
+    except:
+        return default
+
+
+def _safe_element_id_value(elem_or_id):
+    try:
+        if hasattr(elem_or_id, "IntegerValue"):
+            return int(elem_or_id.IntegerValue)
+    except:
+        pass
+    try:
+        return int(elem_or_id.Id.IntegerValue)
+    except:
+        return None
+
+
+def _safe_param_text(elem, param_names):
+    for name in param_names or []:
+        try:
+            param = elem.LookupParameter(name)
+            value = _value_from_param(param)
+            if value not in (None, ""):
+                return safe_str(value)
+        except:
+            continue
+    return None
+
+
+def _collector_section(context, warnings, section_name, collector):
+    try:
+        context[section_name] = collector()
+    except Exception as exc:
+        warnings.append(
+            {
+                "section": section_name,
+                "message": safe_str(exc),
+            }
+        )
+        context[section_name] = {"error": safe_str(exc)}
+
+
+def _active_view_info(doc, uidoc):
+    active_view = None
+    try:
+        active_view = getattr(uidoc, "ActiveView", None)
+    except:
+        active_view = None
+    if active_view is None:
+        try:
+            active_view = doc.ActiveView
+        except:
+            active_view = None
+    info = {
+        "name": get_elem_name(active_view) or "(unknown view)",
+        "id": _safe_element_id_value(active_view),
+        "view_type": None,
+        "view_template_id": None,
+        "view_template_name": None,
+        "discipline": None,
+    }
+    if active_view is None:
+        return info
+    try:
+        info["view_type"] = safe_str(active_view.ViewType)
+    except:
+        pass
+    try:
+        template_id = active_view.ViewTemplateId
+        if template_id and template_id.IntegerValue > 0:
+            info["view_template_id"] = int(template_id.IntegerValue)
+            template = doc.GetElement(template_id)
+            info["view_template_name"] = get_elem_name(template)
+    except:
+        pass
+    try:
+        info["discipline"] = _safe_param_text(active_view, ["Discipline"])
+    except:
+        pass
+    return info
+
+
+def _document_info(doc, uidoc):
+    path_name = ""
+    try:
+        path_name = getattr(doc, "PathName", "") or ""
+    except:
+        path_name = ""
+    is_workshared = None
+    try:
+        is_workshared = bool(doc.IsWorkshared)
+    except:
+        pass
+    active_view = _active_view_info(doc, uidoc)
+    return {
+        "title": _document_title(doc),
+        "path_name": path_name,
+        "is_workshared": is_workshared,
+        "active_view": active_view,
+    }
+
+
+def _collect_selection_ids(uidoc):
+    try:
+        return list(uidoc.Selection.GetElementIds())
+    except:
+        return []
+
+
+def _collect_levels_context(doc):
+    levels = []
+    alias_groups = {}
+    try:
+        for level in DB.FilteredElementCollector(doc).OfClass(DB.Level):
+            name = get_elem_name(level) or "(unnamed level)"
+            simplified = re.sub(r"^\d+[_\-\s]+", "", name).strip()
+            simplified_key = re.sub(r"[^a-z0-9]+", "", simplified.lower())
+            elevation = None
+            try:
+                elevation = float(level.Elevation)
+            except:
+                pass
+            entry = {
+                "exact_name": name,
+                "simplified_name": simplified,
+                "simplified_key": simplified_key,
+                "elevation": elevation,
+                "ambiguous_alias": False,
+            }
+            levels.append(entry)
+            alias_groups.setdefault(simplified_key, []).append(name)
+    except:
+        pass
+    ambiguous = []
+    for entry in levels:
+        names = alias_groups.get(entry.get("simplified_key"), [])
+        if len(set(names)) > 1:
+            entry["ambiguous_alias"] = True
+            ambiguous.append(
+                {
+                    "simplified_name": entry.get("simplified_name"),
+                    "candidates": sorted(set(names)),
+                }
+            )
+    return {
+        "count": len(levels),
+        "levels": levels,
+        "ambiguous_aliases": ambiguous,
+    }
+
+
+def _collect_view_summary(doc, uidoc=None, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
+    grouped = {}
+    samples_by_type = {}
+    total = 0
+    active_id = None
+    try:
+        active_id = _safe_element_id_value(uidoc.ActiveView.Id)
+    except:
+        active_id = None
+    try:
+        for view in DB.FilteredElementCollector(doc).OfClass(DB.View):
+            try:
+                if getattr(view, "IsTemplate", False):
+                    continue
+            except:
+                pass
+            total += 1
+            try:
+                view_type = safe_str(view.ViewType)
+            except:
+                view_type = "Unknown"
+            grouped[view_type] = grouped.get(view_type, 0) + 1
+            samples = samples_by_type.setdefault(view_type, [])
+            if len(samples) < sample_limit:
+                view_id = _safe_element_id_value(view)
+                samples.append(
+                    {
+                        "id": view_id,
+                        "name": get_elem_name(view),
+                        "is_active": bool(active_id is not None and view_id == active_id),
+                    }
+                )
+    except:
+        pass
+    return {"total": total, "by_view_type": grouped, "samples_by_view_type": samples_by_type}
+
+
+def _sheet_placed_view_count(sheet):
+    try:
+        return len(list(sheet.GetAllViewports()))
+    except:
+        return "not scanned"
+
+
+def _collect_sheet_summary(doc, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
+    count = 0
+    samples = []
+    try:
+        for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+            count += 1
+            if len(samples) < sample_limit:
+                number = ""
+                try:
+                    number = sheet.SheetNumber
+                except:
+                    pass
+                samples.append(
+                    {
+                        "id": _safe_element_id_value(sheet),
+                        "number": number,
+                        "name": get_elem_name(sheet),
+                        "placed_view_count": _sheet_placed_view_count(sheet),
+                    }
+                )
+    except:
+        pass
+    return {"count": count, "samples": samples}
+
+
+def _project_schedule_body_row_count(schedule):
+    try:
+        table_data = schedule.GetTableData()
+        try:
+            section_data = table_data.GetSectionData(DB.SectionType.Body)
+        except:
+            section_data = table_data.GetSectionData(1)
+        return int(section_data.NumberOfRows)
+    except:
+        return "unknown"
+
+
+def _project_schedule_sort_fields(schedule, doc, sample_limit=10):
+    fields = []
+    try:
+        definition = schedule.Definition
+        for index in range(definition.GetSortGroupFieldCount()):
+            try:
+                sort_field = definition.GetSortGroupField(index)
+                field = definition.GetField(sort_field.FieldId)
+                fields.append(_schedule_field_name(field, doc) or "(unknown field)")
+                if len(fields) >= sample_limit:
+                    break
+            except:
+                continue
+    except:
+        pass
+    return fields
+
+
+def _project_schedule_filter_summaries(schedule, doc, sample_limit=10):
+    filters = []
+    try:
+        definition = schedule.Definition
+        for index in range(definition.GetFilterCount()):
+            try:
+                sched_filter = definition.GetFilter(index)
+                field = definition.GetField(sched_filter.FieldId)
+                field_name = _schedule_field_name(field, doc) or "(unknown field)"
+                filter_type = None
+                value_text = ""
+                try:
+                    filter_type = safe_str(sched_filter.FilterType)
+                except:
+                    filter_type = "unknown"
+                for attr in ("GetStringValue", "GetDoubleValue", "GetIntegerValue", "GetElementIdValue"):
+                    try:
+                        value = getattr(sched_filter, attr)()
+                        if value not in (None, ""):
+                            value_text = safe_str(value)
+                            break
+                    except:
+                        continue
+                filters.append({"field": field_name, "operator": filter_type, "value": value_text})
+                if len(filters) >= sample_limit:
+                    break
+            except:
+                continue
+    except:
+        pass
+    return filters
+
+
+def _is_ai_generated_schedule_name(name):
+    lower = (name or "").lower()
+    prefixes = ["ai ", "ai-", "ai_", "aco pipe schedule", "aco pipe summary", "aco pipe fitting schedule", "aco pipe fitting summary"]
+    return any(lower.startswith(prefix) for prefix in prefixes)
+
+
+def _collect_schedule_inventory(doc, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
+    schedules = []
+    ai_generated = []
+    template_like = []
+    suspicious = []
+    total_count = 0
+    vendor_tokens = ["aco", "bunge", "geberit", "raminex", "wavin", "prefab", "total", "summary", "sheet", "template"]
+    try:
+        for schedule in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule):
+            total_count += 1
+            name = get_elem_name(schedule) or "(unnamed schedule)"
+            lower = name.lower()
+            field_names = _schedule_definition_field_names(schedule, doc)
+            filter_summaries = _project_schedule_filter_summaries(schedule, doc)
+            sort_fields = _project_schedule_sort_fields(schedule, doc)
+            row_count = _project_schedule_body_row_count(schedule)
+            tokens = [token for token in vendor_tokens if token in lower or any(token in (field or "").lower() for field in field_names)]
+            category_name = None
+            try:
+                definition = schedule.Definition
+                cat_id = definition.CategoryId
+                if cat_id and cat_id.IntegerValue > 0:
+                    category = DB.Category.GetCategory(doc, cat_id)
+                    category_name = get_elem_name(category)
+            except:
+                pass
+            itemized = None
+            try:
+                itemized = bool(schedule.Definition.IsItemized)
+            except:
+                pass
+            is_ai_generated = _is_ai_generated_schedule_name(name)
+            is_template_like = bool("template" in lower or "master" in lower or ("aco" in lower and not is_ai_generated))
+            is_suspicious = bool(row_count == 0 or is_ai_generated)
+            entry = {
+                "id": _safe_element_id_value(schedule),
+                "name": name,
+                "category": category_name,
+                "field_names": field_names[:20],
+                "filter_summaries": filter_summaries,
+                "sort_group_fields": sort_fields,
+                "is_itemized": itemized,
+                "body_row_count": row_count,
+                "appears_ai_generated": is_ai_generated,
+                "appears_template_like": is_template_like,
+                "vendor_project_tokens": tokens,
+            }
+            if len(schedules) < sample_limit:
+                schedules.append(entry)
+            if is_ai_generated:
+                ai_generated.append(name)
+            if is_template_like:
+                template_like.append(name)
+            if is_suspicious:
+                suspicious.append({"name": name, "body_row_count": row_count, "reason": "empty or AI-generated"})
+    except:
+        pass
+    return {
+        "count": total_count,
+        "sampled_count": len(schedules),
+        "schedules": schedules,
+        "ai_generated_schedule_names": ai_generated[:sample_limit],
+        "template_like_schedule_candidates": template_like[:sample_limit],
+        "suspicious_or_empty_schedule_candidates": suspicious[:sample_limit],
+    }
+
+
+def _model_path_to_user_visible_text(model_path):
+    if model_path is None:
+        return "<path not available>"
+    try:
+        text = DB.ModelPathUtils.ConvertModelPathToUserVisiblePath(model_path)
+        if text:
+            return safe_str(text)
+    except:
+        pass
+    try:
+        text = model_path.GetUserVisiblePath()
+        if text:
+            return safe_str(text)
+    except:
+        pass
+    text = safe_str(model_path)
+    if " object at 0x" in text.lower() or text.startswith("<"):
+        return "<path not available>"
+    return text or "<path not available>"
+
+
+def _external_reference_path_text(external_ref):
+    if external_ref is None:
+        return "<path not available>"
+    for getter in ("GetAbsolutePath", "GetPath"):
+        try:
+            value = getattr(external_ref, getter)()
+            text = _model_path_to_user_visible_text(value)
+            if text and text != "<path not available>":
+                return text
+        except:
+            continue
+    return "<path not available>"
+
+
+def _collect_revit_links(doc, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
+    by_type = {}
+    instances = []
+    loaded = []
+    unavailable = []
+    try:
+        for instance in DB.FilteredElementCollector(doc).OfClass(DB.RevitLinkInstance):
+            instance_name = get_elem_name(instance) or "(unnamed link instance)"
+            type_name = None
+            link_doc_title = None
+            has_doc = False
+            try:
+                link_type = doc.GetElement(instance.GetTypeId())
+                type_name = get_elem_name(link_type)
+            except:
+                link_type = None
+            instance_id = _safe_element_id_value(instance)
+            type_id = _safe_element_id_value(link_type) if link_type is not None else None
+            try:
+                link_doc = instance.GetLinkDocument()
+                has_doc = link_doc is not None
+                if link_doc is not None:
+                    link_doc_title = _document_title(link_doc)
+            except:
+                pass
+            status = "loaded" if has_doc else "unloaded_or_unavailable"
+            path_info = ""
+            try:
+                external_ref = link_type.GetExternalFileReference() if link_type is not None else None
+                if external_ref is not None:
+                    path_info = _external_reference_path_text(external_ref)
+            except:
+                pass
+            if not path_info:
+                path_info = "<path not available>"
+            transform_summary = ""
+            try:
+                origin = instance.GetTransform().Origin
+                transform_summary = "origin=({0:.3f}, {1:.3f}, {2:.3f})".format(origin.X, origin.Y, origin.Z)
+            except:
+                pass
+            display_name = link_doc_title or type_name or instance_name or "(unnamed Revit link)"
+            key = display_name
+            by_type.setdefault(key, 0)
+            by_type[key] += 1
+            entry = {
+                "display_name": display_name,
+                "instance_name": instance_name,
+                "type_name": type_name,
+                "instance_id": instance_id,
+                "type_id": type_id,
+                "status": status,
+                "get_link_document_available": has_doc,
+                "linked_document_title": link_doc_title,
+                "path_info": path_info,
+                "transform_summary": transform_summary,
+            }
+            if len(instances) < sample_limit:
+                instances.append(entry)
+            if has_doc:
+                loaded.append(entry)
+            else:
+                unavailable.append(entry)
+    except:
+        pass
+    duplicates = []
+    for type_name, count in by_type.items():
+        if count > 1:
+            duplicates.append({"type_name": type_name, "instance_count": count})
+    return {
+        "instance_count": sum(by_type.values()),
+        "instance_count_by_type": by_type,
+        "instances": instances,
+        "loaded_links": loaded[:sample_limit],
+        "unavailable_links": unavailable[:sample_limit],
+        "duplicate_link_types_or_instances": duplicates[:sample_limit],
+    }
+
+
+def _collect_imports_context(doc, uidoc, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
+    imports = []
+    total_count = 0
+    linked_count = 0
+    imported_count = 0
+    view_specific_count = 0
+    layer_candidates = []
+    active_view_id = None
+    try:
+        active_view_id = uidoc.ActiveView.Id
+    except:
+        pass
+    try:
+        for import_instance in DB.FilteredElementCollector(doc).OfClass(DB.ImportInstance):
+            total_count += 1
+            name = get_elem_name(import_instance) or "(unnamed import)"
+            type_name = None
+            try:
+                type_name = get_elem_name(doc.GetElement(import_instance.GetTypeId()))
+            except:
+                pass
+            category_name = _category_name(import_instance)
+            linked = None
+            try:
+                linked = bool(import_instance.IsLinked)
+            except:
+                pass
+            owner_view_id = _safe_element_id_value(getattr(import_instance, "OwnerViewId", None))
+            owner_view_name = None
+            if owner_view_id and owner_view_id > 0:
+                try:
+                    owner_view = doc.GetElement(import_instance.OwnerViewId)
+                    owner_view_name = get_elem_name(owner_view)
+                    view_specific_count += 1
+                except:
+                    pass
+            if linked:
+                linked_count += 1
+            elif linked is False:
+                imported_count += 1
+            subcategories = []
+            try:
+                category = import_instance.Category
+                for subcategory in category.SubCategories:
+                    sub_name = get_elem_name(subcategory)
+                    if sub_name:
+                        subcategories.append(sub_name)
+                        if len(layer_candidates) < sample_limit:
+                            layer_candidates.append(sub_name)
+                    if len(subcategories) >= 20:
+                        break
+            except:
+                pass
+            visible_in_active_view = "unknown"
+            try:
+                if active_view_id and owner_view_id:
+                    visible_in_active_view = bool(owner_view_id == active_view_id.IntegerValue)
+            except:
+                pass
+            if len(imports) < sample_limit:
+                imports.append(
+                    {
+                        "instance_name": name,
+                        "type_name": type_name,
+                        "category": category_name,
+                        "owner_view_id": owner_view_id,
+                        "owner_view_name": owner_view_name,
+                        "linked": linked,
+                        "visible_in_active_view": visible_in_active_view,
+                        "layer_or_subcategory_samples": subcategories[:20],
+                    }
+                )
+    except:
+        pass
+    return {
+        "total_import_instances": total_count,
+        "linked_cad_count": linked_count,
+        "imported_cad_count": imported_count,
+        "view_specific_import_count": view_specific_count,
+        "imports": imports,
+        "imported_category_or_layer_candidates": sorted(set(layer_candidates))[:sample_limit],
+    }
+
+
+def _core_category_configs():
+    return [
+        ("Pipes", "OST_PipeCurves"),
+        ("Pipe Fittings", "OST_PipeFitting"),
+        ("Pipe Accessories", "OST_PipeAccessory"),
+        ("Ducts", "OST_DuctCurves"),
+        ("Duct Fittings", "OST_DuctFitting"),
+        ("Duct Accessories", "OST_DuctAccessory"),
+        ("Mechanical Equipment", "OST_MechanicalEquipment"),
+        ("Electrical Fixtures", "OST_ElectricalFixtures"),
+        ("Electrical Equipment", "OST_ElectricalEquipment"),
+        ("Conduits", "OST_Conduit"),
+        ("Cable Trays", "OST_CableTray"),
+        ("Plumbing Fixtures", "OST_PlumbingFixtures"),
+        ("Generic Models", "OST_GenericModel"),
+        ("Structural Framing", "OST_StructuralFraming"),
+        ("Floors", "OST_Floors"),
+        ("Walls", "OST_Walls"),
+        ("Doors", "OST_Doors"),
+        ("Windows", "OST_Windows"),
+        ("Revit Links", "OST_RvtLinks"),
+        ("Import Instances", "OST_ImportObjectStyles"),
+    ]
+
+
+def _category_element_count(doc, bic, view_id=None):
+    try:
+        collector = DB.FilteredElementCollector(doc, view_id) if view_id is not None else DB.FilteredElementCollector(doc)
+        return collector.OfCategory(bic).WhereElementIsNotElementType().GetElementCount()
+    except:
+        try:
+            collector = DB.FilteredElementCollector(doc, view_id) if view_id is not None else DB.FilteredElementCollector(doc)
+            return len(list(collector.OfCategory(bic).WhereElementIsNotElementType()))
+        except:
+            return "unknown"
+
+
+def _collect_core_category_counts(doc, uidoc):
+    selected_ids = set([_safe_element_id_value(item) for item in _collect_selection_ids(uidoc)])
+    active_view_id = None
+    try:
+        active_view_id = uidoc.ActiveView.Id
+    except:
+        pass
+    rows = []
+    for label, bic_name in _core_category_configs():
+        try:
+            bic = getattr(DB.BuiltInCategory, bic_name)
+        except:
+            rows.append({"category": label, "total_count": "category unavailable", "active_view_count": "unknown", "selected_count": 0})
+            continue
+        total = _category_element_count(doc, bic)
+        active_count = _category_element_count(doc, bic, active_view_id) if active_view_id is not None else "unknown"
+        selected_count = 0
+        if selected_ids:
+            try:
+                for elem_id in _collect_selection_ids(uidoc):
+                    elem = doc.GetElement(elem_id)
+                    try:
+                        if elem and elem.Category and elem.Category.Id.IntegerValue == int(bic):
+                            selected_count += 1
+                    except:
+                        continue
+            except:
+                selected_count = "unknown"
+        rows.append({"category": label, "total_count": total, "active_view_count": active_count, "selected_count": selected_count})
+    return rows
+
+
+def _collect_selection_summary(doc, uidoc, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
+    ids = _collect_selection_ids(uidoc)
+    categories = {}
+    types = {}
+    levels = {}
+    samples = []
+    for elem_id in ids[:sample_limit]:
+        try:
+            elem = doc.GetElement(elem_id)
+        except:
+            elem = None
+        if elem is None:
+            continue
+        cat_name = _category_name(elem)
+        type_name = _family_and_type_text(doc, elem) or "(unknown type)"
+        level_name = _safe_param_text(elem, ["Reference Level", "Level", "Schedule Level", "Base Level"])
+        categories[cat_name] = categories.get(cat_name, 0) + 1
+        types[type_name] = types.get(type_name, 0) + 1
+        if level_name:
+            levels[level_name] = levels.get(level_name, 0) + 1
+        samples.append({"id": _safe_element_id_value(elem), "category": cat_name, "type": type_name, "level": level_name})
+    return {
+        "selected_element_count": len(ids),
+        "selected_categories": categories,
+        "selected_family_type_names": types,
+        "selected_levels_or_reference_levels": levels,
+        "samples": samples,
+        "sample_limit": sample_limit,
+    }
+
+
+def _collect_warning_summary(doc, sample_limit=10):
+    groups = {}
+    total = 0
+    try:
+        warnings = list(doc.GetWarnings())
+        total = len(warnings)
+        for warning in warnings:
+            try:
+                description = warning.GetDescriptionText()
+            except:
+                description = "(unknown warning)"
+            group = groups.setdefault(description, {"count": 0, "example_element_ids": []})
+            group["count"] += 1
+            try:
+                failing_ids = list(warning.GetFailingElements())
+                for elem_id in failing_ids:
+                    value = _safe_element_id_value(elem_id)
+                    if value is not None and len(group["example_element_ids"]) < 5:
+                        group["example_element_ids"].append(value)
+            except:
+                pass
+    except:
+        pass
+    ordered = []
+    for description, value in groups.items():
+        ordered.append({"description": description, "count": value.get("count", 0), "example_element_ids": value.get("example_element_ids", [])})
+    ordered.sort(key=lambda item: -item.get("count", 0))
+    return {"total_warning_count": total, "top_warning_groups": ordered[:sample_limit]}
+
+
+def _top_category_counts(category_counts, limit=8):
+    numeric = []
+    for item in category_counts or []:
+        total = item.get("total_count")
+        if isinstance(total, int) and total > 0:
+            numeric.append((total, item.get("category")))
+    numeric.sort(reverse=True)
+    return numeric[:limit]
+
+
+def _detect_project_issues(context):
+    issues = []
+    levels = context.get("levels", {})
+    if levels.get("ambiguous_aliases"):
+        issues.append({"id": "ambiguous_level_names", "severity": "medium", "message": "Ambiguous level aliases detected."})
+    links = context.get("links", {})
+    if links.get("unavailable_links"):
+        issues.append({"id": "unloaded_or_unavailable_revit_links", "severity": "medium", "message": "One or more Revit links appear unloaded or unavailable."})
+    imports = context.get("imports_cad", {})
+    if imports.get("total_import_instances", 0):
+        issues.append({"id": "cad_imports_present", "severity": "low", "message": "CAD/import instances are present."})
+    if imports.get("view_specific_import_count", 0):
+        issues.append({"id": "view_specific_imports_present", "severity": "low", "message": "View-specific CAD/import instances are present."})
+    schedules = context.get("schedules", {})
+    ai_generated = schedules.get("ai_generated_schedule_names") or []
+    suspicious = schedules.get("suspicious_or_empty_schedule_candidates") or []
+    template_like = schedules.get("template_like_schedule_candidates") or []
+    if len(ai_generated) >= 5:
+        issues.append({"id": "many_ai_generated_schedules", "severity": "low", "message": "Multiple AI-generated schedules were detected."})
+    if suspicious:
+        issues.append({"id": "empty_or_suspicious_schedules", "severity": "medium", "message": "Empty or suspicious schedules were detected."})
+    if any("aco" in name.lower() or "bunge" in name.lower() for name in template_like):
+        issues.append({"id": "aco_bunge_templates_present", "severity": "info", "message": "ACO/Bunge schedule templates appear to be present."})
+    if template_like and not any("aco pipe schedule" == name.lower().strip() for name in template_like):
+        issues.append({"id": "no_neutral_aco_master_template", "severity": "info", "message": "No neutral all-ACO pipe master template was observed in the sampled schedule candidates."})
+    selection = context.get("selection", {})
+    if selection.get("selected_element_count", 0):
+        issues.append({"id": "selection_present", "severity": "info", "message": "Active-document selection is present."})
+    else:
+        issues.append({"id": "no_selection", "severity": "info", "message": "No active-document selection was found."})
+    warnings = context.get("warnings_summary", {})
+    if warnings.get("total_warning_count", 0) and warnings.get("total_warning_count", 0) >= 100:
+        issues.append({"id": "high_warning_count", "severity": "medium", "message": "High Revit warning count detected."})
+    return issues
+
+
+def _project_first_check_lines(context):
+    issues = set([issue.get("id") for issue in context.get("detected_issues", [])])
+    checks = []
+    if "unloaded_or_unavailable_revit_links" in issues:
+        checks.append("Review unloaded or unavailable Revit links before coordination checks.")
+    if "cad_imports_present" in issues or "view_specific_imports_present" in issues:
+        checks.append("Review CAD/import instances and view-specific imports for coordination risk.")
+    if "empty_or_suspicious_schedules" in issues:
+        checks.append("Inspect empty, suspicious, or AI-generated schedules before using them as templates.")
+    schedules = context.get("schedules", {})
+    schedule_samples = schedules.get("schedules", []) or []
+    if schedule_samples:
+        populated = len([item for item in schedule_samples if isinstance(item.get("body_row_count"), int) and item.get("body_row_count") > 0])
+        empty = len([item for item in schedule_samples if item.get("body_row_count") == 0])
+        unknown = len([item for item in schedule_samples if not isinstance(item.get("body_row_count"), int)])
+        checks.append("Review schedule population/status: sampled {0}, populated {1}, empty {2}, unknown {3}.".format(len(schedule_samples), populated, empty, unknown))
+    if "ambiguous_level_names" in issues:
+        checks.append("Resolve level naming ambiguity before level-targeted schedule/template actions.")
+    if context.get("warnings_summary", {}).get("total_warning_count", 0):
+        checks.append("Review the top Revit warning groups.")
+    categories = context.get("category_counts", []) or []
+    if any(item.get("category") in ("Pipes", "Pipe Fittings", "Ducts", "Duct Fittings") and isinstance(item.get("total_count"), int) and item.get("total_count") > 0 for item in categories):
+        checks.append("Run read-only MEP health checks or schedule summaries before modifying model data.")
+    if not context.get("selection", {}).get("selected_element_count", 0):
+        checks.append("Select elements before running selection-based reviewed checks, or use active-view/project checks first.")
+    if not checks:
+        checks.append("Run a standard project scan, then start with read-only active-view health checks.")
+    return checks
+
+
+def _summarize_project_context(context):
+    doc_info = context.get("document", {})
+    active_view = doc_info.get("active_view", {})
+    levels = context.get("levels", {})
+    sheets = context.get("sheets", {})
+    views = context.get("views", {})
+    schedules = context.get("schedules", {})
+    links = context.get("links", {})
+    imports = context.get("imports_cad", {})
+    selection = context.get("selection", {})
+    warnings = context.get("warnings_summary", {})
+    issues = context.get("detected_issues", [])
+    lines = [
+        "Project Context Summary",
+        "- Document: {0}".format(doc_info.get("title", "(unknown document)")),
+        "- Active view: {0} [{1}]".format(active_view.get("name", "(unknown view)"), active_view.get("view_type", "unknown")),
+    ]
+    level_names = [level.get("exact_name") for level in levels.get("levels", [])[:8] if level.get("exact_name")]
+    lines.append("- Levels: {0}{1}".format(levels.get("count", 0), " | {0}".format(", ".join(level_names)) if level_names else ""))
+    if levels.get("ambiguous_aliases"):
+        lines.append("- Ambiguous level aliases: {0}".format(len(levels.get("ambiguous_aliases"))))
+    view_groups = views.get("by_view_type", {}) or {}
+    view_group_text = ", ".join(["{0}={1}".format(key, value) for key, value in sorted(view_groups.items())[:6]])
+    lines.append("- Views: {0}{1}".format(views.get("total", 0), " | {0}".format(view_group_text) if view_group_text else ""))
+    sheet_names = []
+    for sheet in sheets.get("samples", [])[:5]:
+        label = "{0} {1}".format(sheet.get("number") or "", sheet.get("name") or "").strip()
+        if label:
+            sheet_names.append(label)
+    lines.append("- Sheets: {0}{1}".format(sheets.get("count", 0), " | {0}".format("; ".join(sheet_names)) if sheet_names else ""))
+    loaded_links = links.get("loaded_links") or []
+    unavailable_links = links.get("unavailable_links") or []
+    link_names = [item.get("display_name") or item.get("type_name") or item.get("instance_name") for item in (loaded_links + unavailable_links)[:5]]
+    lines.append("- Revit links: {0} | loaded {1}, unavailable {2}{3}".format(links.get("instance_count", 0), len(loaded_links), len(unavailable_links), " | {0}".format(", ".join([name for name in link_names if name])) if link_names else ""))
+    import_names = [item.get("instance_name") for item in imports.get("imports", [])[:5] if item.get("instance_name")]
+    lines.append("- CAD/imports: {0}{1}".format(imports.get("total_import_instances", 0), " | {0}".format(", ".join(import_names)) if import_names else ""))
+    top_counts = _top_category_counts(context.get("category_counts", []))
+    if top_counts:
+        lines.append("- Top categories: {0}".format(", ".join(["{0}={1}".format(name, count) for count, name in top_counts])))
+    schedule_samples = schedules.get("schedules", []) or []
+    populated = len([item for item in schedule_samples if isinstance(item.get("body_row_count"), int) and item.get("body_row_count") > 0])
+    empty = len([item for item in schedule_samples if item.get("body_row_count") == 0])
+    unknown = len([item for item in schedule_samples if not isinstance(item.get("body_row_count"), int)])
+    lines.append("- Schedules: sampled {0} | populated {1}, empty {2}, unknown {3}".format(schedules.get("sampled_count", schedules.get("count", 0)), populated, empty, unknown))
+    lines.append("- Warnings: {0}".format(warnings.get("total_warning_count", 0)))
+    if issues:
+        lines.append("- Detected issues: {0}".format(", ".join(["{0} ({1})".format(issue.get("id"), issue.get("severity", "info")) for issue in issues[:8]])))
+    lines.append("- Selected elements: {0}".format(selection.get("selected_element_count", 0)))
+    checks = _project_first_check_lines(context)
+    if checks:
+        lines.append("- Suggested first checks:")
+        for index, check in enumerate(checks[:4]):
+            lines.append("  {0}. {1}".format(index + 1, check))
+    scan_warnings = context.get("scanner_warnings", [])
+    if scan_warnings:
+        lines.append("- Scanner warnings: {0}".format(len(scan_warnings)))
+    return "\n".join(lines)
+
+
+def collect_project_context(doc, uidoc, scan_depth="standard"):
+    depth = (scan_depth or "standard").lower()
+    if depth not in ("bootstrap", "standard", "deep"):
+        depth = "standard"
+    if depth == "deep":
+        depth = "standard"
+    context = {
+        "scan_depth": depth,
+        "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "scanner_warnings": [],
+    }
+    warnings = context["scanner_warnings"]
+    _collector_section(context, warnings, "document", lambda: _document_info(doc, uidoc))
+    _collector_section(context, warnings, "levels", lambda: _collect_levels_context(doc))
+    _collector_section(context, warnings, "selection", lambda: _collect_selection_summary(doc, uidoc))
+    if depth == "bootstrap":
+        _collector_section(context, warnings, "views", lambda: _collect_view_summary(doc, uidoc))
+        _collector_section(context, warnings, "sheets", lambda: _collect_sheet_summary(doc))
+        _collector_section(context, warnings, "schedules", lambda: {"count": _safe_int(len(list(DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule))), 0)})
+        _collector_section(context, warnings, "links", lambda: _collect_revit_links(doc, 5))
+        _collector_section(context, warnings, "imports_cad", lambda: _collect_imports_context(doc, uidoc, 5))
+    else:
+        _collector_section(context, warnings, "views", lambda: _collect_view_summary(doc, uidoc))
+        _collector_section(context, warnings, "sheets", lambda: _collect_sheet_summary(doc))
+        _collector_section(context, warnings, "schedules", lambda: _collect_schedule_inventory(doc))
+        _collector_section(context, warnings, "links", lambda: _collect_revit_links(doc))
+        _collector_section(context, warnings, "imports_cad", lambda: _collect_imports_context(doc, uidoc))
+        _collector_section(context, warnings, "category_counts", lambda: _collect_core_category_counts(doc, uidoc))
+        _collector_section(context, warnings, "warnings_summary", lambda: _collect_warning_summary(doc))
+    context["detected_issues"] = _detect_project_issues(context)
+    summary = _summarize_project_context(context)
+    return {
+        "context": context,
+        "summary": summary,
+        "warnings": list(warnings),
+    }
+
+
+def scan_current_project_context(doc, uidoc, context=None):
+    result = collect_project_context(doc, uidoc, "standard")
+    return result.get("summary", "")
+
+
+def summarize_current_project_context(doc, uidoc, context=None):
+    result = collect_project_context(doc, uidoc, "bootstrap")
+    return result.get("summary", "")
+
+
+def ask_agent_for_project_plan_action(doc, uidoc, context=None):
+    result = collect_project_context(doc, uidoc, "standard")
+    summary = result.get("summary", "")
+    return "\n".join(
+        [
+            "Project-context planning input prepared.",
+            summary,
+            "Use AI Agent Ask Agent for Plan to create a reviewed plan from this context.",
+            "No actions have been executed.",
+        ]
+    )
+
+
+def create_codex_task_brief_action(doc, uidoc, context=None):
+    result = collect_project_context(doc, uidoc, "bootstrap")
+    return "\n".join(
+        [
+            "Codex Task Brief",
+            "",
+            "Current document: {0}".format(_document_title(doc)),
+            "Active view: {0}".format(_active_view_title(doc, uidoc)),
+            "",
+            "Latest scan summary:",
+            result.get("summary", ""),
+            "",
+            "Observed issue:",
+            "Runtime validation/export tooling for ModelMind actions.",
+            "",
+            "Forbidden changes:",
+            "- window lifecycle",
+            "- ExternalEvent / reviewed dispatch",
+            "- modal/modeless behavior",
+            "- create sheet / create 3D view / rename view paths",
+            "- shared undo plumbing",
+            "",
+            "Validation commands:",
+            "- python -m tabnanny AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py",
+            "- python -m py_compile AI.extension/lib/ai_prompt_registry.py",
+            "- python -m py_compile AI.extension/lib/ai_agent_session.py",
+            "- parse AI.extension/lib/prompt_catalog.json",
+        ]
+    )
 
 
 def _element_type_name(doc, elem):
@@ -6570,6 +7492,10 @@ REVIEWED_ACTION_HANDLERS = {
     "create_aco_14404_single_socket_pipe_summary_from_template": create_aco_14404_single_socket_pipe_summary_from_template,
     "create_aco_14404_double_socket_pipe_summary_from_template": create_aco_14404_double_socket_pipe_summary_from_template,
     "create_aco_prefab_schedule_bundle_from_template": create_aco_prefab_schedule_bundle_from_template,
+    "scan_current_project_context": scan_current_project_context,
+    "summarize_current_project_context": summarize_current_project_context,
+    "ask_agent_for_project_plan_action": ask_agent_for_project_plan_action,
+    "create_codex_task_brief_action": create_codex_task_brief_action,
 }
 
 
@@ -7094,6 +8020,13 @@ class OllamaAIChat(forms.WPFWindow):
         self.last_reviewed_recipe_metadata = None
         self.last_provider_notice = None
         self.current_matched_action_id = ""
+        self.latest_project_context = None
+        self.latest_project_context_timestamp = None
+        self.latest_project_context_scan_depth = None
+        self.latest_project_context_doc_title = None
+        self.latest_project_context_active_view_id = None
+        self.latest_project_context_summary = ""
+        self.latest_codex_brief = ""
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -7101,6 +8034,30 @@ class OllamaAIChat(forms.WPFWindow):
 
         # Ollama Chat: low-risk conversational help and prompt experimentation.
         self.SendButton.Click += self.on_send_chat
+        if hasattr(self, "ProjectScanButton"):
+            self.ProjectScanButton.Click += self.on_project_scan
+        if hasattr(self, "ProjectRefreshButton"):
+            self.ProjectRefreshButton.Click += self.on_project_scan
+        if hasattr(self, "ProjectAgentPlanButton"):
+            self.ProjectAgentPlanButton.Click += self.on_project_agent_plan
+        if hasattr(self, "ProjectCodexBriefButton"):
+            self.ProjectCodexBriefButton.Click += self.on_project_codex_brief
+        for quick_name in [
+            "ProjectQuickSummaryButton",
+            "ProjectQuickLevelsButton",
+            "ProjectQuickViewsButton",
+            "ProjectQuickSheetsButton",
+            "ProjectQuickLinksButton",
+            "ProjectQuickImportsButton",
+            "ProjectQuickCategoriesButton",
+            "ProjectQuickSchedulesButton",
+            "ProjectQuickEmptySchedulesButton",
+            "ProjectQuickWarningsButton",
+            "ProjectQuickIssuesButton",
+            "ProjectQuickFirstChecksButton",
+        ]:
+            if hasattr(self, quick_name):
+                getattr(self, quick_name).Click += self.on_project_context_quick_action
 
         # ModelMind: primary end-user workflow for deterministic and semi-generative tasks.
         self.ModelMindSendButton.Click += self.on_modelmind_send
@@ -7155,6 +8112,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.update_agent_warning()
         self.set_agent_status(self.agent_session.status)
         self.update_prompt_details(None)
+        self.load_bootstrap_project_context()
 
     def _set_thinking(self, text):
         try:
@@ -7635,6 +8593,10 @@ class OllamaAIChat(forms.WPFWindow):
         self._set_theme_resource("ComboItemHighlightForegroundBrush", palette["dropdown_highlight_fg"])
         self._set_theme_resource("TreeBackgroundBrush", palette["tree_bg"])
         self._set_theme_resource("TreeForegroundBrush", palette["tree_fg"])
+        self._set_theme_resource("TreeItemHoverBrush", palette["tree_hover_bg"])
+        self._set_theme_resource("TreeItemSelectedBrush", palette["tree_selected_bg"])
+        self._set_theme_resource("TreeItemSelectedForegroundBrush", palette["tree_selected_fg"])
+        self._set_theme_resource("TreeBorderBrush", palette["border"])
         self._apply_control_style("MainWindow", palette["window_bg"], palette["text"])
         self._apply_control_style("MainBorder", palette["panel_bg"], palette["text"], palette["border"])
         self._apply_control_style("HeaderBar", palette["panel_bg"], palette["text"], None)
@@ -7653,6 +8615,30 @@ class OllamaAIChat(forms.WPFWindow):
         self._apply_control_style("ChatHistory", palette["panel_alt"], palette["text"], palette["border"])
         self._apply_control_style("ChatInput", palette["panel_alt"], palette["text"], palette["border"])
         self._apply_control_style("SendButton", palette["accent"], "#ffffff", palette["accent"])
+        self._apply_control_style("ProjectContextStatusText", None, palette["muted"])
+        self._apply_control_style("ProjectContextPanelBorder", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ProjectContextTitleText", None, palette["text"])
+        self._apply_control_style("ProjectContextSplitter", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ProjectContextTree", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ProjectScanButton", palette["accent"], "#ffffff", palette["accent"])
+        self._apply_control_style("ProjectRefreshButton", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ProjectAgentPlanButton", "#6c5ce7", "#ffffff", "#6c5ce7")
+        self._apply_control_style("ProjectCodexBriefButton", "#475569", "#ffffff", "#475569")
+        for name in [
+            "ProjectQuickSummaryButton",
+            "ProjectQuickLevelsButton",
+            "ProjectQuickViewsButton",
+            "ProjectQuickSheetsButton",
+            "ProjectQuickLinksButton",
+            "ProjectQuickImportsButton",
+            "ProjectQuickCategoriesButton",
+            "ProjectQuickSchedulesButton",
+            "ProjectQuickEmptySchedulesButton",
+            "ProjectQuickWarningsButton",
+            "ProjectQuickIssuesButton",
+            "ProjectQuickFirstChecksButton",
+        ]:
+            self._apply_control_style(name, palette["panel_alt"], palette["text"], palette["border"])
         self._apply_control_style("AgentIntroText", None, palette["muted"])
         self._apply_control_style("AgentWarningText", None, palette["warn"])
         self._apply_control_style("AgentProviderHelp", None, palette["muted"])
@@ -8179,6 +9165,917 @@ class OllamaAIChat(forms.WPFWindow):
                 note = " Runtime note: heavier local models may be unstable in this runtime; phi3:mini remains the stable recommended model."
             self.ModelInfo.Text = "Model: {} (active).{}".format(self.model, note)
 
+    def _set_project_context_status(self, text):
+        try:
+            self.ProjectContextStatusText.Text = text
+        except:
+            pass
+
+    def _context_tree_item(self, header, children=None):
+        from System.Windows.Controls import TreeViewItem
+
+        item = TreeViewItem()
+        item.Header = header
+        for child in children or []:
+            if hasattr(child, "Header"):
+                item.Items.Add(child)
+            else:
+                item.Items.Add(self._context_tree_item(safe_str(child)))
+        return item
+
+    def _context_not_scanned(self, value, fallback="not scanned"):
+        if value is None or value == "":
+            return fallback
+        return value
+
+    def _schedule_status_label(self, row_count):
+        if isinstance(row_count, int):
+            if row_count > 0:
+                return "populated ({0} body rows)".format(row_count)
+            return "empty (0 body rows)"
+        return "unknown body row count"
+
+    def _issue_suggested_action(self, issue_id):
+        mapping = {
+            "ambiguous_level_names": "Use exact level names in level-targeted schedule prompts.",
+            "unloaded_or_unavailable_revit_links": "Review links from the Project Context Links branch.",
+            "cad_imports_present": "Run read-only active-view health checks before coordination work.",
+            "view_specific_imports_present": "Inspect view-specific imports before relying on sheet/view outputs.",
+            "empty_or_suspicious_schedules": "Use Show Schedules or Empty / Suspicious Schedules before template-backed actions.",
+            "aco_bunge_templates_present": "Consider reviewed ACO/Bunge schedule actions only after checking source templates.",
+            "no_selection": "Start with active-view or project-level read-only checks.",
+            "selection_present": "Selection-based reviewed reports can be used safely.",
+            "high_warning_count": "Review top warning groups before modifying model data.",
+        }
+        return mapping.get(issue_id, "Use read-only reviewed inspection before modifying model data.")
+
+    def populate_project_context_tree(self):
+        if not hasattr(self, "ProjectContextTree"):
+            return
+        self.ProjectContextTree.Items.Clear()
+        context = self.latest_project_context or {}
+        if not context:
+            self.ProjectContextTree.Items.Add(
+                self._context_tree_item(
+                    "Recommended first steps",
+                    [
+                        "1. Scan current project",
+                        "2. Review links/imports/categories",
+                        "3. Ask Ollama Chat project questions",
+                        "4. Ask AI Agent for a plan",
+                        "5. Approve only reviewed ModelMind/catalog actions",
+                    ],
+                )
+            )
+            return
+
+        doc_info = context.get("document", {})
+        active_view = doc_info.get("active_view", {})
+        levels = context.get("levels", {})
+        links = context.get("links", {})
+        imports = context.get("imports_cad", {})
+        schedules = context.get("schedules", {})
+        selection = context.get("selection", {})
+        warnings = context.get("warnings_summary", {})
+        issues = context.get("detected_issues", [])
+        categories = context.get("category_counts", [])
+        views = context.get("views", {})
+        sheets = context.get("sheets", {})
+        scan_timestamp = context.get("timestamp_utc") or self.latest_project_context_timestamp
+
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item(
+                "Project",
+                [
+                    "Document: {0}".format(doc_info.get("title", "(unknown)")),
+                    "Path: {0}".format(doc_info.get("path_name") or "(not available)"),
+                    "Workshared: {0}".format(self._context_not_scanned(doc_info.get("is_workshared"))),
+                    "Scan depth: {0}".format(context.get("scan_depth")),
+                    "Scan timestamp: {0}".format(scan_timestamp or "not scanned"),
+                ],
+            )
+        )
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item(
+                "Active View",
+                [
+                    "Name: {0}".format(active_view.get("name", "(unknown view)")),
+                    "Type: {0}".format(active_view.get("view_type", "unknown")),
+                    "Id: {0}".format(active_view.get("id")),
+                    "Discipline: {0}".format(active_view.get("discipline") or "not scanned"),
+                    "View template: {0}".format(active_view.get("view_template_name") or "not scanned"),
+                    "Active-document selection count: {0}".format(selection.get("selected_element_count", 0)),
+                ],
+            )
+        )
+        level_children = ["Count: {0}".format(levels.get("count", 0))]
+        for level in levels.get("levels", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
+            elevation = level.get("elevation")
+            elevation_text = "not scanned" if elevation is None else "{0:.3f}".format(elevation)
+            alias_note = " | alias: {0}".format(level.get("simplified_name")) if level.get("simplified_name") else ""
+            if level.get("ambiguous_alias"):
+                alias_note += " | ambiguous alias"
+            level_children.append("{0} | elevation: {1}{2}".format(level.get("exact_name"), elevation_text, alias_note))
+        for ambiguous in levels.get("ambiguous_aliases", [])[:5]:
+            level_children.append("Ambiguous: {0} -> {1}".format(ambiguous.get("simplified_name"), ", ".join(ambiguous.get("candidates", []))))
+        self.ProjectContextTree.Items.Add(self._context_tree_item("Levels", level_children))
+
+        view_children = ["Total: {0}".format(views.get("total", 0))]
+        samples_by_type = views.get("samples_by_view_type", {}) or {}
+        for view_type, count in sorted((views.get("by_view_type", {}) or {}).items()):
+            sample_children = ["Count: {0}".format(count)]
+            for sample in samples_by_type.get(view_type, [])[:8]:
+                active_marker = " [active]" if sample.get("is_active") else ""
+                sample_children.append("{0} (id {1}){2}".format(sample.get("name") or "(unnamed view)", sample.get("id"), active_marker))
+            view_children.append(self._context_tree_item("{0}".format(view_type), sample_children))
+        self.ProjectContextTree.Items.Add(self._context_tree_item("Views", view_children))
+
+        sheet_children = ["Total: {0}".format(sheets.get("count", 0))]
+        for sheet in sheets.get("samples", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
+            placed = sheet.get("placed_view_count", "not scanned")
+            if placed == "not scanned":
+                placed_text = "placement status not scanned"
+            elif placed == 0:
+                placed_text = "no placed views"
+            else:
+                placed_text = "{0} placed views".format(placed)
+            label = "{0} - {1}".format(sheet.get("number") or "(no number)", sheet.get("name") or "(unnamed sheet)")
+            sheet_children.append("{0} | {1}".format(label, placed_text))
+        self.ProjectContextTree.Items.Add(self._context_tree_item("Sheets", sheet_children))
+
+        link_children = [
+            "Instances: {0}".format(links.get("instance_count", 0)),
+            "Loaded: {0}".format(len(links.get("loaded_links") or [])),
+            "Unavailable: {0}".format(len(links.get("unavailable_links") or [])),
+        ]
+        for item in links.get("instances", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
+            label = "{0} [{1}]".format(item.get("display_name") or item.get("type_name") or item.get("instance_name") or "(unnamed link)", item.get("status") or "unknown")
+            details = []
+            details.append("instance name: {0}".format(item.get("instance_name") or "not scanned"))
+            details.append("type name: {0}".format(item.get("type_name") or "not scanned"))
+            details.append("instance id: {0}".format(item.get("instance_id") or "not scanned"))
+            details.append("type id: {0}".format(item.get("type_id") or "not scanned"))
+            if item.get("linked_document_title"):
+                details.append("linked document: {0}".format(item.get("linked_document_title")))
+            details.append("path/reference: {0}".format(item.get("path_info") or "<path not available>"))
+            if item.get("transform_summary"):
+                details.append(item.get("transform_summary"))
+            link_children.append(self._context_tree_item(label, details or ["No additional link detail scanned."]))
+        for duplicate in links.get("duplicate_link_types_or_instances", [])[:5]:
+            link_children.append("Duplicate link type/instances: {0} ({1})".format(duplicate.get("type_name"), duplicate.get("instance_count")))
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item("Links", link_children)
+        )
+
+        import_children = [
+            "Instances: {0}".format(imports.get("total_import_instances", 0)),
+            "Linked CAD: {0}".format(imports.get("linked_cad_count", 0)),
+            "Imported CAD: {0}".format(imports.get("imported_cad_count", 0)),
+            "View-specific: {0}".format(imports.get("view_specific_import_count", 0)),
+        ]
+        if imports.get("total_import_instances", 0) == 0:
+            import_children.append("No CAD/import instances found")
+        for item in imports.get("imports", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
+            scope = "view-specific" if item.get("owner_view_name") else "model-wide"
+            linked = "linked" if item.get("linked") else ("imported" if item.get("linked") is False else "linked/imported unknown")
+            label = "{0} | {1}, {2}".format(item.get("instance_name") or "(unnamed import)", linked, scope)
+            details = [
+                "type: {0}".format(item.get("type_name") or "not scanned"),
+                "category: {0}".format(item.get("category") or "not scanned"),
+                "owner view: {0}".format(item.get("owner_view_name") or "not view-specific/not scanned"),
+                "visible in active view: {0}".format(item.get("visible_in_active_view")),
+            ]
+            layers = item.get("layer_or_subcategory_samples") or []
+            if layers:
+                details.append("layer/subcategory samples: {0}".format(", ".join(layers[:8])))
+            import_children.append(self._context_tree_item(label, details))
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item("Imports / CAD", import_children)
+        )
+
+        category_children = ["Core categories scanned: {0}".format(len(categories))]
+        sorted_categories = sorted(categories, key=lambda item: item.get("total_count") if isinstance(item.get("total_count"), int) else -1, reverse=True)
+        for item in sorted_categories[:PROJECT_CONTEXT_MAX_ITEMS]:
+            category_children.append("{0}: total {1}, active view {2}, selected {3}".format(item.get("category"), item.get("total_count"), item.get("active_view_count"), item.get("selected_count")))
+        self.ProjectContextTree.Items.Add(self._context_tree_item("Categories", category_children or ["Not scanned"]))
+
+        schedule_children = [
+            "Total: {0}".format(schedules.get("count", "not scanned")),
+            "Sampled: {0}".format(schedules.get("sampled_count", schedules.get("count", 0))),
+            "AI-generated: {0}".format(len(schedules.get("ai_generated_schedule_names") or [])),
+            "Template-like: {0}".format(len(schedules.get("template_like_schedule_candidates") or [])),
+            "Suspicious/empty: {0}".format(len(schedules.get("suspicious_or_empty_schedule_candidates") or [])),
+        ]
+        for item in schedules.get("schedules", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
+            status = self._schedule_status_label(item.get("body_row_count"))
+            details = [
+                "category: {0}".format(item.get("category") or "not scanned"),
+                "fields: {0}".format(len(item.get("field_names") or [])),
+                "filters: {0}".format(len(item.get("filter_summaries") or [])),
+                "sorting/grouping: {0}".format(len(item.get("sort_group_fields") or [])),
+                "itemized: {0}".format(self._context_not_scanned(item.get("is_itemized"))),
+                "status: {0}".format(status),
+                "AI-generated: {0}".format(bool(item.get("appears_ai_generated"))),
+                "template-like: {0}".format(bool(item.get("appears_template_like"))),
+                "vendor tokens: {0}".format(", ".join(item.get("vendor_project_tokens") or []) or "none"),
+            ]
+            filters = item.get("filter_summaries") or []
+            if filters:
+                details.append("filter fields: {0}".format(", ".join(["{0} {1}".format(f.get("field"), f.get("operator")) for f in filters[:5]])))
+            sort_fields = item.get("sort_group_fields") or []
+            if sort_fields:
+                details.append("sort fields: {0}".format(", ".join(sort_fields[:5])))
+            schedule_children.append(self._context_tree_item("{0} | {1}".format(item.get("name") or "(unnamed schedule)", status), details))
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item("Schedules", schedule_children)
+        )
+
+        selection_children = [
+            "Selected elements: {0}".format(selection.get("selected_element_count", 0)),
+            "Categories: {0}".format(", ".join(["{0}={1}".format(k, v) for k, v in (selection.get("selected_categories") or {}).items()]) if selection.get("selected_categories") else "No active-document selection"),
+        ]
+        if selection.get("selected_family_type_names"):
+            selection_children.append("Family/type samples: {0}".format(", ".join(list(selection.get("selected_family_type_names", {}).keys())[:8])))
+        if selection.get("selected_levels_or_reference_levels"):
+            selection_children.append("Level/reference samples: {0}".format(", ".join(list(selection.get("selected_levels_or_reference_levels", {}).keys())[:8])))
+        for sample in selection.get("samples", [])[:10]:
+            selection_children.append("id {0}: {1} | {2} | level {3}".format(sample.get("id"), sample.get("category"), sample.get("type"), sample.get("level") or "not scanned"))
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item("Selection", selection_children)
+        )
+
+        warning_children = ["Total: {0}".format(warnings.get("total_warning_count", 0))]
+        if warnings.get("total_warning_count", 0) == 0:
+            warning_children.append("No Revit warnings detected by scanner")
+        for group in warnings.get("top_warning_groups", [])[:10]:
+            ids = group.get("example_element_ids") or []
+            warning_children.append("{0} ({1}) | samples: {2}".format(group.get("description"), group.get("count"), ", ".join([safe_str(item) for item in ids]) if ids else "none"))
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item("Warnings", warning_children)
+        )
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item(
+                "Detected Issues",
+                [self._context_tree_item("{0}: {1}".format(issue.get("id"), issue.get("message")), ["severity: {0}".format(issue.get("severity", "info")), "suggested next safe step: {0}".format(self._issue_suggested_action(issue.get("id")))]) for issue in issues[:10]] or ["No issues detected in scanned sections."],
+            )
+        )
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item(
+                "Suggested Actions",
+                [self._context_tree_item(action.get("title"), ["reason: {0}".format(action.get("recommendation_reason")), "risk: {0}".format(action.get("risk_level", action.get("risk", "low"))), "approval required: {0}".format("yes" if action.get("role") == "modify" or action.get("command_role") == "modify" else "no"), "read-only: {0}".format("yes" if action.get("role") != "modify" and action.get("command_role") != "modify" else "no")]) for action in self._recommended_project_actions_from_context(context)] or ["No reviewed suggestions available from current scan."],
+            )
+        )
+        brief_children = ["Use Create Codex Brief for a copyable development/debug instruction."]
+        if self.latest_codex_brief:
+            first_lines = [line for line in self.latest_codex_brief.splitlines() if line.strip()][:5]
+            brief_children.append("Latest brief preview:")
+            brief_children.extend(first_lines)
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item("Developer / Codex Brief", brief_children)
+        )
+
+    def _store_project_context_result(self, result, depth):
+        context = result.get("context", {}) if isinstance(result, dict) else {}
+        self.latest_project_context = context
+        self.latest_project_context_summary = result.get("summary", "") if isinstance(result, dict) else ""
+        self.latest_project_context_timestamp = context.get("timestamp_utc")
+        self.latest_project_context_scan_depth = context.get("scan_depth", depth)
+        doc_info = context.get("document", {})
+        active_view = doc_info.get("active_view", {})
+        self.latest_project_context_doc_title = doc_info.get("title")
+        self.latest_project_context_active_view_id = active_view.get("id")
+        warning_count = len(result.get("warnings", [])) if isinstance(result, dict) else 0
+        status = "{0} context loaded".format((self.latest_project_context_scan_depth or depth).title())
+        if warning_count:
+            status = "{0}; partial scan warnings: {1}".format(status, warning_count)
+        self._set_project_context_status(status)
+        self.populate_project_context_tree()
+
+    def get_latest_project_context(self, require_standard=False, allow_scan=True):
+        context = self.latest_project_context or {}
+        current_depth = (context.get("scan_depth") or self.latest_project_context_scan_depth or "").lower()
+        if require_standard and current_depth != "standard" and allow_scan:
+            result = self.run_project_context_scan("standard")
+            context = result.get("context", {}) if isinstance(result, dict) else {}
+        elif not context and allow_scan:
+            result = self.run_project_context_scan("bootstrap")
+            context = result.get("context", {}) if isinstance(result, dict) else {}
+        return context
+
+    def get_latest_project_context_summary(self, require_standard=False):
+        context = self.get_latest_project_context(require_standard=require_standard)
+        if require_standard or not self.latest_project_context_summary:
+            self.latest_project_context_summary = _summarize_project_context(context)
+        return self.latest_project_context_summary or "(no scan summary available)"
+
+    def run_project_context_scan(self, depth="standard"):
+        result = collect_project_context(doc, uidoc, depth)
+        self._store_project_context_result(result, depth)
+        return result
+
+    def load_bootstrap_project_context(self):
+        try:
+            result = self.run_project_context_scan("bootstrap")
+            self._set_project_context_status("Bootstrap context loaded")
+            return result
+        except Exception as exc:
+            self._set_project_context_status("Scan failed partially: {0}".format(str(exc)))
+            self.populate_project_context_tree()
+            return None
+
+    def on_project_scan(self, sender, args):
+        self.update_window_status("executing", "Project context scan")
+        self._set_thinking("Scanning project context...")
+        self.show_busy()
+        self._pump_ui()
+        try:
+            result = self.run_project_context_scan("standard")
+            self.ChatHistory.AppendText("Project scan complete\n{0}\n\n".format(result.get("summary", "")))
+            self.update_window_status("ready_to_execute", "Standard project scan complete")
+        except Exception as exc:
+            self.ChatHistory.AppendText("Project scan failed: {0}\n\n".format(str(exc)))
+            self._set_project_context_status("Scan failed partially")
+            self.update_window_status("failed", "Project scan failed")
+        finally:
+            self.hide_busy()
+            self._set_thinking("Thinking...")
+
+    def _is_scan_request(self, prompt):
+        text = (prompt or "").lower()
+        return text in ("scan current project", "refresh project context", "project context") or "scan current project" in text or "refresh project context" in text
+
+    def _is_project_context_question(self, prompt):
+        text = (prompt or "").lower()
+        triggers = [
+            "summarize current project",
+            "what is in this revit model",
+            "what links are loaded",
+            "list revit links",
+            "show revit links",
+            "what cad imports",
+            "list cad imports",
+            "show imports",
+            "what schedules",
+            "list schedules",
+            "show schedules",
+            "empty schedules",
+            "suspicious schedules",
+            "template schedules",
+            "list levels",
+            "show levels",
+            "list views",
+            "show views",
+            "list sheets",
+            "show sheets",
+            "what categories",
+            "show category counts",
+            "show warnings",
+            "main bim issues",
+            "what should i check first",
+            "what should i test first",
+            "what should i inspect first",
+            "where should i start",
+            "first checks",
+            "recommended checks",
+            "project first checks",
+            "project context",
+            "loaded links",
+            "ai-generated",
+            "ai generated",
+        ]
+        return any(trigger in text for trigger in triggers)
+
+    def _is_codex_brief_request(self, prompt):
+        text = (prompt or "").lower()
+        return any(trigger in text for trigger in ["create codex task brief", "generate developer task", "prepare codex instruction", "make implementation brief"])
+
+    def _ensure_project_context(self, depth="standard"):
+        return self.get_latest_project_context(require_standard=(depth == "standard"))
+
+    def _context_query_kind(self, prompt):
+        text = (prompt or "").strip().lower()
+        normalized = re.sub(r"\s+", " ", text)
+        exact = {
+            "scan current project": "scan",
+            "refresh project context": "scan",
+            "summarize current project": "summary",
+            "project context": "summary",
+            "list levels": "levels",
+            "show levels": "levels",
+            "list views": "views",
+            "show views": "views",
+            "list sheets": "sheets",
+            "show sheets": "sheets",
+            "what links are loaded": "links",
+            "list revit links": "links",
+            "show revit links": "links",
+            "what cad imports are in this model": "imports",
+            "list cad imports": "imports",
+            "show imports": "imports",
+            "what schedules exist": "schedules",
+            "list schedules": "schedules",
+            "show schedules": "schedules",
+            "show empty schedules": "empty_schedules",
+            "show suspicious schedules": "empty_schedules",
+            "show template schedules": "template_schedules",
+            "what categories are in this model": "categories",
+            "show category counts": "categories",
+            "what are the main bim issues": "issues",
+            "show warnings": "warnings",
+            "what should i check first in this project": "first_checks",
+            "what should i test first in this project": "first_checks",
+            "what should i inspect first": "first_checks",
+            "where should i start": "first_checks",
+            "first checks": "first_checks",
+            "recommended checks": "first_checks",
+            "project first checks": "first_checks",
+            "summary": "summary",
+            "levels": "levels",
+            "views": "views",
+            "sheets": "sheets",
+            "links": "links",
+            "imports": "imports",
+            "categories": "categories",
+            "schedules": "schedules",
+            "warnings": "warnings",
+            "issues": "issues",
+            "first checks": "first_checks",
+            "empty schedules": "empty_schedules",
+        }
+        if normalized in exact:
+            return exact[normalized]
+        if "scan current project" in normalized or "refresh project context" in normalized:
+            return "scan"
+        if "empty" in normalized and "schedule" in normalized:
+            return "empty_schedules"
+        if "suspicious" in normalized and "schedule" in normalized:
+            return "empty_schedules"
+        if "template" in normalized and "schedule" in normalized:
+            return "template_schedules"
+        if "schedule" in normalized:
+            return "schedules"
+        if "cad" in normalized or "import" in normalized:
+            return "imports"
+        if "link" in normalized:
+            return "links"
+        if "warning" in normalized:
+            return "warnings"
+        if "issue" in normalized or "bim issue" in normalized:
+            return "issues"
+        if "check first" in normalized or "test first" in normalized or "inspect first" in normalized or "first check" in normalized or "recommended check" in normalized or "where should i start" in normalized:
+            return "first_checks"
+        if "level" in normalized:
+            return "levels"
+        if "view" in normalized:
+            return "views"
+        if "sheet" in normalized:
+            return "sheets"
+        if "categor" in normalized:
+            return "categories"
+        if "summarize current project" in normalized or "what is in this revit model" in normalized:
+            return "summary"
+        return None
+
+    def _format_context_levels(self, context):
+        levels = context.get("levels", {})
+        lines = ["Levels", "- Count: {0}".format(levels.get("count", 0))]
+        for level in levels.get("levels", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
+            elevation = level.get("elevation")
+            elevation_text = "not scanned" if elevation is None else "{0:.3f}".format(elevation)
+            alias = level.get("simplified_name") or "not scanned"
+            note = " | ambiguous alias" if level.get("ambiguous_alias") else ""
+            lines.append("- {0} | elevation: {1} | alias: {2}{3}".format(level.get("exact_name"), elevation_text, alias, note))
+        for ambiguous in levels.get("ambiguous_aliases", [])[:10]:
+            lines.append("- Ambiguous: {0} -> {1}".format(ambiguous.get("simplified_name"), ", ".join(ambiguous.get("candidates", []))))
+        return "\n".join(lines)
+
+    def _format_context_views(self, context):
+        views = context.get("views", {})
+        lines = ["Views", "- Total: {0}".format(views.get("total", 0))]
+        samples_by_type = views.get("samples_by_view_type", {}) or {}
+        for view_type, count in sorted((views.get("by_view_type", {}) or {}).items()):
+            lines.append("- {0}: {1}".format(view_type, count))
+            for sample in samples_by_type.get(view_type, [])[:6]:
+                marker = " [active]" if sample.get("is_active") else ""
+                lines.append("  - {0} (id {1}){2}".format(sample.get("name"), sample.get("id"), marker))
+        return "\n".join(lines)
+
+    def _format_context_sheets(self, context):
+        sheets = context.get("sheets", {})
+        lines = ["Sheets", "- Total: {0}".format(sheets.get("count", 0))]
+        for sheet in sheets.get("samples", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
+            placed = sheet.get("placed_view_count", "not scanned")
+            if placed == "not scanned":
+                placed_text = "placement status not scanned"
+            elif placed == 0:
+                placed_text = "no placed views"
+            else:
+                placed_text = "{0} placed views".format(placed)
+            lines.append("- {0} - {1} | {2}".format(sheet.get("number") or "(no number)", sheet.get("name") or "(unnamed sheet)", placed_text))
+        return "\n".join(lines)
+
+    def _format_context_links(self, context):
+        links = context.get("links", {})
+        lines = [
+            "Revit Links",
+            "- Instances: {0}".format(links.get("instance_count", 0)),
+            "- Loaded: {0}".format(len(links.get("loaded_links") or [])),
+            "- Unavailable/unloaded: {0}".format(len(links.get("unavailable_links") or [])),
+        ]
+        for item in links.get("instances", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
+            lines.append("- {0} [{1}] | type: {2} | document: {3} | path: {4}".format(
+                item.get("display_name") or item.get("type_name") or item.get("instance_name") or "(unnamed)",
+                item.get("status") or "unknown",
+                item.get("type_name") or "unknown",
+                item.get("linked_document_title") or "not loaded/not scanned",
+                item.get("path_info") or "<path not available>",
+            ))
+        for duplicate in links.get("duplicate_link_types_or_instances", [])[:5]:
+            lines.append("- Duplicate: {0} ({1} instances)".format(duplicate.get("type_name"), duplicate.get("instance_count")))
+        return "\n".join(lines)
+
+    def _format_context_imports(self, context):
+        imports = context.get("imports_cad", {})
+        lines = [
+            "CAD / Imports",
+            "- Total import instances: {0}".format(imports.get("total_import_instances", 0)),
+            "- Linked CAD: {0}".format(imports.get("linked_cad_count", 0)),
+            "- Imported CAD: {0}".format(imports.get("imported_cad_count", 0)),
+            "- View-specific: {0}".format(imports.get("view_specific_import_count", 0)),
+        ]
+        if imports.get("total_import_instances", 0) == 0:
+            lines.append("- No CAD/import instances found")
+        for item in imports.get("imports", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
+            linked = "linked" if item.get("linked") else ("imported" if item.get("linked") is False else "linked/imported unknown")
+            scope = "view-specific: {0}".format(item.get("owner_view_name")) if item.get("owner_view_name") else "model-wide/not owner-view scoped"
+            lines.append("- {0} | {1} | {2} | category: {3}".format(item.get("instance_name") or "(unnamed)", linked, scope, item.get("category") or "not scanned"))
+        return "\n".join(lines)
+
+    def _format_context_categories(self, context):
+        categories = context.get("category_counts", []) or []
+        lines = ["Category Counts", "- Core categories scanned: {0}".format(len(categories))]
+        sorted_categories = sorted(categories, key=lambda item: item.get("total_count") if isinstance(item.get("total_count"), int) else -1, reverse=True)
+        for item in sorted_categories[:PROJECT_CONTEXT_MAX_ITEMS]:
+            lines.append("- {0}: total {1}, active view {2}, selected {3}".format(item.get("category"), item.get("total_count"), item.get("active_view_count"), item.get("selected_count")))
+        if not categories:
+            lines.append("- Category counts were not scanned.")
+        return "\n".join(lines)
+
+    def _format_context_schedules(self, context, mode="all"):
+        schedules = context.get("schedules", {})
+        items = schedules.get("schedules", []) or []
+        sampled_count = schedules.get("sampled_count", len(items))
+        if sampled_count == 0 and items:
+            sampled_count = len(items)
+        if mode == "empty":
+            names = schedules.get("suspicious_or_empty_schedule_candidates") or []
+            lines = ["Empty / Suspicious Schedules", "- Candidates: {0}".format(len(names))]
+            for item in names[:PROJECT_CONTEXT_MAX_ITEMS]:
+                lines.append("- {0} | rows: {1} | {2}".format(item.get("name"), item.get("body_row_count"), item.get("reason")))
+            return "\n".join(lines)
+        if mode == "template":
+            names = schedules.get("template_like_schedule_candidates") or []
+            lines = ["Template-like Schedules", "- Candidates: {0}".format(len(names))]
+            for name in names[:PROJECT_CONTEXT_MAX_ITEMS]:
+                lines.append("- {0}".format(name))
+            return "\n".join(lines)
+        lines = [
+            "Schedules",
+            "- Total: {0}".format(schedules.get("count", "not scanned")),
+            "- Sampled: {0}".format(sampled_count),
+        ]
+        for item in items[:PROJECT_CONTEXT_MAX_ITEMS]:
+            filters = item.get("filter_summaries") or []
+            sort_fields = item.get("sort_group_fields") or []
+            lines.append("- {0} | category: {1} | {2} | fields {3}, filters {4}, sort/group {5} | itemized {6} | AI {7} | template {8} | tokens {9}".format(
+                item.get("name") or "(unnamed schedule)",
+                item.get("category") or "not scanned",
+                self._schedule_status_label(item.get("body_row_count")),
+                len(item.get("field_names") or []),
+                len(filters),
+                len(sort_fields),
+                self._context_not_scanned(item.get("is_itemized")),
+                bool(item.get("appears_ai_generated")),
+                bool(item.get("appears_template_like")),
+                ", ".join(item.get("vendor_project_tokens") or []) or "none",
+            ))
+            if filters:
+                lines.append("  filters: {0}".format(", ".join(["{0} {1}".format(f.get("field"), f.get("operator")) for f in filters[:5]])))
+            if sort_fields:
+                lines.append("  sort/group: {0}".format(", ".join(sort_fields[:5])))
+        if not items:
+            lines.append("- No schedule details were scanned.")
+        return "\n".join(lines)
+
+    def _format_context_warnings(self, context):
+        warnings = context.get("warnings_summary", {})
+        lines = ["Warnings", "- Total: {0}".format(warnings.get("total_warning_count", 0))]
+        if warnings.get("total_warning_count", 0) == 0:
+            lines.append("- No Revit warnings detected by scanner")
+        for group in warnings.get("top_warning_groups", [])[:10]:
+            ids = group.get("example_element_ids") or []
+            lines.append("- {0}: {1} | sample ids: {2}".format(group.get("description"), group.get("count"), ", ".join([safe_str(item) for item in ids]) if ids else "none"))
+        return "\n".join(lines)
+
+    def _format_context_issues(self, context):
+        issues = context.get("detected_issues", []) or []
+        lines = ["Detected BIM Issues"]
+        if not issues:
+            lines.append("- No issue flags detected in scanned sections.")
+        for issue in issues[:PROJECT_CONTEXT_MAX_ITEMS]:
+            lines.append("- {0} [{1}]: {2}".format(issue.get("id"), issue.get("severity", "info"), issue.get("message")))
+            lines.append("  Suggested safe step: {0}".format(self._issue_suggested_action(issue.get("id"))))
+        return "\n".join(lines)
+
+    def _format_context_first_checks(self, context):
+        lines = ["Suggested First Checks"]
+        for index, check in enumerate(_project_first_check_lines(context)[:8]):
+            lines.append("{0}. {1}".format(index + 1, check))
+        return "\n".join(lines)
+
+    def deterministic_project_context_answer(self, prompt):
+        kind = self._context_query_kind(prompt)
+        if not kind:
+            return None
+        if kind == "scan":
+            result = self.run_project_context_scan("standard")
+            return result.get("summary", "")
+        context = self.get_latest_project_context(require_standard=True)
+        if kind == "summary":
+            return self.get_latest_project_context_summary(require_standard=True)
+        if kind == "levels":
+            return self._format_context_levels(context)
+        if kind == "views":
+            return self._format_context_views(context)
+        if kind == "sheets":
+            return self._format_context_sheets(context)
+        if kind == "links":
+            return self._format_context_links(context)
+        if kind == "imports":
+            return self._format_context_imports(context)
+        if kind == "categories":
+            return self._format_context_categories(context)
+        if kind == "schedules":
+            return self._format_context_schedules(context)
+        if kind == "empty_schedules":
+            return self._format_context_schedules(context, "empty")
+        if kind == "template_schedules":
+            return self._format_context_schedules(context, "template")
+        if kind == "warnings":
+            return self._format_context_warnings(context)
+        if kind == "issues":
+            return self._format_context_issues(context)
+        if kind == "first_checks":
+            return self._format_context_first_checks(context)
+        return None
+
+    def _sanitize_ollama_context_error(self, reply):
+        text = safe_str(reply)
+        lowered = text.lower()
+        if "httpconnectionpool" in lowered or "read timed out" in lowered or "timed out" in lowered or "could not connect to ollama" in lowered:
+            return (
+                "Ollama did not respond within the configured timeout. The cached Revit project context is still available. "
+                "Try one of the deterministic context commands such as 'show schedules', 'show links', 'show warnings', or 'ask agent for plan'."
+            )
+        return reply
+
+    def _context_for_ollama(self):
+        context = self.get_latest_project_context(require_standard=False)
+        try:
+            payload = json.dumps(context, indent=2, sort_keys=True)
+        except:
+            payload = safe_str(context)
+        if len(payload) > 12000:
+            payload = payload[:12000] + "\n... truncated for local model context ..."
+        return payload
+
+    def answer_project_context_question(self, prompt):
+        deterministic = self.deterministic_project_context_answer(prompt)
+        if deterministic is not None:
+            return deterministic
+        self.get_latest_project_context(require_standard=False)
+        grounding = (
+            "You are a BIM assistant answering from a Revit API project-context snapshot. "
+            "Use only the provided context. If data is missing, say it was not scanned. "
+            "Do not claim model state that is not in the context.\n\n"
+            "Project context JSON:\n{0}\n\n"
+            "User question: {1}".format(self._context_for_ollama(), prompt)
+        )
+        reply = send_ollama_chat(self.model, grounding)
+        return self._sanitize_ollama_context_error(reply)
+
+    def _recommended_project_actions_from_context(self, context):
+        issues = set([issue.get("id") for issue in context.get("detected_issues", [])])
+        schedules = context.get("schedules", {})
+        categories = context.get("category_counts", [])
+        selection = context.get("selection", {})
+        recommendations = []
+
+        def add(action_id, reason):
+            entry = self.catalog.get_entry_by_id(action_id)
+            if entry:
+                item = dict(entry)
+                item["recommendation_reason"] = reason
+                recommendations.append(item)
+
+        if "aco_bunge_templates_present" in issues:
+            add("create-aco-pipe-fitting-summary-from-template", "ACO/Bunge template-like schedules were observed; this reviewed summary action has runtime evidence.")
+        if "empty_or_suspicious_schedules" in issues:
+            add("scan-current-project", "Suspicious or empty schedule candidates were observed; keep inspection read-only before using schedule templates.")
+        if "unloaded_or_unavailable_revit_links" in issues:
+            add("scan-current-project", "Unloaded or unavailable Revit links were observed; use the context scan before coordination decisions.")
+        for item in categories:
+            if item.get("category") == "Pipes" and isinstance(item.get("total_count"), int) and item.get("total_count") > 0:
+                add("create-pipe-schedule-by-level", "Pipes were found in the project context.")
+                break
+        for item in categories:
+            if item.get("category") == "Pipe Fittings" and isinstance(item.get("total_count"), int) and item.get("total_count") > 0:
+                add("create-pipe-fitting-schedule-by-level", "Pipe fittings were found in the project context.")
+                break
+        if selection.get("selected_element_count", 0):
+            add("report-selected-elements-by-category", "An active-document selection is present.")
+        else:
+            add("health-check-active-view-selection", "No active-document selection is present; start with active-view read-only health checks.")
+        if "cad_imports_present" in issues or "view_specific_imports_present" in issues:
+            add("health-check-active-view-selection", "CAD/import or active-view coordination issues were observed; run a read-only active-view health check.")
+        if not recommendations:
+            add("health-check-active-view-selection", "Use a read-only active-view health check as a first reviewed inspection.")
+        deduped = []
+        seen = set()
+        for item in recommendations:
+            if item.get("id") in seen:
+                continue
+            seen.add(item.get("id"))
+            deduped.append(item)
+        return deduped[:5]
+
+    def build_project_agent_plan(self):
+        context = self.get_latest_project_context(require_standard=True)
+        recommendations = self._recommended_project_actions_from_context(context)
+        self.agent_session.refresh_catalog(self.catalog.get_agent_commands())
+        self.agent_session.reset()
+        for entry in recommendations:
+            self.agent_session._add_step(
+                entry.get("id"),
+                requested_prompt="project-context recommended plan",
+                step_overrides={"recommendation_reason": entry.get("recommendation_reason", "")},
+            )
+        requires_modification = any(step.get("command_role") == "modify" for step in self.agent_session.plan)
+        self.agent_session.plan_object = {
+            "matched_action": "project-context-plan",
+            "confidence": 0.7,
+            "requires_modification": requires_modification,
+            "destructive": False,
+            "summary": "Project-context plan generated from the latest read-only scan. No actions have been executed.",
+            "execution_ready": bool(self.agent_session.plan),
+            "context_depth": context.get("scan_depth"),
+            "context_timestamp": context.get("timestamp_utc"),
+            "context_document_title": (context.get("document") or {}).get("title"),
+        }
+        self.agent_session.status = "ready_to_execute" if self.agent_session.plan else "failed"
+        self.agent_session.message = "Ready to execute" if self.agent_session.plan else "No reviewed plan"
+        return self.agent_session.plan_object
+
+    def append_project_agent_plan(self):
+        plan_object = self.build_project_agent_plan()
+        context = self.get_latest_project_context(require_standard=True)
+        doc_info = context.get("document", {})
+        self.AgentHistory.AppendText("Project-context planner request\n")
+        self.AgentHistory.AppendText("{0}\n".format(plan_object.get("summary")))
+        self.AgentHistory.AppendText(
+            "Context metadata: depth {0} | timestamp {1} | document {2}\n".format(
+                context.get("scan_depth", "unknown"),
+                context.get("timestamp_utc", "unknown"),
+                doc_info.get("title", "(unknown document)"),
+            )
+        )
+        self.AgentHistory.AppendText("Observed context\n{0}\n".format(self.get_latest_project_context_summary(require_standard=True)))
+        plan = self.agent_session.get_visible_steps()
+        if plan:
+            self.AgentHistory.AppendText("Recommended reviewed actions\n")
+            for index, step in enumerate(plan):
+                reason = step.get("recommendation_reason") or "Recommended from scanned project context."
+                self.AgentHistory.AppendText(
+                    "  {0}. {1} | risk: {2} | approval required: {3}\n     Reason: {4}\n".format(
+                        index + 1,
+                        step.get("title"),
+                        step.get("risk", step.get("risk_level", "low")),
+                        "yes" if step.get("command_role") == "modify" or step.get("requires_confirmation") else "no",
+                        reason,
+                    )
+                )
+            self.AgentHistory.AppendText("No actions have been executed. Execute Plan runs only enabled reviewed steps after approval.\n\n")
+        else:
+            self.AgentHistory.AppendText("No reviewed actions were recommended from the current scan.\n\n")
+        self.populate_agent_command_selector()
+        self.set_agent_status(self.agent_session.status)
+        self.refresh_action_button_states()
+        return plan_object
+
+    def on_project_agent_plan(self, sender, args):
+        try:
+            self.append_project_agent_plan()
+            try:
+                self.MainTabs.SelectedIndex = 1
+            except:
+                pass
+        except Exception as exc:
+            self.ChatHistory.AppendText("Project-context agent plan failed: {0}\n\n".format(str(exc)))
+
+    def build_codex_task_brief(self, observed_issue=None):
+        context = self.get_latest_project_context(require_standard=True)
+        doc_info = context.get("document", {})
+        active_view_info = doc_info.get("active_view", {})
+        schedules = context.get("schedules", {})
+        schedule_samples = schedules.get("schedules", []) or []
+        populated = len([item for item in schedule_samples if isinstance(item.get("body_row_count"), int) and item.get("body_row_count") > 0])
+        empty = len([item for item in schedule_samples if item.get("body_row_count") == 0])
+        unknown = len([item for item in schedule_samples if not isinstance(item.get("body_row_count"), int)])
+        warnings = context.get("warnings_summary", {})
+        warning_count = warnings.get("total_warning_count", "not scanned")
+        doc_title = doc_info.get("title") or self.latest_project_context_doc_title or _document_title(doc)
+        active_view = "(unknown view)"
+        try:
+            active_view = active_view_info.get("name") or _active_view_title(doc, uidoc)
+        except:
+            pass
+        issue_text = observed_issue or "Runtime validation/export tooling for ModelMind actions."
+        return "\n".join(
+            [
+                "Codex Task Brief",
+                "",
+                "Current document: {0}".format(doc_title),
+                "Active view: {0}".format(active_view),
+                "Context depth: {0}".format(context.get("scan_depth", "unknown")),
+                "Scan timestamp: {0}".format(context.get("timestamp_utc", "unknown")),
+                "Schedule status: sampled {0}, populated {1}, empty {2}, unknown {3}".format(
+                    schedules.get("sampled_count", len(schedule_samples)),
+                    populated,
+                    empty,
+                    unknown,
+                ),
+                "Warning count: {0}".format(warning_count),
+                "",
+                "Latest scan summary:",
+                self.get_latest_project_context_summary(require_standard=True),
+                "",
+                "Observed issue:",
+                issue_text,
+                "",
+                "Expected behavior:",
+                "- Add read-only or validation/export tooling only.",
+                "- Preserve reviewed ModelMind/catalog governance.",
+                "- Do not execute generated free-form code.",
+                "",
+                "Forbidden changes:",
+                "- window lifecycle",
+                "- ExternalEvent / reviewed dispatch",
+                "- modal/modeless behavior",
+                "- create sheet / create 3D view / rename view paths",
+                "- shared undo plumbing",
+                "",
+                "Likely files:",
+                "- AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py",
+                "- AI.extension/lib/prompt_catalog.json",
+                "- AI.extension/lib/ai_prompt_registry.py",
+                "",
+                "Validation commands:",
+                "- python -m tabnanny AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py",
+                "- python -m py_compile AI.extension/lib/ai_prompt_registry.py",
+                "- python -m py_compile AI.extension/lib/ai_agent_session.py",
+                "- parse AI.extension/lib/prompt_catalog.json",
+            ]
+        )
+
+    def on_project_codex_brief(self, sender, args):
+        brief = self.build_codex_task_brief()
+        self.latest_codex_brief = brief
+        self.populate_project_context_tree()
+        self.ChatHistory.AppendText("Codex Task Brief\n```\n{0}\n```\n\n".format(brief))
+
+    def on_project_context_quick_action(self, sender, args):
+        prompt = ""
+        try:
+            prompt = safe_str(sender.Tag)
+        except:
+            prompt = ""
+        if not prompt:
+            try:
+                prompt = safe_str(sender.Content)
+            except:
+                prompt = "summary"
+        if prompt == "summary":
+            prompt = "summarize current project"
+        elif prompt == "empty schedules":
+            prompt = "show empty schedules"
+        elif prompt == "first checks":
+            prompt = "what should I check first in this project"
+        try:
+            reply = self.answer_project_context_question(prompt)
+            self.ChatHistory.AppendText("Project Context: {0}\n{1}\n\n".format(prompt, reply))
+        except Exception as exc:
+            self.ChatHistory.AppendText("Project Context query failed: {0}\n\n".format(str(exc)))
+
     def on_send_chat(self, sender, args):
         prompt = self.ChatInput.Text.strip()
         if not prompt:
@@ -8191,9 +10088,22 @@ class OllamaAIChat(forms.WPFWindow):
 
         try:
             self.ChatHistory.AppendText("You: {}\n".format(prompt))
-            # Simulate long call
-            # time.sleep(5)  # For demo, remove in production
-            reply = send_ollama_chat(self.model, prompt)
+            if self._is_codex_brief_request(prompt):
+                brief = self.build_codex_task_brief(prompt)
+                self.latest_codex_brief = brief
+                self.populate_project_context_tree()
+                reply = "```\n{0}\n```".format(brief)
+            elif self._is_scan_request(prompt):
+                result = self.run_project_context_scan("standard")
+                reply = result.get("summary", "")
+            elif self._is_project_context_question(prompt):
+                reply = self.answer_project_context_question(prompt)
+            elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                self.append_project_agent_plan()
+                reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+            else:
+                reply = send_ollama_chat(self.model, prompt)
+                reply = self._sanitize_ollama_context_error(reply)
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             self.ChatHistory.AppendText("AI: {}\n\n".format(reply))
@@ -8727,6 +10637,12 @@ class OllamaAIChat(forms.WPFWindow):
     def on_agent_run(self, sender, args):
         goal = self.AgentGoalInput.Text.strip()
         if not goal:
+            return
+
+        if "project" in goal.lower() and ("plan" in goal.lower() or "check first" in goal.lower()):
+            self.update_window_status("planning", "Project-context planner request")
+            self.append_project_agent_plan()
+            self.update_window_status("ready_to_execute", "Project-context plan ready")
             return
 
         if self._is_cloud_self_test_request(goal):

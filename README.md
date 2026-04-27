@@ -466,3 +466,21 @@ That points to provider/network reachability as the next likely fix for cloud pl
 - added structural reviewed template-only actions for ACO 1.4301 single socket, 1.4404 single socket, and 1.4404 double socket pipe schedule/summary variants
 - generic all-ACO pipe schedule/summary prompts continue to block without a neutral master template
 - only the live-confirmed ACO pipe-fitting summary action is promoted; product-family actions and pipe-fitting level retargeting remain pending live validation
+
+## 2026-04-27 Project Context Scanner Update
+
+- added a read-only Project Context Scanner with bootstrap and standard scan depths for document metadata, active view, levels, links, imports/CAD, categories, schedules, selection, warnings, and detected issue flags
+- Ollama Chat can answer project questions from the latest cached context, and AI Agent can propose reviewed catalog actions without executing them
+- added a copyable Codex Task Brief generator; it does not edit files, call external Codex, or enable generated code execution
+
+## 2026-04-27 Project Context UX/Q&A Update
+
+- Project Context now exposes richer cached context details in the tree, including sampled view/sheet/link/import/schedule names and status flags
+- common structured context questions are answered deterministically from cached Revit API context instead of waiting on Ollama
+- the context panel keeps the read-only scanner boundary and does not change reviewed execution, ExternalEvent lifecycle, undo, or schedule creation behavior
+
+## 2026-04-27 Project Context Consistency Fix
+
+- Project Context consumers now read through the same latest cached scan snapshot, so Scan Project, the tree, deterministic chat answers, AI Agent planning, and Codex briefs stay aligned
+- standard scans supersede bootstrap scans for schedule and warning summaries
+- Revit link display now uses readable link names/status/path text where available instead of raw Revit API object strings
