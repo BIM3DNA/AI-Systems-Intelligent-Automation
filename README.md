@@ -484,3 +484,15 @@ That points to provider/network reachability as the next likely fix for cloud pl
 - Project Context consumers now read through the same latest cached scan snapshot, so Scan Project, the tree, deterministic chat answers, AI Agent planning, and Codex briefs stay aligned
 - standard scans supersede bootstrap scans for schedule and warning summaries
 - Revit link display now uses readable link names/status/path text where available instead of raw Revit API object strings
+
+## 2026-04-28 Project Context Chat Readability Update
+
+- Ollama Chat transcript output now uses clear plain-text turn separators for demo readability
+- deterministic project-context answers use bracketed section headers and compact count-first formatting
+- schedule answers show summary counts first, group populated and empty/suspicious schedules, cap chat details, and leave full detail in the Project Context tree
+
+## 2026-04-28 Linked Model Coordinate Health Update
+
+- Project Context standard scans now include a read-only linked-model coordinate health section for Revit links, transform origins, Z offsets, rotation, duplicate link instances, and unloaded/unavailable links
+- deterministic prompts such as `check linked model coordinates` and `are the links aligned` answer from cached Revit API context without Ollama
+- the feature is read-only and does not change link placement, project coordinates, reviewed execution, undo, or model mutation behavior

@@ -256,6 +256,34 @@ class PromptCatalog(object):
             return self.get_entry_by_id("scan-current-project")
         if "summarize current project" in target or "what is in this revit model" in target or "what is in this model" in target:
             return self.get_entry_by_id("summarize-current-project")
+        if (
+            "check linked model coordinates" in target
+            or "linked model coordinate health" in target
+            or "are the links aligned" in target
+            or "do the linked models match coordinates" in target
+            or "check revit link transforms" in target
+            or "what linked models are loaded" in target
+            or "are any links unloaded" in target
+            or "coordinate health check" in target
+            or "project coordinates check" in target
+        ):
+            return self.get_entry_by_id("check-linked-model-coordinate-health")
+        if (
+            "check bim basis" in target
+            or "bim basis ils check" in target
+            or "iso style check" in target
+            or "iso 19650 style check" in target
+            or "compare host and linked levels" in target
+            or "compare linked model levels" in target
+            or "compare host and linked grids" in target
+            or "compare linked model grids" in target
+            or "check levels and grids" in target
+            or "are linked model levels aligned" in target
+            or "are linked model grids aligned" in target
+            or "level grid health check" in target
+            or "host vs link level grid check" in target
+        ):
+            return self.get_entry_by_id("check-bim-basis-level-grid-health")
         if "ask ai agent for a plan" in target or "ask agent for project plan" in target or "what should i check first in this project" in target:
             return self.get_entry_by_id("ask-agent-for-project-plan")
         if "create codex task brief" in target or "generate developer task" in target or "prepare codex instruction" in target or "make implementation brief" in target:

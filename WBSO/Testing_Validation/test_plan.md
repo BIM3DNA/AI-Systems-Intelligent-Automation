@@ -681,6 +681,22 @@ The refactor should only be considered runtime-proven after the scenario set abo
 - confirm Revit links display human-readable link names/status and no raw `Autodesk.Revit.DB.FilePath object at ...` text
 - confirm no model mutation occurs
 
+## 2026-04-28 Project Context Chat Readability Validation Targets
+
+- run `what schedules exist` and confirm the chat answer shows schedule summary counts first, then capped grouped details
+- run `what CAD imports are in this model`, `what are the main BIM issues`, `what should I test first in this project`, `summarize current project`, and `what links are loaded`
+- confirm chat turns are visually separated with plain-text separators
+- confirm Project Context tree still contains full schedule/context detail
+- confirm no model mutation occurs
+
+## 2026-04-28 Linked Model Coordinate Health Validation Targets
+
+- run Scan Project and expand Project Context > Links / Coordinate Health
+- confirm link names/status/path text are readable and no raw `Autodesk.Revit.DB.FilePath object at ...` values appear
+- confirm transform origin, rotation Z, Z-offset, identity/non-identity, duplicate link, and unloaded/unavailable flags are visible
+- run `check linked model coordinates`, `are the links aligned`, `check Revit link transforms`, `what linked models are loaded`, `are any links unloaded`, and `coordinate health check`
+- confirm deterministic answers, no Ollama timeout, no model mutation, and AI Agent remains plan-only
+
 ### Added local checks for 2026-04-22
 
 - verify generic native schedule actions still resolve unchanged through the shared reviewed catalog

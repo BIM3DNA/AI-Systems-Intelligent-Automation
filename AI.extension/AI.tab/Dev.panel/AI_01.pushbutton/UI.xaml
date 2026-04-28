@@ -173,6 +173,8 @@
                                     <Button x:Name="ProjectQuickViewsButton" Tag="views" Content="Views" Width="64" Height="24" Margin="0,0,5,5"/>
                                     <Button x:Name="ProjectQuickSheetsButton" Tag="sheets" Content="Sheets" Width="66" Height="24" Margin="0,0,5,5"/>
                                     <Button x:Name="ProjectQuickLinksButton" Tag="links" Content="Links" Width="62" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickLinkCoordinatesButton" Tag="link coordinates" Content="Link Coordinates" Width="122" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickLevelsGridsButton" Tag="levels grids" Content="Levels / Grids" Width="104" Height="24" Margin="0,0,5,5"/>
                                     <Button x:Name="ProjectQuickImportsButton" Tag="imports" Content="CAD / Imports" Width="104" Height="24" Margin="0,0,5,5"/>
                                     <Button x:Name="ProjectQuickCategoriesButton" Tag="categories" Content="Categories" Width="88" Height="24" Margin="0,0,5,5"/>
                                     <Button x:Name="ProjectQuickSchedulesButton" Tag="schedules" Content="Schedules" Width="82" Height="24" Margin="0,0,5,5"/>

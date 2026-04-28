@@ -2524,6 +2524,17 @@ def _active_view_title(doc, uidoc=None):
 
 
 PROJECT_CONTEXT_MAX_ITEMS = 20
+PROJECT_CONTEXT_ORIGIN_TOLERANCE_FT = 1.0 / 304.8
+PROJECT_CONTEXT_Z_TOLERANCE_FT = 1.0 / 304.8
+PROJECT_CONTEXT_ANGLE_TOLERANCE_DEG = 0.01
+PROJECT_CONTEXT_VECTOR_TOLERANCE = 0.0001
+LEVEL_ELEVATION_TOLERANCE_MM = 5.0
+GRID_LINEAR_OFFSET_TOLERANCE_MM = 10.0
+GRID_ANGLE_TOLERANCE_DEG = 0.10
+MAX_LINKS_FOR_LEVEL_GRID_SCAN = 10
+MAX_GRID_GEOMETRY_COMPARISONS_PER_LINK = 250
+MAX_REPORTED_LEVEL_ROWS = 50
+MAX_REPORTED_GRID_ROWS = 50
 
 
 def _safe_int(value, default=0):
@@ -2919,6 +2930,136 @@ def _external_reference_path_text(external_ref):
     return "<path not available>"
 
 
+def _xyz_summary(xyz):
+    if xyz is None:
+        return {"x": "unknown", "y": "unknown", "z": "unknown"}
+    return {
+        "x": _safe_float(getattr(xyz, "X", None), "unknown"),
+        "y": _safe_float(getattr(xyz, "Y", None), "unknown"),
+        "z": _safe_float(getattr(xyz, "Z", None), "unknown"),
+    }
+
+
+def _safe_float(value, fallback="unknown"):
+    try:
+        return float(value)
+    except:
+        return fallback
+
+
+def _feet_to_mm_text(value):
+    try:
+        return "{0:.1f} mm".format(float(value) * 304.8)
+    except:
+        return "unknown"
+
+
+def mm_to_internal_feet(mm):
+    try:
+        return float(mm) / 304.8
+    except:
+        return 0.0
+
+
+def internal_feet_to_mm(value):
+    try:
+        return float(value) * 304.8
+    except:
+        return "unknown"
+
+
+def _angle_to_degrees(angle_radians):
+    try:
+        return float(angle_radians) * 180.0 / math.pi
+    except:
+        return "unknown"
+
+
+def _vector_length(vector):
+    try:
+        return float(vector.GetLength())
+    except:
+        try:
+            return math.sqrt(vector.X * vector.X + vector.Y * vector.Y + vector.Z * vector.Z)
+        except:
+            return None
+
+
+def _vector_dot(a, b):
+    try:
+        return float(a.DotProduct(b))
+    except:
+        try:
+            return float(a.X * b.X + a.Y * b.Y + a.Z * b.Z)
+        except:
+            return None
+
+
+def _transform_rotation_z_degrees(transform):
+    try:
+        basis_x = transform.BasisX
+        return math.atan2(float(basis_x.Y), float(basis_x.X)) * 180.0 / math.pi
+    except:
+        return "unknown"
+
+
+def _basis_appears_orthonormal(transform):
+    try:
+        bx = transform.BasisX
+        by = transform.BasisY
+        bz = transform.BasisZ
+        lengths = [_vector_length(bx), _vector_length(by), _vector_length(bz)]
+        dots = [_vector_dot(bx, by), _vector_dot(bx, bz), _vector_dot(by, bz)]
+        if any(value is None for value in lengths + dots):
+            return "unknown"
+        return all(abs(length - 1.0) <= PROJECT_CONTEXT_VECTOR_TOLERANCE for length in lengths) and all(abs(dot) <= PROJECT_CONTEXT_VECTOR_TOLERANCE for dot in dots)
+    except:
+        return "unknown"
+
+
+def _project_position_summary(doc):
+    result = {
+        "project_location_name": "unknown",
+        "east_west": "unknown",
+        "north_south": "unknown",
+        "elevation": "unknown",
+        "angle_degrees": "unknown",
+    }
+    try:
+        location = doc.ActiveProjectLocation
+        result["project_location_name"] = get_elem_name(location) or "unknown"
+        position = location.GetProjectPosition(DB.XYZ(0, 0, 0))
+        result["east_west"] = _safe_float(position.EastWest)
+        result["north_south"] = _safe_float(position.NorthSouth)
+        result["elevation"] = _safe_float(position.Elevation)
+        result["angle_degrees"] = _angle_to_degrees(position.Angle)
+    except:
+        pass
+    return result
+
+
+def _base_point_summaries(doc):
+    points = {"project_base_point": "unknown", "survey_point": "unknown"}
+    try:
+        for point in DB.FilteredElementCollector(doc).OfClass(DB.BasePoint):
+            entry = {
+                "id": _safe_element_id_value(point),
+                "name": get_elem_name(point) or "(unnamed point)",
+                "position": _xyz_summary(getattr(point, "Position", None)),
+                "shared": "unknown",
+            }
+            try:
+                entry["shared"] = bool(point.IsShared)
+            except:
+                pass
+            key = "survey_point" if entry.get("shared") is True else "project_base_point"
+            if points.get(key) == "unknown":
+                points[key] = entry
+    except:
+        pass
+    return points
+
+
 def _collect_revit_links(doc, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
     by_type = {}
     instances = []
@@ -2995,6 +3136,532 @@ def _collect_revit_links(doc, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
         "loaded_links": loaded[:sample_limit],
         "unavailable_links": unavailable[:sample_limit],
         "duplicate_link_types_or_instances": duplicates[:sample_limit],
+    }
+
+
+def _collect_linked_model_coordinate_health(doc, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
+    host = {
+        "document_title": _document_title(doc),
+        "project_position": _project_position_summary(doc),
+    }
+    host.update(_base_point_summaries(doc))
+    type_counts = {}
+    raw = []
+    try:
+        for instance in DB.FilteredElementCollector(doc).OfClass(DB.RevitLinkInstance):
+            link_type = None
+            try:
+                link_type = doc.GetElement(instance.GetTypeId())
+            except:
+                pass
+            instance_name = get_elem_name(instance) or "(unnamed link instance)"
+            type_name = get_elem_name(link_type) if link_type is not None else "unknown"
+            link_doc_title = None
+            has_doc = False
+            try:
+                link_doc = instance.GetLinkDocument()
+                has_doc = link_doc is not None
+                if link_doc is not None:
+                    link_doc_title = _document_title(link_doc)
+            except:
+                pass
+            path_info = "<path not available>"
+            try:
+                external_ref = link_type.GetExternalFileReference() if link_type is not None else None
+                path_info = _external_reference_path_text(external_ref)
+            except:
+                pass
+            transform_status = "unknown"
+            origin = {"x": "unknown", "y": "unknown", "z": "unknown"}
+            origin_display = {"x": "unknown", "y": "unknown", "z": "unknown"}
+            rotation_z = "unknown"
+            near_zero_origin = "unknown"
+            near_zero_z = "unknown"
+            close_to_identity = "unknown"
+            basis_orthonormal = "unknown"
+            flags = []
+            try:
+                transform = instance.GetTransform()
+                transform_status = "read"
+                raw_origin = transform.Origin
+                origin = _xyz_summary(raw_origin)
+                origin_display = {
+                    "x": _feet_to_mm_text(origin.get("x")),
+                    "y": _feet_to_mm_text(origin.get("y")),
+                    "z": _feet_to_mm_text(origin.get("z")),
+                }
+                rotation_z = _transform_rotation_z_degrees(transform)
+                basis_orthonormal = _basis_appears_orthonormal(transform)
+                origin_len = math.sqrt(float(raw_origin.X) ** 2 + float(raw_origin.Y) ** 2 + float(raw_origin.Z) ** 2)
+                near_zero_origin = origin_len <= PROJECT_CONTEXT_ORIGIN_TOLERANCE_FT
+                near_zero_z = abs(float(raw_origin.Z)) <= PROJECT_CONTEXT_Z_TOLERANCE_FT
+                rotated = rotation_z != "unknown" and abs(float(rotation_z)) > PROJECT_CONTEXT_ANGLE_TOLERANCE_DEG
+                close_to_identity = bool(near_zero_origin and not rotated and basis_orthonormal is True)
+                if not close_to_identity:
+                    flags.append("non_identity_transform")
+                if not near_zero_z:
+                    flags.append("z_offset_detected")
+                if rotated:
+                    flags.append("rotated_link_detected")
+                if basis_orthonormal != "unknown" and basis_orthonormal is not True:
+                    flags.append("basis_not_orthonormal")
+            except:
+                flags.append("unknown_coordinate_state")
+            if not has_doc:
+                flags.append("unloaded_or_unavailable_link")
+            key = type_name or instance_name
+            type_counts.setdefault(key, 0)
+            type_counts[key] += 1
+            raw.append(
+                {
+                    "display_name": link_doc_title or type_name or instance_name,
+                    "instance_name": instance_name,
+                    "type_name": type_name,
+                    "instance_id": _safe_element_id_value(instance),
+                    "type_id": _safe_element_id_value(link_type) if link_type is not None else None,
+                    "loaded_readable": bool(has_doc),
+                    "linked_document_title": link_doc_title,
+                    "path_info": path_info,
+                    "pinned": _safe_bool_attr(instance, "Pinned"),
+                    "transform_status": transform_status,
+                    "origin_internal_feet": origin,
+                    "origin_display": origin_display,
+                    "rotation_z_degrees": rotation_z,
+                    "close_to_identity": close_to_identity,
+                    "near_zero_origin": near_zero_origin,
+                    "near_zero_z": near_zero_z,
+                    "basis_orthonormal": basis_orthonormal,
+                    "coordinate_flags": sorted(set(flags)),
+                }
+            )
+    except:
+        pass
+    duplicates = []
+    for type_name, count in type_counts.items():
+        if count > 1:
+            duplicates.append({"type_name": type_name, "instance_count": count})
+    links = []
+    for item in raw:
+        flags = set(item.get("coordinate_flags") or [])
+        duplicate_count = type_counts.get(item.get("type_name") or item.get("instance_name"), 0)
+        item["duplicate_type_instance_count"] = duplicate_count
+        if duplicate_count > 1:
+            flags.add("duplicate_link_instances")
+        item["coordinate_flags"] = sorted(flags)
+        if "unloaded_or_unavailable_link" in flags:
+            item["status_label"] = "UNLOADED"
+        elif "unknown_coordinate_state" in flags:
+            item["status_label"] = "UNKNOWN"
+        elif flags:
+            item["status_label"] = "REVIEW"
+        else:
+            item["status_label"] = "OK"
+        if len(links) < sample_limit:
+            links.append(item)
+    non_identity = [item for item in raw if "non_identity_transform" in item.get("coordinate_flags", [])]
+    rotated = [item for item in raw if "rotated_link_detected" in item.get("coordinate_flags", [])]
+    z_offset = [item for item in raw if "z_offset_detected" in item.get("coordinate_flags", [])]
+    unavailable = [item for item in raw if "unloaded_or_unavailable_link" in item.get("coordinate_flags", [])]
+    unknown = [item for item in raw if "unknown_coordinate_state" in item.get("coordinate_flags", [])]
+    overall_status = "OK"
+    if unavailable or unknown:
+        overall_status = "UNKNOWN/REVIEW"
+    elif non_identity or rotated or z_offset or duplicates:
+        overall_status = "REVIEW"
+    return {
+        "host": host,
+        "total_links": len(raw),
+        "loaded_readable_count": len(raw) - len(unavailable),
+        "unavailable_count": len(unavailable),
+        "non_identity_transform_count": len(non_identity),
+        "rotated_link_count": len(rotated),
+        "z_offset_link_count": len(z_offset),
+        "unknown_coordinate_state_count": len(unknown),
+        "duplicate_link_instance_count": len(duplicates),
+        "duplicate_link_instances": duplicates[:sample_limit],
+        "overall_status": overall_status,
+        "links": links,
+    }
+
+
+def _safe_bool_attr(obj, attr_name):
+    try:
+        return bool(getattr(obj, attr_name))
+    except:
+        return "unknown"
+
+
+def _normalize_bim_basis_name(name):
+    text = safe_str(name or "").strip().lower()
+    text = re.sub(r"[^\w\s\-_]+", " ", text)
+    text = re.sub(r"[\s\-_]+", " ", text)
+    return text.strip()
+
+
+def _duplicate_normalized_names(rows):
+    groups = {}
+    for row in rows or []:
+        key = row.get("normalized_name") or ""
+        if not key:
+            continue
+        groups.setdefault(key, []).append(row.get("name"))
+    duplicates = []
+    for key, names in groups.items():
+        unique = sorted(set([name for name in names if name]))
+        if len(unique) > 1 or len(names) > 1:
+            duplicates.append({"normalized_name": key, "names": unique, "count": len(names)})
+    return duplicates
+
+
+def _collect_level_rows(level_doc, sample_limit=MAX_REPORTED_LEVEL_ROWS):
+    rows = []
+    try:
+        for level in DB.FilteredElementCollector(level_doc).OfClass(DB.Level):
+            name = get_elem_name(level) or "(unnamed level)"
+            elevation = _safe_float(getattr(level, "Elevation", None))
+            rows.append(
+                {
+                    "name": name,
+                    "normalized_name": _normalize_bim_basis_name(name),
+                    "elevation_internal_feet": elevation,
+                    "elevation_mm": internal_feet_to_mm(elevation),
+                    "id": _safe_element_id_value(level),
+                }
+            )
+    except:
+        pass
+    rows.sort(key=lambda item: safe_str(item.get("name")))
+    return rows[:sample_limit], len(rows), _duplicate_normalized_names(rows)
+
+
+def _curve_type_name(curve):
+    try:
+        if isinstance(curve, DB.Line):
+            return "Line"
+    except:
+        pass
+    try:
+        if isinstance(curve, DB.Arc):
+            return "Arc"
+    except:
+        pass
+    if curve is None:
+        return "Unknown"
+    return "Other"
+
+
+def _apply_transform_point(transform, point):
+    if transform is None:
+        return point
+    try:
+        return transform.OfPoint(point)
+    except:
+        return None
+
+
+def _linear_grid_geometry(grid, transform=None):
+    result = {
+        "curve_type": "Unknown",
+        "origin": None,
+        "direction": None,
+        "angle_degrees": "unknown",
+        "geometry_status": "unknown",
+    }
+    try:
+        curve = grid.Curve
+        result["curve_type"] = _curve_type_name(curve)
+        if result["curve_type"] != "Line":
+            result["geometry_status"] = "name-only"
+            return result
+        p0 = _apply_transform_point(transform, curve.GetEndPoint(0))
+        p1 = _apply_transform_point(transform, curve.GetEndPoint(1))
+        if p0 is None or p1 is None:
+            result["geometry_status"] = "unknown"
+            return result
+        dx = float(p1.X) - float(p0.X)
+        dy = float(p1.Y) - float(p0.Y)
+        length = math.sqrt(dx * dx + dy * dy)
+        if length <= 0.0000001:
+            result["geometry_status"] = "unknown"
+            return result
+        ux = dx / length
+        uy = dy / length
+        result["origin"] = {"x": float(p0.X), "y": float(p0.Y), "z": float(p0.Z)}
+        result["direction"] = {"x": ux, "y": uy}
+        angle = math.atan2(uy, ux) * 180.0 / math.pi
+        if angle < 0:
+            angle += 180.0
+        if angle >= 180.0:
+            angle -= 180.0
+        result["angle_degrees"] = angle
+        result["geometry_status"] = "linear"
+    except:
+        result["geometry_status"] = "unknown"
+    return result
+
+
+def _collect_grid_rows(grid_doc, transform=None, sample_limit=MAX_REPORTED_GRID_ROWS):
+    rows = []
+    try:
+        for grid in DB.FilteredElementCollector(grid_doc).OfClass(DB.Grid):
+            name = get_elem_name(grid) or "(unnamed grid)"
+            geometry = _linear_grid_geometry(grid, transform)
+            row = {
+                "name": name,
+                "normalized_name": _normalize_bim_basis_name(name),
+                "id": _safe_element_id_value(grid),
+                "curve_type": geometry.get("curve_type"),
+                "geometry_status": geometry.get("geometry_status"),
+                "origin": geometry.get("origin"),
+                "direction": geometry.get("direction"),
+                "angle_degrees": geometry.get("angle_degrees"),
+            }
+            rows.append(row)
+    except:
+        pass
+    rows.sort(key=lambda item: safe_str(item.get("name")))
+    return rows[:sample_limit], len(rows), _duplicate_normalized_names(rows)
+
+
+def _rows_by_normalized_name(rows):
+    mapping = {}
+    for row in rows or []:
+        key = row.get("normalized_name") or ""
+        if key and key not in mapping:
+            mapping[key] = row
+    return mapping
+
+
+def _level_elevation_delta_mm(host_level, linked_level):
+    host_elev = host_level.get("elevation_internal_feet")
+    link_elev = linked_level.get("elevation_internal_feet")
+    if not isinstance(host_elev, float) or not isinstance(link_elev, float):
+        return "unknown"
+    return abs(internal_feet_to_mm(host_elev - link_elev))
+
+
+def _compare_level_rows(host_levels, link_levels):
+    findings = []
+    host_by_name = _rows_by_normalized_name(host_levels)
+    link_by_name = _rows_by_normalized_name(link_levels)
+    matched_host = set()
+    matched_link = set()
+    tolerance = float(LEVEL_ELEVATION_TOLERANCE_MM)
+    for key, host_level in host_by_name.items():
+        linked_level = link_by_name.get(key)
+        if linked_level:
+            matched_host.add(key)
+            matched_link.add(key)
+            delta = _level_elevation_delta_mm(host_level, linked_level)
+            if delta != "unknown" and delta > tolerance:
+                findings.append(
+                    {
+                        "type": "linked_level_elevation_mismatch",
+                        "severity": "high" if delta > 50.0 else "medium",
+                        "host_level": host_level.get("name"),
+                        "linked_level": linked_level.get("name"),
+                        "delta_mm": delta,
+                        "message": "Matching level names have elevation delta {0:.1f} mm.".format(delta),
+                    }
+                )
+        else:
+            findings.append({"type": "host_level_missing_in_link", "severity": "medium", "host_level": host_level.get("name"), "message": "Host level is missing in linked model."})
+    for key, linked_level in link_by_name.items():
+        if key not in matched_link:
+            findings.append({"type": "linked_level_missing_in_host", "severity": "medium", "linked_level": linked_level.get("name"), "message": "Linked level is missing in host model."})
+    comparisons = 0
+    for host_level in host_levels or []:
+        for linked_level in link_levels or []:
+            if comparisons >= MAX_REPORTED_LEVEL_ROWS:
+                break
+            if host_level.get("normalized_name") == linked_level.get("normalized_name"):
+                continue
+            delta = _level_elevation_delta_mm(host_level, linked_level)
+            if delta != "unknown" and delta <= tolerance:
+                findings.append(
+                    {
+                        "type": "linked_level_possible_name_mismatch",
+                        "severity": "low",
+                        "host_level": host_level.get("name"),
+                        "linked_level": linked_level.get("name"),
+                        "delta_mm": delta,
+                        "message": "Host and linked levels share elevation but have different names.",
+                    }
+                )
+                comparisons += 1
+        if comparisons >= MAX_REPORTED_LEVEL_ROWS:
+            break
+    return findings[:MAX_REPORTED_LEVEL_ROWS]
+
+
+def _angle_delta_degrees(a, b):
+    try:
+        delta = abs(float(a) - float(b))
+        while delta > 180.0:
+            delta -= 180.0
+        if delta > 90.0:
+            delta = 180.0 - delta
+        return abs(delta)
+    except:
+        return "unknown"
+
+
+def _linear_grid_offset_mm(host_grid, linked_grid):
+    try:
+        h_origin = host_grid.get("origin")
+        h_dir = host_grid.get("direction")
+        l_origin = linked_grid.get("origin")
+        if not h_origin or not h_dir or not l_origin:
+            return "unknown"
+        nx = -float(h_dir.get("y"))
+        ny = float(h_dir.get("x"))
+        dx = float(l_origin.get("x")) - float(h_origin.get("x"))
+        dy = float(l_origin.get("y")) - float(h_origin.get("y"))
+        offset_ft = abs(dx * nx + dy * ny)
+        return internal_feet_to_mm(offset_ft)
+    except:
+        return "unknown"
+
+
+def _compare_grid_rows(host_grids, link_grids):
+    findings = []
+    host_by_name = _rows_by_normalized_name(host_grids)
+    link_by_name = _rows_by_normalized_name(link_grids)
+    comparisons = 0
+    for key, host_grid in host_by_name.items():
+        linked_grid = link_by_name.get(key)
+        if not linked_grid:
+            findings.append({"type": "host_grid_missing_in_link", "severity": "medium", "host_grid": host_grid.get("name"), "message": "Host grid is missing in linked model."})
+            continue
+        if host_grid.get("geometry_status") == "linear" and linked_grid.get("geometry_status") == "linear" and comparisons < MAX_GRID_GEOMETRY_COMPARISONS_PER_LINK:
+            comparisons += 1
+            angle_delta = _angle_delta_degrees(host_grid.get("angle_degrees"), linked_grid.get("angle_degrees"))
+            offset_delta = _linear_grid_offset_mm(host_grid, linked_grid)
+            if angle_delta == "unknown" or offset_delta == "unknown":
+                findings.append({"type": "linked_grid_geometry_unknown", "severity": "low", "host_grid": host_grid.get("name"), "linked_grid": linked_grid.get("name"), "message": "Linear grid geometry comparison could not be completed."})
+            elif angle_delta > GRID_ANGLE_TOLERANCE_DEG or offset_delta > GRID_LINEAR_OFFSET_TOLERANCE_MM:
+                severity = "high" if offset_delta > 50.0 or angle_delta > 1.0 else "medium"
+                findings.append(
+                    {
+                        "type": "linked_grid_geometry_mismatch",
+                        "severity": severity,
+                        "host_grid": host_grid.get("name"),
+                        "linked_grid": linked_grid.get("name"),
+                        "angle_delta_degrees": angle_delta,
+                        "offset_delta_mm": offset_delta,
+                        "message": "Matching grid names have geometry delta outside tolerance.",
+                    }
+                )
+        else:
+            findings.append(
+                {
+                    "type": "linked_grid_geometry_unknown",
+                    "severity": "info",
+                    "host_grid": host_grid.get("name"),
+                    "linked_grid": linked_grid.get("name"),
+                    "message": "Geometry comparison limited for non-linear or unknown grid.",
+                }
+            )
+    for key, linked_grid in link_by_name.items():
+        if key not in host_by_name:
+            findings.append({"type": "linked_grid_missing_in_host", "severity": "medium", "linked_grid": linked_grid.get("name"), "message": "Linked grid is missing in host model."})
+    return findings[:MAX_REPORTED_GRID_ROWS]
+
+
+def _collect_host_link_level_grid_health(doc, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
+    host_levels, host_level_count, host_level_duplicates = _collect_level_rows(doc)
+    host_grids, host_grid_count, host_grid_duplicates = _collect_grid_rows(doc)
+    compared = []
+    skipped = []
+    all_level_findings = []
+    all_grid_findings = []
+    link_index = 0
+    try:
+        link_instances = list(DB.FilteredElementCollector(doc).OfClass(DB.RevitLinkInstance))
+    except:
+        link_instances = []
+    for instance in link_instances:
+        if link_index >= MAX_LINKS_FOR_LEVEL_GRID_SCAN:
+            skipped.append({"link_name": get_elem_name(instance) or "(unnamed link)", "status": "skipped", "reason": "link scan limit reached"})
+            continue
+        link_index += 1
+        link_type = None
+        try:
+            link_type = doc.GetElement(instance.GetTypeId())
+        except:
+            pass
+        link_name = get_elem_name(instance) or "(unnamed link)"
+        type_name = get_elem_name(link_type) if link_type is not None else "unknown"
+        transform = None
+        try:
+            transform = instance.GetTransform()
+        except:
+            pass
+        try:
+            link_doc = instance.GetLinkDocument()
+        except:
+            link_doc = None
+        if link_doc is None:
+            skipped.append({"link_name": link_name, "type_name": type_name, "status": "inaccessible", "reason": "linked document is not loaded/readable"})
+            continue
+        linked_title = _document_title(link_doc)
+        link_levels, link_level_count, link_level_duplicates = _collect_level_rows(link_doc)
+        link_grids, link_grid_count, link_grid_duplicates = _collect_grid_rows(link_doc, transform)
+        level_findings = _compare_level_rows(host_levels, link_levels)
+        grid_findings = _compare_grid_rows(host_grids, link_grids)
+        for duplicate in link_level_duplicates:
+            level_findings.append({"type": "linked_duplicate_level_names", "severity": "medium", "message": "Duplicate normalized level names in linked model.", "names": duplicate.get("names")})
+        for duplicate in link_grid_duplicates:
+            grid_findings.append({"type": "linked_duplicate_grid_names", "severity": "medium", "message": "Duplicate normalized grid names in linked model.", "names": duplicate.get("names")})
+        status = "OK"
+        if level_findings or grid_findings:
+            status = "REVIEW"
+        compared.append(
+            {
+                "link_name": link_name,
+                "type_name": type_name,
+                "linked_document_title": linked_title,
+                "status": status,
+                "coordinate_health_status": "unknown",
+                "level_count": link_level_count,
+                "grid_count": link_grid_count,
+                "level_findings": level_findings[:MAX_REPORTED_LEVEL_ROWS],
+                "grid_findings": grid_findings[:MAX_REPORTED_GRID_ROWS],
+            }
+        )
+        all_level_findings.extend(level_findings)
+        all_grid_findings.extend(grid_findings)
+    for duplicate in host_level_duplicates:
+        all_level_findings.append({"type": "host_duplicate_level_names", "severity": "medium", "message": "Duplicate normalized level names in host model.", "names": duplicate.get("names")})
+    for duplicate in host_grid_duplicates:
+        all_grid_findings.append({"type": "host_duplicate_grid_names", "severity": "medium", "message": "Duplicate normalized grid names in host model.", "names": duplicate.get("names")})
+    overall = "OK"
+    if skipped and not compared:
+        overall = "PARTIAL"
+    elif skipped:
+        overall = "PARTIAL"
+    if all_level_findings or all_grid_findings:
+        overall = "REVIEW" if not skipped else "PARTIAL"
+    issue_flags = sorted(set([item.get("type") for item in all_level_findings + all_grid_findings if item.get("type")]))
+    return {
+        "profile": "Configurable BIM Basis / ILS-style",
+        "level_elevation_tolerance_mm": LEVEL_ELEVATION_TOLERANCE_MM,
+        "grid_linear_offset_tolerance_mm": GRID_LINEAR_OFFSET_TOLERANCE_MM,
+        "grid_angle_tolerance_degrees": GRID_ANGLE_TOLERANCE_DEG,
+        "host_level_count": host_level_count,
+        "host_grid_count": host_grid_count,
+        "host_duplicate_level_names": host_level_duplicates[:MAX_REPORTED_LEVEL_ROWS],
+        "host_duplicate_grid_names": host_grid_duplicates[:MAX_REPORTED_GRID_ROWS],
+        "links_compared_count": len(compared),
+        "links_skipped_count": len(skipped),
+        "links_compared": compared[:sample_limit],
+        "links_skipped": skipped[:sample_limit],
+        "level_findings_count": len(all_level_findings),
+        "grid_findings_count": len(all_grid_findings),
+        "level_findings": all_level_findings[:MAX_REPORTED_LEVEL_ROWS],
+        "grid_findings": all_grid_findings[:MAX_REPORTED_GRID_ROWS],
+        "issue_flags": issue_flags,
+        "overall_status": overall,
     }
 
 
@@ -3222,6 +3889,34 @@ def _top_category_counts(category_counts, limit=8):
     return numeric[:limit]
 
 
+def _get_linked_model_coordinate_health(context):
+    if not isinstance(context, dict):
+        return {}
+    sections = context.get("sections") or {}
+    if isinstance(sections, dict):
+        value = sections.get("linked_model_coordinate_health")
+        if isinstance(value, dict):
+            return value
+    value = context.get("linked_model_coordinate_health")
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
+def _get_host_link_level_grid_health(context):
+    if not isinstance(context, dict):
+        return {}
+    sections = context.get("sections") or {}
+    if isinstance(sections, dict):
+        value = sections.get("host_link_level_grid_health")
+        if isinstance(value, dict):
+            return value
+    value = context.get("host_link_level_grid_health")
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
 def _detect_project_issues(context):
     issues = []
     levels = context.get("levels", {})
@@ -3255,6 +3950,32 @@ def _detect_project_issues(context):
     warnings = context.get("warnings_summary", {})
     if warnings.get("total_warning_count", 0) and warnings.get("total_warning_count", 0) >= 100:
         issues.append({"id": "high_warning_count", "severity": "medium", "message": "High Revit warning count detected."})
+    coord_health = _get_linked_model_coordinate_health(context)
+    level_grid = _get_host_link_level_grid_health(context)
+    if coord_health:
+        if coord_health.get("unavailable_count", 0):
+            issues.append({"id": "unloaded_or_unavailable_link", "severity": "medium", "message": "One or more Revit links are unloaded or unavailable."})
+        if coord_health.get("non_identity_transform_count", 0):
+            issues.append({"id": "non_identity_link_transform", "severity": "medium", "message": "One or more Revit links have non-identity transforms."})
+        if coord_health.get("z_offset_link_count", 0):
+            issues.append({"id": "link_z_offset_detected", "severity": "medium", "message": "One or more Revit links have a Z offset."})
+        if coord_health.get("rotated_link_count", 0):
+            issues.append({"id": "rotated_link_detected", "severity": "medium", "message": "One or more Revit links are rotated."})
+        if coord_health.get("duplicate_link_instance_count", 0):
+            issues.append({"id": "duplicate_link_instances", "severity": "medium", "message": "Duplicate Revit link instances/types were detected."})
+        if coord_health.get("unknown_coordinate_state_count", 0):
+            issues.append({"id": "unknown_coordinate_state", "severity": "low", "message": "Some link coordinate state could not be read."})
+    level_grid = _get_host_link_level_grid_health(context)
+    if level_grid:
+        for flag in level_grid.get("issue_flags", [])[:12]:
+            severity = "medium"
+            if flag == "linked_level_elevation_mismatch":
+                severity = "high"
+            if flag in ("linked_level_possible_name_mismatch", "linked_grid_geometry_unknown"):
+                severity = "low"
+            issues.append({"id": flag, "severity": severity, "message": "BIM Basis / Levels & Grids finding: {0}".format(flag.replace("_", " "))})
+        if level_grid.get("links_skipped_count", 0):
+            issues.append({"id": "level_grid_scan_partial", "severity": "medium", "message": "Some linked models were skipped or inaccessible during level/grid comparison."})
     return issues
 
 
@@ -3289,6 +4010,7 @@ def _project_first_check_lines(context):
 
 
 def _summarize_project_context(context):
+    context = context if isinstance(context, dict) else {}
     doc_info = context.get("document", {})
     active_view = doc_info.get("active_view", {})
     levels = context.get("levels", {})
@@ -3300,50 +4022,70 @@ def _summarize_project_context(context):
     selection = context.get("selection", {})
     warnings = context.get("warnings_summary", {})
     issues = context.get("detected_issues", [])
+    coord_health = _get_linked_model_coordinate_health(context)
     lines = [
-        "Project Context Summary",
-        "- Document: {0}".format(doc_info.get("title", "(unknown document)")),
-        "- Active view: {0} [{1}]".format(active_view.get("name", "(unknown view)"), active_view.get("view_type", "unknown")),
+        "[PROJECT CONTEXT SUMMARY]",
+        "Document: {0}".format(doc_info.get("title", "(unknown document)")),
+        "Active view: {0} [{1}]".format(active_view.get("name", "(unknown view)"), active_view.get("view_type", "unknown")),
+        "",
+        "[KEY COUNTS]",
     ]
     level_names = [level.get("exact_name") for level in levels.get("levels", [])[:8] if level.get("exact_name")]
-    lines.append("- Levels: {0}{1}".format(levels.get("count", 0), " | {0}".format(", ".join(level_names)) if level_names else ""))
+    lines.append("Levels: {0}{1}".format(levels.get("count", 0), " | {0}".format(", ".join(level_names)) if level_names else ""))
     if levels.get("ambiguous_aliases"):
-        lines.append("- Ambiguous level aliases: {0}".format(len(levels.get("ambiguous_aliases"))))
+        lines.append("Ambiguous level aliases: {0}".format(len(levels.get("ambiguous_aliases"))))
     view_groups = views.get("by_view_type", {}) or {}
     view_group_text = ", ".join(["{0}={1}".format(key, value) for key, value in sorted(view_groups.items())[:6]])
-    lines.append("- Views: {0}{1}".format(views.get("total", 0), " | {0}".format(view_group_text) if view_group_text else ""))
+    lines.append("Views: {0}{1}".format(views.get("total", 0), " | {0}".format(view_group_text) if view_group_text else ""))
     sheet_names = []
     for sheet in sheets.get("samples", [])[:5]:
         label = "{0} {1}".format(sheet.get("number") or "", sheet.get("name") or "").strip()
         if label:
             sheet_names.append(label)
-    lines.append("- Sheets: {0}{1}".format(sheets.get("count", 0), " | {0}".format("; ".join(sheet_names)) if sheet_names else ""))
+    lines.append("Sheets: {0}{1}".format(sheets.get("count", 0), " | {0}".format("; ".join(sheet_names)) if sheet_names else ""))
     loaded_links = links.get("loaded_links") or []
     unavailable_links = links.get("unavailable_links") or []
     link_names = [item.get("display_name") or item.get("type_name") or item.get("instance_name") for item in (loaded_links + unavailable_links)[:5]]
-    lines.append("- Revit links: {0} | loaded {1}, unavailable {2}{3}".format(links.get("instance_count", 0), len(loaded_links), len(unavailable_links), " | {0}".format(", ".join([name for name in link_names if name])) if link_names else ""))
+    lines.append("Revit links: {0} | loaded {1}, unavailable {2}{3}".format(links.get("instance_count", 0), len(loaded_links), len(unavailable_links), " | {0}".format(", ".join([name for name in link_names if name])) if link_names else ""))
+    if coord_health:
+        lines.append("Link coordinate health: {0} | non-identity {1}, rotated {2}, z-offset {3}".format(
+            coord_health.get("overall_status", "unknown"),
+            coord_health.get("non_identity_transform_count", 0),
+            coord_health.get("rotated_link_count", 0),
+            coord_health.get("z_offset_link_count", 0),
+        ))
+    if level_grid:
+        lines.append("BIM Basis / Levels & Grids: {0} | level findings {1} | grid findings {2} | links compared {3}".format(
+            level_grid.get("overall_status", "unknown"),
+            level_grid.get("level_findings_count", 0),
+            level_grid.get("grid_findings_count", 0),
+            level_grid.get("links_compared_count", 0),
+        ))
     import_names = [item.get("instance_name") for item in imports.get("imports", [])[:5] if item.get("instance_name")]
-    lines.append("- CAD/imports: {0}{1}".format(imports.get("total_import_instances", 0), " | {0}".format(", ".join(import_names)) if import_names else ""))
+    lines.append("CAD/imports: {0}{1}".format(imports.get("total_import_instances", 0), " | {0}".format(", ".join(import_names)) if import_names else ""))
     top_counts = _top_category_counts(context.get("category_counts", []))
     if top_counts:
-        lines.append("- Top categories: {0}".format(", ".join(["{0}={1}".format(name, count) for count, name in top_counts])))
+        lines.append("Top categories: {0}".format(", ".join(["{0}={1}".format(name, count) for count, name in top_counts])))
     schedule_samples = schedules.get("schedules", []) or []
     populated = len([item for item in schedule_samples if isinstance(item.get("body_row_count"), int) and item.get("body_row_count") > 0])
     empty = len([item for item in schedule_samples if item.get("body_row_count") == 0])
     unknown = len([item for item in schedule_samples if not isinstance(item.get("body_row_count"), int)])
-    lines.append("- Schedules: sampled {0} | populated {1}, empty {2}, unknown {3}".format(schedules.get("sampled_count", schedules.get("count", 0)), populated, empty, unknown))
-    lines.append("- Warnings: {0}".format(warnings.get("total_warning_count", 0)))
+    lines.append("Schedules: sampled {0} | populated {1}, empty {2}, unknown {3}".format(schedules.get("sampled_count", schedules.get("count", 0)), populated, empty, unknown))
+    lines.append("Warnings: {0}".format(warnings.get("total_warning_count", 0)))
     if issues:
-        lines.append("- Detected issues: {0}".format(", ".join(["{0} ({1})".format(issue.get("id"), issue.get("severity", "info")) for issue in issues[:8]])))
-    lines.append("- Selected elements: {0}".format(selection.get("selected_element_count", 0)))
+        lines.append("Detected issues: {0}".format(", ".join(["{0} ({1})".format(issue.get("id"), issue.get("severity", "info")) for issue in issues[:8]])))
+    lines.append("Selected elements: {0}".format(selection.get("selected_element_count", 0)))
     checks = _project_first_check_lines(context)
     if checks:
-        lines.append("- Suggested first checks:")
+        lines.append("")
+        lines.append("[SUGGESTED FIRST CHECKS]")
         for index, check in enumerate(checks[:4]):
-            lines.append("  {0}. {1}".format(index + 1, check))
+            lines.append("{0}. {1}".format(index + 1, check))
     scan_warnings = context.get("scanner_warnings", [])
     if scan_warnings:
-        lines.append("- Scanner warnings: {0}".format(len(scan_warnings)))
+        lines.append("")
+        lines.append("[SCANNER WARNINGS]")
+        lines.append("Count: {0}".format(len(scan_warnings)))
     return "\n".join(lines)
 
 
@@ -3367,12 +4109,15 @@ def collect_project_context(doc, uidoc, scan_depth="standard"):
         _collector_section(context, warnings, "sheets", lambda: _collect_sheet_summary(doc))
         _collector_section(context, warnings, "schedules", lambda: {"count": _safe_int(len(list(DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule))), 0)})
         _collector_section(context, warnings, "links", lambda: _collect_revit_links(doc, 5))
+        _collector_section(context, warnings, "linked_model_coordinate_health", lambda: _collect_linked_model_coordinate_health(doc, 5))
         _collector_section(context, warnings, "imports_cad", lambda: _collect_imports_context(doc, uidoc, 5))
     else:
         _collector_section(context, warnings, "views", lambda: _collect_view_summary(doc, uidoc))
         _collector_section(context, warnings, "sheets", lambda: _collect_sheet_summary(doc))
         _collector_section(context, warnings, "schedules", lambda: _collect_schedule_inventory(doc))
         _collector_section(context, warnings, "links", lambda: _collect_revit_links(doc))
+        _collector_section(context, warnings, "linked_model_coordinate_health", lambda: _collect_linked_model_coordinate_health(doc))
+        _collector_section(context, warnings, "host_link_level_grid_health", lambda: _collect_host_link_level_grid_health(doc))
         _collector_section(context, warnings, "imports_cad", lambda: _collect_imports_context(doc, uidoc))
         _collector_section(context, warnings, "category_counts", lambda: _collect_core_category_counts(doc, uidoc))
         _collector_section(context, warnings, "warnings_summary", lambda: _collect_warning_summary(doc))
@@ -3403,6 +4148,44 @@ def ask_agent_for_project_plan_action(doc, uidoc, context=None):
             "Project-context planning input prepared.",
             summary,
             "Use AI Agent Ask Agent for Plan to create a reviewed plan from this context.",
+            "No actions have been executed.",
+        ]
+    )
+
+
+def check_linked_model_coordinate_health(doc, uidoc, context=None):
+    result = collect_project_context(doc, uidoc, "standard")
+    health = _get_linked_model_coordinate_health(result.get("context", {}))
+    return "\n".join(
+        [
+            "[LINKED MODEL COORDINATE HEALTH]",
+            "Total links: {0}".format(health.get("total_links", 0)),
+            "Loaded/readable: {0}".format(health.get("loaded_readable_count", 0)),
+            "Unavailable: {0}".format(health.get("unavailable_count", 0)),
+            "Non-identity transforms: {0}".format(health.get("non_identity_transform_count", 0)),
+            "Rotated links: {0}".format(health.get("rotated_link_count", 0)),
+            "Z-offset links: {0}".format(health.get("z_offset_link_count", 0)),
+            "Duplicate link instances: {0}".format(health.get("duplicate_link_instance_count", 0)),
+            "Overall status: {0}".format(health.get("overall_status", "not scanned")),
+            "No actions have been executed.",
+        ]
+    )
+
+
+def check_bim_basis_level_grid_health(doc, uidoc, context=None):
+    result = collect_project_context(doc, uidoc, "standard")
+    health = _get_host_link_level_grid_health(result.get("context", {}))
+    return "\n".join(
+        [
+            "[BIM BASIS / LEVELS & GRIDS]",
+            "Profile: {0}".format(health.get("profile", "Configurable BIM Basis / ILS-style")),
+            "Overall status: {0}".format(health.get("overall_status", "not scanned")),
+            "Host levels: {0}".format(health.get("host_level_count", "not scanned")),
+            "Host grids: {0}".format(health.get("host_grid_count", "not scanned")),
+            "Links compared: {0}".format(health.get("links_compared_count", 0)),
+            "Links skipped: {0}".format(health.get("links_skipped_count", 0)),
+            "Level findings: {0}".format(health.get("level_findings_count", 0)),
+            "Grid findings: {0}".format(health.get("grid_findings_count", 0)),
             "No actions have been executed.",
         ]
     )
@@ -7494,6 +8277,8 @@ REVIEWED_ACTION_HANDLERS = {
     "create_aco_prefab_schedule_bundle_from_template": create_aco_prefab_schedule_bundle_from_template,
     "scan_current_project_context": scan_current_project_context,
     "summarize_current_project_context": summarize_current_project_context,
+    "check_linked_model_coordinate_health": check_linked_model_coordinate_health,
+    "check_bim_basis_level_grid_health": check_bim_basis_level_grid_health,
     "ask_agent_for_project_plan_action": ask_agent_for_project_plan_action,
     "create_codex_task_brief_action": create_codex_task_brief_action,
 }
@@ -8048,6 +8833,8 @@ class OllamaAIChat(forms.WPFWindow):
             "ProjectQuickViewsButton",
             "ProjectQuickSheetsButton",
             "ProjectQuickLinksButton",
+            "ProjectQuickLinkCoordinatesButton",
+            "ProjectQuickLevelsGridsButton",
             "ProjectQuickImportsButton",
             "ProjectQuickCategoriesButton",
             "ProjectQuickSchedulesButton",
@@ -8630,6 +9417,8 @@ class OllamaAIChat(forms.WPFWindow):
             "ProjectQuickViewsButton",
             "ProjectQuickSheetsButton",
             "ProjectQuickLinksButton",
+            "ProjectQuickLinkCoordinatesButton",
+            "ProjectQuickLevelsGridsButton",
             "ProjectQuickImportsButton",
             "ProjectQuickCategoriesButton",
             "ProjectQuickSchedulesButton",
@@ -9171,6 +9960,21 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             pass
 
+    def _chat_separator(self):
+        return "------------------------------------------------------------"
+
+    def append_chat_turn(self, prompt, reply, source_label="AI"):
+        try:
+            self.ChatHistory.AppendText("{0}\nYOU: {1}\n{0}\n{2}: {3}\n\n".format(self._chat_separator(), prompt, source_label, reply))
+        except:
+            self.ChatHistory.AppendText("YOU: {0}\n{1}: {2}\n\n".format(prompt, source_label, reply))
+
+    def append_chat_notice(self, title, body):
+        try:
+            self.ChatHistory.AppendText("{0}\n{1}\n{0}\n{2}\n\n".format(self._chat_separator(), title, body))
+        except:
+            self.ChatHistory.AppendText("{0}\n{1}\n\n".format(title, body))
+
     def _context_tree_item(self, header, children=None):
         from System.Windows.Controls import TreeViewItem
 
@@ -9195,10 +9999,100 @@ class OllamaAIChat(forms.WPFWindow):
             return "empty (0 body rows)"
         return "unknown body row count"
 
+    def _coord_number(self, value, precision=3):
+        try:
+            return "{0:.{1}f}".format(float(value), int(precision))
+        except:
+            return "unknown"
+
+    def _coord_origin_text(self, item):
+        origin = item.get("origin_internal_feet") or {}
+        return "X={0}, Y={1}, Z={2}".format(
+            self._coord_number(origin.get("x")),
+            self._coord_number(origin.get("y")),
+            self._coord_number(origin.get("z")),
+        )
+
+    def _coord_rotation_text(self, item):
+        return "{0} deg".format(self._coord_number(item.get("rotation_z_degrees")))
+
+    def _link_load_status_text(self, item):
+        if item.get("loaded_readable") is True:
+            return "loaded"
+        if item.get("status_label") == "UNLOADED" or "unloaded_or_unavailable_link" in (item.get("coordinate_flags") or []):
+            return "unloaded"
+        return "unavailable"
+
+    def _coord_transform_text(self, item):
+        if item.get("close_to_identity") is True:
+            return "identity / near identity"
+        if item.get("close_to_identity") is False:
+            return "non-identity"
+        return "unknown"
+
+    def _coord_reason_list(self, item):
+        flags = item.get("coordinate_flags") or []
+        reason_map = {
+            "unloaded_or_unavailable_link": "link document is not readable",
+            "non_identity_transform": "transform differs from identity",
+            "z_offset_detected": "Z offset detected",
+            "rotated_link_detected": "rotation around Z detected",
+            "duplicate_link_instances": "duplicate link type/instance detected",
+            "unknown_coordinate_state": "coordinate state could not be read",
+            "basis_not_orthonormal": "basis vectors are not orthonormal",
+        }
+        return [reason_map.get(flag, flag.replace("_", " ")) for flag in flags] or ["none"]
+
+    def _coordinate_health_counts(self, health):
+        links = health.get("links", []) if isinstance(health, dict) else []
+        counts = {"OK": 0, "REVIEW": 0, "UNLOADED": 0, "UNKNOWN": 0}
+        for item in links:
+            label = item.get("status_label") or "UNKNOWN"
+            counts[label] = counts.get(label, 0) + 1
+        return counts
+
+    def _coordinate_health_main_flags(self, health):
+        flags = []
+        for item in (health.get("links", []) if isinstance(health, dict) else []):
+            flags.extend(item.get("coordinate_flags") or [])
+        unique = sorted(set(flags))
+        return unique or ["none"]
+
+    def _coordinate_health_reason_summary(self, health):
+        if not isinstance(health, dict):
+            return "Linked model coordinate health was not scanned."
+        return "status {0}; links {1}; review {2}; unloaded {3}; unknown {4}; flags {5}".format(
+            health.get("overall_status", "unknown"),
+            health.get("total_links", 0),
+            self._coordinate_health_counts(health).get("REVIEW", 0),
+            health.get("unavailable_count", 0),
+            self._coordinate_health_counts(health).get("UNKNOWN", 0),
+            ", ".join(self._coordinate_health_main_flags(health)),
+        )
+
     def _issue_suggested_action(self, issue_id):
         mapping = {
             "ambiguous_level_names": "Use exact level names in level-targeted schedule prompts.",
             "unloaded_or_unavailable_revit_links": "Review links from the Project Context Links branch.",
+            "unloaded_or_unavailable_link": "Review unloaded links in Project Context > Links / Coordinate Health.",
+            "non_identity_link_transform": "Run the read-only linked model coordinate health check before coordination work.",
+            "link_z_offset_detected": "Review link Z offsets with the BIM coordinator before modelling against linked geometry.",
+            "rotated_link_detected": "Review rotated link transforms before coordination checks.",
+            "duplicate_link_instances": "Review duplicate link instances/types before coordination work.",
+            "unknown_coordinate_state": "Review links with unreadable coordinate state before relying on alignment assumptions.",
+            "host_duplicate_level_names": "Review duplicate host level names before BIM Basis / ILS-style exchanges.",
+            "linked_duplicate_level_names": "Review duplicate linked level names with the model author.",
+            "linked_level_elevation_mismatch": "Review level elevation deltas against the project BIM Basis / ILS rules.",
+            "linked_level_missing_in_host": "Review linked-only levels before coordination or schedule filtering.",
+            "host_level_missing_in_link": "Review host levels missing from linked models with the coordination team.",
+            "linked_level_possible_name_mismatch": "Review level naming consistency for levels with matching elevations.",
+            "host_duplicate_grid_names": "Review duplicate host grid names before coordination.",
+            "linked_duplicate_grid_names": "Review duplicate linked grid names with the model author.",
+            "linked_grid_missing_in_host": "Review linked-only grids before coordination.",
+            "host_grid_missing_in_link": "Review host grids missing from linked models with the coordination team.",
+            "linked_grid_geometry_mismatch": "Review grid geometry offsets/angles manually before coordination.",
+            "linked_grid_geometry_unknown": "Review non-linear or unknown grid geometry manually.",
+            "level_grid_scan_partial": "Run Scan Project with accessible loaded links or review skipped links manually.",
             "cad_imports_present": "Run read-only active-view health checks before coordination work.",
             "view_specific_imports_present": "Inspect view-specific imports before relying on sheet/view outputs.",
             "empty_or_suspicious_schedules": "Use Show Schedules or Empty / Suspicious Schedules before template-backed actions.",
@@ -9235,6 +10129,8 @@ class OllamaAIChat(forms.WPFWindow):
         links = context.get("links", {})
         imports = context.get("imports_cad", {})
         schedules = context.get("schedules", {})
+        coord_health = _get_linked_model_coordinate_health(context)
+        level_grid_health = _get_host_link_level_grid_health(context)
         selection = context.get("selection", {})
         warnings = context.get("warnings_summary", {})
         issues = context.get("detected_issues", [])
@@ -9325,6 +10221,124 @@ class OllamaAIChat(forms.WPFWindow):
             link_children.append("Duplicate link type/instances: {0} ({1})".format(duplicate.get("type_name"), duplicate.get("instance_count")))
         self.ProjectContextTree.Items.Add(
             self._context_tree_item("Links", link_children)
+        )
+
+        coord_children = [
+            "Total links: {0}".format(coord_health.get("total_links", 0)),
+            "Loaded/readable: {0}".format(coord_health.get("loaded_readable_count", 0)),
+            "Unavailable: {0}".format(coord_health.get("unavailable_count", 0)),
+            "Non-identity transforms: {0}".format(coord_health.get("non_identity_transform_count", 0)),
+            "Rotated links: {0}".format(coord_health.get("rotated_link_count", 0)),
+            "Z-offset links: {0}".format(coord_health.get("z_offset_link_count", 0)),
+            "Duplicate link instances/types: {0}".format(coord_health.get("duplicate_link_instance_count", 0)),
+            "Overall status: {0}".format(coord_health.get("overall_status", "not scanned")),
+        ]
+        host = coord_health.get("host", {}) if isinstance(coord_health, dict) else {}
+        project_position = host.get("project_position", {}) if isinstance(host, dict) else {}
+        coord_children.append(
+            self._context_tree_item(
+                "Host coordinate summary",
+                [
+                    "Document: {0}".format(host.get("document_title", "not scanned")),
+                    "Project location: {0}".format(project_position.get("project_location_name", "unknown")),
+                    "East/West: {0}".format(project_position.get("east_west", "unknown")),
+                    "North/South: {0}".format(project_position.get("north_south", "unknown")),
+                    "Elevation: {0}".format(project_position.get("elevation", "unknown")),
+                    "Angle: {0} deg".format(project_position.get("angle_degrees", "unknown")),
+                    "Project base point: {0}".format(host.get("project_base_point", "unknown")),
+                    "Survey point: {0}".format(host.get("survey_point", "unknown")),
+                ],
+            )
+        )
+        for item in coord_health.get("links", [])[:PROJECT_CONTEXT_MAX_ITEMS] if isinstance(coord_health, dict) else []:
+            reasons = self._coord_reason_list(item)
+            load_status = self._link_load_status_text(item)
+            duplicate_text = "yes ({0})".format(item.get("duplicate_type_instance_count")) if item.get("duplicate_type_instance_count", 0) and item.get("duplicate_type_instance_count", 0) > 1 else "no"
+            coord_children.append(
+                self._context_tree_item(
+                    "{0} [{1}] [{2}]".format(
+                        item.get("display_name") or item.get("type_name") or item.get("instance_name"),
+                        load_status,
+                        item.get("status_label", "UNKNOWN"),
+                    ),
+                    [
+                        "instance: {0} (id {1})".format(item.get("instance_name"), item.get("instance_id")),
+                        "type: {0} (id {1})".format(item.get("type_name"), item.get("type_id")),
+                        "loaded/unloaded/unavailable: {0}".format(load_status),
+                        "linked document: {0}".format(item.get("linked_document_title") or "not loaded/not scanned"),
+                        "pinned: {0}".format(item.get("pinned")),
+                        "path: {0}".format(item.get("path_info") or "<path not available>"),
+                        "origin internal ft: {0}".format(self._coord_origin_text(item)),
+                        "rotation Z: {0}".format(self._coord_rotation_text(item)),
+                        "transform: {0}".format(self._coord_transform_text(item)),
+                        "Z offset flag: {0}".format("yes" if "z_offset_detected" in (item.get("coordinate_flags") or []) else "no"),
+                        "basis orthonormal: {0}".format(item.get("basis_orthonormal")),
+                        "duplicate link/type: {0}".format(duplicate_text),
+                        "final status: {0}".format(item.get("status_label", "UNKNOWN")),
+                        "reasons: {0}".format("; ".join(reasons)),
+                    ],
+                )
+            )
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item("Links / Coordinate Health", coord_children)
+        )
+
+        lg_children = [
+            "Profile: {0}".format(level_grid_health.get("profile", "Configurable BIM Basis / ILS-style")),
+            "Level elevation tolerance: {0} mm".format(level_grid_health.get("level_elevation_tolerance_mm", LEVEL_ELEVATION_TOLERANCE_MM)),
+            "Grid offset tolerance: {0} mm".format(level_grid_health.get("grid_linear_offset_tolerance_mm", GRID_LINEAR_OFFSET_TOLERANCE_MM)),
+            "Grid angle tolerance: {0} deg".format(level_grid_health.get("grid_angle_tolerance_degrees", GRID_ANGLE_TOLERANCE_DEG)),
+            "Host level count: {0}".format(level_grid_health.get("host_level_count", "not scanned")),
+            "Host grid count: {0}".format(level_grid_health.get("host_grid_count", "not scanned")),
+            "Links compared: {0}".format(level_grid_health.get("links_compared_count", 0)),
+            "Links skipped/inaccessible: {0}".format(level_grid_health.get("links_skipped_count", 0)),
+            "Overall status: {0}".format(level_grid_health.get("overall_status", "not scanned")),
+        ]
+        lg_children.append(
+            self._context_tree_item(
+                "Level findings summary",
+                [
+                    "host duplicate names: {0}".format(len(level_grid_health.get("host_duplicate_level_names", []) or [])),
+                    "all level findings: {0}".format(level_grid_health.get("level_findings_count", 0)),
+                    "sample findings: {0}".format("; ".join([item.get("type", "unknown") for item in (level_grid_health.get("level_findings", []) or [])[:8]]) or "none"),
+                ],
+            )
+        )
+        lg_children.append(
+            self._context_tree_item(
+                "Grid findings summary",
+                [
+                    "host duplicate names: {0}".format(len(level_grid_health.get("host_duplicate_grid_names", []) or [])),
+                    "all grid findings: {0}".format(level_grid_health.get("grid_findings_count", 0)),
+                    "sample findings: {0}".format("; ".join([item.get("type", "unknown") for item in (level_grid_health.get("grid_findings", []) or [])[:8]]) or "none"),
+                ],
+            )
+        )
+        for link_row in level_grid_health.get("links_compared", [])[:PROJECT_CONTEXT_MAX_ITEMS] if isinstance(level_grid_health, dict) else []:
+            coord_status = "unknown"
+            for coord_link in coord_health.get("links", []) if isinstance(coord_health, dict) else []:
+                if coord_link.get("display_name") == link_row.get("linked_document_title") or coord_link.get("instance_name") == link_row.get("link_name"):
+                    coord_status = coord_link.get("status_label", "unknown")
+                    break
+            lg_children.append(
+                self._context_tree_item(
+                    "{0} [{1}]".format(link_row.get("link_name"), link_row.get("status", "UNKNOWN")),
+                    [
+                        "linked document: {0}".format(link_row.get("linked_document_title")),
+                        "coordinate-health status: {0}".format(coord_status),
+                        "levels: {0}".format(link_row.get("level_count")),
+                        "grids: {0}".format(link_row.get("grid_count")),
+                        "level findings: {0}".format(len(link_row.get("level_findings") or [])),
+                        "grid findings: {0}".format(len(link_row.get("grid_findings") or [])),
+                        "sample level findings: {0}".format("; ".join([item.get("message", item.get("type", "unknown")) for item in (link_row.get("level_findings") or [])[:5]]) or "none"),
+                        "sample grid findings: {0}".format("; ".join([item.get("message", item.get("type", "unknown")) for item in (link_row.get("grid_findings") or [])[:5]]) or "none"),
+                    ],
+                )
+            )
+        for skipped in level_grid_health.get("links_skipped", [])[:PROJECT_CONTEXT_MAX_ITEMS] if isinstance(level_grid_health, dict) else []:
+            lg_children.append("Skipped: {0} | {1}".format(skipped.get("link_name"), skipped.get("reason")))
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item("BIM Basis / Levels & Grids", lg_children)
         )
 
         import_children = [
@@ -9490,10 +10504,10 @@ class OllamaAIChat(forms.WPFWindow):
         self._pump_ui()
         try:
             result = self.run_project_context_scan("standard")
-            self.ChatHistory.AppendText("Project scan complete\n{0}\n\n".format(result.get("summary", "")))
+            self.append_chat_notice("PROJECT SCAN COMPLETE", result.get("summary", ""))
             self.update_window_status("ready_to_execute", "Standard project scan complete")
         except Exception as exc:
-            self.ChatHistory.AppendText("Project scan failed: {0}\n\n".format(str(exc)))
+            self.append_chat_notice("PROJECT SCAN FAILED", str(exc))
             self._set_project_context_status("Scan failed partially")
             self.update_window_status("failed", "Project scan failed")
         finally:
@@ -9510,8 +10524,30 @@ class OllamaAIChat(forms.WPFWindow):
             "summarize current project",
             "what is in this revit model",
             "what links are loaded",
+            "what linked models are loaded",
             "list revit links",
             "show revit links",
+            "check linked model coordinates",
+            "linked model coordinate health",
+            "are the links aligned",
+            "do the linked models match coordinates",
+            "check revit link transforms",
+            "are any links unloaded",
+            "coordinate health check",
+            "project coordinates check",
+            "check bim basis",
+            "bim basis ils check",
+            "iso style check",
+            "iso 19650 style check",
+            "compare host and linked levels",
+            "compare linked model levels",
+            "compare host and linked grids",
+            "compare linked model grids",
+            "check levels and grids",
+            "are linked model levels aligned",
+            "are linked model grids aligned",
+            "level grid health check",
+            "host vs link level grid check",
             "what cad imports",
             "list cad imports",
             "show imports",
@@ -9567,8 +10603,30 @@ class OllamaAIChat(forms.WPFWindow):
             "list sheets": "sheets",
             "show sheets": "sheets",
             "what links are loaded": "links",
+            "what linked models are loaded": "link_coordinate_health",
+            "are any links unloaded": "link_coordinate_health",
             "list revit links": "links",
             "show revit links": "links",
+            "check linked model coordinates": "link_coordinate_health",
+            "linked model coordinate health": "link_coordinate_health",
+            "are the links aligned": "link_coordinate_health",
+            "do the linked models match coordinates": "link_coordinate_health",
+            "check revit link transforms": "link_coordinate_health",
+            "coordinate health check": "link_coordinate_health",
+            "project coordinates check": "link_coordinate_health",
+            "check bim basis": "level_grid_health",
+            "bim basis ils check": "level_grid_health",
+            "iso style check": "level_grid_health",
+            "iso 19650 style check": "level_grid_health",
+            "compare host and linked levels": "level_grid_health",
+            "compare linked model levels": "level_grid_health",
+            "compare host and linked grids": "level_grid_health",
+            "compare linked model grids": "level_grid_health",
+            "check levels and grids": "level_grid_health",
+            "are linked model levels aligned": "level_grid_health",
+            "are linked model grids aligned": "level_grid_health",
+            "level grid health check": "level_grid_health",
+            "host vs link level grid check": "level_grid_health",
             "what cad imports are in this model": "imports",
             "list cad imports": "imports",
             "show imports": "imports",
@@ -9614,6 +10672,10 @@ class OllamaAIChat(forms.WPFWindow):
             return "template_schedules"
         if "schedule" in normalized:
             return "schedules"
+        if ("coordinate" in normalized and ("link" in normalized or "project" in normalized)) or "link transform" in normalized or "links aligned" in normalized or "linked models match coordinates" in normalized or "links unloaded" in normalized or "linked models are loaded" in normalized:
+            return "link_coordinate_health"
+        if "bim basis" in normalized or "ils check" in normalized or "iso style" in normalized or "iso 19650 style" in normalized or "level grid" in normalized or ("level" in normalized and "grid" in normalized) or ("linked model levels" in normalized) or ("linked model grids" in normalized) or ("host and linked levels" in normalized) or ("host and linked grids" in normalized):
+            return "level_grid_health"
         if "cad" in normalized or "import" in normalized:
             return "imports"
         if "link" in normalized:
@@ -9677,19 +10739,25 @@ class OllamaAIChat(forms.WPFWindow):
     def _format_context_links(self, context):
         links = context.get("links", {})
         lines = [
-            "Revit Links",
-            "- Instances: {0}".format(links.get("instance_count", 0)),
-            "- Loaded: {0}".format(len(links.get("loaded_links") or [])),
-            "- Unavailable/unloaded: {0}".format(len(links.get("unavailable_links") or [])),
+            "[REVIT LINKS]",
+            "Instances: {0} | Loaded: {1} | Unavailable/unloaded: {2}".format(
+                links.get("instance_count", 0),
+                len(links.get("loaded_links") or []),
+                len(links.get("unavailable_links") or []),
+            ),
+            "",
+            "[LINK DETAILS]",
         ]
         for item in links.get("instances", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
-            lines.append("- {0} [{1}] | type: {2} | document: {3} | path: {4}".format(
+            lines.append("- {0} [{1}]".format(
                 item.get("display_name") or item.get("type_name") or item.get("instance_name") or "(unnamed)",
                 item.get("status") or "unknown",
+            ))
+            lines.append("  type: {0} | document: {1}".format(
                 item.get("type_name") or "unknown",
                 item.get("linked_document_title") or "not loaded/not scanned",
-                item.get("path_info") or "<path not available>",
             ))
+            lines.append("  path: {0}".format(item.get("path_info") or "<path not available>"))
         for duplicate in links.get("duplicate_link_types_or_instances", [])[:5]:
             lines.append("- Duplicate: {0} ({1} instances)".format(duplicate.get("type_name"), duplicate.get("instance_count")))
         return "\n".join(lines)
@@ -9697,18 +10765,155 @@ class OllamaAIChat(forms.WPFWindow):
     def _format_context_imports(self, context):
         imports = context.get("imports_cad", {})
         lines = [
-            "CAD / Imports",
-            "- Total import instances: {0}".format(imports.get("total_import_instances", 0)),
-            "- Linked CAD: {0}".format(imports.get("linked_cad_count", 0)),
-            "- Imported CAD: {0}".format(imports.get("imported_cad_count", 0)),
-            "- View-specific: {0}".format(imports.get("view_specific_import_count", 0)),
+            "[CAD / IMPORTS]",
+            "Total: {0} | Linked CAD: {1} | Imported CAD: {2} | View-specific: {3}".format(
+                imports.get("total_import_instances", 0),
+                imports.get("linked_cad_count", 0),
+                imports.get("imported_cad_count", 0),
+                imports.get("view_specific_import_count", 0),
+            ),
         ]
         if imports.get("total_import_instances", 0) == 0:
-            lines.append("- No CAD/import instances found")
+            lines.append("")
+            lines.append("No CAD/import instances found.")
+            return "\n".join(lines)
+        lines.append("")
+        lines.append("[IMPORT DETAILS]")
         for item in imports.get("imports", [])[:PROJECT_CONTEXT_MAX_ITEMS]:
             linked = "linked" if item.get("linked") else ("imported" if item.get("linked") is False else "linked/imported unknown")
             scope = "view-specific: {0}".format(item.get("owner_view_name")) if item.get("owner_view_name") else "model-wide/not owner-view scoped"
             lines.append("- {0} | {1} | {2} | category: {3}".format(item.get("instance_name") or "(unnamed)", linked, scope, item.get("category") or "not scanned"))
+        return "\n".join(lines)
+
+    def _format_link_coordinate_health(self, context):
+        health = _get_linked_model_coordinate_health(context)
+        counts = self._coordinate_health_counts(health)
+        lines = [
+            "[LINK COORDINATE HEALTH]",
+            "",
+            "Summary",
+            "- Links scanned: {0}".format(health.get("total_links", 0)),
+            "- Loaded: {0}".format(health.get("loaded_readable_count", 0)),
+            "- Unloaded/unavailable: {0}".format(health.get("unavailable_count", 0)),
+            "- OK: {0}".format(counts.get("OK", 0)),
+            "- Review: {0}".format(counts.get("REVIEW", 0)),
+            "- Unknown: {0}".format(counts.get("UNKNOWN", 0)),
+            "- Non-identity transforms: {0}".format(health.get("non_identity_transform_count", 0)),
+            "- Rotated links: {0}".format(health.get("rotated_link_count", 0)),
+            "- Z-offset links: {0}".format(health.get("z_offset_link_count", 0)),
+            "- Duplicate link instances/types: {0}".format(health.get("duplicate_link_instance_count", 0)),
+            "- Overall status: {0}".format(health.get("overall_status", "not scanned")),
+            "",
+        ]
+        links = health.get("links", []) or []
+        suspicious = [item for item in links if item.get("status_label") != "OK"]
+        if links and not suspicious:
+            lines.append("Links")
+            lines.append("All sampled links are currently marked OK by the deterministic transform checks.")
+            lines.append("Full per-link origin/rotation details remain available in Project Context > Links / Coordinate Health.")
+        elif links:
+            ordered = suspicious + [item for item in links if item.get("status_label") == "OK"]
+            lines.append("Links")
+            for index, item in enumerate(ordered[:10]):
+                reasons = self._coord_reason_list(item)
+                flags = item.get("coordinate_flags") or []
+                load_status = self._link_load_status_text(item)
+                lines.append("{0}. {1} [{2}] [{3}]".format(index + 1, item.get("display_name") or item.get("type_name") or item.get("instance_name"), load_status, item.get("status_label", "UNKNOWN")))
+                lines.append("   - Origin: {0}".format(self._coord_origin_text(item)))
+                lines.append("   - Rotation Z: {0}".format(self._coord_rotation_text(item)))
+                lines.append("   - Transform: {0}".format(self._coord_transform_text(item)))
+                if flags:
+                    lines.append("   - Flags: {0}".format(", ".join(flags)))
+                    lines.append("   - Suggested safe step: inspect link placement and coordinate setup manually.")
+                else:
+                    lines.append("   - Notes: no coordinate flags detected")
+                if item.get("status_label") in ("REVIEW", "UNLOADED", "UNKNOWN"):
+                    lines.append("   - Reasons: {0}".format("; ".join(reasons)))
+            if len(ordered) > 10:
+                lines.append("")
+                lines.append("More links are available in Project Context > Links / Coordinate Health.")
+        else:
+            lines.append("No link coordinate details were scanned. Run Scan Project first.")
+        lines.append("")
+        lines.append("Safety")
+        lines.append("- This is a read-only diagnostic.")
+        lines.append("- Linked-model placement and coordinate state were not changed.")
+        return "\n".join(lines)
+
+    def _format_level_grid_health(self, context):
+        health = _get_host_link_level_grid_health(context)
+        if not health:
+            return "\n".join(
+                [
+                    "[BIM BASIS / LEVELS & GRIDS]",
+                    "",
+                    "Level/grid health is not available; run standard Scan Project first.",
+                    "",
+                    "Safety",
+                    "- This is a read-only diagnostic.",
+                    "- No levels, grids, links, coordinates, or model data were modified.",
+                ]
+            )
+        lines = [
+            "[BIM BASIS / LEVELS & GRIDS]",
+            "",
+            "Summary",
+            "- Profile: {0}".format(health.get("profile", "Configurable BIM Basis / ILS-style")),
+            "- Note: project coordination diagnostic, not formal ISO 19650 certification.",
+            "- Overall status: {0}".format(health.get("overall_status", "UNKNOWN")),
+            "- Host levels: {0}".format(health.get("host_level_count", "not scanned")),
+            "- Host grids: {0}".format(health.get("host_grid_count", "not scanned")),
+            "- Links compared: {0}".format(health.get("links_compared_count", 0)),
+            "- Links skipped: {0}".format(health.get("links_skipped_count", 0)),
+            "- Level tolerance: {0} mm".format(health.get("level_elevation_tolerance_mm", LEVEL_ELEVATION_TOLERANCE_MM)),
+            "- Grid offset tolerance: {0} mm".format(health.get("grid_linear_offset_tolerance_mm", GRID_LINEAR_OFFSET_TOLERANCE_MM)),
+            "- Grid angle tolerance: {0} deg".format(health.get("grid_angle_tolerance_degrees", GRID_ANGLE_TOLERANCE_DEG)),
+            "",
+            "Level Findings",
+            "- Total: {0}".format(health.get("level_findings_count", 0)),
+        ]
+        for finding in (health.get("level_findings") or [])[:12]:
+            lines.append("  - {0} [{1}]: {2}".format(finding.get("type", "unknown"), finding.get("severity", "info"), finding.get("message", "")))
+        if not health.get("level_findings"):
+            lines.append("  - none")
+        lines.extend(["", "Grid Findings", "- Total: {0}".format(health.get("grid_findings_count", 0))])
+        for finding in (health.get("grid_findings") or [])[:12]:
+            details = finding.get("message", "")
+            if finding.get("offset_delta_mm") not in (None, "unknown"):
+                details = "{0} offset {1:.1f} mm".format(details, finding.get("offset_delta_mm"))
+            if finding.get("angle_delta_degrees") not in (None, "unknown"):
+                details = "{0} angle {1:.3f} deg".format(details, finding.get("angle_delta_degrees"))
+            lines.append("  - {0} [{1}]: {2}".format(finding.get("type", "unknown"), finding.get("severity", "info"), details))
+        if not health.get("grid_findings"):
+            lines.append("  - none")
+        lines.extend(["", "Per-Link Findings"])
+        link_rows = health.get("links_compared") or []
+        for index, link_row in enumerate(link_rows[:10]):
+            all_findings = (link_row.get("level_findings") or []) + (link_row.get("grid_findings") or [])
+            lines.append("{0}. {1} [{2}]".format(index + 1, link_row.get("link_name"), link_row.get("status", "UNKNOWN")))
+            lines.append("   - linked document: {0}".format(link_row.get("linked_document_title")))
+            lines.append("   - Levels: {0} | level findings: {1}".format(link_row.get("level_count"), len(link_row.get("level_findings") or [])))
+            lines.append("   - Grids: {0} | grid findings: {1}".format(link_row.get("grid_count"), len(link_row.get("grid_findings") or [])))
+            if all_findings:
+                lines.append("   - Findings: {0}".format("; ".join([item.get("type", "unknown") for item in all_findings[:6]])))
+            else:
+                lines.append("   - Findings: none")
+        if len(link_rows) > 10:
+            lines.append("More per-link findings are available in Project Context > BIM Basis / Levels & Grids.")
+        skipped = health.get("links_skipped") or []
+        if skipped:
+            lines.append("")
+            lines.append("Skipped / Inaccessible Links")
+            for item in skipped[:8]:
+                lines.append("- {0}: {1}".format(item.get("link_name"), item.get("reason")))
+        lines.extend(
+            [
+                "",
+                "Safety",
+                "- This is a read-only diagnostic.",
+                "- No levels, grids, links, coordinates, or model data were modified.",
+            ]
+        )
         return "\n".join(lines)
 
     def _format_context_categories(self, context):
@@ -9727,24 +10932,47 @@ class OllamaAIChat(forms.WPFWindow):
         sampled_count = schedules.get("sampled_count", len(items))
         if sampled_count == 0 and items:
             sampled_count = len(items)
+        all_populated_count = len([item for item in items if isinstance(item.get("body_row_count"), int) and item.get("body_row_count") > 0])
+        all_empty_count = len([item for item in items if item.get("body_row_count") == 0])
+        all_unknown_count = len([item for item in items if not isinstance(item.get("body_row_count"), int)])
+        revision_items = [item for item in items if "revision" in (item.get("name") or "").lower()]
+        revision_names = set([item.get("name") for item in revision_items])
+        populated_items = [item for item in items if item.get("name") not in revision_names and isinstance(item.get("body_row_count"), int) and item.get("body_row_count") > 0]
+        empty_items = [item for item in items if item.get("name") not in revision_names and item.get("body_row_count") == 0]
+        unknown_items = [item for item in items if item.get("name") not in revision_names and not isinstance(item.get("body_row_count"), int)]
+        detail_limit = 15
+        populated_limit = 10
+        empty_limit = 5
         if mode == "empty":
             names = schedules.get("suspicious_or_empty_schedule_candidates") or []
-            lines = ["Empty / Suspicious Schedules", "- Candidates: {0}".format(len(names))]
+            lines = ["[EMPTY / SUSPICIOUS SCHEDULES]", "Candidates: {0}".format(len(names))]
             for item in names[:PROJECT_CONTEXT_MAX_ITEMS]:
                 lines.append("- {0} | rows: {1} | {2}".format(item.get("name"), item.get("body_row_count"), item.get("reason")))
             return "\n".join(lines)
         if mode == "template":
             names = schedules.get("template_like_schedule_candidates") or []
-            lines = ["Template-like Schedules", "- Candidates: {0}".format(len(names))]
+            lines = ["[TEMPLATE-LIKE SCHEDULES]", "Candidates: {0}".format(len(names))]
             for name in names[:PROJECT_CONTEXT_MAX_ITEMS]:
                 lines.append("- {0}".format(name))
             return "\n".join(lines)
         lines = [
-            "Schedules",
-            "- Total: {0}".format(schedules.get("count", "not scanned")),
-            "- Sampled: {0}".format(sampled_count),
+            "[SCHEDULES]",
+            "Total: {0} | Sampled: {1} | Populated: {2} | Empty: {3} | Unknown: {4}".format(
+                schedules.get("count", "not scanned"),
+                sampled_count,
+                all_populated_count,
+                all_empty_count,
+                all_unknown_count,
+            ),
         ]
-        for item in items[:PROJECT_CONTEXT_MAX_ITEMS]:
+        if revision_items:
+            lines.append("Revision schedules: {0}".format(len(revision_items)))
+        if not items:
+            lines.append("")
+            lines.append("No schedule details were scanned.")
+            return "\n".join(lines)
+
+        def append_schedule_row(item):
             filters = item.get("filter_summaries") or []
             sort_fields = item.get("sort_group_fields") or []
             lines.append("- {0} | category: {1} | {2} | fields {3}, filters {4}, sort/group {5} | itemized {6} | AI {7} | template {8} | tokens {9}".format(
@@ -9763,8 +10991,31 @@ class OllamaAIChat(forms.WPFWindow):
                 lines.append("  filters: {0}".format(", ".join(["{0} {1}".format(f.get("field"), f.get("operator")) for f in filters[:5]])))
             if sort_fields:
                 lines.append("  sort/group: {0}".format(", ".join(sort_fields[:5])))
-        if not items:
-            lines.append("- No schedule details were scanned.")
+
+        shown = 0
+        if populated_items:
+            lines.append("")
+            lines.append("[POPULATED SCHEDULES]")
+            for item in populated_items[:populated_limit]:
+                append_schedule_row(item)
+                shown += 1
+        if empty_items:
+            lines.append("")
+            lines.append("[EMPTY / SUSPICIOUS SCHEDULES]")
+            for item in empty_items[:empty_limit]:
+                append_schedule_row(item)
+                shown += 1
+            if len(empty_items) > empty_limit:
+                lines.append("  More empty/suspicious schedules are available in the Project Context > Schedules tree.")
+        if unknown_items and shown < detail_limit:
+            lines.append("")
+            lines.append("[UNKNOWN ROW COUNT SCHEDULES]")
+            for item in unknown_items[:detail_limit - shown]:
+                append_schedule_row(item)
+                shown += 1
+        if len(items) > shown:
+            lines.append("")
+            lines.append("More schedules are available in the Project Context > Schedules tree.")
         return "\n".join(lines)
 
     def _format_context_warnings(self, context):
@@ -9779,16 +11030,17 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _format_context_issues(self, context):
         issues = context.get("detected_issues", []) or []
-        lines = ["Detected BIM Issues"]
+        lines = ["[DETECTED BIM ISSUES]", "Issue flags: {0}".format(len(issues))]
         if not issues:
-            lines.append("- No issue flags detected in scanned sections.")
+            lines.append("")
+            lines.append("No issue flags detected in scanned sections.")
         for issue in issues[:PROJECT_CONTEXT_MAX_ITEMS]:
             lines.append("- {0} [{1}]: {2}".format(issue.get("id"), issue.get("severity", "info"), issue.get("message")))
             lines.append("  Suggested safe step: {0}".format(self._issue_suggested_action(issue.get("id"))))
         return "\n".join(lines)
 
     def _format_context_first_checks(self, context):
-        lines = ["Suggested First Checks"]
+        lines = ["[SUGGESTED FIRST CHECKS]"]
         for index, check in enumerate(_project_first_check_lines(context)[:8]):
             lines.append("{0}. {1}".format(index + 1, check))
         return "\n".join(lines)
@@ -9811,6 +11063,10 @@ class OllamaAIChat(forms.WPFWindow):
             return self._format_context_sheets(context)
         if kind == "links":
             return self._format_context_links(context)
+        if kind == "link_coordinate_health":
+            return self._format_link_coordinate_health(context)
+        if kind == "level_grid_health":
+            return self._format_level_grid_health(context)
         if kind == "imports":
             return self._format_context_imports(context)
         if kind == "categories":
@@ -9884,6 +11140,11 @@ class OllamaAIChat(forms.WPFWindow):
             add("scan-current-project", "Suspicious or empty schedule candidates were observed; keep inspection read-only before using schedule templates.")
         if "unloaded_or_unavailable_revit_links" in issues:
             add("scan-current-project", "Unloaded or unavailable Revit links were observed; use the context scan before coordination decisions.")
+        if any(flag in issues for flag in ["unloaded_or_unavailable_link", "non_identity_link_transform", "link_z_offset_detected", "rotated_link_detected", "duplicate_link_instances", "unknown_coordinate_state"]):
+            add("check-linked-model-coordinate-health", "Review linked model coordinate health. {0}".format(self._coordinate_health_reason_summary(_get_linked_model_coordinate_health(context))))
+        if any(flag in issues for flag in ["host_duplicate_level_names", "linked_duplicate_level_names", "linked_level_elevation_mismatch", "linked_level_missing_in_host", "host_level_missing_in_link", "linked_level_possible_name_mismatch", "host_duplicate_grid_names", "linked_duplicate_grid_names", "linked_grid_missing_in_host", "host_grid_missing_in_link", "linked_grid_geometry_mismatch", "linked_grid_geometry_unknown", "level_grid_scan_partial"]):
+            level_grid = _get_host_link_level_grid_health(context)
+            add("check-bim-basis-level-grid-health", "BIM Basis / Levels & Grids review. status {0}; level findings {1}; grid findings {2}; links compared {3}.".format(level_grid.get("overall_status", "unknown"), level_grid.get("level_findings_count", 0), level_grid.get("grid_findings_count", 0), level_grid.get("links_compared_count", 0)))
         for item in categories:
             if item.get("category") == "Pipes" and isinstance(item.get("total_count"), int) and item.get("total_count") > 0:
                 add("create-pipe-schedule-by-level", "Pipes were found in the project context.")
@@ -9993,6 +11254,8 @@ class OllamaAIChat(forms.WPFWindow):
         unknown = len([item for item in schedule_samples if not isinstance(item.get("body_row_count"), int)])
         warnings = context.get("warnings_summary", {})
         warning_count = warnings.get("total_warning_count", "not scanned")
+        coord_health = _get_linked_model_coordinate_health(context)
+        level_grid_health = _get_host_link_level_grid_health(context)
         doc_title = doc_info.get("title") or self.latest_project_context_doc_title or _document_title(doc)
         active_view = "(unknown view)"
         try:
@@ -10000,8 +11263,9 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             pass
         issue_text = observed_issue or "Runtime validation/export tooling for ModelMind actions."
-        return "\n".join(
-            [
+        coord_counts = self._coordinate_health_counts(coord_health)
+        flagged_links = [item for item in (coord_health.get("links", []) if isinstance(coord_health, dict) else []) if item.get("status_label") != "OK"]
+        brief_lines = [
                 "Codex Task Brief",
                 "",
                 "Current document: {0}".format(doc_title),
@@ -10015,6 +11279,31 @@ class OllamaAIChat(forms.WPFWindow):
                     unknown,
                 ),
                 "Warning count: {0}".format(warning_count),
+                "Linked model coordinate health:",
+                "- Links scanned: {0}".format(coord_health.get("total_links", "not scanned")),
+                "- OK: {0}".format(coord_counts.get("OK", 0)),
+                "- Review: {0}".format(coord_counts.get("REVIEW", 0)),
+                "- Unloaded/unavailable: {0}".format(coord_health.get("unavailable_count", "not scanned")),
+                "- Unknown: {0}".format(coord_counts.get("UNKNOWN", 0)),
+                "- Main flags: {0}".format(", ".join(self._coordinate_health_main_flags(coord_health))),
+                "BIM Basis / Levels & Grids:",
+                "- Status: {0}".format(level_grid_health.get("overall_status", "not scanned")),
+                "- Links compared: {0}".format(level_grid_health.get("links_compared_count", "not scanned")),
+                "- Level findings: {0}".format(level_grid_health.get("level_findings_count", "not scanned")),
+                "- Grid findings: {0}".format(level_grid_health.get("grid_findings_count", "not scanned")),
+                "- Main issue flags: {0}".format(", ".join(level_grid_health.get("issue_flags", []) or ["none"])),
+        ]
+        if flagged_links:
+            brief_lines.append("- Flagged links:")
+            for item in flagged_links[:8]:
+                brief_lines.append("  - {0}: {1}".format(item.get("display_name") or item.get("type_name") or item.get("instance_name"), "; ".join(self._coord_reason_list(item))))
+        flagged_lg_links = [item for item in (level_grid_health.get("links_compared", []) if isinstance(level_grid_health, dict) else []) if item.get("status") != "OK"]
+        if flagged_lg_links:
+            brief_lines.append("- Top flagged level/grid links:")
+            for item in flagged_lg_links[:8]:
+                brief_lines.append("  - {0}: level findings {1}, grid findings {2}".format(item.get("link_name"), len(item.get("level_findings") or []), len(item.get("grid_findings") or [])))
+        brief_lines.extend(
+            [
                 "",
                 "Latest scan summary:",
                 self.get_latest_project_context_summary(require_standard=True),
@@ -10046,12 +11335,13 @@ class OllamaAIChat(forms.WPFWindow):
                 "- parse AI.extension/lib/prompt_catalog.json",
             ]
         )
+        return "\n".join(brief_lines)
 
     def on_project_codex_brief(self, sender, args):
         brief = self.build_codex_task_brief()
         self.latest_codex_brief = brief
         self.populate_project_context_tree()
-        self.ChatHistory.AppendText("Codex Task Brief\n```\n{0}\n```\n\n".format(brief))
+        self.append_chat_notice("CODEX TASK BRIEF", "```\n{0}\n```".format(brief))
 
     def on_project_context_quick_action(self, sender, args):
         prompt = ""
@@ -10070,11 +11360,13 @@ class OllamaAIChat(forms.WPFWindow):
             prompt = "show empty schedules"
         elif prompt == "first checks":
             prompt = "what should I check first in this project"
+        elif prompt == "levels grids":
+            prompt = "check levels and grids"
         try:
             reply = self.answer_project_context_question(prompt)
-            self.ChatHistory.AppendText("Project Context: {0}\n{1}\n\n".format(prompt, reply))
+            self.append_chat_turn(prompt, reply, "PROJECT CONTEXT")
         except Exception as exc:
-            self.ChatHistory.AppendText("Project Context query failed: {0}\n\n".format(str(exc)))
+            self.append_chat_notice("PROJECT CONTEXT QUERY FAILED", str(exc))
 
     def on_send_chat(self, sender, args):
         prompt = self.ChatInput.Text.strip()
@@ -10087,7 +11379,6 @@ class OllamaAIChat(forms.WPFWindow):
         self._pump_ui()
 
         try:
-            self.ChatHistory.AppendText("You: {}\n".format(prompt))
             if self._is_codex_brief_request(prompt):
                 brief = self.build_codex_task_brief(prompt)
                 self.latest_codex_brief = brief
@@ -10106,10 +11397,10 @@ class OllamaAIChat(forms.WPFWindow):
                 reply = self._sanitize_ollama_context_error(reply)
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
-            self.ChatHistory.AppendText("AI: {}\n\n".format(reply))
+            self.append_chat_turn(prompt, reply, "AI")
             self.ChatInput.Text = ""
         except Exception as e:
-            self.ChatHistory.AppendText("Error: {}\n".format(str(e)))
+            self.append_chat_notice("CHAT ERROR", str(e))
         finally:
             self.hide_busy()
             self._set_thinking("Thinking...")

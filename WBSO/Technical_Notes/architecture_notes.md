@@ -976,3 +976,15 @@ This pass remains UI/catalog-only and does not touch reviewed execution behavior
 - centralized Project Context cache reads through a latest-context helper so the tree, deterministic chat answers, quick actions, AI Agent plan, and Codex brief use the same newest scan snapshot
 - standard project scans replace bootstrap context for downstream schedule/warning summaries
 - Revit link display now prefers human-readable link names/status/path text instead of raw API object representations
+
+## 2026-04-28 Project Context Chat Readability
+
+- improved Ollama Chat transcript readability using plain-text separators rather than changing control architecture
+- made deterministic context answers count-first and sectioned for schedules, CAD/imports, links, issues, first checks, and project summary output
+- preserved read-only scanner behavior and did not touch reviewed execution, lifecycle, undo, or model mutation paths
+
+## 2026-04-28 Linked Model Coordinate Health
+
+- extended the read-only Project Context scanner with linked-model coordinate health metadata for host project position and RevitLinkInstance transform summaries
+- added conservative flags for unloaded links, non-identity transforms, Z offsets, rotation, duplicate link instances, and unknown coordinate state
+- added deterministic context-answer routing and a structural reviewed catalog action without changing reviewed execution, lifecycle, undo, or link/model mutation behavior

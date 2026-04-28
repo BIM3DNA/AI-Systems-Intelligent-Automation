@@ -959,3 +959,15 @@ The stable baseline already supported read-only catalog filtering through the ma
 - live Revit validation showed schedule and warning counts could diverge between Scan Project, tree, deterministic chat answers, AI Agent plan, and Codex brief
 - cache access was centralized so standard Scan Project becomes the authoritative latest context for all Project Context consumers
 - first-check/test-first phrasing now routes to deterministic BIM context guidance, and Revit link path/name output avoids raw API object representations
+
+### 2026-04-28 Chat transcript readability follow-up
+
+- live runtime validation showed deterministic context answers work, but long schedule/chat outputs were too dense for demo use
+- chat transcript turns now use plain-text separators, and deterministic answers use bracketed sections with count-first summaries
+- schedule details are capped in chat while the Project Context tree remains the full-detail surface
+
+### 2026-04-28 Linked model coordinate health follow-up
+
+- added a read-only scanner section and deterministic answer path for linked model coordinate/transform health
+- link coordinate findings are conservative review flags only; the Workbench does not claim coordinate correctness or mutate link/project coordinate state
+- live Revit validation remains pending for linked model names, status labels, transform origin/rotation display, and absence of raw API object path strings
