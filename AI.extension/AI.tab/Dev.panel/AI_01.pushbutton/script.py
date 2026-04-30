@@ -3568,6 +3568,67 @@ def _compare_grid_rows(host_grids, link_grids):
     return findings[:MAX_REPORTED_GRID_ROWS]
 
 
+def _level_grid_finding_name(finding):
+    if not isinstance(finding, dict):
+        return None
+    for key in ("host_level", "linked_level", "host_grid", "linked_grid", "name"):
+        value = finding.get(key)
+        if value:
+            return value
+    names = finding.get("names")
+    if isinstance(names, list) and names:
+        return ", ".join([str(name) for name in names[:3]])
+    return None
+
+
+def _aggregate_level_grid_findings(findings, sample_limit=5):
+    grouped = {}
+    ordered = []
+    for finding in findings or []:
+        if not isinstance(finding, dict):
+            continue
+        key = (finding.get("type") or "unknown", finding.get("severity") or "info")
+        if key not in grouped:
+            grouped[key] = {
+                "type": key[0],
+                "severity": key[1],
+                "count": 0,
+                "sample_names": [],
+                "sample_messages": [],
+            }
+            ordered.append(grouped[key])
+        row = grouped[key]
+        row["count"] += 1
+        name = _level_grid_finding_name(finding)
+        if name and name not in row["sample_names"] and len(row["sample_names"]) < sample_limit:
+            row["sample_names"].append(name)
+        message = finding.get("message")
+        if message and message not in row["sample_messages"] and len(row["sample_messages"]) < 2:
+            row["sample_messages"].append(message)
+    return sorted(ordered, key=lambda item: (-item.get("count", 0), item.get("type", "")))
+
+
+def _level_grid_findings_by_type(findings):
+    counts = {}
+    for finding in findings or []:
+        if not isinstance(finding, dict):
+            continue
+        key = finding.get("type") or "unknown"
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _format_level_grid_type_counts(counts):
+    if not counts:
+        return "none"
+    return ", ".join(["{0}={1}".format(key, counts[key]) for key in sorted(counts.keys())])
+
+
+def _link_level_grid_issue_types(link_row):
+    counts = _level_grid_findings_by_type((link_row.get("level_findings") or []) + (link_row.get("grid_findings") or []))
+    return _format_level_grid_type_counts(counts)
+
+
 def _collect_host_link_level_grid_health(doc, sample_limit=PROJECT_CONTEXT_MAX_ITEMS):
     host_levels, host_level_count, host_level_duplicates = _collect_level_rows(doc)
     host_grids, host_grid_count, host_grid_duplicates = _collect_grid_rows(doc)
@@ -3609,13 +3670,18 @@ def _collect_host_link_level_grid_health(doc, sample_limit=PROJECT_CONTEXT_MAX_I
         link_grids, link_grid_count, link_grid_duplicates = _collect_grid_rows(link_doc, transform)
         level_findings = _compare_level_rows(host_levels, link_levels)
         grid_findings = _compare_grid_rows(host_grids, link_grids)
+        if host_grid_count == 0 and link_grid_count > 0:
+            for finding in grid_findings:
+                if finding.get("type") == "linked_grid_missing_in_host":
+                    finding["severity"] = "info"
+                    finding["message"] = "Host contains no grids; linked grid comparison is basis-dependent."
         for duplicate in link_level_duplicates:
             level_findings.append({"type": "linked_duplicate_level_names", "severity": "medium", "message": "Duplicate normalized level names in linked model.", "names": duplicate.get("names")})
         for duplicate in link_grid_duplicates:
             grid_findings.append({"type": "linked_duplicate_grid_names", "severity": "medium", "message": "Duplicate normalized grid names in linked model.", "names": duplicate.get("names")})
         status = "OK"
         if level_findings or grid_findings:
-            status = "REVIEW"
+            status = "PARTIAL" if all((finding.get("severity") == "info") for finding in (level_findings + grid_findings)) else "REVIEW"
         compared.append(
             {
                 "link_name": link_name,
@@ -3635,6 +3701,7 @@ def _collect_host_link_level_grid_health(doc, sample_limit=PROJECT_CONTEXT_MAX_I
         all_level_findings.append({"type": "host_duplicate_level_names", "severity": "medium", "message": "Duplicate normalized level names in host model.", "names": duplicate.get("names")})
     for duplicate in host_grid_duplicates:
         all_grid_findings.append({"type": "host_duplicate_grid_names", "severity": "medium", "message": "Duplicate normalized grid names in host model.", "names": duplicate.get("names")})
+    grid_basis_limited = host_grid_count == 0 and any((row.get("grid_count") or 0) > 0 for row in compared)
     overall = "OK"
     if skipped and not compared:
         overall = "PARTIAL"
@@ -3642,7 +3709,25 @@ def _collect_host_link_level_grid_health(doc, sample_limit=PROJECT_CONTEXT_MAX_I
         overall = "PARTIAL"
     if all_level_findings or all_grid_findings:
         overall = "REVIEW" if not skipped else "PARTIAL"
+    if grid_basis_limited:
+        overall = "PARTIAL"
     issue_flags = sorted(set([item.get("type") for item in all_level_findings + all_grid_findings if item.get("type")]))
+    level_type_counts = _level_grid_findings_by_type(all_level_findings)
+    grid_type_counts = _level_grid_findings_by_type(all_grid_findings)
+    top_links = sorted(
+        [
+            {
+                "link_name": row.get("link_name"),
+                "status": row.get("status"),
+                "level_findings_count": len(row.get("level_findings") or []),
+                "grid_findings_count": len(row.get("grid_findings") or []),
+                "issue_types": _link_level_grid_issue_types(row),
+            }
+            for row in compared
+            if (row.get("level_findings") or row.get("grid_findings"))
+        ],
+        key=lambda item: -(item.get("level_findings_count", 0) + item.get("grid_findings_count", 0)),
+    )
     return {
         "profile": "Configurable BIM Basis / ILS-style",
         "level_elevation_tolerance_mm": LEVEL_ELEVATION_TOLERANCE_MM,
@@ -3660,6 +3745,16 @@ def _collect_host_link_level_grid_health(doc, sample_limit=PROJECT_CONTEXT_MAX_I
         "grid_findings_count": len(all_grid_findings),
         "level_findings": all_level_findings[:MAX_REPORTED_LEVEL_ROWS],
         "grid_findings": all_grid_findings[:MAX_REPORTED_GRID_ROWS],
+        "level_findings_by_type": level_type_counts,
+        "grid_findings_by_type": grid_type_counts,
+        "top_affected_links": top_links[:sample_limit],
+        "host_grid_basis_limited": grid_basis_limited,
+        "status_wording": {
+            "OK": "OK: no findings",
+            "REVIEW": "REVIEW: findings exist and require coordination review",
+            "PARTIAL": "PARTIAL: comparison limited by missing host grids, inaccessible links, or non-linear grids",
+            "UNKNOWN": "UNKNOWN: required data unavailable",
+        },
         "issue_flags": issue_flags,
         "overall_status": overall,
     }
@@ -3904,6 +3999,10 @@ def _get_linked_model_coordinate_health(context):
 
 
 def _get_host_link_level_grid_health(context):
+    return get_host_link_level_grid_health(context)
+
+
+def get_host_link_level_grid_health(context):
     if not isinstance(context, dict):
         return {}
     sections = context.get("sections") or {}
@@ -3911,7 +4010,13 @@ def _get_host_link_level_grid_health(context):
         value = sections.get("host_link_level_grid_health")
         if isinstance(value, dict):
             return value
+        value = sections.get("bim_basis_level_grid_health")
+        if isinstance(value, dict):
+            return value
     value = context.get("host_link_level_grid_health")
+    if isinstance(value, dict):
+        return value
+    value = context.get("bim_basis_level_grid_health")
     if isinstance(value, dict):
         return value
     return {}
@@ -3951,7 +4056,6 @@ def _detect_project_issues(context):
     if warnings.get("total_warning_count", 0) and warnings.get("total_warning_count", 0) >= 100:
         issues.append({"id": "high_warning_count", "severity": "medium", "message": "High Revit warning count detected."})
     coord_health = _get_linked_model_coordinate_health(context)
-    level_grid = _get_host_link_level_grid_health(context)
     if coord_health:
         if coord_health.get("unavailable_count", 0):
             issues.append({"id": "unloaded_or_unavailable_link", "severity": "medium", "message": "One or more Revit links are unloaded or unavailable."})
@@ -3973,6 +4077,8 @@ def _detect_project_issues(context):
                 severity = "high"
             if flag in ("linked_level_possible_name_mismatch", "linked_grid_geometry_unknown"):
                 severity = "low"
+            if flag == "linked_grid_missing_in_host" and level_grid.get("host_grid_basis_limited"):
+                severity = "info"
             issues.append({"id": flag, "severity": severity, "message": "BIM Basis / Levels & Grids finding: {0}".format(flag.replace("_", " "))})
         if level_grid.get("links_skipped_count", 0):
             issues.append({"id": "level_grid_scan_partial", "severity": "medium", "message": "Some linked models were skipped or inaccessible during level/grid comparison."})
@@ -4009,6 +4115,226 @@ def _project_first_check_lines(context):
     return checks
 
 
+def _onboarding_section(title, status, result, next_step, branch):
+    return {
+        "title": title,
+        "status": status,
+        "result": result,
+        "next_step": next_step,
+        "branch": branch,
+    }
+
+
+def _onboarding_status_rank(status):
+    ranks = {"OK": 0, "INFO": 1, "UNKNOWN": 2, "PARTIAL": 3, "REVIEW": 4}
+    return ranks.get(status, 2)
+
+
+def build_project_onboarding_checklist(context):
+    context = context if isinstance(context, dict) else {}
+    doc_info = context.get("document", {}) if isinstance(context.get("document", {}), dict) else {}
+    active_view = doc_info.get("active_view", {}) if isinstance(doc_info.get("active_view", {}), dict) else {}
+    links = context.get("links", {}) if isinstance(context.get("links", {}), dict) else {}
+    coord_health = _get_linked_model_coordinate_health(context)
+    level_grid = get_host_link_level_grid_health(context)
+    imports = context.get("imports_cad", {}) if isinstance(context.get("imports_cad", {}), dict) else {}
+    warnings = context.get("warnings_summary", {}) if isinstance(context.get("warnings_summary", {}), dict) else {}
+    schedules = context.get("schedules", {}) if isinstance(context.get("schedules", {}), dict) else {}
+    levels = context.get("levels", {}) if isinstance(context.get("levels", {}), dict) else {}
+    selection = context.get("selection", {}) if isinstance(context.get("selection", {}), dict) else {}
+    issues = set([issue.get("id") for issue in context.get("detected_issues", []) if isinstance(issue, dict)])
+    sections = []
+    depth = context.get("scan_depth") or "unknown"
+    if depth == "standard":
+        scan_status = "OK"
+        scan_result = "Standard project context is available."
+    elif depth:
+        scan_status = "PARTIAL"
+        scan_result = "{0} context is available; standard Scan Project is recommended for onboarding.".format(str(depth).title())
+    else:
+        scan_status = "UNKNOWN"
+        scan_result = "No project context scan is available."
+    sections.append(_onboarding_section("Project Context Scan", scan_status, scan_result, "Run Scan Project before production decisions.", "Project"))
+
+    link_total = links.get("instance_count")
+    if link_total is None:
+        link_status = "UNKNOWN"
+        link_result = "Revit links were not scanned."
+        link_next = "Run Scan Project."
+    elif link_total == 0:
+        link_status = "INFO"
+        link_result = "No Revit link instances were found."
+        link_next = "No link loading issue detected."
+    elif links.get("unavailable_links"):
+        link_status = "REVIEW"
+        link_result = "{0} links found; {1} unavailable/unloaded.".format(link_total, len(links.get("unavailable_links") or []))
+        link_next = "Review unloaded/unavailable links before coordination checks."
+    else:
+        link_status = "OK"
+        link_result = "{0} links found; 0 unavailable/unloaded.".format(link_total)
+        link_next = "No link loading issue detected."
+    sections.append(_onboarding_section("Linked Models", link_status, link_result, link_next, "Links"))
+
+    if coord_health:
+        coord_status = coord_health.get("overall_status", "UNKNOWN")
+        if coord_status == "OK":
+            result = "No deterministic coordinate transform flags were detected."
+            next_step = "Verify manually if the project BIM protocol requires it."
+        elif coord_status == "PARTIAL":
+            result = "Coordinate health scan was partial."
+            next_step = "Review unavailable links and unknown coordinate states."
+        else:
+            result = "Coordinate flags: non-identity {0}, rotated {1}, z-offset {2}, unavailable {3}.".format(
+                coord_health.get("non_identity_transform_count", 0),
+                coord_health.get("rotated_link_count", 0),
+                coord_health.get("z_offset_link_count", 0),
+                coord_health.get("unavailable_count", 0),
+            )
+            next_step = "Review linked model coordinate health before model coordination."
+        sections.append(_onboarding_section("Link Coordinate Health", coord_status if coord_status in ("OK", "REVIEW", "PARTIAL") else "UNKNOWN", result, next_step, "Links / Coordinate Health"))
+    else:
+        sections.append(_onboarding_section("Link Coordinate Health", "UNKNOWN", "Linked model coordinate health was not scanned.", "Run standard Scan Project.", "Links / Coordinate Health"))
+
+    if level_grid:
+        lg_status = level_grid.get("overall_status", "UNKNOWN")
+        if level_grid.get("level_findings_count", 0) or level_grid.get("grid_findings_count", 0):
+            lg_status = "PARTIAL" if lg_status == "PARTIAL" or level_grid.get("host_grid_basis_limited") else "REVIEW"
+        result = "{0} level findings, {1} grid findings, {2} links compared.".format(
+            level_grid.get("level_findings_count", 0),
+            level_grid.get("grid_findings_count", 0),
+            level_grid.get("links_compared_count", 0),
+        )
+        next_step = "Review host/link level and grid ownership before level-targeted automation."
+        if not level_grid.get("level_findings_count", 0) and not level_grid.get("grid_findings_count", 0):
+            next_step = "No level/grid findings detected by current checks."
+        sections.append(_onboarding_section("BIM Basis / Levels & Grids", lg_status, result, next_step, "BIM Basis / Levels & Grids"))
+    else:
+        sections.append(_onboarding_section("BIM Basis / Levels & Grids", "UNKNOWN", "Level/grid health was not scanned.", "Run standard Scan Project.", "BIM Basis / Levels & Grids"))
+
+    import_count = imports.get("total_import_instances")
+    if import_count is None:
+        sections.append(_onboarding_section("CAD / Imports", "UNKNOWN", "CAD/import instances were not scanned.", "Run standard Scan Project.", "Imports / CAD"))
+    elif import_count == 0:
+        sections.append(_onboarding_section("CAD / Imports", "OK", "No CAD/import instances found.", "No CAD/import review needed from current scan.", "Imports / CAD"))
+    else:
+        note = "{0} CAD/import instances found; {1} view-specific.".format(import_count, imports.get("view_specific_import_count", 0))
+        sections.append(_onboarding_section("CAD / Imports", "REVIEW", note, "Review CAD/import ownership and view-specific imports.", "Imports / CAD"))
+
+    warning_count = warnings.get("total_warning_count")
+    if warning_count is None:
+        sections.append(_onboarding_section("Revit Warnings", "UNKNOWN", "Warnings were not scanned.", "Run standard Scan Project.", "Warnings"))
+    elif warning_count == 0:
+        sections.append(_onboarding_section("Revit Warnings", "OK", "0 Revit warnings detected by scanner.", "No warning review needed from current scan.", "Warnings"))
+    else:
+        sections.append(_onboarding_section("Revit Warnings", "REVIEW", "{0} Revit warnings detected.".format(warning_count), "Review top warning groups before production automation.", "Warnings"))
+
+    schedule_samples = schedules.get("schedules")
+    if schedule_samples is None:
+        sections.append(_onboarding_section("Schedules", "UNKNOWN", "Schedules were not scanned.", "Run standard Scan Project.", "Schedules"))
+    elif not schedule_samples:
+        sections.append(_onboarding_section("Schedules", "INFO", "No schedule details were sampled.", "Use schedule-specific checks if needed.", "Schedules"))
+    elif schedules.get("suspicious_or_empty_schedule_candidates"):
+        sections.append(_onboarding_section("Schedules", "REVIEW", "{0} sampled schedules; suspicious/empty candidates found.".format(len(schedule_samples)), "Review schedule population/status before using templates.", "Schedules"))
+    else:
+        sections.append(_onboarding_section("Schedules", "OK", "{0} sampled schedules; no suspicious/empty schedule candidates in current scan.".format(len(schedule_samples)), "Schedule actions can follow after context risks are reviewed.", "Schedules"))
+
+    level_issues = []
+    if levels.get("ambiguous_aliases"):
+        level_issues.append("ambiguous level aliases")
+    if level_grid.get("host_duplicate_level_names"):
+        level_issues.append("duplicate host level names")
+    if "linked_duplicate_level_names" in issues:
+        level_issues.append("duplicate linked level names")
+    if level_issues:
+        sections.append(_onboarding_section("Levels / Level Naming", "REVIEW", "Level naming issues: {0}.".format(", ".join(level_issues)), "Resolve level naming ambiguity before level-targeted actions.", "Levels"))
+    elif levels:
+        sections.append(_onboarding_section("Levels / Level Naming", "OK", "{0} levels scanned; no level alias ambiguity detected.".format(levels.get("count", 0)), "No level naming issue detected by current scan.", "Levels"))
+    else:
+        sections.append(_onboarding_section("Levels / Level Naming", "UNKNOWN", "Levels were not scanned.", "Run standard Scan Project.", "Levels"))
+
+    selected_count = selection.get("selected_element_count")
+    if selected_count is None:
+        sections.append(_onboarding_section("Active View / Selection", "UNKNOWN", "Selection was not scanned.", "Run standard Scan Project.", "Selection"))
+    elif selected_count:
+        sections.append(_onboarding_section("Active View / Selection", "OK", "{0} active-document selected elements.".format(selected_count), "Selection-based reviewed checks are available.", "Selection"))
+    else:
+        sections.append(_onboarding_section("Active View / Selection", "INFO", "No active-document selection.", "Use active-view/project checks first or select elements before selection-based checks.", "Selection"))
+
+    blocking = [
+        section for section in sections
+        if section.get("title") not in ("Project Context Scan", "Reviewed Actions / Automation Readiness")
+        and section.get("status") in ("REVIEW", "PARTIAL")
+    ]
+    readiness_status = "REVIEW" if blocking else "OK"
+    readiness_result = "{0} review item(s) should be checked before automation.".format(len(blocking)) if blocking else "No blocking project-context risks detected by current checklist."
+    sections.append(_onboarding_section("Reviewed Actions / Automation Readiness", readiness_status, readiness_result, "Run read-only diagnostics before model-modifying reviewed actions.", "Suggested Actions"))
+
+    overall = "OK"
+    for section in sections:
+        if _onboarding_status_rank(section.get("status")) > _onboarding_status_rank(overall):
+            overall = section.get("status")
+    recommended = []
+    for title in [
+        "BIM Basis / Levels & Grids",
+        "Link Coordinate Health",
+        "CAD / Imports",
+        "Revit Warnings",
+        "Active View / Selection",
+        "Schedules",
+    ]:
+        for section in sections:
+            if section.get("title") == title and section.get("status") in ("REVIEW", "PARTIAL", "INFO"):
+                recommended.append(section.get("next_step"))
+                break
+    if not recommended:
+        recommended = ["Run read-only active-view health checks, then proceed to reviewed catalog actions as needed."]
+    return {
+        "project_title": doc_info.get("title", "(unknown document)"),
+        "active_view": active_view.get("name", "(unknown view)"),
+        "context_depth": depth,
+        "scan_timestamp": context.get("timestamp_utc", "unknown"),
+        "overall_status": overall,
+        "sections": sections,
+        "recommended_next_actions": recommended[:8],
+        "blocking_review_items": [section.get("title") for section in sections if section.get("status") in ("REVIEW", "PARTIAL")],
+        "automation_readiness_status": readiness_status,
+    }
+
+
+def format_project_onboarding_checklist(checklist):
+    checklist = checklist if isinstance(checklist, dict) else {}
+    lines = [
+        "[PROJECT ONBOARDING CHECKLIST]",
+        "",
+        "Project",
+        "- Document: {0}".format(checklist.get("project_title", "(unknown document)")),
+        "- Active view: {0}".format(checklist.get("active_view", "(unknown view)")),
+        "- Context depth: {0}".format(checklist.get("context_depth", "unknown")),
+        "- Scan timestamp: {0}".format(checklist.get("scan_timestamp", "unknown")),
+        "",
+        "Overall status: {0}".format(checklist.get("overall_status", "UNKNOWN")),
+        "",
+        "Checklist",
+    ]
+    for index, section in enumerate(checklist.get("sections", []) or []):
+        lines.append("{0}. {1} [{2}]".format(index + 1, section.get("title"), section.get("status", "UNKNOWN")))
+        lines.append("   Result: {0}".format(section.get("result", "")))
+        lines.append("   Next step: {0}".format(section.get("next_step", "")))
+        lines.append("   Context branch: {0}".format(section.get("branch", "")))
+    lines.extend(["", "Recommended Next Steps"])
+    for index, action in enumerate(checklist.get("recommended_next_actions", [])[:8]):
+        lines.append("{0}. {1}".format(index + 1, action))
+    lines.extend(
+        [
+            "",
+            "Safety",
+            "- This checklist is read-only.",
+            "- No model data was modified.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def _summarize_project_context(context):
     context = context if isinstance(context, dict) else {}
     doc_info = context.get("document", {})
@@ -4023,6 +4349,7 @@ def _summarize_project_context(context):
     warnings = context.get("warnings_summary", {})
     issues = context.get("detected_issues", [])
     coord_health = _get_linked_model_coordinate_health(context)
+    level_grid = get_host_link_level_grid_health(context)
     lines = [
         "[PROJECT CONTEXT SUMMARY]",
         "Document: {0}".format(doc_info.get("title", "(unknown document)")),
@@ -4189,6 +4516,12 @@ def check_bim_basis_level_grid_health(doc, uidoc, context=None):
             "No actions have been executed.",
         ]
     )
+
+
+def project_onboarding_checklist_action(doc, uidoc, context=None):
+    result = collect_project_context(doc, uidoc, "standard")
+    checklist = build_project_onboarding_checklist(result.get("context", {}))
+    return format_project_onboarding_checklist(checklist)
 
 
 def create_codex_task_brief_action(doc, uidoc, context=None):
@@ -8279,6 +8612,7 @@ REVIEWED_ACTION_HANDLERS = {
     "summarize_current_project_context": summarize_current_project_context,
     "check_linked_model_coordinate_health": check_linked_model_coordinate_health,
     "check_bim_basis_level_grid_health": check_bim_basis_level_grid_health,
+    "project_onboarding_checklist_action": project_onboarding_checklist_action,
     "ask_agent_for_project_plan_action": ask_agent_for_project_plan_action,
     "create_codex_task_brief_action": create_codex_task_brief_action,
 }
@@ -8829,6 +9163,7 @@ class OllamaAIChat(forms.WPFWindow):
             self.ProjectCodexBriefButton.Click += self.on_project_codex_brief
         for quick_name in [
             "ProjectQuickSummaryButton",
+            "ProjectQuickOnboardingButton",
             "ProjectQuickLevelsButton",
             "ProjectQuickViewsButton",
             "ProjectQuickSheetsButton",
@@ -9413,6 +9748,7 @@ class OllamaAIChat(forms.WPFWindow):
         self._apply_control_style("ProjectCodexBriefButton", "#475569", "#ffffff", "#475569")
         for name in [
             "ProjectQuickSummaryButton",
+            "ProjectQuickOnboardingButton",
             "ProjectQuickLevelsButton",
             "ProjectQuickViewsButton",
             "ProjectQuickSheetsButton",
@@ -10293,14 +10629,19 @@ class OllamaAIChat(forms.WPFWindow):
             "Links compared: {0}".format(level_grid_health.get("links_compared_count", 0)),
             "Links skipped/inaccessible: {0}".format(level_grid_health.get("links_skipped_count", 0)),
             "Overall status: {0}".format(level_grid_health.get("overall_status", "not scanned")),
+            "Status meaning: {0}".format((level_grid_health.get("status_wording") or {}).get(level_grid_health.get("overall_status"), "not scanned")),
         ]
+        if level_grid_health.get("host_grid_basis_limited"):
+            lg_children.append("Host contains no grids; linked grid comparison is basis-dependent.")
+            lg_children.append("If grids are intentionally maintained in the architectural/structural link, this is not necessarily an error.")
         lg_children.append(
             self._context_tree_item(
                 "Level findings summary",
                 [
                     "host duplicate names: {0}".format(len(level_grid_health.get("host_duplicate_level_names", []) or [])),
                     "all level findings: {0}".format(level_grid_health.get("level_findings_count", 0)),
-                    "sample findings: {0}".format("; ".join([item.get("type", "unknown") for item in (level_grid_health.get("level_findings", []) or [])[:8]]) or "none"),
+                    "by type: {0}".format(_format_level_grid_type_counts(level_grid_health.get("level_findings_by_type") or {})),
+                    "sample affected levels: {0}".format("; ".join([name for row in _aggregate_level_grid_findings(level_grid_health.get("level_findings") or [], 5) for name in row.get("sample_names", [])][:8]) or "none"),
                 ],
             )
         )
@@ -10310,16 +10651,35 @@ class OllamaAIChat(forms.WPFWindow):
                 [
                     "host duplicate names: {0}".format(len(level_grid_health.get("host_duplicate_grid_names", []) or [])),
                     "all grid findings: {0}".format(level_grid_health.get("grid_findings_count", 0)),
-                    "sample findings: {0}".format("; ".join([item.get("type", "unknown") for item in (level_grid_health.get("grid_findings", []) or [])[:8]]) or "none"),
+                    "by type: {0}".format(_format_level_grid_type_counts(level_grid_health.get("grid_findings_by_type") or {})),
+                    "sample affected grids: {0}".format("; ".join([name for row in _aggregate_level_grid_findings(level_grid_health.get("grid_findings") or [], 5) for name in row.get("sample_names", [])][:8]) or "none"),
                 ],
             )
         )
+        top_links = level_grid_health.get("top_affected_links") or []
+        if top_links:
+            lg_children.append(
+                self._context_tree_item(
+                    "Top affected links",
+                    [
+                        "{0}: level findings {1}, grid findings {2} | {3}".format(
+                            item.get("link_name"),
+                            item.get("level_findings_count", 0),
+                            item.get("grid_findings_count", 0),
+                            item.get("issue_types", "none"),
+                        )
+                        for item in top_links[:8]
+                    ],
+                )
+            )
         for link_row in level_grid_health.get("links_compared", [])[:PROJECT_CONTEXT_MAX_ITEMS] if isinstance(level_grid_health, dict) else []:
             coord_status = "unknown"
             for coord_link in coord_health.get("links", []) if isinstance(coord_health, dict) else []:
                 if coord_link.get("display_name") == link_row.get("linked_document_title") or coord_link.get("instance_name") == link_row.get("link_name"):
                     coord_status = coord_link.get("status_label", "unknown")
                     break
+            level_groups = _aggregate_level_grid_findings(link_row.get("level_findings") or [], 5)
+            grid_groups = _aggregate_level_grid_findings(link_row.get("grid_findings") or [], 5)
             lg_children.append(
                 self._context_tree_item(
                     "{0} [{1}]".format(link_row.get("link_name"), link_row.get("status", "UNKNOWN")),
@@ -10330,8 +10690,9 @@ class OllamaAIChat(forms.WPFWindow):
                         "grids: {0}".format(link_row.get("grid_count")),
                         "level findings: {0}".format(len(link_row.get("level_findings") or [])),
                         "grid findings: {0}".format(len(link_row.get("grid_findings") or [])),
-                        "sample level findings: {0}".format("; ".join([item.get("message", item.get("type", "unknown")) for item in (link_row.get("level_findings") or [])[:5]]) or "none"),
-                        "sample grid findings: {0}".format("; ".join([item.get("message", item.get("type", "unknown")) for item in (link_row.get("grid_findings") or [])[:5]]) or "none"),
+                        "issue types: {0}".format(_link_level_grid_issue_types(link_row)),
+                        "sample levels: {0}".format("; ".join([name for row in level_groups for name in row.get("sample_names", [])][:5]) or "none"),
+                        "sample grids: {0}".format("; ".join([name for row in grid_groups for name in row.get("sample_names", [])][:5]) or "none"),
                     ],
                 )
             )
@@ -10433,6 +10794,30 @@ class OllamaAIChat(forms.WPFWindow):
                 [self._context_tree_item("{0}: {1}".format(issue.get("id"), issue.get("message")), ["severity: {0}".format(issue.get("severity", "info")), "suggested next safe step: {0}".format(self._issue_suggested_action(issue.get("id")))]) for issue in issues[:10]] or ["No issues detected in scanned sections."],
             )
         )
+        onboarding = build_project_onboarding_checklist(context)
+        onboarding_children = [
+            "Overall status: {0}".format(onboarding.get("overall_status", "UNKNOWN")),
+            "Automation readiness: {0}".format(onboarding.get("automation_readiness_status", "UNKNOWN")),
+        ]
+        onboarding_children.append(
+            self._context_tree_item(
+                "Checklist sections",
+                [
+                    "{0} [{1}] - {2}".format(section.get("title"), section.get("status"), section.get("result"))
+                    for section in (onboarding.get("sections") or [])
+                ],
+            )
+        )
+        onboarding_children.append(
+            self._context_tree_item(
+                "Recommended next actions",
+                ["{0}. {1}".format(index + 1, action) for index, action in enumerate(onboarding.get("recommended_next_actions", [])[:8])] or ["No onboarding recommendations available."],
+            )
+        )
+        onboarding_children.append("Safety: read-only checklist; no model data was modified.")
+        self.ProjectContextTree.Items.Add(
+            self._context_tree_item("Project Onboarding", onboarding_children)
+        )
         self.ProjectContextTree.Items.Add(
             self._context_tree_item(
                 "Suggested Actions",
@@ -10514,59 +10899,104 @@ class OllamaAIChat(forms.WPFWindow):
             self.hide_busy()
             self._set_thinking("Thinking...")
 
+    def _normalize_context_prompt(self, prompt):
+        text = safe_str(prompt).lower().strip()
+        text = text.replace("&", " and ")
+        text = text.replace("/", " and ")
+        text = text.replace("\\", " and ")
+        text = re.sub(r"[-_]+", " ", text)
+        text = re.sub(r"\s+", " ", text)
+        return text.strip()
+
     def _is_scan_request(self, prompt):
-        text = (prompt or "").lower()
+        text = self._normalize_context_prompt(prompt)
         return text in ("scan current project", "refresh project context", "project context") or "scan current project" in text or "refresh project context" in text
 
     def _is_project_context_question(self, prompt):
-        text = (prompt or "").lower()
+        text = self._normalize_context_prompt(prompt)
         triggers = [
             "summarize current project",
             "what is in this revit model",
+            "summary",
             "what links are loaded",
             "what linked models are loaded",
             "list revit links",
             "show revit links",
+            "links",
             "check linked model coordinates",
             "linked model coordinate health",
+            "link coordinates",
             "are the links aligned",
             "do the linked models match coordinates",
             "check revit link transforms",
             "are any links unloaded",
             "coordinate health check",
             "project coordinates check",
+            "project onboarding checklist",
+            "project onboarding",
+            "onboarding",
+            "onboarding checklist",
+            "start project checklist",
+            "startup checklist",
+            "project startup checklist",
+            "bim startup checklist",
+            "project readiness",
+            "what should i check first when opening a project",
+            "what should i do first in this project",
+            "guide me through this project",
+            "project readiness check",
+            "automation readiness check",
             "check bim basis",
             "bim basis ils check",
             "iso style check",
             "iso 19650 style check",
+            "bim basis",
+            "bim basis and levels and grids",
             "compare host and linked levels",
             "compare linked model levels",
             "compare host and linked grids",
             "compare linked model grids",
+            "compare host and linked levels and grids",
             "check levels and grids",
+            "levels and grids",
+            "levels grids",
+            "host link levels and grids",
+            "host vs linked levels",
+            "host vs linked grids",
+            "host vs linked model level grid check",
             "are linked model levels aligned",
             "are linked model grids aligned",
             "level grid health check",
             "host vs link level grid check",
             "what cad imports",
+            "cad and imports",
             "list cad imports",
             "show imports",
+            "imports",
             "what schedules",
             "list schedules",
             "show schedules",
+            "schedules",
             "empty schedules",
+            "empty and suspicious",
             "suspicious schedules",
             "template schedules",
             "list levels",
             "show levels",
+            "levels",
             "list views",
             "show views",
+            "views",
             "list sheets",
             "show sheets",
+            "sheets",
             "what categories",
             "show category counts",
+            "categories",
             "show warnings",
+            "warnings",
             "main bim issues",
+            "issues",
             "what should i check first",
             "what should i test first",
             "what should i inspect first",
@@ -10574,6 +11004,7 @@ class OllamaAIChat(forms.WPFWindow):
             "first checks",
             "recommended checks",
             "project first checks",
+            "recommended project checks",
             "project context",
             "loaded links",
             "ai-generated",
@@ -10589,32 +11020,57 @@ class OllamaAIChat(forms.WPFWindow):
         return self.get_latest_project_context(require_standard=(depth == "standard"))
 
     def _context_query_kind(self, prompt):
-        text = (prompt or "").strip().lower()
-        normalized = re.sub(r"\s+", " ", text)
+        normalized = self._normalize_context_prompt(prompt)
         exact = {
             "scan current project": "scan",
             "refresh project context": "scan",
             "summarize current project": "summary",
+            "summary": "summary",
             "project context": "summary",
+            "project onboarding checklist": "onboarding",
+            "project onboarding": "onboarding",
+            "onboarding": "onboarding",
+            "onboarding checklist": "onboarding",
+            "start project checklist": "onboarding",
+            "startup checklist": "onboarding",
+            "project startup checklist": "onboarding",
+            "bim startup checklist": "onboarding",
+            "project readiness": "onboarding",
+            "what should i check first when opening a project": "onboarding",
+            "what should i check first in this project": "onboarding",
+            "what should i test first in this project": "onboarding",
+            "what should i do first in this project": "onboarding",
+            "guide me through this project": "onboarding",
+            "project first checks": "onboarding",
+            "recommended project checks": "onboarding",
+            "project readiness check": "onboarding",
+            "automation readiness check": "onboarding",
             "list levels": "levels",
             "show levels": "levels",
+            "levels": "levels",
             "list views": "views",
             "show views": "views",
+            "views": "views",
             "list sheets": "sheets",
             "show sheets": "sheets",
+            "sheets": "sheets",
             "what links are loaded": "links",
             "what linked models are loaded": "link_coordinate_health",
             "are any links unloaded": "link_coordinate_health",
             "list revit links": "links",
             "show revit links": "links",
+            "links": "links",
             "check linked model coordinates": "link_coordinate_health",
             "linked model coordinate health": "link_coordinate_health",
+            "link coordinates": "link_coordinate_health",
             "are the links aligned": "link_coordinate_health",
             "do the linked models match coordinates": "link_coordinate_health",
             "check revit link transforms": "link_coordinate_health",
             "coordinate health check": "link_coordinate_health",
             "project coordinates check": "link_coordinate_health",
             "check bim basis": "level_grid_health",
+            "bim basis": "level_grid_health",
+            "bim basis and levels and grids": "level_grid_health",
             "bim basis ils check": "level_grid_health",
             "iso style check": "level_grid_health",
             "iso 19650 style check": "level_grid_health",
@@ -10622,41 +11078,44 @@ class OllamaAIChat(forms.WPFWindow):
             "compare linked model levels": "level_grid_health",
             "compare host and linked grids": "level_grid_health",
             "compare linked model grids": "level_grid_health",
+            "compare host and linked levels and grids": "level_grid_health",
             "check levels and grids": "level_grid_health",
+            "levels and grids": "level_grid_health",
+            "levels grids": "level_grid_health",
+            "host link levels and grids": "level_grid_health",
+            "host vs linked levels": "level_grid_health",
+            "host vs linked grids": "level_grid_health",
+            "host vs linked model level grid check": "level_grid_health",
             "are linked model levels aligned": "level_grid_health",
             "are linked model grids aligned": "level_grid_health",
             "level grid health check": "level_grid_health",
             "host vs link level grid check": "level_grid_health",
             "what cad imports are in this model": "imports",
+            "cad and imports": "imports",
             "list cad imports": "imports",
             "show imports": "imports",
+            "imports": "imports",
             "what schedules exist": "schedules",
             "list schedules": "schedules",
             "show schedules": "schedules",
+            "schedules": "schedules",
             "show empty schedules": "empty_schedules",
             "show suspicious schedules": "empty_schedules",
+            "empty and suspicious": "empty_schedules",
             "show template schedules": "template_schedules",
             "what categories are in this model": "categories",
             "show category counts": "categories",
+            "categories": "categories",
             "what are the main bim issues": "issues",
             "show warnings": "warnings",
-            "what should i check first in this project": "first_checks",
-            "what should i test first in this project": "first_checks",
+            "warnings": "warnings",
+            "issues": "issues",
             "what should i inspect first": "first_checks",
             "where should i start": "first_checks",
             "first checks": "first_checks",
             "recommended checks": "first_checks",
-            "project first checks": "first_checks",
+            "project first checks": "onboarding",
             "summary": "summary",
-            "levels": "levels",
-            "views": "views",
-            "sheets": "sheets",
-            "links": "links",
-            "imports": "imports",
-            "categories": "categories",
-            "schedules": "schedules",
-            "warnings": "warnings",
-            "issues": "issues",
             "first checks": "first_checks",
             "empty schedules": "empty_schedules",
         }
@@ -10664,6 +11123,8 @@ class OllamaAIChat(forms.WPFWindow):
             return exact[normalized]
         if "scan current project" in normalized or "refresh project context" in normalized:
             return "scan"
+        if "project onboarding" in normalized or normalized == "onboarding" or "onboarding checklist" in normalized or "startup checklist" in normalized or "bim startup" in normalized or "project readiness" in normalized or "automation readiness" in normalized or "guide me through this project" in normalized or "what should i do first in this project" in normalized or "what should i check first when opening a project" in normalized or "what should i check first in this project" in normalized or "what should i test first in this project" in normalized or "recommended project checks" in normalized:
+            return "onboarding"
         if "empty" in normalized and "schedule" in normalized:
             return "empty_schedules"
         if "suspicious" in normalized and "schedule" in normalized:
@@ -10697,6 +11158,19 @@ class OllamaAIChat(forms.WPFWindow):
         if "summarize current project" in normalized or "what is in this revit model" in normalized:
             return "summary"
         return None
+
+    def _level_grid_query_focus(self, prompt):
+        text = (prompt or "").strip().lower()
+        normalized = re.sub(r"\s+", " ", text)
+        if "grid" in normalized and "level" not in normalized:
+            return "grids"
+        if "levels" in normalized and "grid" not in normalized:
+            return "levels"
+        if "linked model levels" in normalized or "host and linked levels" in normalized or "levels aligned" in normalized:
+            return "levels"
+        if "linked model grids" in normalized or "host and linked grids" in normalized or "grids aligned" in normalized:
+            return "grids"
+        return "both"
 
     def _format_context_levels(self, context):
         levels = context.get("levels", {})
@@ -10840,7 +11314,7 @@ class OllamaAIChat(forms.WPFWindow):
         lines.append("- Linked-model placement and coordinate state were not changed.")
         return "\n".join(lines)
 
-    def _format_level_grid_health(self, context):
+    def _format_level_grid_health(self, context, focus="both"):
         health = _get_host_link_level_grid_health(context)
         if not health:
             return "\n".join(
@@ -10868,35 +11342,58 @@ class OllamaAIChat(forms.WPFWindow):
             "- Level tolerance: {0} mm".format(health.get("level_elevation_tolerance_mm", LEVEL_ELEVATION_TOLERANCE_MM)),
             "- Grid offset tolerance: {0} mm".format(health.get("grid_linear_offset_tolerance_mm", GRID_LINEAR_OFFSET_TOLERANCE_MM)),
             "- Grid angle tolerance: {0} deg".format(health.get("grid_angle_tolerance_degrees", GRID_ANGLE_TOLERANCE_DEG)),
-            "",
-            "Level Findings",
-            "- Total: {0}".format(health.get("level_findings_count", 0)),
         ]
-        for finding in (health.get("level_findings") or [])[:12]:
-            lines.append("  - {0} [{1}]: {2}".format(finding.get("type", "unknown"), finding.get("severity", "info"), finding.get("message", "")))
-        if not health.get("level_findings"):
-            lines.append("  - none")
-        lines.extend(["", "Grid Findings", "- Total: {0}".format(health.get("grid_findings_count", 0))])
-        for finding in (health.get("grid_findings") or [])[:12]:
-            details = finding.get("message", "")
-            if finding.get("offset_delta_mm") not in (None, "unknown"):
-                details = "{0} offset {1:.1f} mm".format(details, finding.get("offset_delta_mm"))
-            if finding.get("angle_delta_degrees") not in (None, "unknown"):
-                details = "{0} angle {1:.3f} deg".format(details, finding.get("angle_delta_degrees"))
-            lines.append("  - {0} [{1}]: {2}".format(finding.get("type", "unknown"), finding.get("severity", "info"), details))
-        if not health.get("grid_findings"):
-            lines.append("  - none")
+        status_text = (health.get("status_wording") or {}).get(health.get("overall_status"))
+        if status_text:
+            lines.append("- Status wording: {0}".format(status_text))
+        if health.get("host_grid_basis_limited"):
+            lines.append("- Grid basis note: Host contains no grids; linked grid comparison is basis-dependent.")
+            lines.append("- Coordination note: If grids are intentionally maintained in the architectural/structural link, this is not necessarily an error.")
+        lines.extend(["", "Compact Findings"])
+        if focus in ("both", "levels"):
+            lines.append("- Level findings by type: {0}".format(_format_level_grid_type_counts(health.get("level_findings_by_type") or {})))
+        if focus in ("both", "grids"):
+            lines.append("- Grid findings by type: {0}".format(_format_level_grid_type_counts(health.get("grid_findings_by_type") or {})))
+        top_links = health.get("top_affected_links") or []
+        if top_links:
+            lines.append("- Top affected links: {0}".format("; ".join([
+                "{0} (L{1}/G{2})".format(item.get("link_name"), item.get("level_findings_count", 0), item.get("grid_findings_count", 0))
+                for item in top_links[:5]
+            ])))
+        if focus in ("both", "levels"):
+            lines.extend(["", "Level Findings"])
+            lines.append("- Total: {0}".format(health.get("level_findings_count", 0)))
+            groups = _aggregate_level_grid_findings(health.get("level_findings") or [], 5)
+            for group in groups[:10]:
+                sample = ", ".join(group.get("sample_names") or [])
+                lines.append("  - {0} [{1}]: {2}{3}".format(group.get("type"), group.get("severity"), group.get("count"), " | samples: {0}".format(sample) if sample else ""))
+            if not groups:
+                lines.append("  - none")
+        if focus in ("both", "grids"):
+            lines.extend(["", "Grid Findings", "- Total: {0}".format(health.get("grid_findings_count", 0))])
+            groups = _aggregate_level_grid_findings(health.get("grid_findings") or [], 5)
+            for group in groups[:10]:
+                sample = ", ".join(group.get("sample_names") or [])
+                lines.append("  - {0} [{1}]: {2}{3}".format(group.get("type"), group.get("severity"), group.get("count"), " | samples: {0}".format(sample) if sample else ""))
+            if not groups:
+                lines.append("  - none")
         lines.extend(["", "Per-Link Findings"])
         link_rows = health.get("links_compared") or []
         for index, link_row in enumerate(link_rows[:10]):
             all_findings = (link_row.get("level_findings") or []) + (link_row.get("grid_findings") or [])
             lines.append("{0}. {1} [{2}]".format(index + 1, link_row.get("link_name"), link_row.get("status", "UNKNOWN")))
             lines.append("   - linked document: {0}".format(link_row.get("linked_document_title")))
-            lines.append("   - Levels: {0} | level findings: {1}".format(link_row.get("level_count"), len(link_row.get("level_findings") or [])))
-            lines.append("   - Grids: {0} | grid findings: {1}".format(link_row.get("grid_count"), len(link_row.get("grid_findings") or [])))
-            if all_findings:
-                lines.append("   - Findings: {0}".format("; ".join([item.get("type", "unknown") for item in all_findings[:6]])))
-            else:
+            if focus in ("both", "levels"):
+                level_groups = _aggregate_level_grid_findings(link_row.get("level_findings") or [], 5)
+                lines.append("   - Levels: {0} | level findings: {1}".format(link_row.get("level_count"), len(link_row.get("level_findings") or [])))
+                lines.append("   - Level issue types: {0}".format(_format_level_grid_type_counts(_level_grid_findings_by_type(link_row.get("level_findings") or []))))
+                lines.append("   - Sample levels: {0}".format(", ".join([name for row in level_groups for name in row.get("sample_names", [])][:5]) or "none"))
+            if focus in ("both", "grids"):
+                grid_groups = _aggregate_level_grid_findings(link_row.get("grid_findings") or [], 5)
+                lines.append("   - Grids: {0} | grid findings: {1}".format(link_row.get("grid_count"), len(link_row.get("grid_findings") or [])))
+                lines.append("   - Grid issue types: {0}".format(_format_level_grid_type_counts(_level_grid_findings_by_type(link_row.get("grid_findings") or []))))
+                lines.append("   - Sample grids: {0}".format(", ".join([name for row in grid_groups for name in row.get("sample_names", [])][:5]) or "none"))
+            if focus == "both" and not all_findings:
                 lines.append("   - Findings: none")
         if len(link_rows) > 10:
             lines.append("More per-link findings are available in Project Context > BIM Basis / Levels & Grids.")
@@ -11045,6 +11542,23 @@ class OllamaAIChat(forms.WPFWindow):
             lines.append("{0}. {1}".format(index + 1, check))
         return "\n".join(lines)
 
+    def _format_project_onboarding_checklist(self, context):
+        depth = (context.get("scan_depth") or self.latest_project_context_scan_depth or "").lower()
+        if depth != "standard":
+            return "\n".join(
+                [
+                    "[PROJECT ONBOARDING CHECKLIST]",
+                    "",
+                    "Project onboarding checklist requires a standard Scan Project run.",
+                    "Current context depth: {0}".format(depth or "not scanned"),
+                    "",
+                    "Safety",
+                    "- This checklist is read-only.",
+                    "- No model data was modified.",
+                ]
+            )
+        return format_project_onboarding_checklist(build_project_onboarding_checklist(context))
+
     def deterministic_project_context_answer(self, prompt):
         kind = self._context_query_kind(prompt)
         if not kind:
@@ -11052,9 +11566,22 @@ class OllamaAIChat(forms.WPFWindow):
         if kind == "scan":
             result = self.run_project_context_scan("standard")
             return result.get("summary", "")
-        context = self.get_latest_project_context(require_standard=True)
+        context = self.get_latest_project_context(require_standard=False)
+        context_depth = (context.get("scan_depth") or self.latest_project_context_scan_depth or "").lower()
+        standard_required = kind in ("onboarding", "link_coordinate_health", "level_grid_health")
+        if standard_required and context_depth != "standard":
+            return "\n".join(
+                [
+                    "[PROJECT CONTEXT]",
+                    "",
+                    "Run Scan Project first for full project-context diagnostics.",
+                    "Current context depth: {0}".format(context_depth or "not scanned"),
+                ]
+            )
         if kind == "summary":
-            return self.get_latest_project_context_summary(require_standard=True)
+            return _summarize_project_context(context)
+        if kind == "onboarding":
+            return self._format_project_onboarding_checklist(context)
         if kind == "levels":
             return self._format_context_levels(context)
         if kind == "views":
@@ -11066,7 +11593,7 @@ class OllamaAIChat(forms.WPFWindow):
         if kind == "link_coordinate_health":
             return self._format_link_coordinate_health(context)
         if kind == "level_grid_health":
-            return self._format_level_grid_health(context)
+            return self._format_level_grid_health(context, self._level_grid_query_focus(prompt))
         if kind == "imports":
             return self._format_context_imports(context)
         if kind == "categories":
@@ -11134,17 +11661,24 @@ class OllamaAIChat(forms.WPFWindow):
                 item["recommendation_reason"] = reason
                 recommendations.append(item)
 
-        if "aco_bunge_templates_present" in issues:
-            add("create-aco-pipe-fitting-summary-from-template", "ACO/Bunge template-like schedules were observed; this reviewed summary action has runtime evidence.")
-        if "empty_or_suspicious_schedules" in issues:
-            add("scan-current-project", "Suspicious or empty schedule candidates were observed; keep inspection read-only before using schedule templates.")
-        if "unloaded_or_unavailable_revit_links" in issues:
-            add("scan-current-project", "Unloaded or unavailable Revit links were observed; use the context scan before coordination decisions.")
-        if any(flag in issues for flag in ["unloaded_or_unavailable_link", "non_identity_link_transform", "link_z_offset_detected", "rotated_link_detected", "duplicate_link_instances", "unknown_coordinate_state"]):
-            add("check-linked-model-coordinate-health", "Review linked model coordinate health. {0}".format(self._coordinate_health_reason_summary(_get_linked_model_coordinate_health(context))))
+        onboarding = build_project_onboarding_checklist(context)
+        if onboarding:
+            add("project-onboarding-checklist", "Start with the deterministic project onboarding checklist. Overall status {0}; automation readiness {1}.".format(onboarding.get("overall_status", "UNKNOWN"), onboarding.get("automation_readiness_status", "UNKNOWN")))
         if any(flag in issues for flag in ["host_duplicate_level_names", "linked_duplicate_level_names", "linked_level_elevation_mismatch", "linked_level_missing_in_host", "host_level_missing_in_link", "linked_level_possible_name_mismatch", "host_duplicate_grid_names", "linked_duplicate_grid_names", "linked_grid_missing_in_host", "host_grid_missing_in_link", "linked_grid_geometry_mismatch", "linked_grid_geometry_unknown", "level_grid_scan_partial"]):
             level_grid = _get_host_link_level_grid_health(context)
             add("check-bim-basis-level-grid-health", "BIM Basis / Levels & Grids review. status {0}; level findings {1}; grid findings {2}; links compared {3}.".format(level_grid.get("overall_status", "unknown"), level_grid.get("level_findings_count", 0), level_grid.get("grid_findings_count", 0), level_grid.get("links_compared_count", 0)))
+        if any(flag in issues for flag in ["unloaded_or_unavailable_link", "non_identity_link_transform", "link_z_offset_detected", "rotated_link_detected", "duplicate_link_instances", "unknown_coordinate_state"]):
+            add("check-linked-model-coordinate-health", "Review linked model coordinate health. {0}".format(self._coordinate_health_reason_summary(_get_linked_model_coordinate_health(context))))
+        if "unloaded_or_unavailable_revit_links" in issues:
+            add("scan-current-project", "Unloaded or unavailable Revit links were observed; use the context scan before coordination decisions.")
+        if "cad_imports_present" in issues or "view_specific_imports_present" in issues:
+            add("health-check-active-view-selection", "CAD/import or active-view coordination issues were observed; run a read-only active-view health check.")
+        if context.get("warnings_summary", {}).get("total_warning_count", 0):
+            add("scan-current-project", "Revit warnings were observed; review warning groups before production schedule/template actions.")
+        if "empty_or_suspicious_schedules" in issues:
+            add("scan-current-project", "Suspicious or empty schedule candidates were observed; keep inspection read-only before using schedule templates.")
+        if "aco_bunge_templates_present" in issues:
+            add("create-aco-pipe-fitting-summary-from-template", "ACO/Bunge template-like schedules were observed; schedule/template actions should come after read-only diagnostics.")
         for item in categories:
             if item.get("category") == "Pipes" and isinstance(item.get("total_count"), int) and item.get("total_count") > 0:
                 add("create-pipe-schedule-by-level", "Pipes were found in the project context.")
@@ -11157,8 +11691,6 @@ class OllamaAIChat(forms.WPFWindow):
             add("report-selected-elements-by-category", "An active-document selection is present.")
         else:
             add("health-check-active-view-selection", "No active-document selection is present; start with active-view read-only health checks.")
-        if "cad_imports_present" in issues or "view_specific_imports_present" in issues:
-            add("health-check-active-view-selection", "CAD/import or active-view coordination issues were observed; run a read-only active-view health check.")
         if not recommendations:
             add("health-check-active-view-selection", "Use a read-only active-view health check as a first reviewed inspection.")
         deduped = []
@@ -11256,6 +11788,7 @@ class OllamaAIChat(forms.WPFWindow):
         warning_count = warnings.get("total_warning_count", "not scanned")
         coord_health = _get_linked_model_coordinate_health(context)
         level_grid_health = _get_host_link_level_grid_health(context)
+        onboarding = build_project_onboarding_checklist(context)
         doc_title = doc_info.get("title") or self.latest_project_context_doc_title or _document_title(doc)
         active_view = "(unknown view)"
         try:
@@ -11292,6 +11825,11 @@ class OllamaAIChat(forms.WPFWindow):
                 "- Level findings: {0}".format(level_grid_health.get("level_findings_count", "not scanned")),
                 "- Grid findings: {0}".format(level_grid_health.get("grid_findings_count", "not scanned")),
                 "- Main issue flags: {0}".format(", ".join(level_grid_health.get("issue_flags", []) or ["none"])),
+                "Project onboarding:",
+                "- Overall status: {0}".format(onboarding.get("overall_status", "UNKNOWN")),
+                "- Automation readiness: {0}".format(onboarding.get("automation_readiness_status", "UNKNOWN")),
+                "- Top recommended next actions: {0}".format(" | ".join(onboarding.get("recommended_next_actions", [])[:3]) or "none"),
+                "- Blocking/review items: {0}".format(", ".join(onboarding.get("blocking_review_items", [])[:6]) or "none"),
         ]
         if flagged_links:
             brief_lines.append("- Flagged links:")
@@ -11356,6 +11894,8 @@ class OllamaAIChat(forms.WPFWindow):
                 prompt = "summary"
         if prompt == "summary":
             prompt = "summarize current project"
+        elif prompt == "onboarding":
+            prompt = "project onboarding checklist"
         elif prompt == "empty schedules":
             prompt = "show empty schedules"
         elif prompt == "first checks":

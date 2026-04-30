@@ -984,6 +984,45 @@
     "mode": "deterministic"
   },
   {
+    "id": "project-onboarding-checklist",
+    "title": "Project onboarding checklist",
+    "category": "Project Intelligence",
+    "group": "Project Onboarding",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "project onboarding checklist",
+    "planner_aliases": [
+      "project onboarding checklist",
+      "onboarding checklist",
+      "start project checklist",
+      "project startup checklist",
+      "BIM startup checklist",
+      "what should I check first when opening a project",
+      "what should I check first in this project",
+      "what should I do first in this project",
+      "guide me through this project",
+      "project first checks",
+      "recommended project checks",
+      "project readiness check",
+      "automation readiness check"
+    ],
+    "example_prompts": [
+      "project onboarding checklist",
+      "start project checklist",
+      "what should I check first when opening a project",
+      "project readiness check",
+      "automation readiness check"
+    ],
+    "deterministic_handler": "project_onboarding_checklist_action",
+    "validation_state": "structural_only",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "project onboarding checklist",
+    "mode": "deterministic"
+  },
+  {
     "id": "scan-current-project",
     "title": "Scan current project",
     "category": "Project Intelligence",

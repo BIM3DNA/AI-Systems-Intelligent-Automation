@@ -25,6 +25,7 @@ class PromptCatalog(object):
         "Piping",
         "Electrical",
         "Coordination / BIM",
+        "Project Onboarding",
         "Project Context",
         "Links / Imports",
         "AI Agent Planning",
@@ -252,6 +253,22 @@ class PromptCatalog(object):
             return self.get_entry_by_id("electrical-qa-preset")
         if "coordination qa preset" in target or "bim qa preset" in target:
             return self.get_entry_by_id("coordination-bim-qa-preset")
+        if (
+            "project onboarding checklist" in target
+            or "onboarding checklist" in target
+            or "start project checklist" in target
+            or "project startup checklist" in target
+            or "bim startup checklist" in target
+            or "what should i check first when opening a project" in target
+            or "what should i check first in this project" in target
+            or "what should i do first in this project" in target
+            or "guide me through this project" in target
+            or "project first checks" in target
+            or "recommended project checks" in target
+            or "project readiness check" in target
+            or "automation readiness check" in target
+        ):
+            return self.get_entry_by_id("project-onboarding-checklist")
         if "scan current project" in target or target == "project context" or "scan this revit model" in target:
             return self.get_entry_by_id("scan-current-project")
         if "summarize current project" in target or "what is in this revit model" in target or "what is in this model" in target:
@@ -284,7 +301,7 @@ class PromptCatalog(object):
             or "host vs link level grid check" in target
         ):
             return self.get_entry_by_id("check-bim-basis-level-grid-health")
-        if "ask ai agent for a plan" in target or "ask agent for project plan" in target or "what should i check first in this project" in target:
+        if "ask ai agent for a plan" in target or "ask agent for project plan" in target:
             return self.get_entry_by_id("ask-agent-for-project-plan")
         if "create codex task brief" in target or "generate developer task" in target or "prepare codex instruction" in target or "make implementation brief" in target:
             return self.get_entry_by_id("create-codex-task-brief")

@@ -169,6 +169,7 @@
                                 </WrapPanel>
                                 <WrapPanel Grid.Row="3" Margin="0,0,0,8">
                                     <Button x:Name="ProjectQuickSummaryButton" Tag="summary" Content="Summary" Width="76" Height="24" Margin="0,0,5,5"/>
+                                    <Button x:Name="ProjectQuickOnboardingButton" Tag="onboarding" Content="Onboarding" Width="92" Height="24" Margin="0,0,5,5"/>
                                     <Button x:Name="ProjectQuickLevelsButton" Tag="levels" Content="Levels" Width="68" Height="24" Margin="0,0,5,5"/>
                                     <Button x:Name="ProjectQuickViewsButton" Tag="views" Content="Views" Width="64" Height="24" Margin="0,0,5,5"/>
                                     <Button x:Name="ProjectQuickSheetsButton" Tag="sheets" Content="Sheets" Width="66" Height="24" Margin="0,0,5,5"/>
