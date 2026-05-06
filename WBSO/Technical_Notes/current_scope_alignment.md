@@ -352,3 +352,22 @@ Still intentionally outside scope in this pass:
 
 - within scope: resizable/readable Project Context panel, richer cached context tree display, deterministic answers for known structured project-context prompts, and clean Ollama timeout messaging
 - intentionally unchanged: model mutation, transactions, reviewed execution governance, ExternalEvent/request lifecycle, undo, and ACO/Bunge schedule creation paths
+
+### 2026-05-06 AI-AGENT-002 scope alignment
+
+The AI Workbench currently covers:
+
+- Project Context scanning and cached deterministic context answers
+- Project Onboarding Checklist
+- BIM Basis / Levels & Grids review
+- Linked Coordinate Health
+- Guided Agent Startup Planning
+
+This remains aligned with WBSO R&D because it investigates safe AI-assisted BIM diagnostics and guarded automation planning in Revit.
+
+Explicitly outside the validated scope:
+
+- Execute Plan for the guided startup plan
+- model-modifying autonomy
+- autonomous schedule/template execution from the guided plan
+- BIM3DNA toolbar-copy synchronization

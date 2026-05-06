@@ -1717,7 +1717,8 @@
   {
     "id": "report-selected-elements-by-category",
     "title": "Report selected elements by category",
-    "category": "Reports",
+    "category": "BIM QA",
+    "group": "Selection Reports",
     "discipline": "QA / BIM",
     "role": "read",
     "risk_level": "low",
@@ -1744,7 +1745,8 @@
   {
     "id": "report-selected-elements-by-type",
     "title": "Report selected elements by type",
-    "category": "Reports",
+    "category": "BIM QA",
+    "group": "Selection Reports",
     "discipline": "QA / BIM",
     "role": "read",
     "risk_level": "low",
@@ -1769,9 +1771,38 @@
     "mode": "deterministic"
   },
   {
+    "id": "count-selected-elements",
+    "title": "Count selected elements",
+    "category": "BIM QA",
+    "group": "Selection Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "planner_aliases": [
+      "count selected elements",
+      "selected element count",
+      "count current selection",
+      "how many elements are selected",
+      "selection count"
+    ],
+    "example_prompts": [
+      "count selected elements",
+      "selected element count",
+      "how many elements are selected"
+    ],
+    "deterministic_handler": "count_selected_elements",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "count selected elements",
+    "mode": "deterministic"
+  },
+  {
     "id": "health-check-active-view-selection",
     "title": "Health check of active view for supported MEP categories",
-    "category": "Reports",
+    "category": "BIM QA",
+    "group": "Selection Reports",
     "discipline": "QA / BIM",
     "role": "read",
     "risk_level": "low",
@@ -1804,7 +1835,8 @@
   {
     "id": "report-missing-parameters-from-selection",
     "title": "Report missing key parameters from selected elements",
-    "category": "Reports",
+    "category": "BIM QA",
+    "group": "Selection Reports",
     "discipline": "QA / BIM",
     "role": "read",
     "risk_level": "low",

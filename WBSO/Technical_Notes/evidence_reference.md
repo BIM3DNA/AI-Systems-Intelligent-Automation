@@ -1040,3 +1040,44 @@ Reported as already live-validated before this code pass:
 - user-provided live validation confirms bootstrap and standard scans succeed in Snowdon Towers Sample HVAC and return expected project counts
 - this pass adds deterministic context-answer routing to avoid Ollama timeouts for known structured questions
 - local verification covers static syntax/XML/JSON checks only; live validation of the new quick actions and dark-theme tree styling remains pending
+
+## EV-2026-05-06-001 - AI-AGENT-002 Guided Project Startup Plan
+
+### Feature
+
+AI-AGENT-002 Guided Project Startup Plan
+
+### What changed
+
+- Agent plan now produces structured project-startup phases.
+- Deterministic prompts route to the guided plan.
+- Codex Brief includes guided Agent plan metadata.
+
+### Why
+
+To convert Project Context diagnostics into a safer user-facing plan before automation.
+
+### Files changed in the implementation pass
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- `AI.extension/lib/prompt_catalog.json`
+- `AI.extension/lib/ai_prompt_registry.py`
+
+### Validation
+
+- live Revit validation on BUNGE project
+- document: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- active view: `TEST [FloorPlan]`
+
+### Artifacts
+
+- runtime text output from Scan Project
+- runtime text output from Ask Agent for Plan
+- runtime text output from guided plan prompts
+- runtime text output from Create Codex Brief
+- screenshot artifacts not yet added
+
+### Status
+
+- runtime validated as plan-only
+- Execute Plan not validated

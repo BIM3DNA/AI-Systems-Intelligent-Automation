@@ -496,3 +496,19 @@ That points to provider/network reachability as the next likely fix for cloud pl
 - Project Context standard scans now include a read-only linked-model coordinate health section for Revit links, transform origins, Z offsets, rotation, duplicate link instances, and unloaded/unavailable links
 - deterministic prompts such as `check linked model coordinates` and `are the links aligned` answer from cached Revit API context without Ollama
 - the feature is read-only and does not change link placement, project coordinates, reviewed execution, undo, or model mutation behavior
+
+## 2026-05-06 AI Agent Guided Project Startup Plan
+
+- AI Agent can now present a Guided Project Startup Plan from the latest cached Project Context and Project Onboarding Checklist
+- Status: runtime validated as plan-only in Revit on `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, active view `TEST [FloorPlan]`
+- validated deterministic prompts include `guided project startup plan`, `project startup plan`, `what should the agent do first`, and `agent project plan`
+- Create Codex Brief includes compact guided Agent startup plan metadata
+- Execute Plan remains unvalidated and should not be presented as runtime-proven for this workflow
+
+Recommended demo flow:
+
+1. Scan Project
+2. Project Onboarding
+3. Levels / Grids
+4. Ask Agent for Plan
+5. Create Codex Brief

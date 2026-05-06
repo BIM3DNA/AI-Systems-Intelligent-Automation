@@ -2501,6 +2501,26 @@ def _category_name(elem):
     return get_elem_name(category) if category else "<No Category>"
 
 
+def _element_level_name(doc, elem):
+    value = _safe_param_text(elem, ["Reference Level", "Level", "Schedule Level", "Base Level", "Host Level"])
+    if value:
+        return value
+    for attr_name in ("LevelId", "GenLevel"):
+        try:
+            value = getattr(elem, attr_name, None)
+            if value is None:
+                continue
+            if attr_name == "GenLevel":
+                return get_elem_name(value)
+            level = doc.GetElement(value)
+            level_name = get_elem_name(level)
+            if level_name:
+                return level_name
+        except:
+            continue
+    return None
+
+
 def _document_title(doc):
     try:
         title = getattr(doc, "Title", None)
@@ -5374,6 +5394,44 @@ def report_selected_elements_by_type(doc, uidoc):
         )
     if len(ordered) > 20:
         lines.append("...showing first 20 of {0} type groups".format(len(ordered)))
+    return "\n".join(lines)
+
+
+def count_selected_elements(doc, uidoc):
+    elems = _selected_elements(doc, uidoc)
+    grouped = {}
+    type_grouped = {}
+    level_grouped = {}
+    for elem in elems:
+        if not elem:
+            continue
+        grouped.setdefault(_category_name(elem), []).append(elem)
+        type_grouped.setdefault(_family_and_type_text(doc, elem) or "(no type)", []).append(elem)
+        level_name = _element_level_name(doc, elem) or "(level not found)"
+        level_grouped.setdefault(level_name, []).append(elem)
+    lines = [
+        "Count selected elements",
+        "Selection scope: active document only",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Total selected elements: {0}".format(len(elems)),
+    ]
+    if not elems:
+        lines.append("No elements selected. Select elements or use an active-view report.")
+        lines.append("Selections in other open Revit projects are not included.")
+        return "\n".join(lines)
+    lines.append("")
+    lines.append("By category")
+    for category_name, items in sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:20]:
+        lines.append("- {0}: {1} | sample ids: {2}".format(category_name, len(items), _sample_id_text(items)))
+    lines.append("")
+    lines.append("Top family/type groups")
+    for type_name, items in sorted(type_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:10]:
+        lines.append("- {0}: {1} | sample ids: {2}".format(type_name, len(items), _sample_id_text(items)))
+    lines.append("")
+    lines.append("Sample levels")
+    for level_name, items in sorted(level_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:10]:
+        lines.append("- {0}: {1}".format(level_name, len(items)))
     return "\n".join(lines)
 
 
@@ -8804,6 +8862,7 @@ REVIEWED_ACTION_HANDLERS = {
     "list_fixtures_by_type_in_active_view": list_fixtures_by_type_in_active_view,
     "report_selected_elements_by_category": report_selected_elements_by_category,
     "report_selected_elements_by_type": report_selected_elements_by_type,
+    "count_selected_elements": count_selected_elements,
     "health_check_for_active_view_selection": health_check_for_active_view_selection,
     "report_missing_parameters_from_selection": report_missing_parameters_from_selection,
     "create_3d_view_from_selection": create_3d_view_from_selection,
@@ -8948,6 +9007,8 @@ def handle_public_command(prompt, doc, uidoc):
         return report_selected_elements_by_category(doc, uidoc)
     if "report selected elements by type" in p:
         return report_selected_elements_by_type(doc, uidoc)
+    if "count selected elements" in p or "selected element count" in p or "count current selection" in p:
+        return count_selected_elements(doc, uidoc)
     if "health check for active view selection" in p or "selection health check" in p:
         return health_check_for_active_view_selection(doc, uidoc)
     if "report missing parameters from selection" in p or "missing parameters from selection" in p:

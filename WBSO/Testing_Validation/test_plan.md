@@ -697,6 +697,33 @@ The refactor should only be considered runtime-proven after the scenario set abo
 - run `check linked model coordinates`, `are the links aligned`, `check Revit link transforms`, `what linked models are loaded`, `are any links unloaded`, and `coordinate health check`
 - confirm deterministic answers, no Ollama timeout, no model mutation, and AI Agent remains plan-only
 
+## 2026-05-06 AI-AGENT-002 Guided Project Startup Plan
+
+### Test cases
+
+- Open AI Workbench.
+- Run Scan Project.
+- Click Ask Agent for Plan.
+- Prompt: `guided project startup plan`.
+- Prompt: `project startup plan`.
+- Prompt: `what should the agent do first`.
+- Prompt: `agent project plan`.
+- Click Create Codex Brief.
+
+### Expected
+
+- Guided plan format appears.
+- Phase 1 read-only diagnostics are first.
+- Schedule/template actions appear later.
+- Level-targeted automation is blocked/cautioned when ambiguous level aliases exist.
+- No actions execute automatically.
+- No model mutation occurs.
+- No pyRevit console error appears.
+
+### Live validation note
+
+The 2026-05-06 BUNGE runtime session passed the listed plan-only workflow. Execute Plan was not tested and remains unvalidated.
+
 ### Added local checks for 2026-04-22
 
 - verify generic native schedule actions still resolve unchanged through the shared reviewed catalog

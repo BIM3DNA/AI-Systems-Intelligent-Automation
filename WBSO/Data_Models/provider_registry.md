@@ -63,3 +63,11 @@ Current workspace self-test classification:
 ## 2026-04-10 Responses API Note
 
 The OpenAI planner adapter now targets the OpenAI Responses API for provider probing and supported-action normalization.
+
+## 2026-05-06 AI-AGENT-002 Provider Boundary Note
+
+AI-AGENT-002 Guided Project Startup Plan can run through deterministic local Project Context logic even when an external OpenAI request fails or is unavailable.
+
+- no provider configuration was changed
+- no provider/model runtime behavior beyond deterministic local fallback was validated
+- Execute Plan remains governed by reviewed/catalog approval and was not tested in this validation session

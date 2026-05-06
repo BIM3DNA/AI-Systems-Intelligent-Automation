@@ -988,3 +988,30 @@ This pass remains UI/catalog-only and does not touch reviewed execution behavior
 - extended the read-only Project Context scanner with linked-model coordinate health metadata for host project position and RevitLinkInstance transform summaries
 - added conservative flags for unloaded links, non-identity transforms, Z offsets, rotation, duplicate link instances, and unknown coordinate state
 - added deterministic context-answer routing and a structural reviewed catalog action without changing reviewed execution, lifecycle, undo, or link/model mutation behavior
+
+## 2026-05-06 AI-AGENT-002 Guided Project Startup Plan
+
+AI-AGENT-002 adds a guided project-startup planning layer on top of cached Project Context and Project Onboarding data.
+
+### Architectural role
+
+- consumes the latest cached Project Context snapshot
+- consumes the deterministic Project Onboarding Checklist
+- formats a plan for the AI Agent and deterministic chat prompts
+- keeps the Agent plan-only
+- does not execute actions automatically
+- preserves reviewed/catalog governance for any later Execute Plan action
+
+### Plan structure
+
+- Required read-only diagnostics
+- Optional project health checks
+- Reviewed automation candidates
+- Blocked / not recommended actions
+
+### Governance boundary
+
+- no model mutation is introduced
+- no free-form code execution is introduced
+- Execute Plan remains governed by the existing reviewed/catalog approval flow
+- this feature converts observed context into safer planning order; it is not an autonomous execution path

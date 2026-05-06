@@ -14,3 +14,12 @@ This file tracks the repo-local data/state models introduced for the current AI 
 | M-006 | planner provider state via `Model_Service/ModelService.py` + `chatgpt_service.py` | provider state model | reports local/cloud planner availability, key presence, provider reachability, and classified error state to the AI Agent UI | active | cloud path requires `OPENAI_API_KEY` from environment |
 | M-007 | reviewed plan object via `ai_agent_session.py` | structured plan model | captures `matched_action`, `confidence`, `requires_modification`, `destructive`, `summary`, and `execution_ready` | active | execution remains constrained to supported deterministic/reviewed actions |
 | M-008 | candidate reviewed deterministic action registry entry in `prompt_catalog.json` | catalog candidate model | records near-term but not yet enabled planner actions such as selected-duct total-volume reporting | candidate | not part of the active supported action set yet |
+
+## 2026-05-06 AI-AGENT-002 Model Note
+
+AI-AGENT-002 uses the existing cached Project Context and Project Onboarding data models to build a guided startup plan.
+
+- no new persisted model store was introduced
+- plan objects remain in-memory/session-scoped
+- deterministic Project Context fallback can produce the guided plan without relying on a successful external provider request
+- provider configuration was not changed

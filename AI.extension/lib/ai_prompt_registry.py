@@ -13,6 +13,7 @@ class PromptCatalog(object):
         "HVAC",
         "Piping",
         "Electrical",
+        "BIM QA",
         "QA / BIM",
         "Selection / Categories",
         "Coordination / Spaces",
@@ -30,6 +31,7 @@ class PromptCatalog(object):
         "Links / Imports",
         "AI Agent Planning",
         "Developer Briefs",
+        "Selection Reports",
         "Pipes",
         "Ducts",
         "Electrical",
@@ -313,6 +315,16 @@ class PromptCatalog(object):
             or "project diagnostic plan" in target
         ):
             return self.get_entry_by_id("guided-project-startup-plan")
+        if "count selected elements" in target or "selected element count" in target or "count current selection" in target or "how many elements are selected" in target or target == "selection count":
+            return self.get_entry_by_id("count-selected-elements")
+        if "report selected elements by category" in target or "selected elements by category" in target:
+            return self.get_entry_by_id("report-selected-elements-by-category")
+        if "report selected elements by type" in target or "selected elements by type" in target:
+            return self.get_entry_by_id("report-selected-elements-by-type")
+        if "missing parameters from selection" in target or "missing key parameters" in target:
+            return self.get_entry_by_id("report-missing-parameters-from-selection")
+        if "selection health check" in target or "health check selected elements" in target or "health check selection" in target:
+            return self.get_entry_by_id("health-check-active-view-selection")
         if "create codex task brief" in target or "generate developer task" in target or "prepare codex instruction" in target or "make implementation brief" in target:
             return self.get_entry_by_id("create-codex-task-brief")
         if "split" in target and "pipe" in target:

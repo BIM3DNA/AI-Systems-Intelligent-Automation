@@ -971,3 +971,28 @@ The stable baseline already supported read-only catalog filtering through the ma
 - added a read-only scanner section and deterministic answer path for linked model coordinate/transform health
 - link coordinate findings are conservative review flags only; the Workbench does not claim coordinate correctness or mutate link/project coordinate state
 - live Revit validation remains pending for linked model names, status labels, transform origin/rotation display, and absence of raw API object path strings
+
+### 2026-05-06 AI-AGENT-002 Guided Project Startup Plan
+
+Resolved:
+
+- Agent plan ordering previously mixed diagnostics and schedule/template actions too early.
+- Warning review previously appeared as `Scan current project`; the guided plan now has explicit `Review Revit warnings summary`.
+- Level-targeted automation is now blocked/cautioned when ambiguous level aliases exist.
+
+Runtime validation:
+
+- validated in Revit on `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- active view: `TEST [FloorPlan]`
+- Ask Agent for Plan returned `[GUIDED PROJECT STARTUP PLAN]`
+- deterministic guided-plan prompts returned the same plan format
+- Create Codex Brief included guided Agent startup plan metadata
+- no model mutation was observed
+- Agent remained plan-only
+
+Open:
+
+- Execute Plan remains unvalidated.
+- BIM Basis / Levels & Grids interpretation still needs refinement to reduce false positives in IFC-heavy projects.
+- Dedicated warning review action still needs implementation.
+- Sync to BIM3DNA toolbar copy remains pending as a separate task.
