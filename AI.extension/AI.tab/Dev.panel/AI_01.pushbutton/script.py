@@ -4335,6 +4335,238 @@ def format_project_onboarding_checklist(checklist):
     return "\n".join(lines)
 
 
+def _guided_plan_step(phase, title, action_key, action_type, risk, approval_required, reason, prerequisites=None):
+    return {
+        "phase": phase,
+        "action_title": title,
+        "action_key": action_key,
+        "action_type": action_type,
+        "risk": risk,
+        "approval_required": bool(approval_required),
+        "reason": reason,
+        "prerequisites": prerequisites or [],
+        "execution_status": "not_executed",
+    }
+
+
+def build_guided_project_startup_plan(context):
+    context = context if isinstance(context, dict) else {}
+    doc_info = context.get("document", {}) if isinstance(context.get("document", {}), dict) else {}
+    active_view = doc_info.get("active_view", {}) if isinstance(doc_info.get("active_view", {}), dict) else {}
+    onboarding = build_project_onboarding_checklist(context)
+    coord_health = _get_linked_model_coordinate_health(context)
+    level_grid = get_host_link_level_grid_health(context)
+    imports = context.get("imports_cad", {}) if isinstance(context.get("imports_cad", {}), dict) else {}
+    warnings = context.get("warnings_summary", {}) if isinstance(context.get("warnings_summary", {}), dict) else {}
+    schedules = context.get("schedules", {}) if isinstance(context.get("schedules", {}), dict) else {}
+    levels = context.get("levels", {}) if isinstance(context.get("levels", {}), dict) else {}
+    selection = context.get("selection", {}) if isinstance(context.get("selection", {}), dict) else {}
+    categories = context.get("category_counts", []) or []
+    issues = set([issue.get("id") for issue in context.get("detected_issues", []) if isinstance(issue, dict)])
+    phase1 = []
+    phase2 = []
+    phase3 = []
+    blocked = []
+
+    phase1.append(_guided_plan_step(
+        "Phase 1 - Required read-only diagnostics",
+        "Project onboarding checklist",
+        "project-onboarding-checklist",
+        "diagnostic",
+        "low",
+        False,
+        "Start with the deterministic checklist. Overall status {0}; automation readiness {1}.".format(onboarding.get("overall_status", "UNKNOWN"), onboarding.get("automation_readiness_status", "UNKNOWN")),
+    ))
+    if level_grid and (level_grid.get("overall_status") in ("REVIEW", "PARTIAL") or level_grid.get("level_findings_count", 0) or level_grid.get("grid_findings_count", 0)):
+        phase1.append(_guided_plan_step(
+            "Phase 1 - Required read-only diagnostics",
+            "BIM Basis / Levels & Grids review",
+            "check-bim-basis-level-grid-health",
+            "diagnostic",
+            "low",
+            False,
+            "Level/grid findings exist: {0} level findings, {1} grid findings.".format(level_grid.get("level_findings_count", 0), level_grid.get("grid_findings_count", 0)),
+        ))
+    if coord_health and (coord_health.get("overall_status") in ("REVIEW", "PARTIAL") or coord_health.get("unavailable_count", 0) or coord_health.get("non_identity_transform_count", 0)):
+        phase1.append(_guided_plan_step(
+            "Phase 1 - Required read-only diagnostics",
+            "Linked model coordinate health check",
+            "check-linked-model-coordinate-health",
+            "diagnostic",
+            "low",
+            False,
+            "Linked coordinate health status {0}; unavailable {1}, non-identity {2}, rotated {3}, z-offset {4}.".format(coord_health.get("overall_status", "UNKNOWN"), coord_health.get("unavailable_count", 0), coord_health.get("non_identity_transform_count", 0), coord_health.get("rotated_link_count", 0), coord_health.get("z_offset_link_count", 0)),
+        ))
+    if imports.get("total_import_instances", 0):
+        phase1.append(_guided_plan_step(
+            "Phase 1 - Required read-only diagnostics",
+            "CAD/import review",
+            None,
+            "diagnostic",
+            "low",
+            False,
+            "{0} CAD/import instances found; {1} view-specific.".format(imports.get("total_import_instances", 0), imports.get("view_specific_import_count", 0)),
+        ))
+    if warnings.get("total_warning_count", 0):
+        phase1.append(_guided_plan_step(
+            "Phase 1 - Required read-only diagnostics",
+            "Review Revit warnings summary",
+            None,
+            "diagnostic",
+            "low",
+            False,
+            "{0} Revit warnings detected. Review warning groups before automation.".format(warnings.get("total_warning_count", 0)),
+        ))
+    if levels.get("ambiguous_aliases"):
+        blocked.append(_guided_plan_step(
+            "Blocked / not recommended yet",
+            "Level-targeted automation",
+            None,
+            "blocked",
+            "medium",
+            False,
+            "Ambiguous level aliases exist; level-targeted automation should wait until level naming is reviewed.",
+            ["Resolve or review ambiguous level names."],
+        ))
+
+    phase2.append(_guided_plan_step(
+        "Phase 2 - Optional project health checks",
+        "Active-view health check",
+        "health-check-active-view-selection",
+        "reviewed_action",
+        "low",
+        False,
+        "Run a read-only active-view health check after required diagnostics.",
+    ))
+    if selection.get("selected_element_count", 0):
+        phase2.append(_guided_plan_step(
+            "Phase 2 - Optional project health checks",
+            "Report selected elements by category",
+            "report-selected-elements-by-category",
+            "reviewed_action",
+            "low",
+            False,
+            "{0} selected elements are available for selection-based QA.".format(selection.get("selected_element_count", 0)),
+        ))
+
+    major_context_risk = bool(blocked or [step for step in phase1 if step.get("action_title") != "Project onboarding checklist"])
+    pipe_count = 0
+    fitting_count = 0
+    for item in categories:
+        if item.get("category") == "Pipes" and isinstance(item.get("total_count"), int):
+            pipe_count = item.get("total_count")
+        if item.get("category") == "Pipe Fittings" and isinstance(item.get("total_count"), int):
+            fitting_count = item.get("total_count")
+    if pipe_count:
+        phase3.append(_guided_plan_step(
+            "Phase 3 - Reviewed automation candidates",
+            "Create pipe schedule by level",
+            "create-pipe-schedule-by-level",
+            "reviewed_action",
+            "medium",
+            True,
+            "Pipes are present; schedule creation should run only after read-only diagnostics are reviewed.",
+            ["Review Phase 1 diagnostics first."] if major_context_risk else [],
+        ))
+    if fitting_count:
+        phase3.append(_guided_plan_step(
+            "Phase 3 - Reviewed automation candidates",
+            "Create pipe fitting schedule by level",
+            "create-pipe-fitting-schedule-by-level",
+            "reviewed_action",
+            "medium",
+            True,
+            "Pipe fittings are present; schedule creation should run only after read-only diagnostics are reviewed.",
+            ["Review Phase 1 diagnostics first."] if major_context_risk else [],
+        ))
+    if schedules.get("template_like_schedule_candidates") and "aco_bunge_templates_present" in issues:
+        phase3.append(_guided_plan_step(
+            "Phase 3 - Reviewed automation candidates",
+            "ACO pipe fitting summary from template",
+            "create-aco-pipe-fitting-summary-from-template",
+            "reviewed_action",
+            "medium",
+            True,
+            "ACO/Bunge template-like schedules were observed; use only after required diagnostics and template status are reviewed.",
+            ["Review schedule population/status.", "Review Phase 1 diagnostics first."] if major_context_risk else ["Review schedule population/status."],
+        ))
+    if not phase3:
+        phase3.append(_guided_plan_step(
+            "Phase 3 - Reviewed automation candidates",
+            "No reviewed automation candidate selected yet",
+            None,
+            "informational",
+            "low",
+            False,
+            "No schedule/template automation candidate was selected from the current context.",
+        ))
+    steps = phase1 + phase2 + phase3 + blocked
+    return {
+        "title": "Guided Project Startup Plan",
+        "project_title": doc_info.get("title", "(unknown document)"),
+        "active_view": active_view.get("name", "(unknown view)"),
+        "context_depth": context.get("scan_depth", "unknown"),
+        "scan_timestamp": context.get("timestamp_utc", "unknown"),
+        "overall_onboarding_status": onboarding.get("overall_status", "UNKNOWN"),
+        "automation_readiness": onboarding.get("automation_readiness_status", "UNKNOWN"),
+        "phase1": phase1,
+        "phase2": phase2,
+        "phase3": phase3,
+        "blocked": blocked,
+        "steps": steps,
+        "execution_safe": True,
+        "plan_only": True,
+    }
+
+
+def format_guided_project_startup_plan(plan):
+    plan = plan if isinstance(plan, dict) else {}
+    lines = [
+        "[GUIDED PROJECT STARTUP PLAN]",
+        "",
+        "Project",
+        "- Document: {0}".format(plan.get("project_title", "(unknown document)")),
+        "- Active view: {0}".format(plan.get("active_view", "(unknown view)")),
+        "- Context depth: {0}".format(plan.get("context_depth", "unknown")),
+        "- Scan timestamp: {0}".format(plan.get("scan_timestamp", "unknown")),
+        "- Overall onboarding status: {0}".format(plan.get("overall_onboarding_status", "UNKNOWN")),
+        "- Automation readiness: {0}".format(plan.get("automation_readiness", "UNKNOWN")),
+    ]
+
+    def append_phase(title, steps):
+        lines.extend(["", title])
+        if not steps:
+            lines.append("- none")
+            return
+        for index, step in enumerate(steps):
+            lines.append("{0}. {1}".format(index + 1, step.get("action_title")))
+            lines.append("   risk: {0}".format(step.get("risk", "low")))
+            lines.append("   approval required: {0}".format("yes" if step.get("approval_required") else "no"))
+            lines.append("   type: {0}".format(step.get("action_type", "diagnostic")))
+            if step.get("action_key"):
+                lines.append("   action key: {0}".format(step.get("action_key")))
+            lines.append("   reason: {0}".format(step.get("reason", "")))
+            prerequisites = step.get("prerequisites") or []
+            if prerequisites:
+                lines.append("   prerequisites: {0}".format("; ".join(prerequisites)))
+            lines.append("   execution status: {0}".format(step.get("execution_status", "not_executed")))
+
+    append_phase("Phase 1 - Required read-only diagnostics", plan.get("phase1") or [])
+    append_phase("Phase 2 - Optional project health checks", plan.get("phase2") or [])
+    append_phase("Phase 3 - Reviewed automation candidates", plan.get("phase3") or [])
+    append_phase("Blocked / not recommended yet", plan.get("blocked") or [])
+    lines.extend(
+        [
+            "",
+            "Safety",
+            "- This is a plan only.",
+            "- No actions have been executed.",
+            "- Execute Plan remains governed by reviewed/catalog approval.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def _summarize_project_context(context):
     context = context if isinstance(context, dict) else {}
     doc_info = context.get("document", {})
@@ -4469,15 +4701,14 @@ def summarize_current_project_context(doc, uidoc, context=None):
 
 def ask_agent_for_project_plan_action(doc, uidoc, context=None):
     result = collect_project_context(doc, uidoc, "standard")
-    summary = result.get("summary", "")
-    return "\n".join(
-        [
-            "Project-context planning input prepared.",
-            summary,
-            "Use AI Agent Ask Agent for Plan to create a reviewed plan from this context.",
-            "No actions have been executed.",
-        ]
-    )
+    plan = build_guided_project_startup_plan(result.get("context", {}))
+    return format_guided_project_startup_plan(plan)
+
+
+def guided_project_startup_plan_action(doc, uidoc, context=None):
+    result = collect_project_context(doc, uidoc, "standard")
+    plan = build_guided_project_startup_plan(result.get("context", {}))
+    return format_guided_project_startup_plan(plan)
 
 
 def check_linked_model_coordinate_health(doc, uidoc, context=None):
@@ -8614,6 +8845,7 @@ REVIEWED_ACTION_HANDLERS = {
     "check_bim_basis_level_grid_health": check_bim_basis_level_grid_health,
     "project_onboarding_checklist_action": project_onboarding_checklist_action,
     "ask_agent_for_project_plan_action": ask_agent_for_project_plan_action,
+    "guided_project_startup_plan_action": guided_project_startup_plan_action,
     "create_codex_task_brief_action": create_codex_task_brief_action,
 }
 
@@ -10946,6 +11178,13 @@ class OllamaAIChat(forms.WPFWindow):
             "guide me through this project",
             "project readiness check",
             "automation readiness check",
+            "guided project startup plan",
+            "project startup plan",
+            "startup plan",
+            "create project startup plan",
+            "what should the agent do first",
+            "agent project plan",
+            "project diagnostic plan",
             "check bim basis",
             "bim basis ils check",
             "iso style check",
@@ -11045,6 +11284,13 @@ class OllamaAIChat(forms.WPFWindow):
             "recommended project checks": "onboarding",
             "project readiness check": "onboarding",
             "automation readiness check": "onboarding",
+            "guided project startup plan": "guided_startup_plan",
+            "project startup plan": "guided_startup_plan",
+            "startup plan": "guided_startup_plan",
+            "create project startup plan": "guided_startup_plan",
+            "what should the agent do first": "guided_startup_plan",
+            "agent project plan": "guided_startup_plan",
+            "project diagnostic plan": "guided_startup_plan",
             "list levels": "levels",
             "show levels": "levels",
             "levels": "levels",
@@ -11125,6 +11371,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "scan"
         if "project onboarding" in normalized or normalized == "onboarding" or "onboarding checklist" in normalized or "startup checklist" in normalized or "bim startup" in normalized or "project readiness" in normalized or "automation readiness" in normalized or "guide me through this project" in normalized or "what should i do first in this project" in normalized or "what should i check first when opening a project" in normalized or "what should i check first in this project" in normalized or "what should i test first in this project" in normalized or "recommended project checks" in normalized:
             return "onboarding"
+        if "guided project startup plan" in normalized or "project startup plan" in normalized or normalized == "startup plan" or "create project startup plan" in normalized or "what should the agent do first" in normalized or "agent project plan" in normalized or "project diagnostic plan" in normalized:
+            return "guided_startup_plan"
         if "empty" in normalized and "schedule" in normalized:
             return "empty_schedules"
         if "suspicious" in normalized and "schedule" in normalized:
@@ -11568,7 +11816,7 @@ class OllamaAIChat(forms.WPFWindow):
             return result.get("summary", "")
         context = self.get_latest_project_context(require_standard=False)
         context_depth = (context.get("scan_depth") or self.latest_project_context_scan_depth or "").lower()
-        standard_required = kind in ("onboarding", "link_coordinate_health", "level_grid_health")
+        standard_required = kind in ("onboarding", "guided_startup_plan", "link_coordinate_health", "level_grid_health")
         if standard_required and context_depth != "standard":
             return "\n".join(
                 [
@@ -11582,6 +11830,8 @@ class OllamaAIChat(forms.WPFWindow):
             return _summarize_project_context(context)
         if kind == "onboarding":
             return self._format_project_onboarding_checklist(context)
+        if kind == "guided_startup_plan":
+            return format_guided_project_startup_plan(build_guided_project_startup_plan(context))
         if kind == "levels":
             return self._format_context_levels(context)
         if kind == "views":
@@ -11704,7 +11954,22 @@ class OllamaAIChat(forms.WPFWindow):
 
     def build_project_agent_plan(self):
         context = self.get_latest_project_context(require_standard=True)
-        recommendations = self._recommended_project_actions_from_context(context)
+        guided_plan = build_guided_project_startup_plan(context)
+        recommendations = []
+        seen_action_keys = set()
+        for step in guided_plan.get("steps", []):
+            action_key = step.get("action_key")
+            if not action_key or action_key in seen_action_keys:
+                continue
+            entry = self.catalog.get_entry_by_id(action_key)
+            if not entry:
+                continue
+            item = dict(entry)
+            item["recommendation_reason"] = step.get("reason", "")
+            item["guided_phase"] = step.get("phase", "")
+            item["guided_action_type"] = step.get("action_type", "")
+            recommendations.append(item)
+            seen_action_keys.add(action_key)
         self.agent_session.refresh_catalog(self.catalog.get_agent_commands())
         self.agent_session.reset()
         for entry in recommendations:
@@ -11724,6 +11989,7 @@ class OllamaAIChat(forms.WPFWindow):
             "context_depth": context.get("scan_depth"),
             "context_timestamp": context.get("timestamp_utc"),
             "context_document_title": (context.get("document") or {}).get("title"),
+            "guided_startup_plan": guided_plan,
         }
         self.agent_session.status = "ready_to_execute" if self.agent_session.plan else "failed"
         self.agent_session.message = "Ready to execute" if self.agent_session.plan else "No reviewed plan"
@@ -11742,7 +12008,9 @@ class OllamaAIChat(forms.WPFWindow):
                 doc_info.get("title", "(unknown document)"),
             )
         )
-        self.AgentHistory.AppendText("Observed context\n{0}\n".format(self.get_latest_project_context_summary(require_standard=True)))
+        guided_plan = plan_object.get("guided_startup_plan") or build_guided_project_startup_plan(context)
+        self.AgentHistory.AppendText("{0}\n".format(format_guided_project_startup_plan(guided_plan)))
+        self.AgentHistory.AppendText("\nObserved context\n{0}\n".format(self.get_latest_project_context_summary(require_standard=True)))
         plan = self.agent_session.get_visible_steps()
         if plan:
             self.AgentHistory.AppendText("Recommended reviewed actions\n")
@@ -11789,6 +12057,7 @@ class OllamaAIChat(forms.WPFWindow):
         coord_health = _get_linked_model_coordinate_health(context)
         level_grid_health = _get_host_link_level_grid_health(context)
         onboarding = build_project_onboarding_checklist(context)
+        guided_plan = build_guided_project_startup_plan(context)
         doc_title = doc_info.get("title") or self.latest_project_context_doc_title or _document_title(doc)
         active_view = "(unknown view)"
         try:
@@ -11830,6 +12099,11 @@ class OllamaAIChat(forms.WPFWindow):
                 "- Automation readiness: {0}".format(onboarding.get("automation_readiness_status", "UNKNOWN")),
                 "- Top recommended next actions: {0}".format(" | ".join(onboarding.get("recommended_next_actions", [])[:3]) or "none"),
                 "- Blocking/review items: {0}".format(", ".join(onboarding.get("blocking_review_items", [])[:6]) or "none"),
+                "Guided Agent startup plan:",
+                "- Top phase 1 diagnostics: {0}".format(" | ".join([step.get("action_title") for step in (guided_plan.get("phase1") or [])[:3]]) or "none"),
+                "- Blocked/review items: {0}".format(" | ".join([step.get("action_title") for step in (guided_plan.get("blocked") or [])[:5]]) or "none"),
+                "- First reviewed automation candidate: {0}".format(next((step.get("action_title") for step in (guided_plan.get("phase3") or []) if step.get("action_key")), "none")),
+                "- Execution-safe / plan-only: {0}".format("yes" if guided_plan.get("execution_safe") and guided_plan.get("plan_only") else "unknown"),
         ]
         if flagged_links:
             brief_lines.append("- Flagged links:")

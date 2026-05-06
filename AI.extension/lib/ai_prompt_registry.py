@@ -303,6 +303,16 @@ class PromptCatalog(object):
             return self.get_entry_by_id("check-bim-basis-level-grid-health")
         if "ask ai agent for a plan" in target or "ask agent for project plan" in target:
             return self.get_entry_by_id("ask-agent-for-project-plan")
+        if (
+            "guided project startup plan" in target
+            or "project startup plan" in target
+            or target == "startup plan"
+            or "create project startup plan" in target
+            or "what should the agent do first" in target
+            or "agent project plan" in target
+            or "project diagnostic plan" in target
+        ):
+            return self.get_entry_by_id("guided-project-startup-plan")
         if "create codex task brief" in target or "generate developer task" in target or "prepare codex instruction" in target or "make implementation brief" in target:
             return self.get_entry_by_id("create-codex-task-brief")
         if "split" in target and "pipe" in target:

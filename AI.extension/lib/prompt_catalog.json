@@ -1148,6 +1148,38 @@
     "mode": "deterministic"
   },
   {
+    "id": "guided-project-startup-plan",
+    "title": "Guided project startup plan",
+    "category": "Project Intelligence",
+    "group": "AI Agent Planning",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "project",
+    "canonical_prompt": "guided project startup plan",
+    "planner_aliases": [
+      "guided project startup plan",
+      "project startup plan",
+      "startup plan",
+      "create project startup plan",
+      "what should the agent do first",
+      "agent project plan",
+      "project diagnostic plan"
+    ],
+    "example_prompts": [
+      "guided project startup plan",
+      "project startup plan",
+      "what should the agent do first",
+      "project diagnostic plan"
+    ],
+    "deterministic_handler": "guided_project_startup_plan_action",
+    "validation_state": "structural_only",
+    "requires_confirmation": false,
+    "enabled": true,
+    "prompt_text": "guided project startup plan",
+    "mode": "deterministic"
+  },
+  {
     "id": "ask-agent-for-project-plan",
     "title": "Ask AI Agent for project plan",
     "category": "Project Intelligence",
