@@ -5326,6 +5326,8 @@ def _room_space_maps(doc):
 
 def report_selected_elements_by_category(doc, uidoc):
     elems = _selected_elements(doc, uidoc)
+    type_grouped = {}
+    level_grouped = {}
     lines = [
         "Selected elements by category",
         "Selection scope: active document only",
@@ -5334,6 +5336,10 @@ def report_selected_elements_by_category(doc, uidoc):
         "Current selection count: {0}".format(len(elems)),
         "Total selected elements: {0}".format(len(elems)),
     ]
+    if not elems:
+        lines.append("No elements selected. Select elements or use an active-view report.")
+        lines.append("Selections in other open Revit projects are not included.")
+        return "\n".join(lines)
     grouped = {}
     try:
         for elem in elems:
@@ -5341,6 +5347,8 @@ def report_selected_elements_by_category(doc, uidoc):
                 continue
             category_name = _category_name(elem)
             grouped.setdefault(category_name, []).append(elem)
+            type_grouped.setdefault(_family_and_type_text(doc, elem) or "(no type)", []).append(elem)
+            level_grouped.setdefault(_element_level_name(doc, elem) or "(level not found)", []).append(elem)
     except Exception as err:
         lines.append("Unable to group selected elements by category.")
         lines.append("Diagnostic: {0}".format(safe_str(err)))
@@ -5360,17 +5368,29 @@ def report_selected_elements_by_category(doc, uidoc):
         )
     if len(ordered) > 20:
         lines.append("...showing first 20 of {0} category groups".format(len(ordered)))
+    lines.append("")
+    lines.append("Top family/type groups")
+    for type_name, items in sorted(type_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:5]:
+        lines.append("- {0}: {1} | sample ids: {2}".format(type_name, len(items), _sample_id_text(items)))
+    lines.append("")
+    lines.append("Sample levels")
+    for level_name, items in sorted(level_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:5]:
+        lines.append("- {0}: {1}".format(level_name, len(items)))
     return "\n".join(lines)
 
 
 def report_selected_elements_by_type(doc, uidoc):
     elems = _selected_elements(doc, uidoc)
     grouped = {}
+    category_grouped = {}
+    level_grouped = {}
     for elem in elems:
         if not elem:
             continue
         type_name = _family_and_type_text(doc, elem) or "(no type)"
         grouped.setdefault(type_name, []).append(elem)
+        category_grouped.setdefault(_category_name(elem), []).append(elem)
+        level_grouped.setdefault(_element_level_name(doc, elem) or "(level not found)", []).append(elem)
     lines = [
         "Selected elements by type",
         "Selection scope: active document only",
@@ -5379,6 +5399,10 @@ def report_selected_elements_by_type(doc, uidoc):
         "Current selection count: {0}".format(len(elems)),
         "Total selected elements: {0}".format(len(elems)),
     ]
+    if not elems:
+        lines.append("No elements selected. Select elements or use an active-view report.")
+        lines.append("Selections in other open Revit projects are not included.")
+        return "\n".join(lines)
     if not grouped:
         lines.append("No selected elements found in the active Revit document.")
         lines.append("Selections in other open Revit projects are not included.")
@@ -5394,6 +5418,14 @@ def report_selected_elements_by_type(doc, uidoc):
         )
     if len(ordered) > 20:
         lines.append("...showing first 20 of {0} type groups".format(len(ordered)))
+    lines.append("")
+    lines.append("By category")
+    for category_name, items in sorted(category_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:10]:
+        lines.append("- {0}: {1} | sample ids: {2}".format(category_name, len(items), _sample_id_text(items)))
+    lines.append("")
+    lines.append("Sample levels")
+    for level_name, items in sorted(level_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:5]:
+        lines.append("- {0}: {1}".format(level_name, len(items)))
     return "\n".join(lines)
 
 
@@ -5500,7 +5532,7 @@ def report_missing_parameters_from_selection(doc, uidoc):
         "Total selected elements: {0}".format(len(elems)),
     ]
     if not elems:
-        lines.append("No selected elements found in the active Revit document.")
+        lines.append("No elements selected. Select elements or use an active-view report.")
         lines.append("Selections in other open Revit projects are not included.")
         return "\n".join(lines)
 
@@ -9009,7 +9041,7 @@ def handle_public_command(prompt, doc, uidoc):
         return report_selected_elements_by_type(doc, uidoc)
     if "count selected elements" in p or "selected element count" in p or "count current selection" in p:
         return count_selected_elements(doc, uidoc)
-    if "health check for active view selection" in p or "selection health check" in p:
+    if "health check for active view selection" in p or "selection health check" in p or "health check selected elements" in p or "health check selection" in p:
         return health_check_for_active_view_selection(doc, uidoc)
     if "report missing parameters from selection" in p or "missing parameters from selection" in p:
         return report_missing_parameters_from_selection(doc, uidoc)

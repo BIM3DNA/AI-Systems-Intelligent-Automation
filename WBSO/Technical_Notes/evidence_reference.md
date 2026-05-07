@@ -1081,3 +1081,43 @@ To convert Project Context diagnostics into a safer user-facing plan before auto
 
 - runtime validated as plan-only
 - Execute Plan not validated
+
+## EV-2026-05-07-001 - MEP-RO-001 ModelMind Read-Only BIM/QA Selection Action Pack
+
+### Feature
+
+MEP-RO-001 ModelMind Read-Only BIM/QA Selection Action Pack
+
+### What changed in the implementation pass
+
+- existing selection-report pack was hardened
+- aliases were expanded
+- no model-modifying actions were added
+
+### Validation performed
+
+- Scan Project succeeded before selection-report tests.
+- No-selection test attempted.
+- Selected pipes/fittings test attempted.
+- Selected ducts/fittings test attempted.
+- Selected electrical elements test attempted.
+
+### Validation result
+
+Failed.
+
+### Reason
+
+Typed selection-report prompts fell through to Ollama and returned generic non-Revit answers instead of deterministic Revit selection reports.
+
+### Artifacts
+
+- runtime text output from failed prompts
+- no validated Revit selection-report output yet
+- screenshot artifacts not yet added
+
+### Status
+
+- structural/hardened
+- routing failed
+- not live validated

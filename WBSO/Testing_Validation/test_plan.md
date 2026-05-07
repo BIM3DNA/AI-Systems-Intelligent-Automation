@@ -653,6 +653,54 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-05-07 MEP-RO-001 ModelMind Read-Only BIM/QA Selection Reports
+
+### Test group
+
+MEP-RO-001 ModelMind Read-Only BIM/QA Selection Reports
+
+### Test cases
+
+A. No selection
+
+- `report selected elements by category`
+- `report selected elements by type`
+- `count selected elements`
+- `health check selected elements`
+- `report missing parameters from selection`
+
+Expected:
+
+- `No elements selected. Select elements or use an active-view report.`
+
+B. Selected pipes/fittings
+
+- same prompts
+
+Expected:
+
+- Revit-specific selected element summary with category/type/count/level/sample ElementIds.
+
+C. Selected ducts/fittings
+
+- same prompts
+
+Expected:
+
+- Revit-specific selected element summary for Ducts and Duct Fittings.
+
+D. Selected electrical elements
+
+- same prompts
+
+Expected:
+
+- Revit-specific selected element summary for electrical categories.
+
+### Current result
+
+Failed due Ollama fallback. No deterministic Revit selection-report output was validated in the 2026-05-07 runtime attempt.
+
 ## 2026-04-27 Project Context UX/Q&A Validation Targets
 
 ### Local/static checks

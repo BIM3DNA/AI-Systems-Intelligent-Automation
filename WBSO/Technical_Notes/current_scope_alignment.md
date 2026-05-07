@@ -371,3 +371,20 @@ Explicitly outside the validated scope:
 - model-modifying autonomy
 - autonomous schedule/template execution from the guided plan
 - BIM3DNA toolbar-copy synchronization
+
+### 2026-05-07 MEP-RO-001 scope alignment
+
+MEP-RO-001 remains aligned with WBSO R&D because it investigates safe deterministic read-only reporting across BIM disciplines.
+
+Current validation status:
+
+- structural/hardened implementation exists
+- live validation failed due prompt routing fallback to Ollama
+- no model mutation was observed
+- the feature is not accepted as runtime validated
+
+Next aligned work:
+
+- deterministic routing hotfix for selection-report prompts
+- current live selection read at execution time via `uidoc.Selection.GetElementIds()`
+- no new feature expansion until the routing failure is resolved

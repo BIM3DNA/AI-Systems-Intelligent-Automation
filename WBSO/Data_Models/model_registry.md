@@ -23,3 +23,11 @@ AI-AGENT-002 uses the existing cached Project Context and Project Onboarding dat
 - plan objects remain in-memory/session-scoped
 - deterministic Project Context fallback can produce the guided plan without relying on a successful external provider request
 - provider configuration was not changed
+
+## 2026-05-07 MEP-RO-001 Selection Routing Note
+
+The failed MEP-RO-001 validation shows that live Revit selection reports cannot rely on cached Project Context selection data alone.
+
+- selection-report handlers must read `uidoc.Selection.GetElementIds()` at execution time
+- deterministic BIM prompts that require live Revit state must not fall back to Ollama
+- no new persisted model or provider configuration change is implied by this failure

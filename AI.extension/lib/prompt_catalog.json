@@ -1728,12 +1728,15 @@
       "selected elements by category",
       "show selected elements by category",
       "group selected elements by category",
-      "summarize selected elements by category"
+      "summarize selected elements by category",
+      "bim qa selected elements by category",
+      "selection category report"
     ],
     "example_prompts": [
       "show selected elements by category",
       "group selected elements by category",
-      "summarize selected elements by category"
+      "summarize selected elements by category",
+      "selection category report"
     ],
     "deterministic_handler": "report_selected_elements_by_category",
     "requires_confirmation": false,
@@ -1756,12 +1759,15 @@
       "selected elements by type",
       "show selected elements by type",
       "group selected elements by type",
-      "summarize selected elements by type"
+      "summarize selected elements by type",
+      "bim qa selected elements by type",
+      "selection type report"
     ],
     "example_prompts": [
       "show selected elements by type",
       "group selected elements by type",
-      "summarize selected elements by type"
+      "summarize selected elements by type",
+      "selection type report"
     ],
     "deterministic_handler": "report_selected_elements_by_type",
     "requires_confirmation": false,
@@ -1784,12 +1790,15 @@
       "selected element count",
       "count current selection",
       "how many elements are selected",
-      "selection count"
+      "selection count",
+      "count selection",
+      "bim qa count selected elements"
     ],
     "example_prompts": [
       "count selected elements",
       "selected element count",
-      "how many elements are selected"
+      "how many elements are selected",
+      "count selection"
     ],
     "deterministic_handler": "count_selected_elements",
     "requires_confirmation": false,
@@ -1810,9 +1819,11 @@
     "planner_aliases": [
       "health check for active view selection",
       "selection health check",
+      "health check selected elements",
       "health check selection",
       "health check of active view for supported mep categories",
       "health check this active view",
+      "health check selected elements",
       "check this active view",
       "run health check on active view",
       "inspect active view for mep issues",
@@ -1844,8 +1855,10 @@
     "planner_aliases": [
       "report missing parameters from selection",
       "missing parameters from selection",
+      "report missing parameters from selected elements",
       "report missing key parameters from selected elements",
       "check missing key parameters in selection",
+      "report missing parameters from selection",
       "show missing parameters in selected elements",
       "find missing key parameters in selection",
       "check selected elements for missing parameters"

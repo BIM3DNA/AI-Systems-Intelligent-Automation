@@ -996,3 +996,40 @@ Open:
 - BIM Basis / Levels & Grids interpretation still needs refinement to reduce false positives in IFC-heavy projects.
 - Dedicated warning review action still needs implementation.
 - Sync to BIM3DNA toolbar copy remains pending as a separate task.
+
+---
+
+## ISSUE-2026-05-07-001
+
+**Title:** MEP-RO-001 selection-report prompts fall through to Ollama  
+**Status:** Open / runtime validation failed  
+**Type:** deterministic routing failure
+
+### Symptoms
+
+- `report selected elements by category` returned generic non-Revit prose.
+- `report selected elements by type` returned generic non-Revit prose.
+- `count selected elements` returned a Python/list counting explanation.
+- `health check selected elements` returned an HTML/browser/JavaScript-style answer.
+- `report missing parameters from selection` returned a generic parameter/form explanation.
+
+### Validation Environments
+
+- `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, active view `TEST [FloorPlan]`, with no selection and with selected pipes/pipe fittings.
+- Snowdon Towers Sample HVAC, with selected ducts/duct fittings.
+- Electrical sample/project, with selected Electrical Fixtures, Electrical Equipment, Lighting Fixtures, and Data/Communication Devices where available.
+
+### Root Cause Hypothesis
+
+Deterministic routing did not intercept the MEP-RO-001 selection-report prompts before Ollama fallback, or the catalog aliases are not connected to the chat routing path used by typed prompts.
+
+### Required Fix
+
+- Add deterministic routing aliases for all MEP-RO-001 prompts before Ollama fallback.
+- Ensure selection handlers read current live selection using `uidoc.Selection.GetElementIds()` at action time.
+- Return the standardized no-selection wording when no elements are selected.
+- Keep all handlers read-only.
+
+### Resolved Issues
+
+None for this validation pass.

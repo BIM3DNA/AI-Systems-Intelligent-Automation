@@ -55,3 +55,52 @@ Status: runtime validated as plan-only.
 - BIM Basis / Levels & Grids interpretation refinement for IFC-heavy projects
 - Dedicated warning review action
 - BIM3DNA toolbar-copy sync
+
+## 2026-05-07 MEP-RO-001 Selection Reports Validation Attempt
+
+Status: failed runtime validation.
+
+### Feature
+
+MEP-RO-001 ModelMind Read-Only BIM/QA Selection Action Pack.
+
+### Environments tested
+
+- `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, active view `TEST [FloorPlan]`
+- Snowdon Towers Sample HVAC
+- Electrical sample/project
+
+### Prompts tested
+
+- `report selected elements by category`
+- `report selected elements by type`
+- `count selected elements`
+- `health check selected elements`
+- `report missing parameters from selection`
+
+### Expected deterministic headers
+
+- `[SELECTED ELEMENTS BY CATEGORY]`
+- `[SELECTED ELEMENTS BY TYPE]`
+- `[COUNT SELECTED ELEMENTS]`
+- `[SELECTION HEALTH CHECK]`
+- `[MISSING PARAMETERS FROM SELECTION]`
+
+### Actual output
+
+The prompts returned generic Ollama responses instead of Revit-specific deterministic reports, including Python/list counting guidance, HTML/browser/JavaScript-style health-check prose, generic parameter/form explanation, and generic category/type report text.
+
+### Result
+
+Failed. The Revit selection-report handlers were not live validated because the typed prompts fell through to Ollama before deterministic routing executed.
+
+### Required next fix
+
+- add deterministic routing for all MEP-RO-001 selection-report prompts before Ollama fallback
+- read current live Revit selection at execution time through `uidoc.Selection.GetElementIds()`
+- preserve standardized no-selection wording
+- keep handlers read-only
+
+### Safety
+
+No model mutation was observed during this failed validation attempt.

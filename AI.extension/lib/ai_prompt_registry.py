@@ -315,13 +315,13 @@ class PromptCatalog(object):
             or "project diagnostic plan" in target
         ):
             return self.get_entry_by_id("guided-project-startup-plan")
-        if "count selected elements" in target or "selected element count" in target or "count current selection" in target or "how many elements are selected" in target or target == "selection count":
+        if "count selected elements" in target or "selected element count" in target or "count current selection" in target or "how many elements are selected" in target or target == "selection count" or target == "count selection" or "bim qa count selected elements" in target:
             return self.get_entry_by_id("count-selected-elements")
-        if "report selected elements by category" in target or "selected elements by category" in target:
+        if "report selected elements by category" in target or "selected elements by category" in target or "selection category report" in target:
             return self.get_entry_by_id("report-selected-elements-by-category")
-        if "report selected elements by type" in target or "selected elements by type" in target:
+        if "report selected elements by type" in target or "selected elements by type" in target or "selection type report" in target:
             return self.get_entry_by_id("report-selected-elements-by-type")
-        if "missing parameters from selection" in target or "missing key parameters" in target:
+        if "missing parameters from selection" in target or "missing parameters from selected elements" in target or "missing key parameters" in target:
             return self.get_entry_by_id("report-missing-parameters-from-selection")
         if "selection health check" in target or "health check selected elements" in target or "health check selection" in target:
             return self.get_entry_by_id("health-check-active-view-selection")

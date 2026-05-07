@@ -1015,3 +1015,29 @@ AI-AGENT-002 adds a guided project-startup planning layer on top of cached Proje
 - no free-form code execution is introduced
 - Execute Plan remains governed by the existing reviewed/catalog approval flow
 - this feature converts observed context into safer planning order; it is not an autonomous execution path
+
+## 2026-05-07 MEP-RO-001 Read-Only BIM/QA Selection Action Pack
+
+MEP-RO-001 is intended to provide cross-discipline read-only selection reporting through ModelMind and deterministic AI Workbench routing.
+
+### Intended reports
+
+- report selected elements by category
+- report selected elements by type
+- count selected elements
+- health check selected elements
+- report missing parameters from selection
+
+### Required architecture
+
+- selection-report prompts must route deterministically before Ollama fallback
+- handlers must read the current live Revit selection at execution time using `uidoc.Selection.GetElementIds()`
+- cached Project Context selection data is insufficient because users may select elements after `Scan Project`
+- handlers must remain read-only and must not create, delete, modify, or parameter-write model data
+
+### Current status
+
+- structural/hardened implementation exists in the runtime branch
+- live runtime validation on 2026-05-07 failed before Revit selection reports executed
+- failure cause: typed prompts fell through to Ollama and returned generic non-Revit prose
+- next work should be a deterministic routing and live-selection hotfix, not new feature expansion
