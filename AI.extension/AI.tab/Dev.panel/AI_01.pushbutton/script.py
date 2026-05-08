@@ -5329,16 +5329,15 @@ def report_selected_elements_by_category(doc, uidoc):
     type_grouped = {}
     level_grouped = {}
     lines = [
-        "Selected elements by category",
+        "[SELECTED ELEMENTS BY CATEGORY]",
         "Selection scope: active document only",
         "Active document: {0}".format(_document_title(doc)),
         "Active view: {0}".format(_active_view_title(doc, uidoc)),
-        "Current selection count: {0}".format(len(elems)),
-        "Total selected elements: {0}".format(len(elems)),
+        "Total selected: {0}".format(len(elems)),
     ]
     if not elems:
         lines.append("No elements selected. Select elements or use an active-view report.")
-        lines.append("Selections in other open Revit projects are not included.")
+        lines.append("Safety note: read-only; no model data modified.")
         return "\n".join(lines)
     grouped = {}
     try:
@@ -5354,18 +5353,14 @@ def report_selected_elements_by_category(doc, uidoc):
         lines.append("Diagnostic: {0}".format(safe_str(err)))
         return "\n".join(lines)
     if not grouped:
-        lines.append("No selected elements found in the active Revit document.")
-        lines.append("Selections in other open Revit projects are not included.")
+        lines.append("No elements selected. Select elements or use an active-view report.")
+        lines.append("Safety note: read-only; no model data modified.")
         return "\n".join(lines)
+    lines.append("")
+    lines.append("Category counts")
     ordered = sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))
     for index, (category_name, items) in enumerate(ordered[:20]):
-        lines.append(
-            "{0}: {1} | sample ids: {2}".format(
-                category_name,
-                len(items),
-                _sample_id_text(items),
-            )
-        )
+        lines.append("- {0}: {1} | sample ids: {2}".format(category_name, len(items), _sample_id_text(items)))
     if len(ordered) > 20:
         lines.append("...showing first 20 of {0} category groups".format(len(ordered)))
     lines.append("")
@@ -5376,6 +5371,9 @@ def report_selected_elements_by_category(doc, uidoc):
     lines.append("Sample levels")
     for level_name, items in sorted(level_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:5]:
         lines.append("- {0}: {1}".format(level_name, len(items)))
+    lines.append("")
+    lines.append("Sample ElementIds: {0}".format(_sample_id_text(elems, limit=10)))
+    lines.append("Safety note: read-only; no model data modified.")
     return "\n".join(lines)
 
 
@@ -5392,30 +5390,25 @@ def report_selected_elements_by_type(doc, uidoc):
         category_grouped.setdefault(_category_name(elem), []).append(elem)
         level_grouped.setdefault(_element_level_name(doc, elem) or "(level not found)", []).append(elem)
     lines = [
-        "Selected elements by type",
+        "[SELECTED ELEMENTS BY TYPE]",
         "Selection scope: active document only",
         "Active document: {0}".format(_document_title(doc)),
         "Active view: {0}".format(_active_view_title(doc, uidoc)),
-        "Current selection count: {0}".format(len(elems)),
-        "Total selected elements: {0}".format(len(elems)),
+        "Total selected: {0}".format(len(elems)),
     ]
     if not elems:
         lines.append("No elements selected. Select elements or use an active-view report.")
-        lines.append("Selections in other open Revit projects are not included.")
+        lines.append("Safety note: read-only; no model data modified.")
         return "\n".join(lines)
     if not grouped:
-        lines.append("No selected elements found in the active Revit document.")
-        lines.append("Selections in other open Revit projects are not included.")
+        lines.append("No elements selected. Select elements or use an active-view report.")
+        lines.append("Safety note: read-only; no model data modified.")
         return "\n".join(lines)
+    lines.append("")
+    lines.append("Type / family-type counts")
     ordered = sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))
     for type_name, items in ordered[:20]:
-        lines.append(
-            "{0}: {1} | sample ids: {2}".format(
-                type_name,
-                len(items),
-                _sample_id_text(items),
-            )
-        )
+        lines.append("- {0}: {1} | sample ids: {2}".format(type_name, len(items), _sample_id_text(items)))
     if len(ordered) > 20:
         lines.append("...showing first 20 of {0} type groups".format(len(ordered)))
     lines.append("")
@@ -5426,6 +5419,9 @@ def report_selected_elements_by_type(doc, uidoc):
     lines.append("Sample levels")
     for level_name, items in sorted(level_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:5]:
         lines.append("- {0}: {1}".format(level_name, len(items)))
+    lines.append("")
+    lines.append("Sample ElementIds: {0}".format(_sample_id_text(elems, limit=10)))
+    lines.append("Safety note: read-only; no model data modified.")
     return "\n".join(lines)
 
 
@@ -5442,15 +5438,15 @@ def count_selected_elements(doc, uidoc):
         level_name = _element_level_name(doc, elem) or "(level not found)"
         level_grouped.setdefault(level_name, []).append(elem)
     lines = [
-        "Count selected elements",
+        "[COUNT SELECTED ELEMENTS]",
         "Selection scope: active document only",
         "Active document: {0}".format(_document_title(doc)),
         "Active view: {0}".format(_active_view_title(doc, uidoc)),
-        "Total selected elements: {0}".format(len(elems)),
+        "Total selected: {0}".format(len(elems)),
     ]
     if not elems:
         lines.append("No elements selected. Select elements or use an active-view report.")
-        lines.append("Selections in other open Revit projects are not included.")
+        lines.append("Safety note: read-only; no model data modified.")
         return "\n".join(lines)
     lines.append("")
     lines.append("By category")
@@ -5464,6 +5460,82 @@ def count_selected_elements(doc, uidoc):
     lines.append("Sample levels")
     for level_name, items in sorted(level_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:10]:
         lines.append("- {0}: {1}".format(level_name, len(items)))
+    lines.append("")
+    lines.append("Sample ElementIds: {0}".format(_sample_id_text(elems, limit=10)))
+    lines.append("Safety note: read-only; no model data modified.")
+    return "\n".join(lines)
+
+
+def health_check_selected_elements(doc, uidoc):
+    elems = _selected_elements(doc, uidoc)
+    grouped = {}
+    type_grouped = {}
+    level_grouped = {}
+    missing_level = []
+    linked_or_import = []
+    for elem in elems:
+        if not elem:
+            continue
+        category_name = _category_name(elem)
+        grouped.setdefault(category_name, []).append(elem)
+        type_grouped.setdefault(_family_and_type_text(doc, elem) or "(no type)", []).append(elem)
+        level_name = _element_level_name(doc, elem)
+        if level_name:
+            level_grouped.setdefault(level_name, []).append(elem)
+        else:
+            missing_level.append(elem)
+        try:
+            if isinstance(elem, DB.ImportInstance):
+                linked_or_import.append(elem)
+        except:
+            pass
+        if category_name in ("Revit Links", "Imports in Families") or "Import" in category_name or "Link" in category_name:
+            linked_or_import.append(elem)
+
+    lines = [
+        "[SELECTION HEALTH CHECK]",
+        "Selection scope: active document only",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0}".format(_active_view_title(doc, uidoc)),
+        "Total selected: {0}".format(len(elems)),
+    ]
+    if not elems:
+        lines.append("No elements selected. Select elements or use an active-view report.")
+        lines.append("Safety note: read-only; no model data modified.")
+        return "\n".join(lines)
+
+    lines.append("")
+    lines.append("Category distribution")
+    for category_name, items in sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:20]:
+        lines.append("- {0}: {1} | sample ids: {2}".format(category_name, len(items), _sample_id_text(items)))
+    lines.append("")
+    lines.append("Type distribution")
+    for type_name, items in sorted(type_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:10]:
+        lines.append("- {0}: {1} | sample ids: {2}".format(type_name, len(items), _sample_id_text(items)))
+    lines.append("")
+    lines.append("Level distribution")
+    if level_grouped:
+        for level_name, items in sorted(level_grouped.items(), key=lambda item: (-len(item[1]), item[0]))[:10]:
+            lines.append("- {0}: {1}".format(level_name, len(items)))
+    else:
+        lines.append("- No level data found on sampled selected elements.")
+    lines.append("")
+    lines.append("Warnings")
+    warning_count = 0
+    if len(grouped) > 1:
+        warning_count += 1
+        lines.append("- Mixed categories selected: {0}".format(len(grouped)))
+    if missing_level:
+        warning_count += 1
+        lines.append("- Missing level/reference-level data on {0} selected element(s); sample ids: {1}".format(len(missing_level), _sample_id_text(missing_level)))
+    if linked_or_import:
+        warning_count += 1
+        lines.append("- Linked/import-style elements encountered: {0}; sample ids: {1}".format(len(linked_or_import), _sample_id_text(linked_or_import)))
+    if not warning_count:
+        lines.append("- No selection health warnings detected by this read-only check.")
+    lines.append("")
+    lines.append("Sample ElementIds: {0}".format(_sample_id_text(elems, limit=10)))
+    lines.append("Safety note: read-only; no model data modified.")
     return "\n".join(lines)
 
 
@@ -5524,16 +5596,15 @@ def health_check_for_active_view_selection(doc, uidoc):
 def report_missing_parameters_from_selection(doc, uidoc):
     elems = _selected_elements(doc, uidoc)
     lines = [
-        "Missing key parameters from selection",
+        "[MISSING PARAMETERS FROM SELECTION]",
         "Selection scope: active document only",
         "Active document: {0}".format(_document_title(doc)),
         "Active view: {0}".format(_active_view_title(doc, uidoc)),
-        "Current selection count: {0}".format(len(elems)),
-        "Total selected elements: {0}".format(len(elems)),
+        "Total selected: {0}".format(len(elems)),
     ]
     if not elems:
         lines.append("No elements selected. Select elements or use an active-view report.")
-        lines.append("Selections in other open Revit projects are not included.")
+        lines.append("Safety note: read-only; no model data modified.")
         return "\n".join(lines)
 
     checks = [
@@ -5550,40 +5621,45 @@ def report_missing_parameters_from_selection(doc, uidoc):
         ),
     ]
 
+    lines.append("Parameters checked: {0}".format(", ".join([label for label, _ in checks])))
+    lines.append("")
+
     findings = []
     for label, resolver in checks:
         applicable = []
         missing = []
+        unavailable = []
         for elem in elems:
             try:
                 value = resolver(elem)
-            except:
+            except Exception:
                 value = "__not_applicable__"
             if value == "__not_applicable__":
+                unavailable.append(elem)
                 continue
             applicable.append(elem)
             if not value:
                 missing.append(elem)
-        if not applicable:
-            continue
-        findings.append((label, applicable, missing))
+        findings.append((label, applicable, missing, unavailable))
 
     if not findings:
         lines.append("No reviewed parameter checks were applicable to the current selection.")
+        lines.append("Safety note: read-only; no model data modified.")
         return "\n".join(lines)
 
     missing_any = False
-    for label, applicable, missing in findings:
+    for label, applicable, missing, unavailable in findings:
         lines.append(
-            "{0}: missing on {1} of {2} applicable element(s)".format(
-                label, len(missing), len(applicable)
+            "{0}: missing/empty {1} | applicable {2} | unavailable/not applicable {3}".format(
+                label, len(missing), len(applicable), len(unavailable)
             )
         )
         if missing:
             missing_any = True
-            lines.append("  sample ids: {0}".format(_sample_id_text(missing)))
+            lines.append("  sample affected ElementIds: {0}".format(_sample_id_text(missing)))
     if not missing_any:
         lines.append("Nothing is missing from the reviewed baseline parameter set for the current selection.")
+    lines.append("Safety note: read-only; no model data modified.")
     return "\n".join(lines)
 
 
@@ -9035,15 +9111,17 @@ def handle_public_command(prompt, doc, uidoc):
         return report_devices_without_circuit_info(doc, uidoc)
     if "list fixtures by type in active view" in p or "list electrical fixtures by type" in p:
         return list_fixtures_by_type_in_active_view(doc, uidoc)
-    if "report selected elements by category" in p:
+    if "report selected elements by category" in p or "selection category report" in p or "selected elements by category" in p or "report selection by category" in p:
         return report_selected_elements_by_category(doc, uidoc)
-    if "report selected elements by type" in p:
+    if "report selected elements by type" in p or "selection type report" in p or "selected elements by type" in p or "report selection by type" in p:
         return report_selected_elements_by_type(doc, uidoc)
-    if "count selected elements" in p or "selected element count" in p or "count current selection" in p:
+    if "count selected elements" in p or "selected element count" in p or "count current selection" in p or "count selection" in p or "bim qa count selected elements" in p:
         return count_selected_elements(doc, uidoc)
-    if "health check for active view selection" in p or "selection health check" in p or "health check selected elements" in p or "health check selection" in p:
+    if "selection health check" in p or "health check selected elements" in p or "health check selection" in p:
+        return health_check_selected_elements(doc, uidoc)
+    if "health check for active view selection" in p:
         return health_check_for_active_view_selection(doc, uidoc)
-    if "report missing parameters from selection" in p or "missing parameters from selection" in p:
+    if "report missing parameters from selection" in p or "report missing parameters from selected elements" in p or "missing parameters from selection" in p or "missing selected parameters" in p:
         return report_missing_parameters_from_selection(doc, uidoc)
     if "create 3d view from selection/context" in p or "create 3d view from selection" in p or "create 3d view" in p:
         return create_3d_view_from_selection(doc, uidoc)
@@ -11900,6 +11978,62 @@ class OllamaAIChat(forms.WPFWindow):
             )
         return format_project_onboarding_checklist(build_project_onboarding_checklist(context))
 
+    def _selection_report_kind(self, prompt):
+        normalized = self._normalize_context_prompt(prompt)
+        exact = {
+            "report selected elements by category": "category",
+            "selection category report": "category",
+            "selected elements by category": "category",
+            "report selection by category": "category",
+            "report selected elements by type": "type",
+            "selection type report": "type",
+            "selected elements by type": "type",
+            "report selection by type": "type",
+            "count selected elements": "count",
+            "count selection": "count",
+            "bim qa count selected elements": "count",
+            "health check selected elements": "health",
+            "health check selection": "health",
+            "selection health check": "health",
+            "report missing parameters from selection": "missing_parameters",
+            "report missing parameters from selected elements": "missing_parameters",
+            "missing parameters from selection": "missing_parameters",
+            "missing selected parameters": "missing_parameters",
+        }
+        if normalized in exact:
+            return exact[normalized]
+        if "selected elements" in normalized and "category" in normalized:
+            return "category"
+        if "selection" in normalized and "category" in normalized and "report" in normalized:
+            return "category"
+        if "selected elements" in normalized and "type" in normalized:
+            return "type"
+        if "selection" in normalized and "type" in normalized and "report" in normalized:
+            return "type"
+        if ("count" in normalized and "selected elements" in normalized) or normalized == "count selection":
+            return "count"
+        if ("health check" in normalized and "selected" in normalized) or normalized == "selection health check" or normalized == "health check selection":
+            return "health"
+        if "missing" in normalized and "parameter" in normalized and ("selection" in normalized or "selected" in normalized):
+            return "missing_parameters"
+        return None
+
+    def answer_selection_report_question(self, prompt):
+        kind = self._selection_report_kind(prompt)
+        if not kind:
+            return None
+        if kind == "category":
+            return report_selected_elements_by_category(doc, uidoc)
+        if kind == "type":
+            return report_selected_elements_by_type(doc, uidoc)
+        if kind == "count":
+            return count_selected_elements(doc, uidoc)
+        if kind == "health":
+            return health_check_selected_elements(doc, uidoc)
+        if kind == "missing_parameters":
+            return report_missing_parameters_from_selection(doc, uidoc)
+        return None
+
     def deterministic_project_context_answer(self, prompt):
         kind = self._context_query_kind(prompt)
         if not kind:
@@ -12294,14 +12428,18 @@ class OllamaAIChat(forms.WPFWindow):
             elif self._is_scan_request(prompt):
                 result = self.run_project_context_scan("standard")
                 reply = result.get("summary", "")
-            elif self._is_project_context_question(prompt):
-                reply = self.answer_project_context_question(prompt)
-            elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                self.append_project_agent_plan()
-                reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
             else:
-                reply = send_ollama_chat(self.model, prompt)
-                reply = self._sanitize_ollama_context_error(reply)
+                selection_reply = self.answer_selection_report_question(prompt)
+                if selection_reply is not None:
+                    reply = selection_reply
+                elif self._is_project_context_question(prompt):
+                    reply = self.answer_project_context_question(prompt)
+                elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                    self.append_project_agent_plan()
+                    reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                else:
+                    reply = send_ollama_chat(self.model, prompt)
+                    reply = self._sanitize_ollama_context_error(reply)
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             self.append_chat_turn(prompt, reply, "AI")
