@@ -1041,3 +1041,35 @@ MEP-RO-001 is intended to provide cross-discipline read-only selection reporting
 - live runtime validation on 2026-05-07 failed before Revit selection reports executed
 - failure cause: typed prompts fell through to Ollama and returned generic non-Revit prose
 - next work should be a deterministic routing and live-selection hotfix, not new feature expansion
+
+## 2026-05-07 MEP-RO-001 Routing/Live Selection Hotfix
+
+MEP-RO-001 selection reports are now documented as deterministic read-only BIM/QA tools after the routing/live-selection hotfix validation.
+
+### Hotfix architecture
+
+- known selection-report prompts route before Ollama fallback
+- selection handlers read the current live Revit selection at execution time through `uidoc.Selection.GetElementIds()`
+- `doc.GetElement(id)` is used to resolve selected elements safely
+- reports remain read-only and do not create, delete, parameter-write, or otherwise modify model data
+
+### Report content
+
+- category counts
+- type/family-type counts
+- level and reference-level samples where available
+- sample ElementIds
+- selection health warnings such as mixed categories or missing level/reference-level data
+- missing parameter summaries
+- safety notes stating that no model data is modified
+
+### Traceability
+
+The earlier 2026-05-07 validation failure remains part of the evidence trail. The correct narrative is:
+
+1. the structural selection action pack existed and was hardened
+2. initial runtime validation failed because typed prompts fell through to Ollama
+3. a narrow `script.py` hotfix added deterministic routing and confirmed live selection handling
+4. runtime retest passed across no-selection, piping, HVAC, and electrical selections
+
+Status: runtime validated after hotfix.

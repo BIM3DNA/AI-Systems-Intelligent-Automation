@@ -31,3 +31,12 @@ The failed MEP-RO-001 validation shows that live Revit selection reports cannot 
 - selection-report handlers must read `uidoc.Selection.GetElementIds()` at execution time
 - deterministic BIM prompts that require live Revit state must not fall back to Ollama
 - no new persisted model or provider configuration change is implied by this failure
+
+## 2026-05-07 MEP-RO-001 Hotfix Validation Note
+
+MEP-RO-001 now avoids generic Ollama fallback for known selection-report prompts after the routing/live-selection hotfix.
+
+- deterministic Revit API handlers produced the validated selected-element reports
+- handlers read the current live selection through `uidoc.Selection.GetElementIds()` and resolve elements with `doc.GetElement(id)`
+- no new persisted model store was introduced
+- no provider configuration was changed

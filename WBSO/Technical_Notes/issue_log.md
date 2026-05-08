@@ -1002,7 +1002,7 @@ Open:
 ## ISSUE-2026-05-07-001
 
 **Title:** MEP-RO-001 selection-report prompts fall through to Ollama  
-**Status:** Open / runtime validation failed  
+**Status:** Resolved / hotfixed / runtime validated  
 **Type:** deterministic routing failure
 
 ### Symptoms
@@ -1030,6 +1030,16 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 - Return the standardized no-selection wording when no elements are selected.
 - Keep all handlers read-only.
 
-### Resolved Issues
+### Resolution
 
-None for this validation pass.
+- Deterministic routes were added before Ollama for all five selection-report prompt families.
+- Handlers use the current live selection.
+- No-selection output was standardized.
+- Revit-specific headers were verified.
+- Runtime retest passed across BUNGE, Snowdon HVAC, and Snowdon Electrical.
+
+### Remaining Open Items
+
+- Additional parameter sets for discipline-specific QA can be refined later.
+- Active-view reports remain separate future work.
+- BIM3DNA toolbar sync remains pending if not yet done.

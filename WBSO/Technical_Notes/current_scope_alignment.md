@@ -388,3 +388,20 @@ Next aligned work:
 - deterministic routing hotfix for selection-report prompts
 - current live selection read at execution time via `uidoc.Selection.GetElementIds()`
 - no new feature expansion until the routing failure is resolved
+
+### 2026-05-07 MEP-RO-001 hotfix scope alignment
+
+MEP-RO-001 is now aligned and runtime validated as a low-risk read-only ModelMind action pack.
+
+- supports cross-discipline selected-element reporting
+- remains read-only and does not modify the Revit model
+- supports the broader WBSO goal of safe AI-assisted BIM diagnostics
+- deterministic handlers, not Ollama, produced the validated selected-element reports
+
+Explicitly outside this validated scope:
+
+- Execute Plan behavior
+- write/model-modifying actions
+- optional discipline-specific parameter-set refinement
+- future active-view report expansion
+- BIM3DNA toolbar-copy synchronization

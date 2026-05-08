@@ -79,3 +79,12 @@ The MEP-RO-001 validation failure demonstrates that deterministic BIM prompts re
 - the observed generic responses came from fallback chat behavior, not validated Revit selection-report execution
 - no provider configuration was changed
 - no model/provider behavior beyond the observed fallback was validated
+
+## 2026-05-07 MEP-RO-001 Hotfix Provider Boundary Note
+
+After the MEP-RO-001 routing/live-selection hotfix, the known selection-report prompts no longer fall through to generic Ollama fallback.
+
+- deterministic Revit API handlers produced the validated selected-element reports
+- Ollama did not produce the selected-element reports
+- no provider configuration was changed
+- provider boundary remains: deterministic BIM commands handle live Revit selection state; conversational providers remain fallback only for non-deterministic questions

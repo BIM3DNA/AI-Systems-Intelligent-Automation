@@ -1121,3 +1121,50 @@ Typed selection-report prompts fell through to Ollama and returned generic non-R
 - structural/hardened
 - routing failed
 - not live validated
+
+## EV-2026-05-07-002 - MEP-RO-001 Routing/Live Selection Hotfix
+
+### Feature
+
+MEP-RO-001 Routing/Live Selection Hotfix
+
+### What changed
+
+- Fixed deterministic routing for selection-report prompts.
+- Confirmed live selection reading through the existing `_selected_elements(doc, uidoc)` path.
+- Validated read-only Revit-specific output across piping, HVAC, and electrical selections.
+
+### Hotfix files changed
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+
+### Files intentionally not changed in the implementation pass
+
+- `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/UI.xaml`
+- `AI.extension/lib/prompt_catalog.json`
+- `AI.extension/lib/ai_prompt_registry.py`
+- `AI.extension/lib/ai_agent_session.py`
+- BIM3DNA toolbar copy
+- WBSO files during the implementation pass
+
+### Validation
+
+- no selection passed
+- BUNGE pipes/fittings passed
+- Snowdon HVAC selected elements passed
+- Snowdon Electrical selected elements passed
+- no generic Ollama fallback observed for the five tested prompts after hotfix
+- no model mutation observed
+
+### Artifacts
+
+- runtime text output from Scan Project
+- runtime text output from no-selection prompts
+- runtime text output from selected piping prompts
+- runtime text output from selected HVAC prompts
+- runtime text output from selected electrical prompts
+- screenshot artifacts not yet added
+
+### Status
+
+Runtime validated after hotfix.

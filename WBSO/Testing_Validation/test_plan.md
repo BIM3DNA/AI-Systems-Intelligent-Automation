@@ -701,6 +701,52 @@ Expected:
 
 Failed due Ollama fallback. No deterministic Revit selection-report output was validated in the 2026-05-07 runtime attempt.
 
+### Hotfix result
+
+The previous failed state was resolved after the deterministic routing/live-selection hotfix.
+
+### Passed test matrix after hotfix
+
+A. No selection
+
+- `report selected elements by category`: passed
+- `report selected elements by type`: passed
+- `count selected elements`: passed
+- `health check selected elements`: passed
+- `report missing parameters from selection`: passed
+
+B. BUNGE selected pipes/fittings
+
+- `count selected elements`: passed
+- category report: passed
+- type report: passed
+- health check: passed
+- missing parameters: passed
+
+C. Snowdon HVAC selected elements
+
+- `count selected elements`: passed
+- category report: passed
+- type report: passed
+- health check: passed
+- missing parameters: passed
+
+D. Snowdon Electrical selected elements
+
+- `count selected elements`: passed
+- category report: passed
+- type report: passed
+- health check: passed
+- missing parameters: passed
+
+Expected and observed after hotfix:
+
+- deterministic Revit-specific headers
+- current live selection used
+- no generic Ollama fallback
+- no pyRevit console error
+- no model mutation
+
 ## 2026-04-27 Project Context UX/Q&A Validation Targets
 
 ### Local/static checks

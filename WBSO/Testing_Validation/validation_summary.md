@@ -104,3 +104,57 @@ Failed. The Revit selection-report handlers were not live validated because the 
 ### Safety
 
 No model mutation was observed during this failed validation attempt.
+
+## 2026-05-07 MEP-RO-001 Routing/Live Selection Hotfix - Passed Validation
+
+Status: runtime validated after hotfix.
+
+### Feature
+
+MEP-RO-001 ModelMind Read-Only BIM/QA Selection Action Pack.
+
+### Environments tested
+
+- `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, active view `TEST [FloorPlan]`
+- Snowdon Towers Sample HVAC, active view `3D HVAC Layout`
+- Snowdon Towers Sample Electrical, active view `3D - Just Electrical`
+
+### Prompts tested
+
+- `report selected elements by category`
+- `report selected elements by type`
+- `count selected elements`
+- `health check selected elements`
+- `report missing parameters from selection`
+
+### Expected headers
+
+- `[SELECTED ELEMENTS BY CATEGORY]`
+- `[SELECTED ELEMENTS BY TYPE]`
+- `[COUNT SELECTED ELEMENTS]`
+- `[SELECTION HEALTH CHECK]`
+- `[MISSING PARAMETERS FROM SELECTION]`
+
+### Actual deterministic Revit-specific outputs
+
+- no-selection tests returned deterministic headers and the standardized no-selection message
+- BUNGE selected piping validation reported 21 selected elements: 12 Pipes and 9 Pipe Fittings, with sample levels Ground Floor 20 and First Floor 1
+- Snowdon HVAC validation reported 111 selected elements: 42 Duct Fittings, 41 Ducts, 27 Air Terminals, and 1 Mechanical Equipment, with sample levels L5, L4, L3, and R1
+- Snowdon Electrical validation reported 1300 selected elements, including Electrical Fixtures, Lighting Fixtures, Conduits, Conduit Fittings, Electrical Equipment, and Electrical Analytical Loads, with 66 type groups detected
+- no generic Ollama fallback was observed for the five tested prompts after hotfix
+
+### Prior failed validation
+
+Resolved. The earlier failure is preserved in this file and was caused by typed prompts falling through to Ollama before deterministic routing.
+
+### Safety
+
+- no model mutation observed
+- no pyRevit console error observed
+- no long freeze observed
+
+### Remaining refinements
+
+- optional discipline-specific parameter sets
+- active-view reports
+- BIM3DNA toolbar sync
