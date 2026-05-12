@@ -5324,6 +5324,361 @@ def _room_space_maps(doc):
     return room_map, space_map
 
 
+ACTIVE_VIEW_MEP_DETAIL_CAP = 2000
+ACTIVE_VIEW_MEP_CATEGORY_GROUP_CAP = 20
+ACTIVE_VIEW_MEP_TYPE_GROUP_CAP = 20
+ACTIVE_VIEW_MEP_LEVEL_GROUP_CAP = 10
+ACTIVE_VIEW_MEP_SAMPLE_ID_CAP = 10
+
+
+def _active_view_mep_category_specs():
+    return [
+        ("Piping", "Pipes", "OST_PipeCurves"),
+        ("Piping", "Pipe Fittings", "OST_PipeFitting"),
+        ("Piping", "Pipe Accessories", "OST_PipeAccessory"),
+        ("Piping", "Plumbing Fixtures", "OST_PlumbingFixtures"),
+        ("HVAC", "Ducts", "OST_DuctCurves"),
+        ("HVAC", "Duct Fittings", "OST_DuctFitting"),
+        ("HVAC", "Duct Accessories", "OST_DuctAccessory"),
+        ("HVAC", "Air Terminals", "OST_DuctTerminal"),
+        ("HVAC", "Mechanical Equipment", "OST_MechanicalEquipment"),
+        ("HVAC", "Flex Ducts", "OST_FlexDuctCurves"),
+        ("Electrical", "Electrical Fixtures", "OST_ElectricalFixtures"),
+        ("Electrical", "Electrical Equipment", "OST_ElectricalEquipment"),
+        ("Electrical", "Lighting Fixtures", "OST_LightingFixtures"),
+        ("Electrical", "Lighting Devices", "OST_LightingDevices"),
+        ("Electrical", "Data Devices", "OST_DataDevices"),
+        ("Electrical", "Communication Devices", "OST_CommunicationDevices"),
+        ("Electrical", "Fire Alarm Devices", "OST_FireAlarmDevices"),
+        ("Electrical", "Conduits", "OST_Conduit"),
+        ("Electrical", "Conduit Fittings", "OST_ConduitFitting"),
+        ("Electrical", "Cable Trays", "OST_CableTray"),
+        ("Electrical", "Cable Tray Fittings", "OST_CableTrayFitting"),
+        ("Electrical", "Electrical Analytical Loads", "OST_ElectricalAnalyticalLoads"),
+        ("Other supported / coordination", "Generic Models", "OST_GenericModel"),
+        ("Other supported / coordination", "Revit Links", "OST_RvtLinks"),
+    ]
+
+
+def _safe_builtin_category(category_name):
+    try:
+        return getattr(DB.BuiltInCategory, category_name)
+    except:
+        return None
+
+
+def _collect_active_view_mep_elements(doc, uidoc, discipline_filter=None):
+    active_view = uidoc.ActiveView
+    element_map = {}
+    category_meta = {}
+    warnings = []
+    requested = (discipline_filter or "").lower().strip()
+    for discipline, label, bic_name in _active_view_mep_category_specs():
+        if requested and requested != discipline.lower():
+            continue
+        bic = _safe_builtin_category(bic_name)
+        if bic is None:
+            continue
+        try:
+            elems = list(
+                DB.FilteredElementCollector(doc, active_view.Id)
+                .OfCategory(bic)
+                .WhereElementIsNotElementType()
+                .ToElements()
+            )
+        except Exception as err:
+            warnings.append("Skipped {0}: {1}".format(label, safe_str(err)))
+            continue
+        for elem in elems:
+            if elem is None:
+                continue
+            key = _safe_int_id(elem)
+            element_map[key] = elem
+            category_meta[key] = {
+                "discipline": discipline,
+                "label": label,
+            }
+
+    if not requested or requested == "other supported / coordination":
+        try:
+            imports = list(
+                DB.FilteredElementCollector(doc, active_view.Id)
+                .OfClass(DB.ImportInstance)
+                .WhereElementIsNotElementType()
+                .ToElements()
+            )
+            for elem in imports:
+                if elem is None:
+                    continue
+                key = _safe_int_id(elem)
+                element_map[key] = elem
+                category_meta[key] = {
+                    "discipline": "Other supported / coordination",
+                    "label": "CAD/import instances",
+                }
+        except Exception as err:
+            warnings.append("Skipped CAD/import instances: {0}".format(safe_str(err)))
+
+    elements = list(element_map.values())
+    elements.sort(key=lambda elem: _safe_int_id(elem))
+    return {
+        "active_view": active_view,
+        "elements": elements,
+        "category_meta": category_meta,
+        "warnings": warnings,
+        "discipline_filter": discipline_filter,
+    }
+
+
+def _active_view_mep_groups(doc, collected, detail_cap=ACTIVE_VIEW_MEP_DETAIL_CAP):
+    elems = collected.get("elements", [])
+    inspected = elems[:detail_cap]
+    meta = collected.get("category_meta", {})
+    discipline_counts = {
+        "Piping": 0,
+        "HVAC": 0,
+        "Electrical": 0,
+        "Other supported / coordination": 0,
+    }
+    category_grouped = {}
+    type_grouped = {}
+    level_grouped = {}
+    missing_level = []
+    imports = []
+    revit_links = []
+    for elem in inspected:
+        key = _safe_int_id(elem)
+        info = meta.get(key, {})
+        discipline = info.get("discipline") or "Other supported / coordination"
+        category_name = info.get("label") or _category_name(elem)
+        discipline_counts.setdefault(discipline, 0)
+        discipline_counts[discipline] += 1
+        category_grouped.setdefault(category_name, []).append(elem)
+        type_grouped.setdefault(_family_and_type_text(doc, elem) or "(no type)", []).append(elem)
+        level_name = _element_level_name(doc, elem)
+        if level_name:
+            level_grouped.setdefault(level_name, []).append(elem)
+        else:
+            missing_level.append(elem)
+        if category_name == "CAD/import instances" or "Import" in category_name:
+            imports.append(elem)
+        if category_name == "Revit Links":
+            revit_links.append(elem)
+    return {
+        "elements": elems,
+        "inspected": inspected,
+        "discipline_counts": discipline_counts,
+        "category_grouped": category_grouped,
+        "type_grouped": type_grouped,
+        "level_grouped": level_grouped,
+        "missing_level": missing_level,
+        "imports": imports,
+        "revit_links": revit_links,
+        "capped": len(elems) > detail_cap,
+    }
+
+
+def _active_view_mep_header(title, doc, uidoc, collected, total_count):
+    active_view = collected.get("active_view") or uidoc.ActiveView
+    try:
+        view_type = safe_str(active_view.ViewType)
+    except:
+        view_type = "unknown"
+    return [
+        title,
+        "Selection scope: active view / active document only",
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0} [{1}]".format(_active_view_title(doc, uidoc), view_type),
+        "Total supported MEP elements in active view: {0}".format(total_count),
+    ]
+
+
+def _append_active_view_group_lines(lines, title, grouped, limit):
+    lines.append("")
+    lines.append(title)
+    ordered = sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))
+    if not ordered:
+        lines.append("- none")
+        return
+    for name, items in ordered[:limit]:
+        lines.append("- {0}: {1} | sample ids: {2}".format(name, len(items), _sample_id_text(items)))
+    if len(ordered) > limit:
+        lines.append("...showing first {0} of {1} groups".format(limit, len(ordered)))
+
+
+def _append_active_view_common_tail(lines, groups, collected, mode):
+    elems = groups.get("elements", [])
+    if groups.get("capped"):
+        lines.append("")
+        lines.append("Result set capped for readability/performance.")
+    lines.append("")
+    lines.append("Sample ElementIds: {0}".format(_sample_id_text(elems, limit=ACTIVE_VIEW_MEP_SAMPLE_ID_CAP)))
+    lines.append("")
+    lines.append("Notes / Warnings")
+    notes = []
+    if not elems:
+        notes.append("No supported MEP elements found in the active view.")
+    visible_disciplines = [name for name, count in groups.get("discipline_counts", {}).items() if count]
+    if len(visible_disciplines) > 1:
+        notes.append("Mixed disciplines visible: {0}".format(len(visible_disciplines)))
+    if groups.get("missing_level"):
+        notes.append("Missing level/reference-level data on {0} element(s).".format(len(groups.get("missing_level"))))
+    if groups.get("imports"):
+        notes.append("CAD/import instances visible in active view: {0}".format(len(groups.get("imports"))))
+    if groups.get("revit_links"):
+        notes.append("Revit links visible in active view: {0}".format(len(groups.get("revit_links"))))
+    for warning in collected.get("warnings", []):
+        notes.append(warning)
+    if not notes:
+        notes.append("No active-view QA warnings detected by this read-only report.")
+    for note in notes:
+        lines.append("- {0}".format(note))
+    lines.append("")
+    lines.append("Safety note:")
+    lines.append("- read-only; no model data modified.")
+
+
+def active_view_mep_report(doc, uidoc, mode="summary", discipline_filter=None):
+    collected = _collect_active_view_mep_elements(doc, uidoc, discipline_filter=discipline_filter)
+    groups = _active_view_mep_groups(doc, collected)
+    elems = groups.get("elements", [])
+    title_map = {
+        "summary": "[ACTIVE VIEW MEP SUMMARY]",
+        "count": "[ACTIVE VIEW MEP SUMMARY]",
+        "category": "[ACTIVE VIEW ELEMENTS BY CATEGORY]",
+        "type": "[ACTIVE VIEW ELEMENTS BY TYPE]",
+        "qa": "[ACTIVE VIEW QA REPORT]",
+    }
+    title = title_map.get(mode, "[ACTIVE VIEW MEP SUMMARY]")
+    lines = _active_view_mep_header(title, doc, uidoc, collected, len(elems))
+    if discipline_filter:
+        lines.append("Discipline filter: {0}".format(discipline_filter))
+    if not elems:
+        lines.append("")
+        lines.append("No supported MEP elements found in the active view.")
+        lines.append("")
+        lines.append("Safety note:")
+        lines.append("- read-only; no model data modified.")
+        return "\n".join(lines)
+
+    lines.append("")
+    lines.append("By discipline")
+    for discipline in ["Piping", "HVAC", "Electrical", "Other supported / coordination"]:
+        lines.append("- {0}: {1}".format(discipline, groups.get("discipline_counts", {}).get(discipline, 0)))
+
+    if mode == "type":
+        _append_active_view_group_lines(lines, "Type / family-type counts", groups.get("type_grouped", {}), ACTIVE_VIEW_MEP_TYPE_GROUP_CAP)
+        _append_active_view_group_lines(lines, "Category counts", groups.get("category_grouped", {}), ACTIVE_VIEW_MEP_CATEGORY_GROUP_CAP)
+    else:
+        _append_active_view_group_lines(lines, "By category", groups.get("category_grouped", {}), ACTIVE_VIEW_MEP_CATEGORY_GROUP_CAP)
+        _append_active_view_group_lines(lines, "Top family/type groups", groups.get("type_grouped", {}), ACTIVE_VIEW_MEP_TYPE_GROUP_CAP)
+    _append_active_view_group_lines(lines, "Sample levels", groups.get("level_grouped", {}), ACTIVE_VIEW_MEP_LEVEL_GROUP_CAP)
+    _append_active_view_common_tail(lines, groups, collected, mode)
+    return "\n".join(lines)
+
+
+def report_active_view_missing_parameters(doc, uidoc, discipline_filter=None):
+    collected = _collect_active_view_mep_elements(doc, uidoc, discipline_filter=discipline_filter)
+    groups = _active_view_mep_groups(doc, collected)
+    elems = groups.get("elements", [])
+    inspected = groups.get("inspected", [])
+    lines = _active_view_mep_header("[ACTIVE VIEW MISSING PARAMETERS]", doc, uidoc, collected, len(elems))
+    if discipline_filter:
+        lines.append("Discipline filter: {0}".format(discipline_filter))
+    if not elems:
+        lines.append("")
+        lines.append("No supported MEP elements found in the active view.")
+        lines.append("")
+        lines.append("Safety note:")
+        lines.append("- read-only; no model data modified.")
+        return "\n".join(lines)
+
+    checks = [
+        ("Mark", lambda elem: _lookup_first_param_value(elem, ["Mark"])),
+        ("Comments", lambda elem: _lookup_first_param_value(elem, ["Comments"])),
+        ("Family and Type", lambda elem: _family_and_type_text(doc, elem)),
+        (
+            "System assignment",
+            lambda elem: _system_assignment_value(elem) if _supports_system_assignment(elem) else "__not_applicable__",
+        ),
+        (
+            "Electrical circuit/system",
+            lambda elem: _electrical_assignment_value(elem) if _supports_electrical_assignment(elem) else "__not_applicable__",
+        ),
+    ]
+    lines.append("Elements inspected for parameter details: {0}".format(len(inspected)))
+    lines.append("Parameters checked: {0}".format(", ".join([label for label, _ in checks])))
+    lines.append("")
+    for label, resolver in checks:
+        applicable = []
+        missing = []
+        unavailable = []
+        for elem in inspected:
+            try:
+                value = resolver(elem)
+            except Exception:
+                value = "__not_applicable__"
+            if value == "__not_applicable__":
+                unavailable.append(elem)
+                continue
+            applicable.append(elem)
+            if not value:
+                missing.append(elem)
+        lines.append(
+            "{0}: missing/empty {1} | applicable {2} | unavailable/not applicable {3}".format(
+                label,
+                len(missing),
+                len(applicable),
+                len(unavailable),
+            )
+        )
+        if missing:
+            lines.append("  sample affected ElementIds: {0}".format(_sample_id_text(missing)))
+    if groups.get("capped"):
+        lines.append("")
+        lines.append("Result set capped for readability/performance.")
+    lines.append("")
+    lines.append("Safety note:")
+    lines.append("- read-only; no model data modified.")
+    return "\n".join(lines)
+
+
+def active_view_mep_summary(doc, uidoc, context=None):
+    return active_view_mep_report(doc, uidoc, mode="summary")
+
+
+def count_mep_elements_in_active_view(doc, uidoc, context=None):
+    return active_view_mep_report(doc, uidoc, mode="count")
+
+
+def report_active_view_elements_by_category(doc, uidoc, context=None):
+    return active_view_mep_report(doc, uidoc, mode="category")
+
+
+def report_active_view_elements_by_type(doc, uidoc, context=None):
+    return active_view_mep_report(doc, uidoc, mode="type")
+
+
+def active_view_qa_report(doc, uidoc, context=None):
+    return active_view_mep_report(doc, uidoc, mode="qa")
+
+
+def report_missing_parameters_in_active_view(doc, uidoc, context=None):
+    return report_active_view_missing_parameters(doc, uidoc)
+
+
+def active_view_piping_report(doc, uidoc, context=None):
+    return active_view_mep_report(doc, uidoc, mode="summary", discipline_filter="Piping")
+
+
+def active_view_hvac_report(doc, uidoc, context=None):
+    return active_view_mep_report(doc, uidoc, mode="summary", discipline_filter="HVAC")
+
+
+def active_view_electrical_report(doc, uidoc, context=None):
+    return active_view_mep_report(doc, uidoc, mode="summary", discipline_filter="Electrical")
+
+
 def report_selected_elements_by_category(doc, uidoc):
     elems = _selected_elements(doc, uidoc)
     type_grouped = {}
@@ -8968,6 +9323,15 @@ REVIEWED_ACTION_HANDLERS = {
     "report_devices_without_circuit_info": report_devices_without_circuit_info,
     "report_electrical_qa_elements_without_assignment": report_electrical_qa_elements_without_assignment,
     "list_fixtures_by_type_in_active_view": list_fixtures_by_type_in_active_view,
+    "active_view_mep_summary": active_view_mep_summary,
+    "count_mep_elements_in_active_view": count_mep_elements_in_active_view,
+    "report_active_view_elements_by_category": report_active_view_elements_by_category,
+    "report_active_view_elements_by_type": report_active_view_elements_by_type,
+    "active_view_qa_report": active_view_qa_report,
+    "report_missing_parameters_in_active_view": report_missing_parameters_in_active_view,
+    "active_view_piping_report": active_view_piping_report,
+    "active_view_hvac_report": active_view_hvac_report,
+    "active_view_electrical_report": active_view_electrical_report,
     "report_selected_elements_by_category": report_selected_elements_by_category,
     "report_selected_elements_by_type": report_selected_elements_by_type,
     "count_selected_elements": count_selected_elements,
@@ -9063,6 +9427,22 @@ def handle_public_command(prompt, doc, uidoc):
         if "active view" in p:
             return report_total_length_active_view_linear_mep(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
         return report_total_length_selected_linear_mep(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+    if "active view mep summary" in p or "active view mep report" in p or "count mep elements in active view" in p or "count mep in active view" in p:
+        return active_view_mep_summary(doc, uidoc)
+    if "report active view elements by category" in p or "active view category report" in p:
+        return report_active_view_elements_by_category(doc, uidoc)
+    if "report active view elements by type" in p or "active view type report" in p:
+        return report_active_view_elements_by_type(doc, uidoc)
+    if "active view qa report" in p or "active view health check" in p:
+        return active_view_qa_report(doc, uidoc)
+    if "report missing parameters in active view" in p or "missing parameters in active view" in p or "active view missing parameters" in p:
+        return report_missing_parameters_in_active_view(doc, uidoc)
+    if "report pipes in active view" in p or "active view pipe report" in p or "active view piping report" in p:
+        return active_view_piping_report(doc, uidoc)
+    if "report ducts in active view" in p or "active view duct report" in p or "active view hvac report" in p:
+        return active_view_hvac_report(doc, uidoc)
+    if "count electrical elements in active view" in p or "report electrical elements in active view" in p or "active view electrical report" in p:
+        return active_view_electrical_report(doc, uidoc)
     if "schedule bundle" in p and ("level" in p or "reference level" in p):
         return create_schedule_bundle_by_level(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
     if "pipe fitting" in p and "schedule" in p and ("level" in p or "reference level" in p):
@@ -9092,7 +9472,7 @@ def handle_public_command(prompt, doc, uidoc):
     if "count selected pipes" in p or "how many pipes are selected" in p:
         return count_selected_pipes(doc, uidoc)
     if "count pipes in active view" in p or "count all pipes in active view" in p:
-        return count_pipes_in_active_view(doc, uidoc)
+        return active_view_piping_report(doc, uidoc)
     if "list pipes in active view" in p or "list all pipes in active view" in p:
         return list_pipes_in_active_view(doc, uidoc)
     if "report total selected pipe length" in p or "total selected pipe length" in p or "length of selected pipes" in p:
@@ -9167,8 +9547,8 @@ def handle_public_command(prompt, doc, uidoc):
         return count_ducts(doc, uidoc)
     if "count selected ducts" in p or "count the selected ducts" in p or "how many selected ducts" in p:
         return count_selected_ducts(doc, uidoc)
-    if "count all ducts in active view" in p:
-        return count_ducts_in_active_view(doc, uidoc)
+    if "count ducts in active view" in p or "count all ducts in active view" in p:
+        return active_view_hvac_report(doc, uidoc)
     if "count lights" in p:
         return count_lights(doc, uidoc)
     if "total structural volume" in p:
@@ -11978,6 +12358,65 @@ class OllamaAIChat(forms.WPFWindow):
             )
         return format_project_onboarding_checklist(build_project_onboarding_checklist(context))
 
+    def _active_view_report_kind(self, prompt):
+        normalized = self._normalize_context_prompt(prompt)
+        exact = {
+            "active view mep summary": ("summary", None),
+            "active view mep report": ("summary", None),
+            "count mep elements in active view": ("count", None),
+            "count mep in active view": ("count", None),
+            "report active view elements by category": ("category", None),
+            "active view category report": ("category", None),
+            "report active view elements by type": ("type", None),
+            "active view type report": ("type", None),
+            "active view qa report": ("qa", None),
+            "active view health check": ("qa", None),
+            "report missing parameters in active view": ("missing_parameters", None),
+            "missing parameters in active view": ("missing_parameters", None),
+            "active view missing parameters": ("missing_parameters", None),
+            "count pipes in active view": ("summary", "Piping"),
+            "report pipes in active view": ("summary", "Piping"),
+            "active view pipe report": ("summary", "Piping"),
+            "active view piping report": ("summary", "Piping"),
+            "count ducts in active view": ("summary", "HVAC"),
+            "report ducts in active view": ("summary", "HVAC"),
+            "active view duct report": ("summary", "HVAC"),
+            "active view hvac report": ("summary", "HVAC"),
+            "count electrical elements in active view": ("summary", "Electrical"),
+            "report electrical elements in active view": ("summary", "Electrical"),
+            "active view electrical report": ("summary", "Electrical"),
+        }
+        if normalized in exact:
+            return exact[normalized]
+        if "active view" not in normalized:
+            return None
+        if "missing" in normalized and "parameter" in normalized:
+            return ("missing_parameters", None)
+        if "category" in normalized and "report" in normalized:
+            return ("category", None)
+        if "type" in normalized and "report" in normalized:
+            return ("type", None)
+        if "qa report" in normalized or "health check" in normalized:
+            return ("qa", None)
+        if "pipe" in normalized or "piping" in normalized:
+            return ("summary", "Piping")
+        if "duct" in normalized or "hvac" in normalized:
+            return ("summary", "HVAC")
+        if "electrical" in normalized:
+            return ("summary", "Electrical")
+        if "mep" in normalized:
+            return ("summary", None)
+        return None
+
+    def answer_active_view_report_question(self, prompt):
+        route = self._active_view_report_kind(prompt)
+        if not route:
+            return None
+        mode, discipline = route
+        if mode == "missing_parameters":
+            return report_active_view_missing_parameters(doc, uidoc, discipline_filter=discipline)
+        return active_view_mep_report(doc, uidoc, mode=mode, discipline_filter=discipline)
+
     def _selection_report_kind(self, prompt):
         normalized = self._normalize_context_prompt(prompt)
         exact = {
@@ -12429,17 +12868,21 @@ class OllamaAIChat(forms.WPFWindow):
                 result = self.run_project_context_scan("standard")
                 reply = result.get("summary", "")
             else:
-                selection_reply = self.answer_selection_report_question(prompt)
-                if selection_reply is not None:
-                    reply = selection_reply
-                elif self._is_project_context_question(prompt):
-                    reply = self.answer_project_context_question(prompt)
-                elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                    self.append_project_agent_plan()
-                    reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                active_view_reply = self.answer_active_view_report_question(prompt)
+                if active_view_reply is not None:
+                    reply = active_view_reply
                 else:
-                    reply = send_ollama_chat(self.model, prompt)
-                    reply = self._sanitize_ollama_context_error(reply)
+                    selection_reply = self.answer_selection_report_question(prompt)
+                    if selection_reply is not None:
+                        reply = selection_reply
+                    elif self._is_project_context_question(prompt):
+                        reply = self.answer_project_context_question(prompt)
+                    elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                        self.append_project_agent_plan()
+                        reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                    else:
+                        reply = send_ollama_chat(self.model, prompt)
+                        reply = self._sanitize_ollama_context_error(reply)
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             self.append_chat_turn(prompt, reply, "AI")

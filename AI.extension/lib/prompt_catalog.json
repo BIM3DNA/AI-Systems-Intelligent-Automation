@@ -2628,5 +2628,214 @@
     "enabled": true,
     "prompt_text": "report total length in active view for supported linear mep categories",
     "mode": "deterministic"
+  },
+  {
+    "id": "active-view-mep-summary",
+    "title": "Active view MEP summary",
+    "category": "BIM QA",
+    "group": "Active View Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view MEP summary",
+    "planner_aliases": [
+      "active view MEP summary",
+      "active view mep report",
+      "count MEP elements in active view",
+      "count mep in active view"
+    ],
+    "example_prompts": [
+      "active view MEP summary",
+      "active view mep report",
+      "count MEP elements in active view"
+    ],
+    "deterministic_handler": "active_view_mep_summary",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view MEP summary",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-active-view-elements-by-category",
+    "title": "Report active view elements by category",
+    "category": "BIM QA",
+    "group": "Active View Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "report active view elements by category",
+    "planner_aliases": [
+      "report active view elements by category",
+      "active view category report"
+    ],
+    "example_prompts": [
+      "report active view elements by category",
+      "active view category report"
+    ],
+    "deterministic_handler": "report_active_view_elements_by_category",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "report active view elements by category",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-active-view-elements-by-type",
+    "title": "Report active view elements by type",
+    "category": "BIM QA",
+    "group": "Active View Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "report active view elements by type",
+    "planner_aliases": [
+      "report active view elements by type",
+      "active view type report"
+    ],
+    "example_prompts": [
+      "report active view elements by type",
+      "active view type report"
+    ],
+    "deterministic_handler": "report_active_view_elements_by_type",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "report active view elements by type",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-qa-report",
+    "title": "Active view QA report",
+    "category": "BIM QA",
+    "group": "Active View Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view QA report",
+    "planner_aliases": [
+      "active view QA report",
+      "active view health check"
+    ],
+    "example_prompts": [
+      "active view QA report",
+      "active view health check"
+    ],
+    "deterministic_handler": "active_view_qa_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view QA report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "report-missing-parameters-in-active-view",
+    "title": "Report missing parameters in active view MEP elements",
+    "category": "BIM QA",
+    "group": "Active View Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "report missing parameters in active view",
+    "planner_aliases": [
+      "report missing parameters in active view",
+      "missing parameters in active view",
+      "active view missing parameters"
+    ],
+    "example_prompts": [
+      "report missing parameters in active view",
+      "active view missing parameters"
+    ],
+    "deterministic_handler": "report_missing_parameters_in_active_view",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "report missing parameters in active view",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-piping-report",
+    "title": "Active view piping report",
+    "category": "BIM QA",
+    "group": "Active View Reports",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view piping report",
+    "planner_aliases": [
+      "count pipes in active view",
+      "report pipes in active view",
+      "active view pipe report",
+      "active view piping report"
+    ],
+    "example_prompts": [
+      "count pipes in active view",
+      "active view piping report"
+    ],
+    "deterministic_handler": "active_view_piping_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view piping report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-hvac-report",
+    "title": "Active view HVAC report",
+    "category": "BIM QA",
+    "group": "Active View Reports",
+    "discipline": "HVAC",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view HVAC report",
+    "planner_aliases": [
+      "count ducts in active view",
+      "report ducts in active view",
+      "active view duct report",
+      "active view hvac report"
+    ],
+    "example_prompts": [
+      "count ducts in active view",
+      "active view hvac report"
+    ],
+    "deterministic_handler": "active_view_hvac_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view HVAC report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-electrical-report",
+    "title": "Active view electrical report",
+    "category": "BIM QA",
+    "group": "Active View Reports",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view electrical report",
+    "planner_aliases": [
+      "count electrical elements in active view",
+      "report electrical elements in active view",
+      "active view electrical report"
+    ],
+    "example_prompts": [
+      "count electrical elements in active view",
+      "active view electrical report"
+    ],
+    "deterministic_handler": "active_view_electrical_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view electrical report",
+    "mode": "deterministic"
   }
 ]

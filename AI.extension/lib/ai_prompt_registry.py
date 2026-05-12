@@ -315,6 +315,27 @@ class PromptCatalog(object):
             or "project diagnostic plan" in target
         ):
             return self.get_entry_by_id("guided-project-startup-plan")
+        if (
+            "active view mep summary" in target
+            or "active view mep report" in target
+            or "count mep elements in active view" in target
+            or "count mep in active view" in target
+        ):
+            return self.get_entry_by_id("active-view-mep-summary")
+        if "report active view elements by category" in target or "active view category report" in target:
+            return self.get_entry_by_id("report-active-view-elements-by-category")
+        if "report active view elements by type" in target or "active view type report" in target:
+            return self.get_entry_by_id("report-active-view-elements-by-type")
+        if "active view qa report" in target or "active view health check" in target:
+            return self.get_entry_by_id("active-view-qa-report")
+        if "report missing parameters in active view" in target or "missing parameters in active view" in target or "active view missing parameters" in target:
+            return self.get_entry_by_id("report-missing-parameters-in-active-view")
+        if "count pipes in active view" in target or "report pipes in active view" in target or "active view pipe report" in target or "active view piping report" in target:
+            return self.get_entry_by_id("active-view-piping-report")
+        if "count ducts in active view" in target or "report ducts in active view" in target or "active view duct report" in target or "active view hvac report" in target:
+            return self.get_entry_by_id("active-view-hvac-report")
+        if "count electrical elements in active view" in target or "report electrical elements in active view" in target or "active view electrical report" in target:
+            return self.get_entry_by_id("active-view-electrical-report")
         if "count selected elements" in target or "selected element count" in target or "count current selection" in target or "how many elements are selected" in target or target == "selection count" or target == "count selection" or "bim qa count selected elements" in target:
             return self.get_entry_by_id("count-selected-elements")
         if "report selected elements by category" in target or "selected elements by category" in target or "selection category report" in target:
