@@ -747,6 +747,84 @@ Expected and observed after hotfix:
 - no pyRevit console error
 - no model mutation
 
+## 2026-05-07 MEP-RO-002 Active View Read-Only MEP Report Pack
+
+### Tested projects
+
+- `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- Snowdon Towers Sample HVAC
+- Snowdon Towers Sample Electrical
+
+### Validated prompts
+
+- `active view MEP summary`
+- `count MEP elements in active view`
+- `count pipes in active view`
+- `report active view elements by category`
+- `report active view elements by type`
+- `active view QA report`
+- `report missing parameters in active view`
+- `count ducts in active view`
+- `active view hvac report`
+- `count electrical elements in active view`
+- `active view electrical report`
+
+### Pass criteria
+
+- deterministic header
+- no Ollama fallback
+- correct document/view
+- active-view scope correct
+- category/type/level/sample ElementIds shown
+- result cap warning shown when applicable
+- no pyRevit traceback
+- no model mutation
+
+### Result
+
+Passed. See `WBSO/Testing_Validation/runs/2026-05-07_mep-ro-002-active-view-reports-validated/`.
+
+## 2026-05-07 MEP-RO-003 System Assignment / Classification QA Pack
+
+### Tested projects
+
+- `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- Snowdon Towers Sample HVAC
+- Snowdon Towers Sample Electrical
+
+### Validated prompts
+
+- `selected MEP system assignment report`
+- `check selected MEP systems`
+- `selected pipe system report`
+- `report selected elements by system`
+- `active view MEP system assignment report`
+- `active view pipe system report`
+- `report active view elements by system`
+- `active view duct system report`
+- `check duct systems in active view`
+- `active view electrical system report`
+- `active view circuit report`
+- `selected electrical system report`
+- `selected circuit report`
+
+### Pass criteria
+
+- deterministic header
+- no Ollama fallback
+- correct document/view
+- selection or active-view scope correct
+- category/type/level/sample ElementIds shown
+- system assignment summary shown
+- missing/empty/unavailable counts shown
+- result cap warning shown when applicable
+- no pyRevit traceback
+- no model mutation
+
+### Result
+
+Passed. See `WBSO/Testing_Validation/runs/2026-05-07_mep-ro-003-system-assignment-qa-validated/`.
+
 ## 2026-04-27 Project Context UX/Q&A Validation Targets
 
 ### Local/static checks

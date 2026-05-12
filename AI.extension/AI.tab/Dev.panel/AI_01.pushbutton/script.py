@@ -4865,6 +4865,21 @@ def _electrical_assignment_value(elem):
     )
 
 
+def _safe_builtin_param_value(elem, builtin_param_names):
+    for name in builtin_param_names:
+        try:
+            bip = getattr(DB.BuiltInParameter, name)
+        except:
+            continue
+        try:
+            value = _value_from_param(elem.get_Parameter(bip))
+        except:
+            value = None
+        if value:
+            return value
+    return None
+
+
 def _is_unconnected_fitting(elem):
     try:
         connector_set = elem.MEPModel.ConnectorManager.Connectors
@@ -5677,6 +5692,371 @@ def active_view_hvac_report(doc, uidoc, context=None):
 
 def active_view_electrical_report(doc, uidoc, context=None):
     return active_view_mep_report(doc, uidoc, mode="summary", discipline_filter="Electrical")
+
+
+def _system_assignment_category_specs():
+    return [
+        ("Piping", "Pipes", "OST_PipeCurves"),
+        ("Piping", "Pipe Fittings", "OST_PipeFitting"),
+        ("Piping", "Pipe Accessories", "OST_PipeAccessory"),
+        ("Piping", "Plumbing Fixtures", "OST_PlumbingFixtures"),
+        ("HVAC", "Ducts", "OST_DuctCurves"),
+        ("HVAC", "Duct Fittings", "OST_DuctFitting"),
+        ("HVAC", "Duct Accessories", "OST_DuctAccessory"),
+        ("HVAC", "Air Terminals", "OST_DuctTerminal"),
+        ("HVAC", "Mechanical Equipment", "OST_MechanicalEquipment"),
+        ("HVAC", "Flex Ducts", "OST_FlexDuctCurves"),
+        ("Electrical", "Electrical Fixtures", "OST_ElectricalFixtures"),
+        ("Electrical", "Electrical Equipment", "OST_ElectricalEquipment"),
+        ("Electrical", "Lighting Fixtures", "OST_LightingFixtures"),
+        ("Electrical", "Lighting Devices", "OST_LightingDevices"),
+        ("Electrical", "Data Devices", "OST_DataDevices"),
+        ("Electrical", "Communication Devices", "OST_CommunicationDevices"),
+        ("Electrical", "Fire Alarm Devices", "OST_FireAlarmDevices"),
+        ("Electrical", "Conduits", "OST_Conduit"),
+        ("Electrical", "Conduit Fittings", "OST_ConduitFitting"),
+        ("Electrical", "Cable Trays", "OST_CableTray"),
+        ("Electrical", "Cable Tray Fittings", "OST_CableTrayFitting"),
+        ("Electrical", "Electrical Analytical Loads", "OST_ElectricalAnalyticalLoads"),
+    ]
+
+
+def _system_assignment_category_lookup(discipline_filter=None):
+    requested = (discipline_filter or "").lower().strip()
+    lookup = {}
+    for discipline, label, bic_name in _system_assignment_category_specs():
+        if requested and requested != discipline.lower():
+            continue
+        bic = _safe_builtin_category(bic_name)
+        if bic is None:
+            continue
+        try:
+            lookup[int(bic)] = {
+                "discipline": discipline,
+                "label": label,
+            }
+        except:
+            continue
+    return lookup
+
+
+def _collect_selected_system_assignment_elements(doc, uidoc, discipline_filter=None):
+    lookup = _system_assignment_category_lookup(discipline_filter)
+    elements = []
+    meta = {}
+    for element_id in uidoc.Selection.GetElementIds():
+        elem = doc.GetElement(element_id)
+        if elem is None:
+            continue
+        try:
+            category_id = elem.Category.Id.IntegerValue
+        except:
+            continue
+        if category_id not in lookup:
+            continue
+        key = _safe_int_id(elem)
+        elements.append(elem)
+        meta[key] = lookup[category_id]
+    elements.sort(key=lambda elem: _safe_int_id(elem))
+    return {
+        "scope": "selection",
+        "elements": elements,
+        "category_meta": meta,
+        "warnings": [],
+        "discipline_filter": discipline_filter,
+        "active_view": uidoc.ActiveView,
+    }
+
+
+def _collect_active_view_system_assignment_elements(doc, uidoc, discipline_filter=None):
+    active_view = uidoc.ActiveView
+    elements = []
+    meta = {}
+    warnings = []
+    for discipline, label, bic_name in _system_assignment_category_specs():
+        if discipline_filter and discipline.lower() != discipline_filter.lower():
+            continue
+        bic = _safe_builtin_category(bic_name)
+        if bic is None:
+            continue
+        try:
+            found = list(
+                DB.FilteredElementCollector(doc, active_view.Id)
+                .OfCategory(bic)
+                .WhereElementIsNotElementType()
+                .ToElements()
+            )
+        except Exception as err:
+            warnings.append("Skipped {0}: {1}".format(label, safe_str(err)))
+            continue
+        for elem in found:
+            if elem is None:
+                continue
+            key = _safe_int_id(elem)
+            elements.append(elem)
+            meta[key] = {
+                "discipline": discipline,
+                "label": label,
+            }
+    element_map = {}
+    for elem in elements:
+        element_map[_safe_int_id(elem)] = elem
+    elements = list(element_map.values())
+    elements.sort(key=lambda elem: _safe_int_id(elem))
+    return {
+        "scope": "active_view",
+        "elements": elements,
+        "category_meta": meta,
+        "warnings": warnings,
+        "discipline_filter": discipline_filter,
+        "active_view": active_view,
+    }
+
+
+def _system_assignment_read(elem, discipline):
+    try:
+        if discipline == "Electrical":
+            value = _lookup_first_param_value(
+                elem,
+                [
+                    "Circuit Number",
+                    "Electrical Circuit",
+                    "Panel",
+                    "System Name",
+                    "Electrical System",
+                    "System Type",
+                    "System Classification",
+                ],
+            )
+            if not value:
+                value = _safe_builtin_param_value(
+                    elem,
+                    [
+                        "RBS_ELEC_CIRCUIT_NUMBER",
+                        "RBS_ELEC_PANEL_NAME",
+                    ],
+                )
+            if value:
+                return ("assigned", value)
+            if _supports_electrical_assignment(elem):
+                return ("missing", None)
+            return ("unavailable", None)
+        value = _lookup_first_param_value(
+            elem,
+            [
+                "MEP System",
+                "System Name",
+                "System Type",
+                "System Classification",
+                "Piping System Type",
+                "Duct System Type",
+            ],
+        )
+        if not value:
+            value = _safe_builtin_param_value(
+                elem,
+                [
+                    "RBS_SYSTEM_NAME_PARAM",
+                    "RBS_SYSTEM_CLASSIFICATION_PARAM",
+                    "RBS_PIPING_SYSTEM_TYPE_PARAM",
+                    "RBS_DUCT_SYSTEM_TYPE_PARAM",
+                ],
+            )
+        if value:
+            return ("assigned", value)
+        if _supports_system_assignment(elem):
+            return ("missing", None)
+        return ("unavailable", None)
+    except:
+        return ("unknown", None)
+
+
+def _system_assignment_analysis(doc, collected):
+    elements = collected.get("elements", [])
+    inspected = elements[:ACTIVE_VIEW_MEP_DETAIL_CAP]
+    meta = collected.get("category_meta", {})
+    discipline_counts = {"Piping": 0, "HVAC": 0, "Electrical": 0, "Other supported / coordination": 0}
+    category_grouped = {}
+    type_grouped = {}
+    level_grouped = {}
+    by_system = {}
+    missing_by_category = {}
+    unavailable_by_category = {}
+    unknown_by_category = {}
+    missing = []
+    unavailable = []
+    unknown = []
+    assigned = []
+    for elem in inspected:
+        key = _safe_int_id(elem)
+        info = meta.get(key, {})
+        discipline = info.get("discipline") or "Other supported / coordination"
+        category_name = info.get("label") or _category_name(elem)
+        discipline_counts.setdefault(discipline, 0)
+        discipline_counts[discipline] += 1
+        category_grouped.setdefault(category_name, []).append(elem)
+        type_grouped.setdefault(_family_and_type_text(doc, elem) or "(no type)", []).append(elem)
+        level_name = _element_level_name(doc, elem)
+        if level_name:
+            level_grouped.setdefault(level_name, []).append(elem)
+        status, value = _system_assignment_read(elem, discipline)
+        if status == "assigned":
+            assigned.append(elem)
+            system_name = value or "(readable value)"
+            by_system.setdefault(system_name, []).append(elem)
+        elif status == "missing":
+            missing.append(elem)
+            missing_by_category.setdefault(category_name, []).append(elem)
+        elif status == "unavailable":
+            unavailable.append(elem)
+            unavailable_by_category.setdefault(category_name, []).append(elem)
+        else:
+            unknown.append(elem)
+            unknown_by_category.setdefault(category_name, []).append(elem)
+    return {
+        "elements": elements,
+        "inspected": inspected,
+        "discipline_counts": discipline_counts,
+        "category_grouped": category_grouped,
+        "type_grouped": type_grouped,
+        "level_grouped": level_grouped,
+        "by_system": by_system,
+        "missing": missing,
+        "unavailable": unavailable,
+        "unknown": unknown,
+        "assigned": assigned,
+        "missing_by_category": missing_by_category,
+        "unavailable_by_category": unavailable_by_category,
+        "unknown_by_category": unknown_by_category,
+        "capped": len(elements) > ACTIVE_VIEW_MEP_DETAIL_CAP,
+    }
+
+
+def _format_system_assignment_report(doc, uidoc, collected, title):
+    analysis = _system_assignment_analysis(doc, collected)
+    active_view = collected.get("active_view") or uidoc.ActiveView
+    try:
+        view_type = safe_str(active_view.ViewType)
+    except:
+        view_type = "unknown"
+    scope = collected.get("scope")
+    elements = analysis.get("elements", [])
+    inspected = analysis.get("inspected", [])
+    lines = [
+        title,
+        "Selection scope: {0} / active document only".format("selected elements" if scope == "selection" else "active view"),
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0} [{1}]".format(_active_view_title(doc, uidoc), view_type),
+    ]
+    if collected.get("discipline_filter"):
+        lines.append("Discipline filter: {0}".format(collected.get("discipline_filter")))
+    if scope == "selection":
+        lines.append("Total selected supported MEP elements: {0}".format(len(elements)))
+    else:
+        lines.append("Total supported MEP elements in active view: {0}".format(len(elements)))
+        lines.append("Elements inspected for system details: {0}".format(len(inspected)))
+    if not elements:
+        lines.append("")
+        if scope == "selection":
+            lines.append("No supported MEP elements selected. Select elements or use an active-view system report.")
+        else:
+            lines.append("No supported MEP elements found in the active view.")
+        lines.append("")
+        lines.append("Safety note:")
+        lines.append("- read-only; no model data modified.")
+        return "\n".join(lines)
+
+    lines.append("")
+    lines.append("By discipline")
+    for discipline in ["Piping", "HVAC", "Electrical", "Other supported / coordination"]:
+        lines.append("- {0}: {1}".format(discipline, analysis.get("discipline_counts", {}).get(discipline, 0)))
+
+    lines.append("")
+    lines.append("System assignment summary")
+    lines.append("- Assigned/readable: {0}".format(len(analysis.get("assigned", []))))
+    lines.append("- Missing/empty: {0}".format(len(analysis.get("missing", []))))
+    lines.append("- Unavailable/not applicable: {0}".format(len(analysis.get("unavailable", []))))
+    lines.append("- Unknown/error: {0}".format(len(analysis.get("unknown", []))))
+
+    lines.append("")
+    lines.append("By system / classification")
+    systems = sorted(analysis.get("by_system", {}).items(), key=lambda item: (-len(item[1]), item[0]))
+    if systems:
+        for system_name, items in systems[:ACTIVE_VIEW_MEP_CATEGORY_GROUP_CAP]:
+            categories = sorted(set([_category_name(elem) for elem in items]))
+            lines.append("- {0}: {1} | categories: {2} | sample ids: {3}".format(system_name, len(items), ", ".join(categories[:5]), _sample_id_text(items)))
+        if len(systems) > ACTIVE_VIEW_MEP_CATEGORY_GROUP_CAP:
+            lines.append("...showing first {0} of {1} system groups".format(ACTIVE_VIEW_MEP_CATEGORY_GROUP_CAP, len(systems)))
+    else:
+        lines.append("- none")
+
+    _append_active_view_group_lines(lines, "Missing / empty system assignment", analysis.get("missing_by_category", {}), ACTIVE_VIEW_MEP_CATEGORY_GROUP_CAP)
+    _append_active_view_group_lines(lines, "Unavailable / not applicable", analysis.get("unavailable_by_category", {}), ACTIVE_VIEW_MEP_CATEGORY_GROUP_CAP)
+    _append_active_view_group_lines(lines, "By category", analysis.get("category_grouped", {}), ACTIVE_VIEW_MEP_CATEGORY_GROUP_CAP)
+    _append_active_view_group_lines(lines, "Top family/type groups", analysis.get("type_grouped", {}), ACTIVE_VIEW_MEP_TYPE_GROUP_CAP)
+    _append_active_view_group_lines(lines, "Sample levels", analysis.get("level_grouped", {}), ACTIVE_VIEW_MEP_LEVEL_GROUP_CAP)
+
+    lines.append("")
+    lines.append("Sample ElementIds: {0}".format(_sample_id_text(elements, limit=ACTIVE_VIEW_MEP_SAMPLE_ID_CAP)))
+    lines.append("")
+    lines.append("Notes / Warnings")
+    notes = []
+    visible_disciplines = [name for name, count in analysis.get("discipline_counts", {}).items() if count]
+    if scope == "selection" and len(visible_disciplines) > 1:
+        notes.append("Mixed disciplines selected: {0}".format(len(visible_disciplines)))
+    if analysis.get("missing"):
+        notes.append("Missing/empty system assignment found on {0} element(s).".format(len(analysis.get("missing"))))
+    if analysis.get("unavailable") and analysis.get("discipline_counts", {}).get("Electrical", 0):
+        notes.append("Electrical circuit/system data unavailable for {0} element(s).".format(len(analysis.get("unavailable"))))
+    if scope == "active_view":
+        notes.append("Visible Revit links are not scanned for internal systems.")
+    for warning in collected.get("warnings", []):
+        notes.append(warning)
+    if analysis.get("capped"):
+        notes.append("Detailed system results are based on capped inspection.")
+        notes.append("Result set capped for readability/performance.")
+    if not notes:
+        notes.append("No system-assignment QA warnings detected by this read-only report.")
+    for note in notes:
+        lines.append("- {0}".format(note))
+    lines.append("")
+    lines.append("Safety note:")
+    lines.append("- read-only; no model data modified.")
+    return "\n".join(lines)
+
+
+def selected_mep_system_assignment_report(doc, uidoc, context=None, discipline_filter=None):
+    collected = _collect_selected_system_assignment_elements(doc, uidoc, discipline_filter=discipline_filter)
+    return _format_system_assignment_report(doc, uidoc, collected, "[SELECTED MEP SYSTEM ASSIGNMENT REPORT]")
+
+
+def active_view_mep_system_assignment_report(doc, uidoc, context=None, discipline_filter=None):
+    collected = _collect_active_view_system_assignment_elements(doc, uidoc, discipline_filter=discipline_filter)
+    return _format_system_assignment_report(doc, uidoc, collected, "[ACTIVE VIEW MEP SYSTEM ASSIGNMENT REPORT]")
+
+
+def selected_pipe_system_report(doc, uidoc, context=None):
+    return selected_mep_system_assignment_report(doc, uidoc, context, discipline_filter="Piping")
+
+
+def active_view_pipe_system_report(doc, uidoc, context=None):
+    return active_view_mep_system_assignment_report(doc, uidoc, context, discipline_filter="Piping")
+
+
+def selected_duct_system_report(doc, uidoc, context=None):
+    return selected_mep_system_assignment_report(doc, uidoc, context, discipline_filter="HVAC")
+
+
+def active_view_duct_system_report(doc, uidoc, context=None):
+    return active_view_mep_system_assignment_report(doc, uidoc, context, discipline_filter="HVAC")
+
+
+def selected_electrical_system_report(doc, uidoc, context=None):
+    return selected_mep_system_assignment_report(doc, uidoc, context, discipline_filter="Electrical")
+
+
+def active_view_electrical_system_report(doc, uidoc, context=None):
+    return active_view_mep_system_assignment_report(doc, uidoc, context, discipline_filter="Electrical")
 
 
 def report_selected_elements_by_category(doc, uidoc):
@@ -9332,6 +9712,14 @@ REVIEWED_ACTION_HANDLERS = {
     "active_view_piping_report": active_view_piping_report,
     "active_view_hvac_report": active_view_hvac_report,
     "active_view_electrical_report": active_view_electrical_report,
+    "selected_mep_system_assignment_report": selected_mep_system_assignment_report,
+    "active_view_mep_system_assignment_report": active_view_mep_system_assignment_report,
+    "selected_pipe_system_report": selected_pipe_system_report,
+    "active_view_pipe_system_report": active_view_pipe_system_report,
+    "selected_duct_system_report": selected_duct_system_report,
+    "active_view_duct_system_report": active_view_duct_system_report,
+    "selected_electrical_system_report": selected_electrical_system_report,
+    "active_view_electrical_system_report": active_view_electrical_system_report,
     "report_selected_elements_by_category": report_selected_elements_by_category,
     "report_selected_elements_by_type": report_selected_elements_by_type,
     "count_selected_elements": count_selected_elements,
@@ -9443,6 +9831,22 @@ def handle_public_command(prompt, doc, uidoc):
         return active_view_hvac_report(doc, uidoc)
     if "count electrical elements in active view" in p or "report electrical elements in active view" in p or "active view electrical report" in p:
         return active_view_electrical_report(doc, uidoc)
+    if "selected pipe system report" in p or "check selected pipe systems" in p:
+        return selected_pipe_system_report(doc, uidoc)
+    if "active view pipe system report" in p or "check pipe systems in active view" in p:
+        return active_view_pipe_system_report(doc, uidoc)
+    if "selected duct system report" in p or "check selected duct systems" in p:
+        return selected_duct_system_report(doc, uidoc)
+    if "active view duct system report" in p or "check duct systems in active view" in p:
+        return active_view_duct_system_report(doc, uidoc)
+    if "selected electrical system report" in p or "check selected electrical systems" in p or "selected circuit report" in p:
+        return selected_electrical_system_report(doc, uidoc)
+    if "active view electrical system report" in p or "check electrical systems in active view" in p or "active view circuit report" in p:
+        return active_view_electrical_system_report(doc, uidoc)
+    if "selected mep system assignment report" in p or "selected mep systems" in p or "selected system qa report" in p or "selected elements system report" in p or "report selected elements by system" in p:
+        return selected_mep_system_assignment_report(doc, uidoc)
+    if "active view mep system assignment report" in p or "active view mep systems" in p or "active view system qa report" in p or "report active view elements by system" in p or "count systems in active view" in p:
+        return active_view_mep_system_assignment_report(doc, uidoc)
     if "schedule bundle" in p and ("level" in p or "reference level" in p):
         return create_schedule_bundle_by_level(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
     if "pipe fitting" in p and "schedule" in p and ("level" in p or "reference level" in p):
@@ -12417,6 +12821,63 @@ class OllamaAIChat(forms.WPFWindow):
             return report_active_view_missing_parameters(doc, uidoc, discipline_filter=discipline)
         return active_view_mep_report(doc, uidoc, mode=mode, discipline_filter=discipline)
 
+    def _system_assignment_report_route(self, prompt):
+        normalized = self._normalize_context_prompt(prompt)
+        exact = {
+            "selected mep system assignment report": ("selection", None),
+            "check selected mep systems": ("selection", None),
+            "selected system qa report": ("selection", None),
+            "selected elements system report": ("selection", None),
+            "report selected elements by system": ("selection", None),
+            "selected pipe system report": ("selection", "Piping"),
+            "check selected pipe systems": ("selection", "Piping"),
+            "selected duct system report": ("selection", "HVAC"),
+            "check selected duct systems": ("selection", "HVAC"),
+            "selected electrical system report": ("selection", "Electrical"),
+            "check selected electrical systems": ("selection", "Electrical"),
+            "selected circuit report": ("selection", "Electrical"),
+            "active view mep system assignment report": ("active_view", None),
+            "check active view mep systems": ("active_view", None),
+            "active view system qa report": ("active_view", None),
+            "report active view elements by system": ("active_view", None),
+            "count systems in active view": ("active_view", None),
+            "active view pipe system report": ("active_view", "Piping"),
+            "check pipe systems in active view": ("active_view", "Piping"),
+            "active view duct system report": ("active_view", "HVAC"),
+            "check duct systems in active view": ("active_view", "HVAC"),
+            "active view electrical system report": ("active_view", "Electrical"),
+            "check electrical systems in active view": ("active_view", "Electrical"),
+            "active view circuit report": ("active_view", "Electrical"),
+        }
+        if normalized in exact:
+            return exact[normalized]
+        if "system" not in normalized and "circuit" not in normalized:
+            return None
+        scope = None
+        if "selected" in normalized or "selection" in normalized:
+            scope = "selection"
+        elif "active view" in normalized:
+            scope = "active_view"
+        if not scope:
+            return None
+        discipline = None
+        if "pipe" in normalized or "piping" in normalized:
+            discipline = "Piping"
+        elif "duct" in normalized or "hvac" in normalized:
+            discipline = "HVAC"
+        elif "electrical" in normalized or "circuit" in normalized:
+            discipline = "Electrical"
+        return (scope, discipline)
+
+    def answer_system_assignment_report_question(self, prompt):
+        route = self._system_assignment_report_route(prompt)
+        if not route:
+            return None
+        scope, discipline = route
+        if scope == "selection":
+            return selected_mep_system_assignment_report(doc, uidoc, discipline_filter=discipline)
+        return active_view_mep_system_assignment_report(doc, uidoc, discipline_filter=discipline)
+
     def _selection_report_kind(self, prompt):
         normalized = self._normalize_context_prompt(prompt)
         exact = {
@@ -12868,21 +13329,25 @@ class OllamaAIChat(forms.WPFWindow):
                 result = self.run_project_context_scan("standard")
                 reply = result.get("summary", "")
             else:
-                active_view_reply = self.answer_active_view_report_question(prompt)
-                if active_view_reply is not None:
-                    reply = active_view_reply
+                system_reply = self.answer_system_assignment_report_question(prompt)
+                if system_reply is not None:
+                    reply = system_reply
                 else:
-                    selection_reply = self.answer_selection_report_question(prompt)
-                    if selection_reply is not None:
-                        reply = selection_reply
-                    elif self._is_project_context_question(prompt):
-                        reply = self.answer_project_context_question(prompt)
-                    elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                        self.append_project_agent_plan()
-                        reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                    active_view_reply = self.answer_active_view_report_question(prompt)
+                    if active_view_reply is not None:
+                        reply = active_view_reply
                     else:
-                        reply = send_ollama_chat(self.model, prompt)
-                        reply = self._sanitize_ollama_context_error(reply)
+                        selection_reply = self.answer_selection_report_question(prompt)
+                        if selection_reply is not None:
+                            reply = selection_reply
+                        elif self._is_project_context_question(prompt):
+                            reply = self.answer_project_context_question(prompt)
+                        elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                            self.append_project_agent_plan()
+                            reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                        else:
+                            reply = send_ollama_chat(self.model, prompt)
+                            reply = self._sanitize_ollama_context_error(reply)
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             self.append_chat_turn(prompt, reply, "AI")

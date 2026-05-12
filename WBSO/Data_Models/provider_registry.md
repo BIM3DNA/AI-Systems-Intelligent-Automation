@@ -88,3 +88,12 @@ After the MEP-RO-001 routing/live-selection hotfix, the known selection-report p
 - Ollama did not produce the selected-element reports
 - no provider configuration was changed
 - provider boundary remains: deterministic BIM commands handle live Revit selection state; conversational providers remain fallback only for non-deterministic questions
+
+## 2026-05-07 MEP-RO-002 / MEP-RO-003 Provider Boundary Note
+
+Ollama/OpenAI fallback is intentionally bypassed for known MEP-RO-002 and MEP-RO-003 prompts.
+
+- runtime validation confirmed deterministic routing for known active-view and system-assignment prompts
+- deterministic Revit API handlers produced the validated reports
+- provider failure should not affect these deterministic report paths
+- no provider configuration was changed

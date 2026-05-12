@@ -1043,3 +1043,26 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 - Additional parameter sets for discipline-specific QA can be refined later.
 - Active-view reports remain separate future work.
 - BIM3DNA toolbar sync remains pending if not yet done.
+
+---
+
+## 2026-05-07 MEP-RO-002 and MEP-RO-003 Runtime Validation
+
+**Status:** Resolved / validated  
+**Type:** read-only MEP QA validation
+
+### Validated Items
+
+- MEP-RO-002 active-view report validation passed.
+- MEP-RO-003 system-assignment QA validation passed.
+
+### Notes
+
+- No generic Ollama fallback was observed for validated prompts.
+- No pyRevit traceback was observed in provided runtime outputs.
+- No model mutation was observed.
+
+### Non-Blocking Refinements
+
+- The readable system value `Undefined` is currently treated as assigned/readable. A later refinement may classify pseudo-system values such as `Undefined` as suspicious/undefined rather than cleanly assigned.
+- Capped reports should continue to clearly distinguish raw total count from inspected detail count.

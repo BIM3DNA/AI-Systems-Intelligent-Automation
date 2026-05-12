@@ -1073,3 +1073,34 @@ The earlier 2026-05-07 validation failure remains part of the evidence trail. Th
 4. runtime retest passed across no-selection, piping, HVAC, and electrical selections
 
 Status: runtime validated after hotfix.
+
+## 2026-05-07 MEP-RO-002 and MEP-RO-003 Read-Only MEP QA Layers
+
+MEP-RO-001 established runtime-validated selected-element BIM/QA reporting from the current live Revit selection. MEP-RO-002 and MEP-RO-003 extend the same deterministic read-only pattern to active-view MEP reporting and system assignment/classification diagnostics.
+
+### MEP-RO-002 architectural role
+
+- adds deterministic active-view read-only MEP reports
+- reads the live active view at execution time
+- reports active-view MEP category/type/level/sample ElementId summaries
+- supports no-selection workflows by inspecting visible MEP content in the active document
+- caps large active-view inspections for readability/performance
+
+### MEP-RO-003 architectural role
+
+- adds deterministic system assignment/classification QA for selected elements and active-view MEP elements
+- reads live selection for selection scope
+- reads live active-view elements for active-view scope
+- classifies readable/assigned, missing/empty, unavailable/not applicable, and unknown/error system states
+- uses safe parameter/property reads only
+- does not use connector traversal or geometry extraction
+
+### Governance boundary
+
+- known MEP-RO-002 and MEP-RO-003 prompts route deterministically before Ollama fallback
+- active document only
+- no linked-document scan
+- no model mutation
+- no parameter writes
+- no tags, schedules, views, sheets, systems, circuits, or connectors are created or edited
+- capped inspection prevents heavy model scans

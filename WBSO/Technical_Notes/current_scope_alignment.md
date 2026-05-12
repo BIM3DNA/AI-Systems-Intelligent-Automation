@@ -405,3 +405,20 @@ Explicitly outside this validated scope:
 - optional discipline-specific parameter-set refinement
 - future active-view report expansion
 - BIM3DNA toolbar-copy synchronization
+
+### 2026-05-07 MEP-RO-002 and MEP-RO-003 scope alignment
+
+MEP-RO-002 and MEP-RO-003 support the approved WBSO direction for deterministic BIM QA and safe AI-assisted Revit automation.
+
+- MEP-RO-002 validates active-view read-only MEP diagnostics.
+- MEP-RO-003 validates selected and active-view system assignment/classification diagnostics.
+- The validated scope covers piping, HVAC, and electrical contexts.
+- The workflow demonstrates controlled read-only diagnostics before model-modifying automation.
+- These features provide a foundation for later reviewed write actions such as tagging, scheduling, pipe splitting, and parameter updates, but do not themselves mutate the model.
+
+Still outside this validated scope:
+
+- Execute Plan behavior
+- model-modifying autonomy
+- linked-document system scans
+- connector traversal and geometry-derived diagnostics

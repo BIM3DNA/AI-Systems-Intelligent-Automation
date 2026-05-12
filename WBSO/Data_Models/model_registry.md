@@ -40,3 +40,14 @@ MEP-RO-001 now avoids generic Ollama fallback for known selection-report prompts
 - handlers read the current live selection through `uidoc.Selection.GetElementIds()` and resolve elements with `doc.GetElement(id)`
 - no new persisted model store was introduced
 - no provider configuration was changed
+
+## 2026-05-07 MEP-RO-002 / MEP-RO-003 Model Note
+
+MEP-RO-002 and MEP-RO-003 are deterministic Revit API diagnostics, not model-provider features.
+
+- known prompts do not depend on LLM output
+- active-view reports read current active-view elements at execution time
+- system assignment reports read current selection or active-view elements at execution time
+- routing is deterministic before Ollama fallback
+- no new persisted model store was introduced
+- no provider configuration was changed

@@ -336,6 +336,22 @@ class PromptCatalog(object):
             return self.get_entry_by_id("active-view-hvac-report")
         if "count electrical elements in active view" in target or "report electrical elements in active view" in target or "active view electrical report" in target:
             return self.get_entry_by_id("active-view-electrical-report")
+        if "selected pipe system report" in target or "check selected pipe systems" in target:
+            return self.get_entry_by_id("selected-pipe-system-report")
+        if "active view pipe system report" in target or "check pipe systems in active view" in target:
+            return self.get_entry_by_id("active-view-pipe-system-report")
+        if "selected duct system report" in target or "check selected duct systems" in target:
+            return self.get_entry_by_id("selected-duct-system-report")
+        if "active view duct system report" in target or "check duct systems in active view" in target:
+            return self.get_entry_by_id("active-view-duct-system-report")
+        if "selected electrical system report" in target or "check selected electrical systems" in target or "selected circuit report" in target:
+            return self.get_entry_by_id("selected-electrical-system-report")
+        if "active view electrical system report" in target or "check electrical systems in active view" in target or "active view circuit report" in target:
+            return self.get_entry_by_id("active-view-electrical-system-report")
+        if "selected mep system assignment report" in target or "selected mep systems" in target or "selected system qa report" in target or "selected elements system report" in target or "report selected elements by system" in target:
+            return self.get_entry_by_id("selected-mep-system-assignment-report")
+        if "active view mep system assignment report" in target or "active view mep systems" in target or "active view system qa report" in target or "report active view elements by system" in target or "count systems in active view" in target:
+            return self.get_entry_by_id("active-view-mep-system-assignment-report")
         if "count selected elements" in target or "selected element count" in target or "count current selection" in target or "how many elements are selected" in target or target == "selection count" or target == "count selection" or "bim qa count selected elements" in target:
             return self.get_entry_by_id("count-selected-elements")
         if "report selected elements by category" in target or "selected elements by category" in target or "selection category report" in target:

@@ -158,3 +158,38 @@ Resolved. The earlier failure is preserved in this file and was caused by typed 
 - optional discipline-specific parameter sets
 - active-view reports
 - BIM3DNA toolbar sync
+
+## 2026-05-07 - MEP-RO-002 and MEP-RO-003 Runtime Validation
+
+### Status
+
+- MEP-RO-002: runtime validated
+- MEP-RO-003: runtime validated
+
+### Summary
+
+Read-only deterministic reporting was validated across piping, HVAC, and electrical contexts.
+
+### MEP-RO-002
+
+- active-view reports route deterministically before Ollama
+- live active view is read at execution time
+- active document only
+- category/type/level/sample ElementId summaries validated
+- missing-parameter reporting validated
+- capped large-view handling validated
+
+### MEP-RO-003
+
+- system assignment reports route deterministically before Ollama
+- live selection and live active-view scopes validated
+- active document only
+- no connector traversal
+- no geometry extraction
+- assigned/readable, missing/empty, unavailable/not applicable, and unknown/error summaries validated
+
+### Safety
+
+- no model mutation observed
+- no generic Ollama fallback observed
+- no pyRevit traceback observed in provided runtime outputs

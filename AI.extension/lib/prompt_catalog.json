@@ -2837,5 +2837,189 @@
     "validation_state": "structural_only",
     "prompt_text": "active view electrical report",
     "mode": "deterministic"
+  },
+  {
+    "id": "selected-mep-system-assignment-report",
+    "title": "Selected MEP system assignment report",
+    "category": "BIM QA",
+    "group": "System Assignment Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "canonical_prompt": "selected MEP system assignment report",
+    "planner_aliases": [
+      "selected MEP system assignment report",
+      "check selected MEP systems",
+      "selected system QA report",
+      "selected elements system report",
+      "report selected elements by system"
+    ],
+    "example_prompts": [
+      "selected MEP system assignment report",
+      "report selected elements by system"
+    ],
+    "deterministic_handler": "selected_mep_system_assignment_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "selected MEP system assignment report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-mep-system-assignment-report",
+    "title": "Active view MEP system assignment report",
+    "category": "BIM QA",
+    "group": "System Assignment Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view MEP system assignment report",
+    "planner_aliases": [
+      "active view MEP system assignment report",
+      "check active view MEP systems",
+      "active view system QA report",
+      "report active view elements by system",
+      "count systems in active view"
+    ],
+    "example_prompts": [
+      "active view MEP system assignment report",
+      "report active view elements by system"
+    ],
+    "deterministic_handler": "active_view_mep_system_assignment_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view MEP system assignment report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "selected-pipe-system-report",
+    "title": "Selected pipe system report",
+    "category": "BIM QA",
+    "group": "System Assignment Reports",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "canonical_prompt": "selected pipe system report",
+    "planner_aliases": [
+      "selected pipe system report",
+      "check selected pipe systems"
+    ],
+    "deterministic_handler": "selected_pipe_system_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "selected pipe system report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-pipe-system-report",
+    "title": "Active view pipe system report",
+    "category": "BIM QA",
+    "group": "System Assignment Reports",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view pipe system report",
+    "planner_aliases": [
+      "active view pipe system report",
+      "check pipe systems in active view"
+    ],
+    "deterministic_handler": "active_view_pipe_system_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view pipe system report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "selected-duct-system-report",
+    "title": "Selected duct system report",
+    "category": "BIM QA",
+    "group": "System Assignment Reports",
+    "discipline": "HVAC",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "canonical_prompt": "selected duct system report",
+    "planner_aliases": [
+      "selected duct system report",
+      "check selected duct systems"
+    ],
+    "deterministic_handler": "selected_duct_system_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "selected duct system report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-duct-system-report",
+    "title": "Active view duct system report",
+    "category": "BIM QA",
+    "group": "System Assignment Reports",
+    "discipline": "HVAC",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view duct system report",
+    "planner_aliases": [
+      "active view duct system report",
+      "check duct systems in active view"
+    ],
+    "deterministic_handler": "active_view_duct_system_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view duct system report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "selected-electrical-system-report",
+    "title": "Selected electrical system report",
+    "category": "BIM QA",
+    "group": "System Assignment Reports",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "canonical_prompt": "selected electrical system report",
+    "planner_aliases": [
+      "selected electrical system report",
+      "check selected electrical systems",
+      "selected circuit report"
+    ],
+    "deterministic_handler": "selected_electrical_system_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "selected electrical system report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-electrical-system-report",
+    "title": "Active view electrical system report",
+    "category": "BIM QA",
+    "group": "System Assignment Reports",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view electrical system report",
+    "planner_aliases": [
+      "active view electrical system report",
+      "check electrical systems in active view",
+      "active view circuit report"
+    ],
+    "deterministic_handler": "active_view_electrical_system_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view electrical system report",
+    "mode": "deterministic"
   }
 ]

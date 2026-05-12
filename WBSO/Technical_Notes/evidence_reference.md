@@ -1168,3 +1168,77 @@ MEP-RO-001 Routing/Live Selection Hotfix
 ### Status
 
 Runtime validated after hotfix.
+
+## EV-AI-051 through EV-AI-055 - MEP-RO-002 Active View Read-Only MEP Report Pack
+
+### Feature
+
+MEP-RO-002 - Active View Read-Only MEP Report Pack
+
+### Evidence IDs
+
+- EV-AI-051: active-view report deterministic routing validation
+- EV-AI-052: BUNGE active-view piping report validation
+- EV-AI-053: Snowdon HVAC active-view report validation
+- EV-AI-054: Snowdon Electrical active-view report validation
+- EV-AI-055: active-view missing-parameter report validation
+
+### Validation Summary
+
+- deterministic routes before Ollama
+- live active view read at execution time
+- active document only
+- no linked-document scan
+- no model mutation
+- no pyRevit console error observed
+- no generic Ollama fallback observed
+- category/type/level/sample ElementId summaries validated
+- missing-parameter reporting validated
+- capped large-view handling validated
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-07_mep-ro-002-active-view-reports-validated/`
+
+### Status
+
+Runtime validated.
+
+## EV-AI-056 through EV-AI-061 - MEP-RO-003 MEP System Assignment / Classification QA Pack
+
+### Feature
+
+MEP-RO-003 - MEP System Assignment / Classification Read-Only QA Pack
+
+### Evidence IDs
+
+- EV-AI-056: MEP-RO-003 deterministic system-report routing validation
+- EV-AI-057: BUNGE selected piping system assignment validation
+- EV-AI-058: BUNGE active-view piping system assignment validation
+- EV-AI-059: Snowdon HVAC active-view system assignment validation
+- EV-AI-060: Snowdon Electrical active-view system/circuit validation
+- EV-AI-061: Snowdon selected electrical system/circuit validation
+
+### Validation Summary
+
+- deterministic routes before Ollama
+- live selected elements read at execution time
+- live active-view elements read at execution time
+- active document only
+- no linked-document scan
+- no connector traversal
+- no geometry extraction
+- no model mutation
+- no pyRevit console error observed
+- no generic Ollama fallback observed
+- system assignment summaries validated
+- missing/empty/unavailable classifications validated
+- capped large-view handling validated
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-07_mep-ro-003-system-assignment-qa-validated/`
+
+### Status
+
+Runtime validated.
