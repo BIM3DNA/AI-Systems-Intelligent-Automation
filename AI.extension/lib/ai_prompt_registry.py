@@ -336,6 +336,22 @@ class PromptCatalog(object):
             return self.get_entry_by_id("active-view-hvac-report")
         if "count electrical elements in active view" in target or "report electrical elements in active view" in target or "active view electrical report" in target:
             return self.get_entry_by_id("active-view-electrical-report")
+        if "selected piping qa report" in target or "selected pipe qa report" in target:
+            return self.get_entry_by_id("selected-piping-qa-report")
+        if "active view piping qa report" in target or "active view pipe qa report" in target:
+            return self.get_entry_by_id("active-view-piping-qa-report")
+        if "selected hvac qa report" in target or "selected duct qa report" in target:
+            return self.get_entry_by_id("selected-hvac-qa-report")
+        if "active view hvac qa report" in target or "active view duct qa report" in target:
+            return self.get_entry_by_id("active-view-hvac-qa-report")
+        if "selected electrical qa report" in target or "selected electrical circuit qa report" in target:
+            return self.get_entry_by_id("selected-electrical-qa-report")
+        if "active view electrical qa report" in target or "active view electrical circuit qa report" in target:
+            return self.get_entry_by_id("active-view-electrical-qa-report")
+        if "selected discipline qa report" in target or "selected mep qa rules report" in target or "check selected mep qa rules" in target:
+            return self.get_entry_by_id("selected-discipline-qa-report")
+        if "active view discipline qa report" in target or "active view mep qa rules report" in target or "check active view mep qa rules" in target:
+            return self.get_entry_by_id("active-view-discipline-qa-report")
         if "selected pipe system report" in target or "check selected pipe systems" in target:
             return self.get_entry_by_id("selected-pipe-system-report")
         if "active view pipe system report" in target or "check pipe systems in active view" in target:

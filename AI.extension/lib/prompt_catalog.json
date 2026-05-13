@@ -3021,5 +3021,175 @@
     "validation_state": "structural_only",
     "prompt_text": "active view electrical system report",
     "mode": "deterministic"
+  },
+  {
+    "id": "selected-discipline-qa-report",
+    "title": "Selected discipline QA report",
+    "category": "BIM QA",
+    "group": "Discipline QA Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "canonical_prompt": "selected discipline QA report",
+    "planner_aliases": [
+      "selected discipline QA report",
+      "selected MEP QA rules report",
+      "check selected MEP QA rules"
+    ],
+    "deterministic_handler": "selected_discipline_qa_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "selected discipline QA report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-discipline-qa-report",
+    "title": "Active view discipline QA report",
+    "category": "BIM QA",
+    "group": "Discipline QA Reports",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view discipline QA report",
+    "planner_aliases": [
+      "active view discipline QA report",
+      "active view MEP QA rules report",
+      "check active view MEP QA rules"
+    ],
+    "deterministic_handler": "active_view_discipline_qa_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view discipline QA report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "selected-piping-qa-report",
+    "title": "Selected piping QA report",
+    "category": "BIM QA",
+    "group": "Discipline QA Reports",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "canonical_prompt": "selected piping QA report",
+    "planner_aliases": [
+      "selected piping QA report",
+      "selected pipe QA report"
+    ],
+    "deterministic_handler": "selected_piping_qa_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "selected piping QA report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-piping-qa-report",
+    "title": "Active view piping QA report",
+    "category": "BIM QA",
+    "group": "Discipline QA Reports",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view piping QA report",
+    "planner_aliases": [
+      "active view piping QA report",
+      "active view pipe QA report"
+    ],
+    "deterministic_handler": "active_view_piping_qa_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view piping QA report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "selected-hvac-qa-report",
+    "title": "Selected HVAC QA report",
+    "category": "BIM QA",
+    "group": "Discipline QA Reports",
+    "discipline": "HVAC",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "canonical_prompt": "selected HVAC QA report",
+    "planner_aliases": [
+      "selected HVAC QA report",
+      "selected duct QA report"
+    ],
+    "deterministic_handler": "selected_hvac_qa_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "selected HVAC QA report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-hvac-qa-report",
+    "title": "Active view HVAC QA report",
+    "category": "BIM QA",
+    "group": "Discipline QA Reports",
+    "discipline": "HVAC",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view HVAC QA report",
+    "planner_aliases": [
+      "active view HVAC QA report",
+      "active view duct QA report"
+    ],
+    "deterministic_handler": "active_view_hvac_qa_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view HVAC QA report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "selected-electrical-qa-report",
+    "title": "Selected electrical QA report",
+    "category": "BIM QA",
+    "group": "Discipline QA Reports",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "canonical_prompt": "selected electrical QA report",
+    "planner_aliases": [
+      "selected electrical QA report",
+      "selected electrical circuit QA report"
+    ],
+    "deterministic_handler": "selected_electrical_qa_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "selected electrical QA report",
+    "mode": "deterministic"
+  },
+  {
+    "id": "active-view-electrical-qa-report",
+    "title": "Active view electrical QA report",
+    "category": "BIM QA",
+    "group": "Discipline QA Reports",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view",
+    "canonical_prompt": "active view electrical QA report",
+    "planner_aliases": [
+      "active view electrical QA report",
+      "active view electrical circuit QA report"
+    ],
+    "deterministic_handler": "active_view_electrical_qa_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "active view electrical QA report",
+    "mode": "deterministic"
   }
 ]

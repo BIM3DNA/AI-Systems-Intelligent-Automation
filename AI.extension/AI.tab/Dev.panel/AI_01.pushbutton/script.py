@@ -6059,6 +6059,426 @@ def active_view_electrical_system_report(doc, uidoc, context=None):
     return active_view_mep_system_assignment_report(doc, uidoc, context, discipline_filter="Electrical")
 
 
+def safe_get_param_value(elem, candidate_names_or_builtins):
+    names = []
+    builtins = []
+    for candidate in candidate_names_or_builtins or []:
+        if isinstance(candidate, str):
+            if candidate.startswith("RBS_") or candidate.startswith("INSTANCE_") or candidate.startswith("ALL_MODEL_"):
+                builtins.append(candidate)
+            names.append(candidate)
+        else:
+            try:
+                value = _value_from_param(elem.get_Parameter(candidate))
+            except:
+                value = None
+            if value:
+                return value
+    value = _lookup_first_param_value(elem, names)
+    if value:
+        return value
+    return _safe_builtin_param_value(elem, builtins)
+
+
+def safe_get_level_name(elem, doc):
+    return _element_level_name(doc, elem)
+
+
+def safe_get_type_label(elem, doc):
+    return _family_and_type_text(doc, elem) or "(no type)"
+
+
+def classify_category_to_discipline(category_name):
+    text = (category_name or "").lower()
+    if "pipe" in text or "plumbing" in text:
+        return "Piping"
+    if "duct" in text or "air terminal" in text or "mechanical equipment" in text:
+        return "HVAC"
+    if "electrical" in text or "lighting" in text or "conduit" in text or "cable tray" in text or "data device" in text or "communication" in text or "fire alarm" in text:
+        return "Electrical"
+    return "Other supported / coordination"
+
+
+def _qa_result(rule_id, discipline, label, severity, result, elem, category, value=None, reason=""):
+    return {
+        "rule_id": rule_id,
+        "discipline": discipline,
+        "label": label,
+        "severity": severity,
+        "result": result,
+        "category": category,
+        "element_id": _safe_int_id(elem),
+        "element": elem,
+        "value": value,
+        "reason": reason,
+    }
+
+
+def _qa_check_value(elem, candidates):
+    try:
+        value = safe_get_param_value(elem, candidates)
+    except Exception as err:
+        return ("error", None, safe_str(err))
+    if value is None:
+        return ("unavailable", None, "parameter unavailable")
+    if safe_str(value).strip() == "":
+        return ("fail", None, "parameter empty")
+    return ("pass", value, "readable")
+
+
+def _qa_presence_rule(elem, category, discipline, rule_id, label, candidates, missing_is_fail=True):
+    status, value, reason = _qa_check_value(elem, candidates)
+    if status == "unavailable" and missing_is_fail:
+        return _qa_result(rule_id, discipline, label, "review", "fail", elem, category, value, "missing or empty")
+    if status == "unavailable":
+        return _qa_result(rule_id, discipline, label, "info", "unavailable", elem, category, value, reason)
+    if status == "error":
+        return _qa_result(rule_id, discipline, label, "info", "error", elem, category, value, reason)
+    if status == "fail":
+        return _qa_result(rule_id, discipline, label, "review", "fail", elem, category, value, reason)
+    return _qa_result(rule_id, discipline, label, "info", "pass", elem, category, value, reason)
+
+
+def _is_category_named(category_name, tokens):
+    text = (category_name or "").lower()
+    return any(token.lower() in text for token in tokens)
+
+
+def _evaluate_discipline_qa_rules_for_element(doc, elem, meta):
+    category = meta.get("label") or _category_name(elem)
+    discipline = meta.get("discipline") or classify_category_to_discipline(category)
+    results = []
+    results.append(_qa_presence_rule(elem, category, discipline, "COMMON-001", "Mark present", ["Mark"]))
+    results.append(_qa_presence_rule(elem, category, discipline, "COMMON-002", "Comments present", ["Comments"]))
+    type_label = safe_get_type_label(elem, doc)
+    if type_label and type_label != "(no type)":
+        results.append(_qa_result("COMMON-003", discipline, "Family and Type readable", "info", "pass", elem, category, type_label, "readable"))
+    else:
+        results.append(_qa_result("COMMON-003", discipline, "Family and Type readable", "review", "fail", elem, category, None, "family/type not readable"))
+    level_name = safe_get_level_name(elem, doc)
+    if level_name:
+        results.append(_qa_result("COMMON-004", discipline, "Level/reference level readable", "info", "pass", elem, category, level_name, "readable"))
+    else:
+        results.append(_qa_result("COMMON-004", discipline, "Level/reference level readable", "review", "fail", elem, category, None, "level/reference level not readable"))
+    if category:
+        results.append(_qa_result("COMMON-005", discipline, "Element has category", "info", "pass", elem, category, category, "readable"))
+    else:
+        results.append(_qa_result("COMMON-005", discipline, "Element has category", "review", "fail", elem, category, None, "category not readable"))
+
+    if discipline == "Piping":
+        status, value = _system_assignment_read(elem, discipline)
+        if status == "assigned":
+            results.append(_qa_result("PIP-001", discipline, "System assignment readable", "info", "pass", elem, category, value, "readable"))
+        elif status == "missing":
+            results.append(_qa_result("PIP-001", discipline, "System assignment readable", "review", "fail", elem, category, None, "missing or empty"))
+        elif status == "unavailable":
+            results.append(_qa_result("PIP-001", discipline, "System assignment readable", "info", "not_applicable", elem, category, None, "category-specific not applicable or unavailable"))
+        else:
+            results.append(_qa_result("PIP-001", discipline, "System assignment readable", "info", "error", elem, category, None, "read error"))
+        results.append(_qa_presence_rule(elem, category, discipline, "PIP-002", "Level/reference level readable", ["Level", "Reference Level", "Schedule Level", "Base Level"], missing_is_fail=True))
+        results.append(_qa_presence_rule(elem, category, discipline, "PIP-003", "Size / Diameter readable", ["Size", "Diameter", "Nominal Diameter", "Outside Diameter"], missing_is_fail=False))
+        results.append(_qa_presence_rule(elem, category, discipline, "PIP-004", "Mark present", ["Mark"], missing_is_fail=True))
+        results.append(_qa_presence_rule(elem, category, discipline, "PIP-005", "Comments present", ["Comments"], missing_is_fail=True))
+        if _is_category_named(category, ["Pipes"]):
+            results.append(_qa_presence_rule(elem, category, discipline, "PIP-006", "Pipe slope readable", ["Slope"], missing_is_fail=False))
+            results.append(_qa_presence_rule(elem, category, discipline, "PIP-007", "Pipe length readable", ["Length"], missing_is_fail=False))
+        else:
+            results.append(_qa_result("PIP-006", discipline, "Pipe slope readable", "info", "not_applicable", elem, category, None, "not a pipe curve"))
+            results.append(_qa_result("PIP-007", discipline, "Pipe length readable", "info", "not_applicable", elem, category, None, "not a pipe curve"))
+    elif discipline == "HVAC":
+        status, value = _system_assignment_read(elem, discipline)
+        if status == "assigned":
+            results.append(_qa_result("HVAC-001", discipline, "System assignment readable", "info", "pass", elem, category, value, "readable"))
+        elif status == "missing":
+            results.append(_qa_result("HVAC-001", discipline, "System assignment readable", "review", "fail", elem, category, None, "missing or empty"))
+        elif status == "unavailable":
+            results.append(_qa_result("HVAC-001", discipline, "System assignment readable", "info", "not_applicable", elem, category, None, "category-specific not applicable or unavailable"))
+        else:
+            results.append(_qa_result("HVAC-001", discipline, "System assignment readable", "info", "error", elem, category, None, "read error"))
+        results.append(_qa_presence_rule(elem, category, discipline, "HVAC-002", "Level/reference level readable", ["Level", "Reference Level", "Schedule Level", "Base Level"], missing_is_fail=True))
+        if _is_category_named(category, ["Duct", "Flex Duct"]):
+            results.append(_qa_presence_rule(elem, category, discipline, "HVAC-003", "Size readable", ["Size", "Width", "Height", "Diameter"], missing_is_fail=False))
+        else:
+            results.append(_qa_result("HVAC-003", discipline, "Size readable", "info", "not_applicable", elem, category, None, "category-specific not applicable"))
+        if _is_category_named(category, ["Air Terminal"]):
+            results.append(_qa_presence_rule(elem, category, discipline, "HVAC-004", "Flow readable", ["Flow", "Air Flow", "Supply Airflow", "Return Airflow", "Exhaust Airflow"], missing_is_fail=False))
+        else:
+            results.append(_qa_result("HVAC-004", discipline, "Flow readable", "info", "not_applicable", elem, category, None, "category-specific not applicable"))
+        results.append(_qa_presence_rule(elem, category, discipline, "HVAC-005", "Mark present", ["Mark"], missing_is_fail=True))
+        results.append(_qa_presence_rule(elem, category, discipline, "HVAC-006", "Comments present", ["Comments"], missing_is_fail=True))
+        results.append(_qa_presence_rule(elem, category, discipline, "HVAC-007", "Family and Type readable", ["Family and Type", "Type Name"], missing_is_fail=True))
+    elif discipline == "Electrical":
+        status, value = _system_assignment_read(elem, discipline)
+        circuit_applicable = _supports_electrical_assignment(elem)
+        if status == "assigned":
+            results.append(_qa_result("ELEC-001", discipline, "Electrical circuit/system readable", "info", "pass", elem, category, value, "readable"))
+        elif status == "missing" and circuit_applicable:
+            results.append(_qa_result("ELEC-001", discipline, "Electrical circuit/system readable", "review", "fail", elem, category, None, "missing or empty"))
+        else:
+            results.append(_qa_result("ELEC-001", discipline, "Electrical circuit/system readable", "info", "not_applicable", elem, category, None, "category-specific not applicable or unavailable"))
+        results.append(_qa_presence_rule(elem, category, discipline, "ELEC-002", "Panel readable", ["Panel", "Panel Name", "RBS_ELEC_PANEL_NAME"], missing_is_fail=circuit_applicable))
+        results.append(_qa_presence_rule(elem, category, discipline, "ELEC-003", "Circuit Number readable", ["Circuit Number", "Electrical Circuit", "RBS_ELEC_CIRCUIT_NUMBER"], missing_is_fail=circuit_applicable))
+        results.append(_qa_presence_rule(elem, category, discipline, "ELEC-004", "Level/reference level readable", ["Level", "Reference Level", "Schedule Level", "Base Level"], missing_is_fail=True))
+        results.append(_qa_presence_rule(elem, category, discipline, "ELEC-005", "Mark present", ["Mark"], missing_is_fail=True))
+        results.append(_qa_presence_rule(elem, category, discipline, "ELEC-006", "Comments present", ["Comments"], missing_is_fail=True))
+        results.append(_qa_presence_rule(elem, category, discipline, "ELEC-007", "Family and Type readable", ["Family and Type", "Type Name"], missing_is_fail=True))
+        if _is_category_named(category, ["Conduit", "Cable Tray"]):
+            results.append(_qa_presence_rule(elem, category, discipline, "ELEC-008", "Conduit/cable tray size readable", ["Size", "Diameter", "Trade Size"], missing_is_fail=False))
+        else:
+            results.append(_qa_result("ELEC-008", discipline, "Conduit/cable tray size readable", "info", "not_applicable", elem, category, None, "category-specific not applicable"))
+    return results
+
+
+def summarize_rule_results(results):
+    summary = {
+        "pass": 0,
+        "fail": 0,
+        "unavailable": 0,
+        "not_applicable": 0,
+        "error": 0,
+        "failed_element_ids": set(),
+    }
+    for result in results:
+        state = result.get("result") or "error"
+        if state in summary:
+            summary[state] += 1
+        else:
+            summary["error"] += 1
+        if state == "fail":
+            summary["failed_element_ids"].add(result.get("element_id"))
+    return summary
+
+
+def _dedupe_rule_results_for_summary(results):
+    discipline_identity_rule_ids = set(["PIP-004", "PIP-005", "HVAC-005", "HVAC-006", "ELEC-005", "ELEC-006"])
+    element_ids_with_discipline_identity = set()
+    for result in results:
+        if result.get("rule_id") in discipline_identity_rule_ids:
+            element_ids_with_discipline_identity.add(result.get("element_id"))
+    filtered = []
+    for result in results:
+        if result.get("rule_id") in ("COMMON-001", "COMMON-002") and result.get("element_id") in element_ids_with_discipline_identity:
+            continue
+        filtered.append(result)
+    return filtered
+
+
+def _unique_elements_from_rule_results(items):
+    unique = []
+    seen = set()
+    for item in items:
+        elem = item.get("element")
+        elem_id = item.get("element_id")
+        if elem is None or elem_id in seen:
+            continue
+        unique.append(elem)
+        seen.add(elem_id)
+    return unique
+
+
+def _collect_discipline_qa_elements(doc, uidoc, scope, discipline_filter=None):
+    if scope == "selection":
+        return _collect_selected_system_assignment_elements(doc, uidoc, discipline_filter=discipline_filter)
+    return _collect_active_view_system_assignment_elements(doc, uidoc, discipline_filter=discipline_filter)
+
+
+def _format_discipline_qa_report(doc, uidoc, scope, discipline_filter=None):
+    collected = _collect_discipline_qa_elements(doc, uidoc, scope, discipline_filter)
+    elements = collected.get("elements", [])
+    inspected = elements[:ACTIVE_VIEW_MEP_DETAIL_CAP]
+    meta = collected.get("category_meta", {})
+    active_view = collected.get("active_view") or uidoc.ActiveView
+    try:
+        view_type = safe_str(active_view.ViewType)
+    except:
+        view_type = "unknown"
+    title = "[SELECTED DISCIPLINE QA REPORT]" if scope == "selection" else "[ACTIVE VIEW DISCIPLINE QA REPORT]"
+    lines = [
+        title,
+        "Selection scope: {0} / active document only".format("selected elements" if scope == "selection" else "active view"),
+        "Active document: {0}".format(_document_title(doc)),
+        "Active view: {0} [{1}]".format(_active_view_title(doc, uidoc), view_type),
+        "Discipline filter: {0}".format(discipline_filter or "All"),
+    ]
+    if scope == "selection":
+        lines.append("Total selected supported MEP elements: {0}".format(len(elements)))
+    else:
+        lines.append("Total supported MEP elements in active view: {0}".format(len(elements)))
+    lines.append("Elements inspected for QA details: {0}".format(len(inspected)))
+    if not elements:
+        lines.append("")
+        if scope == "selection":
+            lines.append("No supported MEP elements selected. Select elements or use an active-view discipline QA report.")
+        else:
+            lines.append("No supported MEP elements found in the active view.")
+        lines.append("")
+        lines.append("Safety note:")
+        lines.append("- read-only; no model data modified.")
+        return "\n".join(lines)
+
+    discipline_counts = {"Piping": 0, "HVAC": 0, "Electrical": 0, "Other supported / coordination": 0}
+    results = []
+    for elem in inspected:
+        info = meta.get(_safe_int_id(elem), {})
+        discipline = info.get("discipline") or classify_category_to_discipline(info.get("label") or _category_name(elem))
+        discipline_counts.setdefault(discipline, 0)
+        discipline_counts[discipline] += 1
+        results.extend(_evaluate_discipline_qa_rules_for_element(doc, elem, info))
+    results = _dedupe_rule_results_for_summary(results)
+    summary = summarize_rule_results(results)
+    fail_results = [result for result in results if result.get("result") == "fail"]
+    unavailable_results = [result for result in results if result.get("result") in ("unavailable", "not_applicable")]
+
+    def grouped_by_rule(items):
+        grouped = {}
+        for item in items:
+            key = (item.get("rule_id"), item.get("label"))
+            grouped.setdefault(key, []).append(item)
+        return grouped
+
+    def grouped_by_field(items, field):
+        grouped = {}
+        for item in items:
+            key = item.get(field) or "(unknown)"
+            grouped.setdefault(key, []).append(item)
+        return grouped
+
+    lines.append("")
+    lines.append("By discipline")
+    for discipline in ["Piping", "HVAC", "Electrical", "Other supported / coordination"]:
+        lines.append("- {0}: {1}".format(discipline, discipline_counts.get(discipline, 0)))
+    lines.append("")
+    lines.append("QA result summary")
+    lines.append("- Pass checks: {0}".format(summary.get("pass", 0)))
+    lines.append("- Failed checks: {0}".format(summary.get("fail", 0)))
+    lines.append("- Unavailable/not applicable checks: {0}".format(summary.get("unavailable", 0) + summary.get("not_applicable", 0)))
+    lines.append("- Error checks: {0}".format(summary.get("error", 0)))
+    lines.append("- Elements with one or more failed checks: {0}".format(len(summary.get("failed_element_ids", set()))))
+
+    lines.append("")
+    lines.append("Failed checks by rule")
+    rule_groups = grouped_by_rule(fail_results)
+    if rule_groups:
+        for (rule_id, label), items in sorted(rule_groups.items(), key=lambda item: (-len(item[1]), item[0][0]))[:20]:
+            elems = _unique_elements_from_rule_results(items)
+            lines.append("- {0} {1}: {2} | sample ids: {3}".format(rule_id, label, len(items), _sample_id_text(elems)))
+    else:
+        lines.append("- none")
+
+    lines.append("")
+    lines.append("Failed checks by category")
+    category_groups = grouped_by_field(fail_results, "category")
+    if category_groups:
+        for category, items in sorted(category_groups.items(), key=lambda item: (-len(item[1]), item[0]))[:20]:
+            elems = _unique_elements_from_rule_results(items)
+            lines.append("- {0}: {1} | sample ids: {2}".format(category, len(items), _sample_id_text(elems)))
+    else:
+        lines.append("- none")
+
+    lines.append("")
+    lines.append("Top affected family/type groups")
+    type_groups = {}
+    for item in fail_results:
+        elem = item.get("element")
+        if elem is None:
+            continue
+        type_groups.setdefault(safe_get_type_label(elem, doc), {})[_safe_int_id(elem)] = elem
+    if type_groups:
+        for type_name, elem_map in sorted(type_groups.items(), key=lambda item: (-len(item[1]), item[0]))[:20]:
+            elems = list(elem_map.values())
+            lines.append("- {0}: {1} | sample ids: {2}".format(type_name, len(elems), _sample_id_text(elems)))
+    else:
+        lines.append("- none")
+
+    lines.append("")
+    lines.append("Sample affected levels")
+    level_groups = {}
+    for item in fail_results:
+        elem = item.get("element")
+        if elem is None:
+            continue
+        level_groups.setdefault(safe_get_level_name(elem, doc) or "(level not found)", {})[_safe_int_id(elem)] = elem
+    if level_groups:
+        for level_name, elem_map in sorted(level_groups.items(), key=lambda item: (-len(item[1]), item[0]))[:10]:
+            elems = list(elem_map.values())
+            lines.append("- {0}: {1} | sample ids: {2}".format(level_name, len(elems), _sample_id_text(elems)))
+    else:
+        lines.append("- none")
+
+    lines.append("")
+    lines.append("Unavailable / not applicable highlights")
+    unavailable_groups = grouped_by_rule(unavailable_results)
+    if unavailable_groups:
+        for (rule_id, label), items in sorted(unavailable_groups.items(), key=lambda item: (-len(item[1]), item[0][0]))[:10]:
+            categories = sorted(set([item.get("category") or "(unknown)" for item in items]))
+            elems = _unique_elements_from_rule_results(items)
+            lines.append("- {0} {1}: {2} | categories: {3} | sample ids: {4}".format(rule_id, label, len(items), ", ".join(categories[:5]), _sample_id_text(elems)))
+    else:
+        lines.append("- none")
+
+    failed_elems = []
+    seen = set()
+    for item in fail_results:
+        elem = item.get("element")
+        elem_id = item.get("element_id")
+        if elem is not None and elem_id not in seen:
+            failed_elems.append(elem)
+            seen.add(elem_id)
+    lines.append("")
+    lines.append("Sample ElementIds with failures: {0}".format(_sample_id_text(failed_elems, limit=ACTIVE_VIEW_MEP_SAMPLE_ID_CAP)))
+    lines.append("")
+    lines.append("Notes / Warnings")
+    notes = []
+    visible_disciplines = [name for name, count in discipline_counts.items() if count]
+    if len(visible_disciplines) > 1:
+        notes.append("Mixed disciplines {0}: {1}".format("selected" if scope == "selection" else "visible", len(visible_disciplines)))
+    notes.append("Counts represent rule evaluations; sample ElementIds are deduplicated.")
+    if scope == "active_view":
+        notes.append("Visible Revit links are not scanned for internal QA.")
+    if len(elements) > ACTIVE_VIEW_MEP_DETAIL_CAP:
+        notes.append("Detailed QA results are based on capped inspection.")
+        notes.append("Result set capped for readability/performance.")
+    notes.append("This is a rule-based read-only diagnostic. It does not modify parameters or systems.")
+    for note in notes:
+        lines.append("- {0}".format(note))
+    lines.append("")
+    lines.append("Safety note:")
+    lines.append("- read-only; no model data modified.")
+    return "\n".join(lines)
+
+
+def selected_discipline_qa_report(doc, uidoc, context=None, discipline_filter=None):
+    return _format_discipline_qa_report(doc, uidoc, "selection", discipline_filter=discipline_filter)
+
+
+def active_view_discipline_qa_report(doc, uidoc, context=None, discipline_filter=None):
+    return _format_discipline_qa_report(doc, uidoc, "active_view", discipline_filter=discipline_filter)
+
+
+def selected_piping_qa_report(doc, uidoc, context=None):
+    return selected_discipline_qa_report(doc, uidoc, context, discipline_filter="Piping")
+
+
+def active_view_piping_qa_report(doc, uidoc, context=None):
+    return active_view_discipline_qa_report(doc, uidoc, context, discipline_filter="Piping")
+
+
+def selected_hvac_qa_report(doc, uidoc, context=None):
+    return selected_discipline_qa_report(doc, uidoc, context, discipline_filter="HVAC")
+
+
+def active_view_hvac_qa_report(doc, uidoc, context=None):
+    return active_view_discipline_qa_report(doc, uidoc, context, discipline_filter="HVAC")
+
+
+def selected_electrical_qa_report(doc, uidoc, context=None):
+    return selected_discipline_qa_report(doc, uidoc, context, discipline_filter="Electrical")
+
+
+def active_view_electrical_qa_report(doc, uidoc, context=None):
+    return active_view_discipline_qa_report(doc, uidoc, context, discipline_filter="Electrical")
+
+
 def report_selected_elements_by_category(doc, uidoc):
     elems = _selected_elements(doc, uidoc)
     type_grouped = {}
@@ -9720,6 +10140,14 @@ REVIEWED_ACTION_HANDLERS = {
     "active_view_duct_system_report": active_view_duct_system_report,
     "selected_electrical_system_report": selected_electrical_system_report,
     "active_view_electrical_system_report": active_view_electrical_system_report,
+    "selected_discipline_qa_report": selected_discipline_qa_report,
+    "active_view_discipline_qa_report": active_view_discipline_qa_report,
+    "selected_piping_qa_report": selected_piping_qa_report,
+    "active_view_piping_qa_report": active_view_piping_qa_report,
+    "selected_hvac_qa_report": selected_hvac_qa_report,
+    "active_view_hvac_qa_report": active_view_hvac_qa_report,
+    "selected_electrical_qa_report": selected_electrical_qa_report,
+    "active_view_electrical_qa_report": active_view_electrical_qa_report,
     "report_selected_elements_by_category": report_selected_elements_by_category,
     "report_selected_elements_by_type": report_selected_elements_by_type,
     "count_selected_elements": count_selected_elements,
@@ -9831,6 +10259,22 @@ def handle_public_command(prompt, doc, uidoc):
         return active_view_hvac_report(doc, uidoc)
     if "count electrical elements in active view" in p or "report electrical elements in active view" in p or "active view electrical report" in p:
         return active_view_electrical_report(doc, uidoc)
+    if "selected piping qa report" in p or "selected pipe qa report" in p:
+        return selected_piping_qa_report(doc, uidoc)
+    if "active view piping qa report" in p or "active view pipe qa report" in p:
+        return active_view_piping_qa_report(doc, uidoc)
+    if "selected hvac qa report" in p or "selected duct qa report" in p:
+        return selected_hvac_qa_report(doc, uidoc)
+    if "active view hvac qa report" in p or "active view duct qa report" in p:
+        return active_view_hvac_qa_report(doc, uidoc)
+    if "selected electrical qa report" in p or "selected electrical circuit qa report" in p:
+        return selected_electrical_qa_report(doc, uidoc)
+    if "active view electrical qa report" in p or "active view electrical circuit qa report" in p:
+        return active_view_electrical_qa_report(doc, uidoc)
+    if "selected discipline qa report" in p or "selected mep qa rules report" in p or "check selected mep qa rules" in p:
+        return selected_discipline_qa_report(doc, uidoc)
+    if "active view discipline qa report" in p or "active view mep qa rules report" in p or "check active view mep qa rules" in p:
+        return active_view_discipline_qa_report(doc, uidoc)
     if "selected pipe system report" in p or "check selected pipe systems" in p:
         return selected_pipe_system_report(doc, uidoc)
     if "active view pipe system report" in p or "check pipe systems in active view" in p:
@@ -12878,6 +13322,57 @@ class OllamaAIChat(forms.WPFWindow):
             return selected_mep_system_assignment_report(doc, uidoc, discipline_filter=discipline)
         return active_view_mep_system_assignment_report(doc, uidoc, discipline_filter=discipline)
 
+    def _discipline_qa_report_route(self, prompt):
+        normalized = self._normalize_context_prompt(prompt)
+        exact = {
+            "selected discipline qa report": ("selection", None),
+            "selected mep qa rules report": ("selection", None),
+            "check selected mep qa rules": ("selection", None),
+            "selected piping qa report": ("selection", "Piping"),
+            "selected pipe qa report": ("selection", "Piping"),
+            "selected hvac qa report": ("selection", "HVAC"),
+            "selected duct qa report": ("selection", "HVAC"),
+            "selected electrical qa report": ("selection", "Electrical"),
+            "selected electrical circuit qa report": ("selection", "Electrical"),
+            "active view discipline qa report": ("active_view", None),
+            "active view mep qa rules report": ("active_view", None),
+            "check active view mep qa rules": ("active_view", None),
+            "active view piping qa report": ("active_view", "Piping"),
+            "active view pipe qa report": ("active_view", "Piping"),
+            "active view hvac qa report": ("active_view", "HVAC"),
+            "active view duct qa report": ("active_view", "HVAC"),
+            "active view electrical qa report": ("active_view", "Electrical"),
+            "active view electrical circuit qa report": ("active_view", "Electrical"),
+        }
+        if normalized in exact:
+            return exact[normalized]
+        if "qa" not in normalized and "rules" not in normalized:
+            return None
+        scope = None
+        if "selected" in normalized or "selection" in normalized:
+            scope = "selection"
+        elif "active view" in normalized:
+            scope = "active_view"
+        if not scope:
+            return None
+        discipline = None
+        if "pipe" in normalized or "piping" in normalized:
+            discipline = "Piping"
+        elif "duct" in normalized or "hvac" in normalized:
+            discipline = "HVAC"
+        elif "electrical" in normalized or "circuit" in normalized:
+            discipline = "Electrical"
+        return (scope, discipline)
+
+    def answer_discipline_qa_report_question(self, prompt):
+        route = self._discipline_qa_report_route(prompt)
+        if not route:
+            return None
+        scope, discipline = route
+        if scope == "selection":
+            return selected_discipline_qa_report(doc, uidoc, discipline_filter=discipline)
+        return active_view_discipline_qa_report(doc, uidoc, discipline_filter=discipline)
+
     def _selection_report_kind(self, prompt):
         normalized = self._normalize_context_prompt(prompt)
         exact = {
@@ -13329,25 +13824,29 @@ class OllamaAIChat(forms.WPFWindow):
                 result = self.run_project_context_scan("standard")
                 reply = result.get("summary", "")
             else:
-                system_reply = self.answer_system_assignment_report_question(prompt)
-                if system_reply is not None:
-                    reply = system_reply
+                discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                if discipline_qa_reply is not None:
+                    reply = discipline_qa_reply
                 else:
-                    active_view_reply = self.answer_active_view_report_question(prompt)
-                    if active_view_reply is not None:
-                        reply = active_view_reply
+                    system_reply = self.answer_system_assignment_report_question(prompt)
+                    if system_reply is not None:
+                        reply = system_reply
                     else:
-                        selection_reply = self.answer_selection_report_question(prompt)
-                        if selection_reply is not None:
-                            reply = selection_reply
-                        elif self._is_project_context_question(prompt):
-                            reply = self.answer_project_context_question(prompt)
-                        elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                            self.append_project_agent_plan()
-                            reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                        active_view_reply = self.answer_active_view_report_question(prompt)
+                        if active_view_reply is not None:
+                            reply = active_view_reply
                         else:
-                            reply = send_ollama_chat(self.model, prompt)
-                            reply = self._sanitize_ollama_context_error(reply)
+                            selection_reply = self.answer_selection_report_question(prompt)
+                            if selection_reply is not None:
+                                reply = selection_reply
+                            elif self._is_project_context_question(prompt):
+                                reply = self.answer_project_context_question(prompt)
+                            elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                self.append_project_agent_plan()
+                                reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                            else:
+                                reply = send_ollama_chat(self.model, prompt)
+                                reply = self._sanitize_ollama_context_error(reply)
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             self.append_chat_turn(prompt, reply, "AI")
