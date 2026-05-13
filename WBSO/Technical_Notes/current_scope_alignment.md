@@ -422,3 +422,16 @@ Still outside this validated scope:
 - model-modifying autonomy
 - linked-document system scans
 - connector traversal and geometry-derived diagnostics
+
+### 2026-05-07 MEP-RO-004 scope alignment
+
+MEP-RO-004 supports the approved WBSO direction for deterministic BIM QA and safe AI-assisted Revit automation.
+
+- adds rule-based discipline QA before write automation
+- supports piping, HVAC, and electrical QA for selected elements and active-view elements
+- keeps model mutation out of scope
+- uses active-document data only
+- avoids linked-document scans, connector traversal, geometry extraction, and parameter writes
+- documents rule-evaluation counts separately from deduplicated sample ElementIds
+
+This provides a foundation for future reviewed actions such as tagging, scheduling, parameter updates, pipe splitting, and discipline-specific QA exports, but MEP-RO-004 itself remains read-only.

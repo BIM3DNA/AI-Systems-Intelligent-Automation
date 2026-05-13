@@ -193,3 +193,33 @@ Read-only deterministic reporting was validated across piping, HVAC, and electri
 - no model mutation observed
 - no generic Ollama fallback observed
 - no pyRevit traceback observed in provided runtime outputs
+
+## 2026-05-07 - MEP-RO-004 Discipline-Specific QA Rules Runtime Validation
+
+### Status
+
+MEP-RO-004: runtime validated after duplicate-rule aggregation hotfix.
+
+### Summary
+
+MEP-RO-004 adds deterministic read-only discipline-specific QA reports for selected elements and active-view MEP elements. It extends the validated MEP read-only stack with rule-based checks for piping, HVAC, and electrical contexts.
+
+### Validation coverage
+
+- BUNGE no-selection selected discipline QA returned the correct deterministic no-selection message.
+- BUNGE selected piping QA returned piping rule summaries, failed checks by rule/category/type/level, unavailable/not applicable highlights, and deduplicated sample ElementIds.
+- BUNGE active-view piping QA returned active-view piping rule summaries and confirmed visible Revit links are not scanned for internal QA.
+- Snowdon HVAC active-view discipline QA handled a capped 2000-element inspection from a 2627-element active view.
+- Snowdon Electrical active-view discipline QA generated electrical QA summaries with conduit/circuit applicability handled as unavailable/not applicable where appropriate.
+- Snowdon selected electrical discipline QA generated selected electrical QA summaries.
+
+### Hotfix trace
+
+Initial runtime validation found duplicate failed-check reporting because `COMMON-001 Mark present` and `COMMON-002 Comments present` overlapped with discipline-specific PIP/HVAC/ELEC Mark and Comments rules. The hotfix suppresses duplicate common identity-rule failures where discipline-specific equivalents apply, deduplicates grouped sample ElementIds, and adds the report note that counts represent rule evaluations while sample ElementIds are deduplicated.
+
+### Safety
+
+- no generic Ollama fallback observed for known MEP-RO-004 prompt families
+- no pyRevit traceback observed in provided runtime outputs
+- no model mutation indicated
+- no connector traversal, geometry extraction, linked-document scan, parameter write, tag creation, schedule/view/sheet creation, system assignment change, or electrical circuit edit is part of the validated behavior

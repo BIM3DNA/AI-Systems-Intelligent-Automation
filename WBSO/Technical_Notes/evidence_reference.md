@@ -1204,6 +1204,45 @@ MEP-RO-002 - Active View Read-Only MEP Report Pack
 
 Runtime validated.
 
+## EV-AI-062 through EV-AI-068 - MEP-RO-004 Discipline-Specific Missing Parameter / QA Rules Pack
+
+### Feature
+
+MEP-RO-004 - Discipline-Specific Missing Parameter / QA Rules Pack
+
+### Evidence IDs
+
+- EV-AI-062: MEP-RO-004 deterministic discipline-QA routing validation
+- EV-AI-063: MEP-RO-004 duplicate-rule aggregation hotfix validation
+- EV-AI-064: BUNGE selected piping QA validation
+- EV-AI-065: BUNGE active-view piping QA validation
+- EV-AI-066: Snowdon HVAC active-view discipline QA validation
+- EV-AI-067: Snowdon Electrical active-view discipline QA validation
+- EV-AI-068: Snowdon selected electrical discipline QA validation
+
+### Validation Summary
+
+- deterministic routing before Ollama
+- live selected elements read at execution time
+- live active-view elements read at execution time
+- active document only
+- no linked-document scan
+- no connector traversal
+- no geometry extraction
+- no model mutation or parameter writes
+- selected and active-view discipline QA reports validated
+- duplicate common Mark/Comments rule aggregation hotfix validated
+- grouped sample ElementIds deduplicated after hotfix
+- capped large-view handling validated
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-07_mep-ro-004-discipline-qa-rules-validated/`
+
+### Status
+
+Runtime validated after duplicate-rule aggregation hotfix.
+
 ## EV-AI-056 through EV-AI-061 - MEP-RO-003 MEP System Assignment / Classification QA Pack
 
 ### Feature

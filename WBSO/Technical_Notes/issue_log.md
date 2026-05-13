@@ -1066,3 +1066,38 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 
 - The readable system value `Undefined` is currently treated as assigned/readable. A later refinement may classify pseudo-system values such as `Undefined` as suspicious/undefined rather than cleanly assigned.
 - Capped reports should continue to clearly distinguish raw total count from inspected detail count.
+
+---
+
+## 2026-05-07 MEP-RO-004 Discipline-Specific QA Rules Validation
+
+**Status:** Resolved / hotfixed / runtime validated  
+**Type:** read-only rule-report aggregation and validation
+
+### Completed
+
+- MEP-RO-004 structural implementation completed for selected-element and active-view discipline QA reports.
+- Runtime validation initially confirmed the rule engine worked, but revealed duplicate common plus discipline identity-rule inflation.
+- The duplicated failures involved `COMMON-001 Mark present` and `COMMON-002 Comments present` overlapping with PIP/HVAC/ELEC Mark and Comments rules.
+- Grouped sample ElementIds were also repeated in category, type, and level summaries.
+
+### Resolution
+
+- Duplicate common Mark/Comments failures are suppressed where discipline-specific Mark/Comments rules exist for the same element.
+- Sample ElementIds are deduplicated in grouped summaries.
+- Reports include the note: `Counts represent rule evaluations; sample ElementIds are deduplicated.`
+- Unavailable/not applicable behavior was preserved for fittings missing slope, conduits missing circuit data, and non-applicable HVAC flow checks.
+
+### Validation
+
+- Reduced post-hotfix validation passed for BUNGE selected piping, BUNGE active-view piping, Snowdon HVAC active-view, Snowdon Electrical active-view, and Snowdon selected electrical discipline QA.
+- Deterministic routing before Ollama was confirmed for selected and active-view QA prompt families.
+- No pyRevit traceback or model mutation was indicated in the provided runtime outputs.
+
+### Non-Blocking Future Refinements
+
+- QA severity tuning.
+- Configurable office QA rule profiles.
+- Stricter distinction between required and optional Comments checks.
+- Additional discipline-specific parameter rules.
+- Exportable QA report format.

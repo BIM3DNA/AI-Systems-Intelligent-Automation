@@ -1104,3 +1104,37 @@ MEP-RO-001 established runtime-validated selected-element BIM/QA reporting from 
 - no parameter writes
 - no tags, schedules, views, sheets, systems, circuits, or connectors are created or edited
 - capped inspection prevents heavy model scans
+
+## 2026-05-07 MEP-RO-004 Discipline-Specific Read-Only QA Rules
+
+MEP-RO-004 builds on the validated read-only MEP stack:
+
+- MEP-RO-001 selected-element reports
+- MEP-RO-002 active-view MEP reports
+- MEP-RO-003 system assignment, classification, and circuit reports
+- MEP-RO-004 discipline-specific QA rule reports
+
+### Architectural role
+
+- introduces a small deterministic rule evaluator for MEP QA checks
+- evaluates selected elements and active-view elements using live Revit state at execution time
+- uses active-document data only
+- does not scan linked documents
+- does not use connector traversal
+- does not use geometry extraction
+- does not mutate model data or write parameters
+- returns pass, fail, unavailable/not applicable, and error classifications
+- caps large active-view inspections for readability and performance
+
+### Rule coverage
+
+- common MEP identity checks: Mark, Comments, Family and Type, Level/reference level, system assignment where applicable, and category readability
+- piping checks: system assignment, level, size/diameter, Mark, Comments, pipe slope where applicable, and pipe length where applicable
+- HVAC checks: system assignment, level, size, flow where applicable, Mark, Comments, and Family and Type
+- electrical checks: circuit/system, panel, circuit number, level, Mark, Comments, Family and Type, and conduit/cable tray size where applicable
+
+### Hotfix trace
+
+Initial runtime validation showed that common identity rules and discipline-specific identity rules could duplicate the same logical Mark/Comments failures. The hotfix suppresses duplicate COMMON-001 and COMMON-002 failures where discipline-specific Mark/Comments rules exist for the same element, and deduplicates grouped sample ElementIds. The reporting note now clarifies that counts represent rule evaluations while sample ElementIds are deduplicated.
+
+Status: runtime validated after duplicate-rule aggregation hotfix.

@@ -51,3 +51,14 @@ MEP-RO-002 and MEP-RO-003 are deterministic Revit API diagnostics, not model-pro
 - routing is deterministic before Ollama fallback
 - no new persisted model store was introduced
 - no provider configuration was changed
+
+## 2026-05-07 MEP-RO-004 Model Note
+
+MEP-RO-004 is not an LLM model-provider feature. It is a deterministic Revit API rule-evaluation layer routed before Ollama/OpenAI fallback for known discipline-QA prompts.
+
+- selection-scope QA reads current selected elements at execution time
+- active-view QA reads current active-view elements at execution time
+- rule results are computed locally from safe readable Revit parameters/properties
+- grouped sample ElementIds are deduplicated after the duplicate-rule aggregation hotfix
+- no new persisted model store was introduced
+- no provider configuration was changed

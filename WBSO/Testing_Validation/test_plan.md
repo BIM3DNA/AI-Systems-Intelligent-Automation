@@ -653,6 +653,59 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-05-07 MEP-RO-004 Discipline-Specific QA Rules Validation
+
+### Tested projects
+
+- `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- Snowdon Towers Sample HVAC
+- Snowdon Towers Sample Electrical
+
+### Selected-element prompt coverage
+
+- `selected discipline QA report`
+- `selected MEP QA rules report`
+- `check selected MEP QA rules`
+- `selected piping QA report`
+- `selected pipe QA report`
+- `selected HVAC QA report`
+- `selected duct QA report`
+- `selected electrical QA report`
+- `selected electrical circuit QA report`
+
+### Active-view prompt coverage
+
+- `active view discipline QA report`
+- `active view MEP QA rules report`
+- `check active view MEP QA rules`
+- `active view piping QA report`
+- `active view pipe QA report`
+- `active view HVAC QA report`
+- `active view duct QA report`
+- `active view electrical QA report`
+- `active view electrical circuit QA report`
+
+### Pass criteria
+
+- deterministic `[SELECTED DISCIPLINE QA REPORT]` or `[ACTIVE VIEW DISCIPLINE QA REPORT]` header
+- no Ollama fallback for known QA prompts
+- correct document and active-view metadata
+- correct selected-element or active-view scope
+- QA result summary shown
+- failed, unavailable/not applicable, and error counts shown
+- failed checks grouped by rule, category, type, and level
+- sample ElementIds shown and deduplicated
+- capped inspection warning shown when applicable
+- no pyRevit traceback
+- no model mutation
+
+### Validation notes
+
+- initial runtime validation found duplicate common Mark/Comments failures overlapping with discipline-specific Mark/Comments rules
+- hotfix suppresses those duplicate common identity failures where discipline-specific rules apply
+- grouped sample ElementIds are deduplicated after hotfix
+- MEP-RO-004 is runtime validated after the duplicate-rule aggregation hotfix
+
 ## 2026-05-07 MEP-RO-001 ModelMind Read-Only BIM/QA Selection Reports
 
 ### Test group
