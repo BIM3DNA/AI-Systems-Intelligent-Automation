@@ -1101,3 +1101,38 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 - Stricter distinction between required and optional Comments checks.
 - Additional discipline-specific parameter rules.
 - Exportable QA report format.
+
+---
+
+## 2026-05-14 MEP-RO-005 Exportable QA Evidence Snapshot Validation
+
+**Status:** Resolved / runtime validated  
+**Type:** deterministic filesystem evidence export validation
+
+### Completed
+
+- MEP-RO-005 structural implementation completed.
+- Runtime validation confirmed the empty-state export guard.
+- Runtime validation confirmed BUNGE active-view piping QA export.
+- Runtime validation confirmed exported file integrity for `report.md`, `report.txt`, `metadata.json`, and `artifact_manifest.txt`.
+- Runtime validation confirmed alternate export aliases.
+- Runtime validation confirmed Snowdon HVAC capped QA report export.
+- Runtime validation confirmed Snowdon selected electrical QA report export.
+- Runtime validation confirmed generic Ollama response rejection.
+
+### Validation notes
+
+- Export prompts returned deterministic `[QA REPORT EXPORT]` or `[QA REPORT EXPORT COMPLETE]` headers.
+- Export prompts did not fall through to Ollama.
+- Generated metadata marked `read_only: true`, `model_modified: false`, `linked_documents_scanned: false`, `connector_traversal_used: false`, and `geometry_extraction_used: false`.
+- Generic non-deterministic Ollama responses were rejected as QA evidence.
+- No pyRevit traceback or model mutation was indicated in the provided runtime outputs.
+
+### Non-Blocking Future Refinements
+
+- Optional CSV extraction for rule summaries.
+- Optional PDF export.
+- Optional ZIP packaging of evidence snapshots.
+- Configurable export root path.
+- Automatic open-folder action after export.
+- Export index file across multiple snapshots.

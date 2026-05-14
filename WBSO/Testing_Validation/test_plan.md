@@ -653,6 +653,58 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-05-14 MEP-RO-005 Exportable QA Evidence Snapshot Validation
+
+### Tested contexts
+
+- empty AI Workbench state before any deterministic report
+- BUNGE active-view piping QA export
+- alternate export aliases
+- Snowdon HVAC capped QA export
+- Snowdon selected electrical QA export
+- generic Ollama response rejection
+
+### Prompt coverage
+
+- `export latest QA report`
+- `export current QA report`
+- `save latest QA report`
+- `save current QA report`
+- `create QA evidence snapshot`
+- `create evidence snapshot`
+- `export AI Workbench report`
+- `export latest diagnostic report`
+- `save latest diagnostic report`
+
+### Pass criteria
+
+- deterministic `[QA REPORT EXPORT]` or `[QA REPORT EXPORT COMPLETE]` header
+- no Ollama fallback for export prompts
+- empty-state guard works
+- export succeeds after deterministic report
+- `report.md` created
+- `report.txt` created
+- `metadata.json` created and valid
+- `artifact_manifest.txt` created
+- exported report content matches latest deterministic report
+- source prompt and source header metadata correct
+- `read_only` is `true`
+- `model_modified` is `false`
+- `linked_documents_scanned` is `false`
+- `connector_traversal_used` is `false`
+- `geometry_extraction_used` is `false`
+- generic Ollama response is rejected as deterministic QA evidence
+- no pyRevit traceback
+- no Revit model mutation
+
+### Validation notes
+
+- BUNGE export validated Desktop Results folder `20260514_163439`.
+- Alternate aliases validated folders `20260514_164214` and `20260514_164309`.
+- Snowdon HVAC capped report export validated folder `20260514_165907`.
+- Snowdon selected electrical export validated folder `20260514_170952`.
+- MEP-RO-005 is runtime validated.
+
 ## 2026-05-07 MEP-RO-004 Discipline-Specific QA Rules Validation
 
 ### Tested projects

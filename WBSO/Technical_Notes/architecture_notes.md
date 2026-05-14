@@ -1138,3 +1138,39 @@ MEP-RO-004 builds on the validated read-only MEP stack:
 Initial runtime validation showed that common identity rules and discipline-specific identity rules could duplicate the same logical Mark/Comments failures. The hotfix suppresses duplicate COMMON-001 and COMMON-002 failures where discipline-specific Mark/Comments rules exist for the same element, and deduplicates grouped sample ElementIds. The reporting note now clarifies that counts represent rule evaluations while sample ElementIds are deduplicated.
 
 Status: runtime validated after duplicate-rule aggregation hotfix.
+
+## 2026-05-14 MEP-RO-005 Exportable QA Evidence Snapshots
+
+MEP-RO-005 builds on the validated read-only MEP QA stack:
+
+- MEP-RO-001 selected-element reports
+- MEP-RO-002 active-view MEP reports
+- MEP-RO-003 system assignment, classification, and circuit reports
+- MEP-RO-004 discipline-specific QA rule reports
+- MEP-RO-005 exportable QA evidence snapshots
+
+### Architectural role
+
+- adds a deterministic read-only export layer for the latest accepted AI Workbench diagnostic/QA report
+- keeps a session-local latest deterministic report state
+- routes export prompts deterministically before Ollama fallback
+- exports only accepted deterministic report headers
+- rejects generic Ollama outputs as deterministic QA evidence
+- writes timestamped evidence snapshots under the Desktop Results path, with a Temp fallback
+- generates `report.md`, `report.txt`, `metadata.json`, and `artifact_manifest.txt`
+
+### Metadata and safety model
+
+`metadata.json` records:
+
+- `deterministic_route: true`
+- `read_only: true`
+- `model_modified: false`
+- `linked_documents_scanned: false`
+- `connector_traversal_used: false`
+- `geometry_extraction_used: false`
+- source prompt, source report header, document title, active view, export folder, and generated files
+
+The export action is filesystem-only. It does not mutate the Revit model, write parameters, scan linked-document internals, traverse connectors, or extract geometry.
+
+Status: runtime validated.

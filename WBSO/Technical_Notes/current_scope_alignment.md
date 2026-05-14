@@ -435,3 +435,16 @@ MEP-RO-004 supports the approved WBSO direction for deterministic BIM QA and saf
 - documents rule-evaluation counts separately from deduplicated sample ElementIds
 
 This provides a foundation for future reviewed actions such as tagging, scheduling, parameter updates, pipe splitting, and discipline-specific QA exports, but MEP-RO-004 itself remains read-only.
+
+### 2026-05-14 MEP-RO-005 scope alignment
+
+MEP-RO-005 supports the approved WBSO direction for deterministic BIM QA and safe AI-assisted Revit automation.
+
+- converts runtime QA reports into reusable evidence artifacts
+- improves auditability and WBSO evidence traceability
+- validates deterministic export routing before Ollama fallback
+- keeps Revit model mutation out of scope
+- exports only text/metadata already present in deterministic AI Workbench reports
+- does not export geometry, connector data, linked-document internals, or write any Revit data
+
+This provides a foundation for future QA export packages, review reports, and controlled demo workflows while preserving the read-only diagnostics-first boundary.

@@ -1243,6 +1243,43 @@ MEP-RO-004 - Discipline-Specific Missing Parameter / QA Rules Pack
 
 Runtime validated after duplicate-rule aggregation hotfix.
 
+## EV-AI-069 through EV-AI-075 - MEP-RO-005 Exportable QA Report / Evidence Snapshot Pack
+
+### Feature
+
+MEP-RO-005 - Exportable QA Report / Evidence Snapshot Pack
+
+### Evidence IDs
+
+- EV-AI-069: MEP-RO-005 deterministic export routing and empty-state guard validation
+- EV-AI-070: BUNGE active-view piping QA evidence export validation
+- EV-AI-071: exported file integrity validation for `report.md`, `report.txt`, `metadata.json`, and `artifact_manifest.txt`
+- EV-AI-072: alternate export alias validation
+- EV-AI-073: Snowdon HVAC capped QA report export validation
+- EV-AI-074: Snowdon selected electrical QA report export validation
+- EV-AI-075: generic Ollama response rejection validation
+
+### Validation Summary
+
+- deterministic export routing before Ollama
+- session-local latest deterministic report state validated
+- empty-state guard validated
+- timestamped Desktop Results export folder validated
+- `report.md`, `report.txt`, `metadata.json`, and `artifact_manifest.txt` generated and inspected
+- metadata flags validated for read-only/no-mutation/no-linked-scan/no-connector/no-geometry behavior
+- alternate aliases validated
+- capped HVAC QA report export validated
+- selected electrical QA report export validated
+- generic Ollama responses rejected as deterministic QA evidence
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-14_mep-ro-005-exportable-qa-evidence-snapshots-validated/`
+
+### Status
+
+Runtime validated.
+
 ## EV-AI-056 through EV-AI-061 - MEP-RO-003 MEP System Assignment / Classification QA Pack
 
 ### Feature

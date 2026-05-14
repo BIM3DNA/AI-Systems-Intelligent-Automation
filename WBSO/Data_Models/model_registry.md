@@ -62,3 +62,15 @@ MEP-RO-004 is not an LLM model-provider feature. It is a deterministic Revit API
 - grouped sample ElementIds are deduplicated after the duplicate-rule aggregation hotfix
 - no new persisted model store was introduced
 - no provider configuration was changed
+
+## 2026-05-14 MEP-RO-005 Model Note
+
+MEP-RO-005 is not an LLM model-provider feature. It is a deterministic evidence-export layer for the latest accepted AI Workbench report.
+
+- export prompts do not call Ollama/OpenAI
+- generic Ollama outputs are not exported as deterministic QA evidence
+- latest deterministic report state is session-local
+- exported metadata records document/view context, source prompt, source header, report scope, and safety flags
+- generated files are filesystem evidence artifacts only
+- no persisted Revit model store was introduced
+- no provider configuration was changed

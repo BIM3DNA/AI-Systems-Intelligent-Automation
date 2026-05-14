@@ -32,6 +32,7 @@ class PromptCatalog(object):
         "AI Agent Planning",
         "Developer Briefs",
         "Selection Reports",
+        "Evidence Export",
         "Pipes",
         "Ducts",
         "Electrical",

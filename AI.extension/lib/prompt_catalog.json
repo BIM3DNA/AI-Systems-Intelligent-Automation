@@ -3191,5 +3191,33 @@
     "validation_state": "structural_only",
     "prompt_text": "active view electrical QA report",
     "mode": "deterministic"
+  },
+  {
+    "id": "export-latest-qa-report",
+    "title": "Export latest QA report",
+    "category": "BIM QA",
+    "group": "Evidence Export",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "session_report",
+    "canonical_prompt": "export latest QA report",
+    "planner_aliases": [
+      "export latest QA report",
+      "export current QA report",
+      "save latest QA report",
+      "save current QA report",
+      "create QA evidence snapshot",
+      "create evidence snapshot",
+      "export AI Workbench report",
+      "export latest diagnostic report",
+      "save latest diagnostic report"
+    ],
+    "deterministic_handler": "export_latest_qa_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "export latest QA report",
+    "mode": "deterministic"
   }
 ]

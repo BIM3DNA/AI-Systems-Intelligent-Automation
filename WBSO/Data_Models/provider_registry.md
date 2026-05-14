@@ -106,3 +106,12 @@ Ollama/OpenAI fallback is intentionally bypassed for known MEP-RO-004 discipline
 - deterministic Revit API handlers produced the validated QA outputs
 - provider failure should not affect known MEP-RO-004 report paths
 - no provider configuration was changed
+
+## 2026-05-14 MEP-RO-005 Provider Boundary Note
+
+Ollama/OpenAI fallback is intentionally bypassed for MEP-RO-005 export prompts.
+
+- runtime validation confirmed deterministic routing for export prompts
+- generic Ollama responses are rejected as deterministic QA evidence
+- export behavior depends on session-local deterministic report state, not provider output
+- no provider configuration was changed

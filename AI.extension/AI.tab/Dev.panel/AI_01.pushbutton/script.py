@@ -11,6 +11,8 @@ import requests
 import re
 import time
 import math
+import tempfile
+import codecs
 import System
 
 from System import Action
@@ -49,6 +51,28 @@ XAML_PATH = "UI.xaml"
 PROMPT_CATALOG_PATH = os.path.join(LIB_DIR, "prompt_catalog.json")
 APPROVED_RECIPES_PATH = os.path.join(LIB_DIR, "approved_recipes.json")
 WINDOW_SETTINGS_FILE = "ai_window_settings.json"
+
+QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
+    "[SELECTED ELEMENTS BY CATEGORY]",
+    "[SELECTED ELEMENTS BY TYPE]",
+    "[COUNT SELECTED ELEMENTS]",
+    "[SELECTION HEALTH CHECK]",
+    "[MISSING PARAMETERS FROM SELECTION]",
+    "[ACTIVE VIEW MEP SUMMARY]",
+    "[ACTIVE VIEW ELEMENTS BY CATEGORY]",
+    "[ACTIVE VIEW ELEMENTS BY TYPE]",
+    "[ACTIVE VIEW QA REPORT]",
+    "[ACTIVE VIEW MISSING PARAMETERS]",
+    "[SELECTED MEP SYSTEM ASSIGNMENT REPORT]",
+    "[ACTIVE VIEW MEP SYSTEM ASSIGNMENT REPORT]",
+    "[SELECTED DISCIPLINE QA REPORT]",
+    "[ACTIVE VIEW DISCIPLINE QA REPORT]",
+    "[PROJECT ONBOARDING CHECKLIST]",
+    "[GUIDED PROJECT STARTUP PLAN]",
+    "[PROJECT CONTEXT SUMMARY]",
+    "[LINK COORDINATE HEALTH]",
+    "[BIM BASIS / LEVELS & GRIDS]",
+)
 
 THEMES = {
     "light": {
@@ -10777,6 +10801,8 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_project_context_active_view_id = None
         self.latest_project_context_summary = ""
         self.latest_codex_brief = ""
+        self.latest_deterministic_report = None
+        self.latest_chat_output_is_deterministic_report = False
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -11942,6 +11968,261 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             self.ChatHistory.AppendText("{0}\n{1}\n\n".format(title, body))
 
+    def _extract_report_header(self, report_text):
+        for line in safe_str(report_text).splitlines():
+            candidate = line.strip()
+            if candidate.startswith("[") and candidate.endswith("]"):
+                return candidate
+        return ""
+
+    def _is_exportable_report_text(self, report_text):
+        header = self._extract_report_header(report_text)
+        return header in QA_EXPORT_ACCEPTED_REPORT_HEADERS
+
+    def _detect_report_scope(self, report_text):
+        text = safe_str(report_text).lower()
+        if "selection scope: selected elements" in text or "total selected" in text or "selected supported" in text:
+            return "selected elements / active document only"
+        if "selection scope: active view" in text or "active view" in text:
+            return "active view / active document only"
+        if "project context" in text or "project onboarding" in text:
+            return "project context snapshot"
+        if "guided project startup plan" in text:
+            return "project-context agent plan"
+        return "deterministic AI Workbench report"
+
+    def remember_latest_deterministic_report(self, prompt, report_text):
+        if not self._is_exportable_report_text(report_text):
+            self.latest_chat_output_is_deterministic_report = False
+            return False
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_text": safe_str(report_text),
+            "report_header": self._extract_report_header(report_text),
+            "report_timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "report_scope": self._detect_report_scope(report_text),
+            "deterministic": True,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return True
+
+    def _is_qa_export_request(self, prompt):
+        normalized = self._normalize_context_prompt(prompt)
+        routes = [
+            "export latest qa report",
+            "export current qa report",
+            "save latest qa report",
+            "save current qa report",
+            "create qa evidence snapshot",
+            "create evidence snapshot",
+            "export ai workbench report",
+            "export latest diagnostic report",
+            "save latest diagnostic report",
+        ]
+        return normalized in routes
+
+    def _qa_export_base_folder(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+        desktop = os.path.join(user_profile, "Desktop")
+        if desktop and os.path.isdir(desktop):
+            return os.path.join(desktop, "Results", "AI_Workbench", "QA_Exports")
+        return os.path.join(tempfile.gettempdir(), "AI_Workbench", "QA_Exports")
+
+    def _safe_document_path(self):
+        try:
+            path_name = doc.PathName
+            if path_name:
+                return safe_str(path_name)
+        except:
+            pass
+        return None
+
+    def _safe_active_view_name(self):
+        try:
+            if uidoc and uidoc.ActiveView:
+                return safe_str(uidoc.ActiveView.Name)
+        except:
+            pass
+        return "(unknown view)"
+
+    def _safe_active_view_type(self):
+        try:
+            if uidoc and uidoc.ActiveView:
+                return safe_str(uidoc.ActiveView.ViewType)
+        except:
+            pass
+        return "unknown"
+
+    def _write_utf8_file(self, path, text):
+        stream = codecs.open(path, "w", "utf-8")
+        try:
+            stream.write(safe_str(text))
+        finally:
+            stream.close()
+
+    def export_latest_qa_report(self, export_prompt):
+        if not self.latest_deterministic_report:
+            return "\n".join(
+                [
+                    "[QA REPORT EXPORT]",
+                    "No exportable deterministic report is available yet. Run a read-only report first.",
+                ]
+            )
+        if not self.latest_chat_output_is_deterministic_report:
+            return "\n".join(
+                [
+                    "[QA REPORT EXPORT]",
+                    "Latest output is not a deterministic AI Workbench QA report. Run a read-only deterministic report first.",
+                ]
+            )
+        report = self.latest_deterministic_report
+        report_text = report.get("report_text") or ""
+        if not self._is_exportable_report_text(report_text):
+            return "\n".join(
+                [
+                    "[QA REPORT EXPORT]",
+                    "Latest output is not a deterministic AI Workbench QA report. Run a read-only deterministic report first.",
+                ]
+            )
+
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        export_folder = os.path.join(self._qa_export_base_folder(), timestamp)
+        try:
+            if not os.path.isdir(export_folder):
+                os.makedirs(export_folder)
+        except Exception as exc:
+            return "\n".join(
+                [
+                    "[QA REPORT EXPORT]",
+                    "Export failed: {0}".format(str(exc)),
+                ]
+            )
+
+        doc_title = _document_title(doc)
+        active_view_name = self._safe_active_view_name()
+        active_view_type = self._safe_active_view_type()
+        header = report.get("report_header") or self._extract_report_header(report_text)
+        source_prompt = report.get("source_prompt") or ""
+        scope = report.get("report_scope") or self._detect_report_scope(report_text)
+        generated_files = ["report.md", "report.txt", "metadata.json", "artifact_manifest.txt"]
+
+        metadata = {
+            "feature_id": "MEP-RO-005",
+            "export_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": doc_title,
+            "document_path": self._safe_document_path(),
+            "active_view_name": active_view_name,
+            "active_view_type": active_view_type,
+            "source_prompt": source_prompt,
+            "source_report_header": header,
+            "report_scope": scope,
+            "deterministic_route": True,
+            "read_only": True,
+            "model_modified": False,
+            "linked_documents_scanned": False,
+            "connector_traversal_used": False,
+            "geometry_extraction_used": False,
+            "export_folder": export_folder,
+            "generated_files": generated_files,
+        }
+
+        report_md = "\n".join(
+            [
+                "# AI Workbench QA Evidence Snapshot",
+                "",
+                "## Metadata",
+                "- Document: {0}".format(doc_title),
+                "- Active view: {0} [{1}]".format(active_view_name, active_view_type),
+                "- Export timestamp: {0}".format(metadata.get("export_timestamp_local")),
+                "- Source prompt: {0}".format(source_prompt),
+                "- Source report header: {0}".format(header),
+                "- Scope: {0}".format(scope),
+                "- Safety: read-only; no model data modified.",
+                "",
+                "## Report",
+                report_text,
+                "",
+            ]
+        )
+        report_txt = "\n".join(
+            [
+                "AI Workbench QA Evidence Snapshot",
+                "",
+                "Document: {0}".format(doc_title),
+                "Active view: {0} [{1}]".format(active_view_name, active_view_type),
+                "Export timestamp: {0}".format(metadata.get("export_timestamp_local")),
+                "Source prompt: {0}".format(source_prompt),
+                "Source report header: {0}".format(header),
+                "Scope: {0}".format(scope),
+                "Safety: read-only; no model data modified.",
+                "",
+                report_text,
+                "",
+            ]
+        )
+        manifest = "\n".join(
+            [
+                "AI Workbench QA Evidence Snapshot Manifest",
+                "Feature: MEP-RO-005",
+                "Export timestamp: {0}".format(metadata.get("export_timestamp_local")),
+                "Export folder: {0}".format(export_folder),
+                "",
+                "Generated files:",
+                "- report.md",
+                "- report.txt",
+                "- metadata.json",
+                "- artifact_manifest.txt",
+                "",
+                "Safety:",
+                "- Export only.",
+                "- Revit model data was not modified.",
+                "- Linked document internals, connector data, and geometry were not exported.",
+            ]
+        )
+
+        try:
+            self._write_utf8_file(os.path.join(export_folder, "report.md"), report_md)
+            self._write_utf8_file(os.path.join(export_folder, "report.txt"), report_txt)
+            metadata_path = os.path.join(export_folder, "metadata.json")
+            metadata_stream = codecs.open(metadata_path, "w", "utf-8")
+            try:
+                metadata_stream.write(json.dumps(metadata, indent=2, sort_keys=True))
+            finally:
+                metadata_stream.close()
+            self._write_utf8_file(os.path.join(export_folder, "artifact_manifest.txt"), manifest)
+        except Exception as exc:
+            return "\n".join(
+                [
+                    "[QA REPORT EXPORT]",
+                    "Export failed: {0}".format(str(exc)),
+                ]
+            )
+
+        return "\n".join(
+            [
+                "[QA REPORT EXPORT COMPLETE]",
+                "",
+                "Export folder:",
+                export_folder,
+                "",
+                "Generated files:",
+                "- report.md",
+                "- report.txt",
+                "- metadata.json",
+                "- artifact_manifest.txt",
+                "",
+                "Source:",
+                "- prompt: {0}".format(source_prompt),
+                "- header: {0}".format(header),
+                "- document: {0}".format(doc_title),
+                "- active view: {0} [{1}]".format(active_view_name, active_view_type),
+                "",
+                "Safety:",
+                "- Export only.",
+                "- Revit model data was not modified.",
+            ]
+        )
+
     def _context_tree_item(self, header, children=None):
         from System.Windows.Controls import TreeViewItem
 
@@ -12520,7 +12801,9 @@ class OllamaAIChat(forms.WPFWindow):
         self._pump_ui()
         try:
             result = self.run_project_context_scan("standard")
-            self.append_chat_notice("PROJECT SCAN COMPLETE", result.get("summary", ""))
+            summary = result.get("summary", "")
+            self.remember_latest_deterministic_report("scan current project", summary)
+            self.append_chat_notice("PROJECT SCAN COMPLETE", summary)
             self.update_window_status("ready_to_execute", "Standard project scan complete")
         except Exception as exc:
             self.append_chat_notice("PROJECT SCAN FAILED", str(exc))
@@ -13631,7 +13914,9 @@ class OllamaAIChat(forms.WPFWindow):
             )
         )
         guided_plan = plan_object.get("guided_startup_plan") or build_guided_project_startup_plan(context)
-        self.AgentHistory.AppendText("{0}\n".format(format_guided_project_startup_plan(guided_plan)))
+        formatted_guided_plan = format_guided_project_startup_plan(guided_plan)
+        self.AgentHistory.AppendText("{0}\n".format(formatted_guided_plan))
+        self.remember_latest_deterministic_report("Ask Agent for Plan", formatted_guided_plan)
         self.AgentHistory.AppendText("\nObserved context\n{0}\n".format(self.get_latest_project_context_summary(require_standard=True)))
         plan = self.agent_session.get_visible_steps()
         if plan:
@@ -13800,6 +14085,7 @@ class OllamaAIChat(forms.WPFWindow):
             prompt = "check levels and grids"
         try:
             reply = self.answer_project_context_question(prompt)
+            self.remember_latest_deterministic_report(prompt, reply)
             self.append_chat_turn(prompt, reply, "PROJECT CONTEXT")
         except Exception as exc:
             self.append_chat_notice("PROJECT CONTEXT QUERY FAILED", str(exc))
@@ -13815,7 +14101,12 @@ class OllamaAIChat(forms.WPFWindow):
         self._pump_ui()
 
         try:
-            if self._is_codex_brief_request(prompt):
+            remember_report = False
+            preserve_latest_report_state = False
+            if self._is_qa_export_request(prompt):
+                reply = self.export_latest_qa_report(prompt)
+                preserve_latest_report_state = True
+            elif self._is_codex_brief_request(prompt):
                 brief = self.build_codex_task_brief(prompt)
                 self.latest_codex_brief = brief
                 self.populate_project_context_tree()
@@ -13823,32 +14114,44 @@ class OllamaAIChat(forms.WPFWindow):
             elif self._is_scan_request(prompt):
                 result = self.run_project_context_scan("standard")
                 reply = result.get("summary", "")
+                remember_report = True
             else:
                 discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
                 if discipline_qa_reply is not None:
                     reply = discipline_qa_reply
+                    remember_report = True
                 else:
                     system_reply = self.answer_system_assignment_report_question(prompt)
                     if system_reply is not None:
                         reply = system_reply
+                        remember_report = True
                     else:
                         active_view_reply = self.answer_active_view_report_question(prompt)
                         if active_view_reply is not None:
                             reply = active_view_reply
+                            remember_report = True
                         else:
                             selection_reply = self.answer_selection_report_question(prompt)
                             if selection_reply is not None:
                                 reply = selection_reply
+                                remember_report = True
                             elif self._is_project_context_question(prompt):
                                 reply = self.answer_project_context_question(prompt)
+                                remember_report = True
                             elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
                                 self.append_project_agent_plan()
                                 reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                preserve_latest_report_state = True
                             else:
                                 reply = send_ollama_chat(self.model, prompt)
                                 reply = self._sanitize_ollama_context_error(reply)
+                                self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
+            if remember_report:
+                self.remember_latest_deterministic_report(prompt, reply)
+            elif not preserve_latest_report_state:
+                self.latest_chat_output_is_deterministic_report = False
             self.append_chat_turn(prompt, reply, "AI")
             self.ChatInput.Text = ""
         except Exception as e:

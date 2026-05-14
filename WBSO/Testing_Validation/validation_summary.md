@@ -223,3 +223,31 @@ Initial runtime validation found duplicate failed-check reporting because `COMMO
 - no pyRevit traceback observed in provided runtime outputs
 - no model mutation indicated
 - no connector traversal, geometry extraction, linked-document scan, parameter write, tag creation, schedule/view/sheet creation, system assignment change, or electrical circuit edit is part of the validated behavior
+
+## 2026-05-14 - MEP-RO-005 Exportable QA Evidence Snapshot Runtime Validation
+
+### Status
+
+MEP-RO-005: runtime validated.
+
+### Summary
+
+MEP-RO-005 adds a deterministic read-only export layer that saves the latest accepted AI Workbench diagnostic/QA report to a timestamped evidence folder. It extends the validated MEP read-only stack with filesystem evidence snapshots for WBSO, demo, and QA review workflows.
+
+### Validation coverage
+
+- Empty-state export guard returned `[QA REPORT EXPORT]` and `No exportable deterministic report is available yet. Run a read-only report first.`
+- BUNGE active-view piping QA report exported successfully to `C:/Users/User/Desktop/Results/AI_Workbench/QA_Exports/20260514_163439`.
+- Exported `report.md`, `report.txt`, `metadata.json`, and `artifact_manifest.txt` were created and inspected.
+- `metadata.json` was valid JSON and contained `deterministic_route: true`, `read_only: true`, `model_modified: false`, `linked_documents_scanned: false`, `connector_traversal_used: false`, and `geometry_extraction_used: false`.
+- Alternate aliases `save current QA report` and `create QA evidence snapshot` exported successfully.
+- Snowdon HVAC capped QA report export preserved capped-report content in `report.md`.
+- Snowdon selected electrical QA report export validated selected-scope metadata.
+- Generic Ollama response rejection returned `[QA REPORT EXPORT]` and refused to export the non-deterministic output as QA evidence.
+
+### Safety
+
+- no generic Ollama fallback observed for export prompts
+- no pyRevit traceback observed in provided runtime outputs
+- no model mutation indicated
+- no linked-document scan, connector traversal, geometry extraction, or Revit parameter write is part of the validated export behavior
