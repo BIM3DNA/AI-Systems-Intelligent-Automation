@@ -33,6 +33,7 @@ class PromptCatalog(object):
         "Developer Briefs",
         "Selection Reports",
         "Evidence Export",
+        "Reviewed Action Proposals",
         "Pipes",
         "Ducts",
         "Electrical",

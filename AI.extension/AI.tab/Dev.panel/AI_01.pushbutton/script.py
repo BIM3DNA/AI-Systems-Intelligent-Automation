@@ -73,6 +73,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[PROJECT CONTEXT SUMMARY]",
     "[LINK COORDINATE HEALTH]",
     "[BIM BASIS / LEVELS & GRIDS]",
+    "[REVIEWED ACTION PROPOSAL]",
 )
 
 THEMES = {
@@ -10804,6 +10805,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_codex_brief = ""
         self.latest_deterministic_report = None
         self.latest_chat_output_is_deterministic_report = False
+        self.latest_reviewed_action_proposal = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -12365,6 +12367,503 @@ class OllamaAIChat(forms.WPFWindow):
         if kind == "list":
             return self._format_qa_export_index_report()
         return None
+
+    def _reviewed_action_proposal_route(self, prompt):
+        normalized = self._normalize_context_prompt(prompt)
+        split_routes = [
+            "propose split selected pipes",
+            "propose splitting selected pipes",
+            "review split selected pipes",
+            "prepare split selected pipes",
+            "plan split selected pipes",
+            "split selected pipes proposal",
+            "split selected pipes dry run",
+            "dry run split selected pipes",
+            "preview split selected pipes",
+            "preflight split selected pipes",
+        ]
+        future_routes = {
+            "propose tag selected elements": "tag_selected_mep_elements",
+            "propose tag selected mep elements": "tag_selected_mep_elements",
+            "propose fill missing marks": "fill_missing_marks",
+            "propose create schedule from report": "create_schedule_from_report",
+            "propose export qa report": "export_latest_qa_report",
+            "propose create qa snapshot": "create_qa_snapshot",
+        }
+        general_routes = [
+            "propose reviewed action",
+            "create reviewed action proposal",
+            "reviewed action proposal",
+            "plan reviewed action",
+            "prepare reviewed action",
+            "action proposal",
+            "propose next action",
+            "what action can you propose",
+        ]
+        if normalized in split_routes:
+            return "split_selected_pipes"
+        if normalized in future_routes:
+            return future_routes.get(normalized)
+        if normalized in general_routes:
+            return "unknown_reviewed_action"
+        if "split" in normalized and "selected pipe" in normalized:
+            return "split_selected_pipes"
+        if "tag" in normalized and ("selected" in normalized or "mep" in normalized):
+            return "tag_selected_mep_elements"
+        if "fill" in normalized and "missing mark" in normalized:
+            return "fill_missing_marks"
+        if "schedule" in normalized and "report" in normalized and "propose" in normalized:
+            return "create_schedule_from_report"
+        if "export" in normalized and "qa report" in normalized and "propose" in normalized:
+            return "export_latest_qa_report"
+        if "qa snapshot" in normalized and "propose" in normalized:
+            return "create_qa_snapshot"
+        return None
+
+    def _proposal_action_label(self, action_key):
+        labels = {
+            "split_selected_pipes": "Split selected pipes",
+            "tag_selected_mep_elements": "Tag selected MEP elements",
+            "fill_missing_marks": "Fill missing marks",
+            "export_latest_qa_report": "Export QA report",
+            "create_qa_snapshot": "QA evidence snapshot",
+            "create_schedule_from_report": "Schedule from report",
+            "unknown_reviewed_action": "Unknown reviewed action",
+        }
+        return labels.get(action_key, "Unknown reviewed action")
+
+    def _proposal_id(self, action_key):
+        return "MEP-ACT-001-{0}-{1}".format(time.strftime("%Y%m%d_%H%M%S"), slugify_text(action_key))
+
+    def _pipe_split_category_group(self, category_name):
+        if category_name == "Pipes":
+            return "pipes"
+        if category_name == "Pipe Fittings":
+            return "pipe_fittings"
+        if category_name == "Pipe Accessories":
+            return "pipe_accessories"
+        return "non_pipe"
+
+    def _append_sample(self, groups, key, elem, limit=10):
+        bucket = groups.setdefault(key, {"count": 0, "ids": [], "categories": {}})
+        bucket["count"] += 1
+        elem_id = _safe_int_id(elem)
+        if elem_id is not None and len(bucket["ids"]) < limit and elem_id not in bucket["ids"]:
+            bucket["ids"].append(elem_id)
+        cat = _category_name(elem)
+        if cat:
+            bucket["categories"][cat] = bucket["categories"].get(cat, 0) + 1
+
+    def _pipe_location_curve_status(self, elem):
+        try:
+            location = elem.Location
+        except:
+            location = None
+        try:
+            if not isinstance(location, DB.LocationCurve):
+                return None, "unreadable"
+        except:
+            if not hasattr(location, "Curve"):
+                return None, "unreadable"
+        try:
+            curve = location.Curve
+        except:
+            return None, "unreadable"
+        if curve is None:
+            return None, "unreadable"
+        try:
+            _ = curve.GetEndPoint(0)
+            _ = curve.GetEndPoint(1)
+        except:
+            return curve, "unsupported"
+        return curve, "ok"
+
+    def _pipe_is_near_vertical(self, curve):
+        try:
+            p0 = curve.GetEndPoint(0)
+            p1 = curve.GetEndPoint(1)
+            dx = float(p1.X - p0.X)
+            dy = float(p1.Y - p0.Y)
+            dz = float(p1.Z - p0.Z)
+            length = math.sqrt(dx * dx + dy * dy + dz * dz)
+            if length <= 0:
+                return False
+            return abs(dz / length) > 0.90
+        except:
+            return False
+
+    def _pipe_curve_length(self, curve):
+        try:
+            return float(curve.Length)
+        except:
+            return None
+
+    def _pipe_too_short(self, curve):
+        length = self._pipe_curve_length(curve)
+        if length is None:
+            return False
+        try:
+            threshold = _meters_to_feet(1.0)
+            return length < threshold
+        except:
+            return False
+
+    def _group_line(self, label, bucket):
+        ids = bucket.get("ids") or []
+        categories = bucket.get("categories") or {}
+        parts = ["- {0}: {1}".format(label, bucket.get("count", 0))]
+        if ids:
+            parts.append("sample ids: {0}".format(", ".join([safe_str(item) for item in ids[:10]])))
+        if categories:
+            cat_text = ", ".join(["{0}={1}".format(key, value) for key, value in sorted(categories.items())[:5]])
+            parts.append("categories: {0}".format(cat_text))
+        return " | ".join(parts)
+
+    def _store_reviewed_action_proposal(self, proposal, proposal_text):
+        proposal["proposal_text"] = proposal_text
+        self.latest_reviewed_action_proposal = proposal
+        self.remember_latest_deterministic_report(proposal.get("source_prompt"), proposal_text)
+
+    def _build_split_selected_pipes_proposal(self, prompt):
+        elements = _selected_elements(doc, uidoc)
+        total_selected = len(elements)
+        proposal_id = self._proposal_id("split_selected_pipes")
+        doc_title = _document_title(doc)
+        active_view_name = self._safe_active_view_name()
+        active_view_type = self._safe_active_view_type()
+        groups = {}
+        warnings = {}
+        eligible = []
+        inspected = 0
+        capped = False
+        max_items = 200
+
+        for elem in elements[:max_items]:
+            inspected += 1
+            cat = _category_name(elem)
+            group = self._pipe_split_category_group(cat)
+            if group != "pipes":
+                self._append_sample(groups, group, elem)
+                continue
+            try:
+                if bool(elem.Pinned):
+                    self._append_sample(groups, "pinned_pipes", elem)
+                    continue
+            except:
+                pass
+            try:
+                group_id = getattr(elem, "GroupId", None)
+                if group_id is not None and group_id != DB.ElementId.InvalidElementId:
+                    self._append_sample(groups, "grouped_pipes", elem)
+                    continue
+            except:
+                pass
+            try:
+                design_option = getattr(elem, "DesignOption", None)
+                if design_option is not None:
+                    self._append_sample(groups, "design_option_pipes", elem)
+                    continue
+            except:
+                pass
+            curve, status = self._pipe_location_curve_status(elem)
+            if status == "unreadable":
+                self._append_sample(groups, "unreadable_location_curve", elem)
+                continue
+            if status == "unsupported":
+                self._append_sample(groups, "unsupported_curve_type", elem)
+                continue
+            if self._pipe_is_near_vertical(curve):
+                self._append_sample(groups, "near_vertical_pipes", elem)
+                continue
+            if self._pipe_too_short(curve):
+                self._append_sample(groups, "too_short_pipes", elem)
+                continue
+            eligible.append(elem)
+            if not _element_level_name(doc, elem):
+                self._append_sample(warnings, "missing_level", elem)
+            if not _system_assignment_value(elem):
+                self._append_sample(warnings, "missing_system", elem)
+            if not _safe_param_text(elem, ["Diameter", "Size", "Nominal Diameter", "Outside Diameter"]):
+                self._append_sample(warnings, "missing_diameter_or_size", elem)
+            if not _safe_param_text(elem, ["Length"]):
+                self._append_sample(warnings, "missing_length", elem)
+            if not _safe_param_text(elem, ["Slope"]):
+                self._append_sample(warnings, "missing_slope", elem)
+        if len(elements) > max_items:
+            capped = True
+
+        skipped_count = sum([bucket.get("count", 0) for bucket in groups.values()])
+        warning_count = sum([bucket.get("count", 0) for bucket in warnings.values()])
+        ready = bool(eligible)
+        lines = [
+            "[REVIEWED ACTION PROPOSAL]",
+            "",
+            "Proposal ID:",
+            proposal_id,
+            "",
+            "Action:",
+            "Split selected pipes",
+            "",
+            "Status:",
+            "Proposal only / not executed",
+            "",
+            "Scope:",
+            "selected elements / active document only",
+            "",
+            "Active document:",
+            doc_title,
+            "",
+            "Active view:",
+            "{0} [{1}]".format(active_view_name, active_view_type),
+            "",
+            "Selection summary:",
+            "- Total selected elements: {0}".format(total_selected),
+            "- Elements inspected for preflight: {0}".format(inspected),
+            "- Eligible pipes: {0}".format(len(eligible)),
+            "- Skipped elements: {0}".format(skipped_count),
+            "- Warnings: {0}".format(warning_count),
+            "",
+        ]
+        if total_selected == 0:
+            lines.extend(
+                [
+                    "Preflight result:",
+                    "Not ready",
+                    "",
+                    "No elements selected. Select pipes before requesting a split proposal.",
+                    "",
+                    "Safety:",
+                    "- Proposal only.",
+                    "- Read-only.",
+                    "- No transaction opened.",
+                    "- Revit model data was not modified.",
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    "Eligible pipes:",
+                    "- {0} | sample ids: {1}".format(len(eligible), _sample_id_text(eligible, 10)),
+                    "",
+                    "Skipped elements:",
+                    self._group_line("Pipe fittings", groups.get("pipe_fittings", {"count": 0, "ids": [], "categories": {}})),
+                    self._group_line("Pipe accessories", groups.get("pipe_accessories", {"count": 0, "ids": [], "categories": {}})),
+                    self._group_line("Non-pipe categories", groups.get("non_pipe", {"count": 0, "ids": [], "categories": {}})),
+                    self._group_line("Near-vertical pipes", groups.get("near_vertical_pipes", {"count": 0, "ids": [], "categories": {}})),
+                    self._group_line("Too-short pipes", groups.get("too_short_pipes", {"count": 0, "ids": [], "categories": {}})),
+                    self._group_line("Unreadable location curve", groups.get("unreadable_location_curve", {"count": 0, "ids": [], "categories": {}})),
+                    self._group_line("Pinned pipes", groups.get("pinned_pipes", {"count": 0, "ids": [], "categories": {}})),
+                    self._group_line("Grouped pipes", groups.get("grouped_pipes", {"count": 0, "ids": [], "categories": {}})),
+                    self._group_line("Design-option pipes", groups.get("design_option_pipes", {"count": 0, "ids": [], "categories": {}})),
+                    self._group_line("Unsupported curve type", groups.get("unsupported_curve_type", {"count": 0, "ids": [], "categories": {}})),
+                    "",
+                    "Preflight warnings:",
+                ]
+            )
+            if warnings:
+                for key in sorted(warnings.keys()):
+                    lines.append(self._group_line(key.replace("_", " ").title(), warnings.get(key)))
+            else:
+                lines.append("- none")
+            if capped:
+                lines.append("- Selection preflight was capped at 200 elements for readability/performance.")
+            lines.extend(
+                [
+                    "",
+                    "Risks:",
+                    "- Pipe splitting can affect connected fittings, slopes, systems, tags, dimensions, schedules, and downstream coordination.",
+                    "- MEP-ACT-001 does not inspect connectors or modify networks.",
+                    "- Actual execution must be implemented as a separate reviewed write action with rollback.",
+                    "",
+                    "Preflight result:",
+                    "Ready for future dry-run" if ready else "Not ready",
+                    "",
+                    "Proposed split count:",
+                    "not calculated in MEP-ACT-001",
+                    "",
+                    "Next step:",
+                    "Future feature MEP-WR-001 should implement split selected pipes dry-run. Future feature MEP-WR-002 should implement reviewed apply with explicit confirmation and rollback.",
+                    "",
+                    "Safety:",
+                    "- Proposal only.",
+                    "- Read-only.",
+                    "- No transaction opened.",
+                    "- Revit model data was not modified.",
+                ]
+            )
+        text = "\n".join(lines)
+        proposal = {
+            "proposal_id": proposal_id,
+            "feature_id": "MEP-ACT-001",
+            "action_key": "split_selected_pipes",
+            "action_label": "Split selected pipes",
+            "source_prompt": safe_str(prompt),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": doc_title,
+            "document_path": self._safe_document_path(),
+            "active_view_name": active_view_name,
+            "active_view_type": active_view_type,
+            "scope": "selected elements / active document only",
+            "eligible_count": len(eligible),
+            "skipped_count": skipped_count,
+            "warning_count": warning_count,
+            "proposed_next_command": "MEP-WR-001 split selected pipes dry-run",
+            "proposal_status": "ready_for_future_dry_run" if ready else "not_ready",
+            "deterministic_route": True,
+            "read_only": True,
+            "model_modified": False,
+            "execution_available": False,
+        }
+        self._store_reviewed_action_proposal(proposal, text)
+        return text
+
+    def _build_future_reviewed_action_proposal(self, prompt, action_key):
+        proposal_id = self._proposal_id(action_key)
+        label = self._proposal_action_label(action_key)
+        doc_title = _document_title(doc)
+        active_view_name = self._safe_active_view_name()
+        active_view_type = self._safe_active_view_type()
+        scope = "selected elements / active document only" if action_key in ("tag_selected_mep_elements", "fill_missing_marks") else "current session / active document only"
+        text = "\n".join(
+            [
+                "[REVIEWED ACTION PROPOSAL]",
+                "",
+                "Proposal ID:",
+                proposal_id,
+                "",
+                "Action:",
+                label,
+                "",
+                "Status:",
+                "Proposal only / future action not implemented",
+                "",
+                "Scope:",
+                scope,
+                "",
+                "Active document:",
+                doc_title,
+                "",
+                "Active view:",
+                "{0} [{1}]".format(active_view_name, active_view_type),
+                "",
+                "Eligibility summary:",
+                "- Eligible elements: 0",
+                "- Skipped elements: 0",
+                "- Warnings: 0",
+                "",
+                "Preflight result:",
+                "Future reviewed action recognized, but execution/dry-run logic is not implemented in MEP-ACT-001.",
+                "",
+                "Next step:",
+                "Implement a dedicated dry-run feature before any reviewed apply action.",
+                "",
+                "Safety:",
+                "- Proposal only.",
+                "- Read-only.",
+                "- No transaction opened.",
+                "- Revit model data was not modified.",
+            ]
+        )
+        proposal = {
+            "proposal_id": proposal_id,
+            "feature_id": "MEP-ACT-001",
+            "action_key": action_key,
+            "action_label": label,
+            "source_prompt": safe_str(prompt),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": doc_title,
+            "document_path": self._safe_document_path(),
+            "active_view_name": active_view_name,
+            "active_view_type": active_view_type,
+            "scope": scope,
+            "eligible_count": 0,
+            "skipped_count": 0,
+            "warning_count": 0,
+            "proposed_next_command": "dedicated dry-run feature required",
+            "proposal_status": "future_action_not_implemented",
+            "deterministic_route": True,
+            "read_only": True,
+            "model_modified": False,
+            "execution_available": False,
+        }
+        self._store_reviewed_action_proposal(proposal, text)
+        return text
+
+    def _build_unknown_reviewed_action_proposal(self, prompt):
+        proposal_id = self._proposal_id("unknown_reviewed_action")
+        doc_title = _document_title(doc)
+        active_view_name = self._safe_active_view_name()
+        active_view_type = self._safe_active_view_type()
+        text = "\n".join(
+            [
+                "[REVIEWED ACTION PROPOSAL]",
+                "",
+                "Proposal ID:",
+                proposal_id,
+                "",
+                "Action:",
+                "Unknown reviewed action",
+                "",
+                "Status:",
+                "Proposal only / not executed",
+                "",
+                "Active document:",
+                doc_title,
+                "",
+                "Active view:",
+                "{0} [{1}]".format(active_view_name, active_view_type),
+                "",
+                "Preflight result:",
+                "No specific reviewed action could be classified from the prompt.",
+                "",
+                "Suggested supported proposal prompts:",
+                "- propose split selected pipes",
+                "- dry run split selected pipes",
+                "- propose tag selected MEP elements",
+                "- propose fill missing marks",
+                "- propose create QA snapshot",
+                "",
+                "Safety:",
+                "- Proposal only.",
+                "- Read-only.",
+                "- No transaction opened.",
+                "- Revit model data was not modified.",
+            ]
+        )
+        proposal = {
+            "proposal_id": proposal_id,
+            "feature_id": "MEP-ACT-001",
+            "action_key": "unknown_reviewed_action",
+            "action_label": "Unknown reviewed action",
+            "source_prompt": safe_str(prompt),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": doc_title,
+            "document_path": self._safe_document_path(),
+            "active_view_name": active_view_name,
+            "active_view_type": active_view_type,
+            "scope": "active document only",
+            "eligible_count": 0,
+            "skipped_count": 0,
+            "warning_count": 0,
+            "proposed_next_command": "use a supported proposal prompt",
+            "proposal_status": "unknown_action",
+            "deterministic_route": True,
+            "read_only": True,
+            "model_modified": False,
+            "execution_available": False,
+        }
+        self._store_reviewed_action_proposal(proposal, text)
+        return text
+
+    def answer_reviewed_action_proposal_question(self, prompt):
+        action_key = self._reviewed_action_proposal_route(prompt)
+        if not action_key:
+            return None
+        if action_key == "split_selected_pipes":
+            return self._build_split_selected_pipes_proposal(prompt)
+        if action_key == "unknown_reviewed_action":
+            return self._build_unknown_reviewed_action_proposal(prompt)
+        return self._build_future_reviewed_action_proposal(prompt, action_key)
 
     def _safe_document_path(self):
         try:
@@ -14466,49 +14965,54 @@ class OllamaAIChat(forms.WPFWindow):
             index_reply = self.answer_qa_export_index_question(prompt)
             if index_reply is not None:
                 reply = index_reply
-            elif self._is_qa_export_request(prompt):
-                reply = self.export_latest_qa_report(prompt)
-                preserve_latest_report_state = True
-            elif self._is_codex_brief_request(prompt):
-                brief = self.build_codex_task_brief(prompt)
-                self.latest_codex_brief = brief
-                self.populate_project_context_tree()
-                reply = "```\n{0}\n```".format(brief)
-            elif self._is_scan_request(prompt):
-                result = self.run_project_context_scan("standard")
-                reply = result.get("summary", "")
-                remember_report = True
             else:
-                discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
-                if discipline_qa_reply is not None:
-                    reply = discipline_qa_reply
+                proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
+                if proposal_reply is not None:
+                    reply = proposal_reply
+                    remember_report = True
+                elif self._is_qa_export_request(prompt):
+                    reply = self.export_latest_qa_report(prompt)
+                    preserve_latest_report_state = True
+                elif self._is_codex_brief_request(prompt):
+                    brief = self.build_codex_task_brief(prompt)
+                    self.latest_codex_brief = brief
+                    self.populate_project_context_tree()
+                    reply = "```\n{0}\n```".format(brief)
+                elif self._is_scan_request(prompt):
+                    result = self.run_project_context_scan("standard")
+                    reply = result.get("summary", "")
                     remember_report = True
                 else:
-                    system_reply = self.answer_system_assignment_report_question(prompt)
-                    if system_reply is not None:
-                        reply = system_reply
+                    discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                    if discipline_qa_reply is not None:
+                        reply = discipline_qa_reply
                         remember_report = True
                     else:
-                        active_view_reply = self.answer_active_view_report_question(prompt)
-                        if active_view_reply is not None:
-                            reply = active_view_reply
+                        system_reply = self.answer_system_assignment_report_question(prompt)
+                        if system_reply is not None:
+                            reply = system_reply
                             remember_report = True
                         else:
-                            selection_reply = self.answer_selection_report_question(prompt)
-                            if selection_reply is not None:
-                                reply = selection_reply
+                            active_view_reply = self.answer_active_view_report_question(prompt)
+                            if active_view_reply is not None:
+                                reply = active_view_reply
                                 remember_report = True
-                            elif self._is_project_context_question(prompt):
-                                reply = self.answer_project_context_question(prompt)
-                                remember_report = True
-                            elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                                self.append_project_agent_plan()
-                                reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
-                                preserve_latest_report_state = True
                             else:
-                                reply = send_ollama_chat(self.model, prompt)
-                                reply = self._sanitize_ollama_context_error(reply)
-                                self.latest_chat_output_is_deterministic_report = False
+                                selection_reply = self.answer_selection_report_question(prompt)
+                                if selection_reply is not None:
+                                    reply = selection_reply
+                                    remember_report = True
+                                elif self._is_project_context_question(prompt):
+                                    reply = self.answer_project_context_question(prompt)
+                                    remember_report = True
+                                elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                    self.append_project_agent_plan()
+                                    reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                    preserve_latest_report_state = True
+                                else:
+                                    reply = send_ollama_chat(self.model, prompt)
+                                    reply = self._sanitize_ollama_context_error(reply)
+                                    self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             if remember_report:
