@@ -74,3 +74,26 @@ MEP-RO-005 is not an LLM model-provider feature. It is a deterministic evidence-
 - generated files are filesystem evidence artifacts only
 - no persisted Revit model store was introduced
 - no provider configuration was changed
+
+## 2026-05-17 MEP-RO-006 Model Note
+
+MEP-RO-006 is not an LLM model-provider feature. It is a deterministic filesystem index layer for exported QA evidence snapshots.
+
+- index files are local filesystem artifacts
+- index prompts do not call Ollama/OpenAI
+- index entries record export metadata and safety/governance fields
+- generic Ollama output remains rejected as deterministic export evidence
+- no persisted Revit model store was introduced
+- no provider configuration was changed
+
+## 2026-05-17 MEP-ACT-001 Model Note
+
+MEP-ACT-001 is not an LLM model-provider feature. It is a deterministic reviewed-action proposal/preflight layer.
+
+- supported proposal prompts bypass Ollama/OpenAI
+- proposal state is session-local
+- split-selected-pipes preflight reads live selection only
+- future action placeholders remain proposal-only
+- no execution state, transaction, or write-action model was introduced
+- generic Ollama output remains rejected as deterministic export evidence
+- no provider configuration was changed

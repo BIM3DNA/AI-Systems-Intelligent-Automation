@@ -115,3 +115,21 @@ Ollama/OpenAI fallback is intentionally bypassed for MEP-RO-005 export prompts.
 - generic Ollama responses are rejected as deterministic QA evidence
 - export behavior depends on session-local deterministic report state, not provider output
 - no provider configuration was changed
+
+## 2026-05-17 MEP-RO-006 Provider Boundary Note
+
+MEP-RO-006 index prompts route deterministically before Ollama/OpenAI fallback.
+
+- Ollama/OpenAI are not used for index reading or index writing
+- index outputs are based on local filesystem metadata only
+- generic Ollama responses remain non-exportable as deterministic QA evidence
+- no provider configuration was changed
+
+## 2026-05-17 MEP-ACT-001 Provider Boundary Note
+
+MEP-ACT-001 proposal prompts route deterministically before Ollama/OpenAI fallback.
+
+- Ollama/OpenAI are not used for reviewed action proposal preflight
+- supported proposal prompts read live Revit context locally and safely
+- generic Ollama responses remain non-exportable as deterministic QA evidence
+- no provider configuration was changed

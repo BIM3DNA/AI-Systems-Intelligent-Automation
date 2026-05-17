@@ -251,3 +251,57 @@ MEP-RO-005 adds a deterministic read-only export layer that saves the latest acc
 - no pyRevit traceback observed in provided runtime outputs
 - no model mutation indicated
 - no linked-document scan, connector traversal, geometry extraction, or Revit parameter write is part of the validated export behavior
+
+## 2026-05-17 - MEP-RO-006 QA Export Index / Snapshot Registry Runtime Validation
+
+### Status
+
+MEP-RO-006: runtime validated.
+
+### Summary
+
+MEP-RO-006 extends MEP-RO-005 by maintaining a persistent local index for successful QA evidence exports.
+
+### Validation coverage
+
+- Empty index behavior returned deterministic no-index messages for `show QA export index` and `show latest QA export`.
+- BUNGE active-view piping QA export updated `qa_export_index.jsonl`, `qa_export_index.csv`, and `latest_export.json`.
+- Index file integrity was inspected for latest JSON, JSONL, and CSV governance fields.
+- `list QA evidence snapshots`, `QA export index summary`, and `show latest QA export` returned deterministic index reports.
+- Snowdon HVAC second indexed export updated latest export metadata and increased total indexed exports to 2.
+- Generic Ollama response was rejected by export and did not create a new index entry.
+
+### Safety
+
+- index read/write is filesystem-only
+- no Ollama fallback for index prompts
+- no pyRevit traceback indicated
+- no Revit model mutation indicated
+
+## 2026-05-17 - MEP-ACT-001 Reviewed Action Proposal Framework Runtime Validation
+
+### Status
+
+MEP-ACT-001: runtime validated.
+
+### Summary
+
+MEP-ACT-001 introduces deterministic proposal-only reviewed-action preflights between the read-only QA/export stack and future reviewed write actions.
+
+### Validation coverage
+
+- No-selection split proposal returned not-ready proposal with no selected elements.
+- BUNGE selected pipes/fittings preflight classified 34 selected elements into 9 eligible pipes, 14 skipped pipe fittings, 6 near-vertical pipes, and 5 too-short pipes.
+- Non-pipe selection proposal classified 11 selected CAD/DWG/link-like elements as skipped non-pipe categories and returned not ready.
+- Future action placeholders for tagging selected MEP elements and filling missing marks returned proposal-only/future-action-not-implemented outputs.
+- Unknown reviewed action proposal returned deterministic suggestions for supported proposal prompts.
+- `[REVIEWED ACTION PROPOSAL]` was exported by MEP-RO-005 and indexed by MEP-RO-006.
+- Generic Ollama response after proposal was rejected as deterministic export evidence and did not replace latest export metadata.
+
+### Safety
+
+- proposal-only
+- read-only
+- no transaction opened
+- no Revit model mutation indicated
+- no connector traversal, geometry extraction, linked-document scan, parameter write, tag/schedule/view/sheet creation, system/circuit edit, or pipe splitting execution indicated

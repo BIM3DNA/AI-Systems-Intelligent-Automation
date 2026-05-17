@@ -1174,3 +1174,44 @@ MEP-RO-005 builds on the validated read-only MEP QA stack:
 The export action is filesystem-only. It does not mutate the Revit model, write parameters, scan linked-document internals, traverse connectors, or extract geometry.
 
 Status: runtime validated.
+
+## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry
+
+MEP-RO-006 builds on MEP-RO-005 by registering every successful QA evidence export in a persistent local filesystem index.
+
+### Architectural role
+
+- successful exports update `qa_export_index.jsonl`, `qa_export_index.csv`, and `latest_export.json`
+- primary index location is `%USERPROFILE%/Desktop/Results/AI_Workbench/QA_Exports/_index/`
+- fallback index location is `%TEMP%/AI_Workbench/QA_Exports/_index/`
+- deterministic list/latest index routes run before Ollama fallback
+- index read prompts do not scan the Revit model or linked documents
+- generic Ollama responses remain rejected by the export path and do not create index entries
+- index metadata records `read_only: true`, `model_modified: false`, `linked_documents_scanned: false`, `connector_traversal_used: false`, and `geometry_extraction_used: false`
+
+The registry is filesystem/index-only. It does not mutate the Revit model, write parameters, open transactions, traverse connectors, extract geometry, or inspect linked-document internals.
+
+Status: runtime validated.
+
+## 2026-05-17 MEP-ACT-001 Reviewed Action Proposal Framework
+
+MEP-ACT-001 introduces a deterministic proposal-only layer between the validated read-only QA/export stack and future reviewed write actions.
+
+### Architectural role
+
+- routes known action-oriented prompts deterministically before Ollama fallback
+- classifies the requested action into a supported proposal key
+- reads live Revit context safely, currently focused on current selection for split-selected-pipes preflight
+- stores session-local reviewed action proposal state
+- outputs `[REVIEWED ACTION PROPOSAL]` with explicit proposal-only/no-execution safety wording
+- accepts `[REVIEWED ACTION PROPOSAL]` as a deterministic export header, so proposals can be exported by MEP-RO-005 and indexed by MEP-RO-006
+
+### Proposal coverage
+
+- `split_selected_pipes` includes live-selection preflight for eligible pipes, skipped pipe fittings/accessories/non-pipes, near-vertical pipes, too-short pipes, unreadable location curves, pinned pipes, grouped pipes, design-option pipes, unsupported curve types, and readability warnings
+- `tag_selected_mep_elements`, `fill_missing_marks`, `export_latest_qa_report`, `create_qa_snapshot`, and `create_schedule_from_report` are recognized future reviewed actions with proposal-only placeholders
+- `unknown_reviewed_action` returns supported proposal prompts without using Ollama
+
+MEP-ACT-001 does not execute confirmation/apply behavior. It opens no transaction and performs no pipe splitting, tagging, scheduling, parameter writing, system/circuit editing, connector traversal, geometry extraction, or model mutation.
+
+Status: runtime validated.

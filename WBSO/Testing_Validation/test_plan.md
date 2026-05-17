@@ -653,6 +653,55 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry Validation
+
+### Tested contexts
+
+- empty index
+- BUNGE indexed export
+- index file inspection
+- index list routes
+- latest export route
+- Snowdon HVAC second indexed export
+- generic Ollama rejection with no new index entry
+
+### Pass criteria
+
+- index routes are deterministic
+- no Ollama fallback for index prompts
+- index files are created
+- JSONL contains valid JSON objects
+- CSV has header and rows
+- `latest_export.json` is valid
+- total indexed export count increments after a second export
+- generic Ollama rejection does not create an index entry
+- no pyRevit traceback
+- no Revit model mutation
+
+## 2026-05-17 MEP-ACT-001 Reviewed Action Proposal Framework Validation
+
+### Tested contexts
+
+- no-selection split proposal
+- selected pipes/fittings split proposal
+- non-pipe selection split proposal
+- future action proposal
+- unknown reviewed action proposal
+- proposal export/index integration
+- generic Ollama rejection after proposal
+
+### Pass criteria
+
+- proposal routes are deterministic
+- no Ollama fallback for supported proposal prompts
+- eligible/skipped classification works
+- split proposal is proposal-only
+- no executable split points are generated
+- no transaction is opened
+- no model mutation occurs
+- reviewed proposal export succeeds
+- generic Ollama response is rejected as deterministic export evidence
+
 ## 2026-05-14 MEP-RO-005 Exportable QA Evidence Snapshot Validation
 
 ### Tested contexts

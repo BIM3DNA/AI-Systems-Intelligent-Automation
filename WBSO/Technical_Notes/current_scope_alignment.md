@@ -448,3 +448,21 @@ MEP-RO-005 supports the approved WBSO direction for deterministic BIM QA and saf
 - does not export geometry, connector data, linked-document internals, or write any Revit data
 
 This provides a foundation for future QA export packages, review reports, and controlled demo workflows while preserving the read-only diagnostics-first boundary.
+
+### 2026-05-17 MEP-RO-006 and MEP-ACT-001 scope alignment
+
+MEP-RO-006 improves WBSO auditability by indexing exported QA evidence snapshots in a deterministic local registry. It remains filesystem/index-only and does not mutate the Revit model.
+
+MEP-ACT-001 introduces the governance shell required before future reviewed write actions. It creates proposal-only reviewed-action preflight reports, not executable model changes.
+
+Both features remain within the safe deterministic AI-assisted BIM QA and planning scope:
+
+- deterministic routes run before Ollama fallback
+- no Revit transactions or model mutation
+- no linked-document scans
+- no connector traversal
+- no geometry extraction
+- no parameter writes
+- no tag/schedule/view/sheet/system/circuit edits
+
+Together they reduce uncertainty around the transition from read-only reporting to controlled automation by making evidence traceable and future actions proposal-first.

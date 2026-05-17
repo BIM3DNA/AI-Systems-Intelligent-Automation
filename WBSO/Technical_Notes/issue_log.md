@@ -1136,3 +1136,42 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 - Configurable export root path.
 - Automatic open-folder action after export.
 - Export index file across multiple snapshots.
+
+---
+
+## 2026-05-17 MEP-RO-006 and MEP-ACT-001 Runtime Validation
+
+**Status:** Resolved / runtime validated  
+**Type:** deterministic export-index and reviewed-action proposal validation
+
+### MEP-RO-006 validated items
+
+- Empty-index handling passed for `show QA export index` and `show latest QA export`.
+- BUNGE indexed export passed and updated `qa_export_index.jsonl`, `qa_export_index.csv`, and `latest_export.json`.
+- Index file integrity passed for JSONL, CSV, and latest JSON metadata.
+- Index listing/latest routes passed for `list QA evidence snapshots`, `QA export index summary`, and `show latest QA export`.
+- Snowdon HVAC second indexed export passed and increased total indexed exports to 2.
+- Generic Ollama rejection did not create a new index entry.
+
+### MEP-ACT-001 validated items
+
+- No-selection split proposal passed.
+- Selected pipes/fittings split proposal preflight passed.
+- Non-pipe selection split proposal passed.
+- Future reviewed action proposal placeholders passed for tagging selected MEP elements and filling missing marks.
+- Unknown reviewed action proposal passed.
+- Reviewed action proposal export/index integration passed.
+- Generic Ollama rejection after proposal passed and did not replace the latest deterministic export.
+
+### Governance result
+
+- MEP-ACT-001 remains proposal-only.
+- No Revit model mutation was observed.
+- No transactions, parameter writes, connector traversal, geometry extraction, linked-document scans, tag/schedule/view/sheet creation, system/circuit edits, or pipe splitting execution were observed.
+
+### Future refinements
+
+- MEP-RO-007 optional export snapshot browser/open-folder helper.
+- MEP-ACT-002 reviewed proposal confirmation guard.
+- MEP-WR-001 split selected pipes dry-run.
+- MEP-WR-002 split selected pipes reviewed apply with rollback.

@@ -1204,6 +1204,75 @@ MEP-RO-002 - Active View Read-Only MEP Report Pack
 
 Runtime validated.
 
+## EV-AI-076 through EV-AI-081 - MEP-RO-006 QA Export Index / Snapshot Registry Pack
+
+### Feature
+
+MEP-RO-006 - QA Export Index / Snapshot Registry Pack
+
+### Evidence IDs
+
+- EV-AI-076: MEP-RO-006 empty-index deterministic handling validation
+- EV-AI-077: BUNGE indexed QA export validation
+- EV-AI-078: QA export index file integrity validation
+- EV-AI-079: QA export index list/latest route validation
+- EV-AI-080: Snowdon HVAC second indexed export validation
+- EV-AI-081: generic Ollama rejection with no new index entry validation
+
+### Validation Summary
+
+- deterministic index routes before Ollama
+- empty-index messages validated
+- BUNGE and Snowdon HVAC indexed exports validated
+- `qa_export_index.jsonl`, `qa_export_index.csv`, and `latest_export.json` inspected
+- total indexed export count incremented from 1 to 2
+- generic Ollama response did not create a new index entry
+- no model mutation observed
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-17_mep-ro-006-qa-export-index-registry-validated/`
+
+### Status
+
+Runtime validated.
+
+## EV-AI-082 through EV-AI-088 - MEP-ACT-001 Reviewed Action Proposal Framework
+
+### Feature
+
+MEP-ACT-001 - Reviewed Action Proposal Framework
+
+### Evidence IDs
+
+- EV-AI-082: MEP-ACT-001 no-selection split proposal validation
+- EV-AI-083: BUNGE selected pipes/fittings split proposal preflight validation
+- EV-AI-084: non-pipe selection split proposal rejection/preflight validation
+- EV-AI-085: future reviewed action proposal validation
+- EV-AI-086: unknown reviewed action proposal validation
+- EV-AI-087: reviewed action proposal export/index validation
+- EV-AI-088: generic Ollama rejection after reviewed proposal validation
+
+### Validation Summary
+
+- deterministic proposal routes before Ollama
+- live selection preflight validated
+- selected pipes/fittings split proposal classified eligible and skipped elements
+- non-pipe selection returned not-ready proposal
+- future action placeholders remained proposal-only
+- unknown reviewed action proposal returned supported prompt suggestions
+- `[REVIEWED ACTION PROPOSAL]` exported through MEP-RO-005 and indexed through MEP-RO-006
+- generic Ollama response rejected as deterministic export evidence
+- no transaction or model mutation observed
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-17_mep-act-001-reviewed-action-proposal-framework-validated/`
+
+### Status
+
+Runtime validated.
+
 ## EV-AI-062 through EV-AI-068 - MEP-RO-004 Discipline-Specific Missing Parameter / QA Rules Pack
 
 ### Feature
