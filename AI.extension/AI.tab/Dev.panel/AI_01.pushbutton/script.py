@@ -13,6 +13,7 @@ import time
 import math
 import tempfile
 import codecs
+import csv
 import System
 
 from System import Action
@@ -12022,11 +12023,348 @@ class OllamaAIChat(forms.WPFWindow):
         return normalized in routes
 
     def _qa_export_base_folder(self):
+        return self._qa_export_root()
+
+    def _qa_export_primary_root(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+        desktop = os.path.join(user_profile, "Desktop")
+        return os.path.join(desktop, "Results", "AI_Workbench", "QA_Exports")
+
+    def _qa_export_temp_root(self):
+        return os.path.join(tempfile.gettempdir(), "AI_Workbench", "QA_Exports")
+
+    def _qa_export_root(self):
+        primary = self._qa_export_primary_root()
         user_profile = os.environ.get("USERPROFILE") or os.path.expanduser("~")
         desktop = os.path.join(user_profile, "Desktop")
         if desktop and os.path.isdir(desktop):
-            return os.path.join(desktop, "Results", "AI_Workbench", "QA_Exports")
-        return os.path.join(tempfile.gettempdir(), "AI_Workbench", "QA_Exports")
+            return primary
+        return self._qa_export_temp_root()
+
+    def _qa_export_index_dir(self, root_folder=None):
+        return os.path.join(root_folder or self._qa_export_root(), "_index")
+
+    def _qa_export_index_candidates(self):
+        candidates = []
+        primary = self._qa_export_index_dir(self._qa_export_primary_root())
+        fallback = self._qa_export_index_dir(self._qa_export_temp_root())
+        for item in [primary, fallback]:
+            if item and item not in candidates:
+                candidates.append(item)
+        return candidates
+
+    def _qa_index_csv_escape(self, value):
+        text = safe_str(value)
+        if text == "(none)":
+            text = ""
+        text = text.replace("\r", " ").replace("\n", " ")
+        if '"' in text:
+            text = text.replace('"', '""')
+        if "," in text or '"' in text:
+            text = '"{0}"'.format(text)
+        return text
+
+    def _qa_index_csv_row(self, values):
+        return ",".join([self._qa_index_csv_escape(value) for value in values])
+
+    def _report_header_family(self, header):
+        text = safe_str(header).strip().strip("[]")
+        if not text:
+            return "unknown"
+        return slugify_text(text)
+
+    def _qa_export_file_paths(self, export_folder):
+        return {
+            "report_file": os.path.join(export_folder, "report.md"),
+            "text_file": os.path.join(export_folder, "report.txt"),
+            "metadata_file": os.path.join(export_folder, "metadata.json"),
+            "manifest_file": os.path.join(export_folder, "artifact_manifest.txt"),
+        }
+
+    def _write_qa_export_index_entry(self, metadata):
+        index_dir = self._qa_export_index_dir()
+        try:
+            if not os.path.isdir(index_dir):
+                os.makedirs(index_dir)
+            export_folder = metadata.get("export_folder") or ""
+            file_paths = self._qa_export_file_paths(export_folder)
+            entry = dict(metadata)
+            entry["feature_id"] = "MEP-RO-006"
+            entry["source_feature_id"] = "MEP-RO-005"
+            entry["index_written"] = True
+            entry["report_file"] = file_paths.get("report_file")
+            entry["text_file"] = file_paths.get("text_file")
+            entry["metadata_file"] = file_paths.get("metadata_file")
+            entry["manifest_file"] = file_paths.get("manifest_file")
+            entry["export_folder_exists"] = bool(export_folder and os.path.isdir(export_folder))
+            entry["report_header_family"] = self._report_header_family(metadata.get("source_report_header"))
+            entry["document_key"] = slugify_text(metadata.get("document_title") or "unknown-document")
+            entry["active_view_key"] = slugify_text(metadata.get("active_view_name") or "unknown-view")
+
+            jsonl_path = os.path.join(index_dir, "qa_export_index.jsonl")
+            stream = codecs.open(jsonl_path, "a", "utf-8")
+            try:
+                stream.write(json.dumps(entry, sort_keys=True))
+                stream.write("\n")
+            finally:
+                stream.close()
+
+            csv_path = os.path.join(index_dir, "qa_export_index.csv")
+            csv_fields = [
+                "feature_id",
+                "source_feature_id",
+                "export_timestamp_local",
+                "document_title",
+                "active_view_name",
+                "active_view_type",
+                "source_prompt",
+                "source_report_header",
+                "report_scope",
+                "export_folder",
+                "deterministic_route",
+                "read_only",
+                "model_modified",
+                "linked_documents_scanned",
+                "connector_traversal_used",
+                "geometry_extraction_used",
+                "report_header_family",
+                "document_key",
+                "active_view_key",
+            ]
+            csv_exists = os.path.exists(csv_path)
+            csv_stream = codecs.open(csv_path, "a", "utf-8")
+            try:
+                if not csv_exists:
+                    csv_stream.write(self._qa_index_csv_row(csv_fields))
+                    csv_stream.write("\n")
+                csv_stream.write(self._qa_index_csv_row([entry.get(field) for field in csv_fields]))
+                csv_stream.write("\n")
+            finally:
+                csv_stream.close()
+
+            latest_path = os.path.join(index_dir, "latest_export.json")
+            latest_stream = codecs.open(latest_path, "w", "utf-8")
+            try:
+                latest_stream.write(json.dumps(entry, indent=2, sort_keys=True))
+            finally:
+                latest_stream.close()
+
+            return {
+                "ok": True,
+                "index_dir": index_dir,
+                "jsonl_path": jsonl_path,
+                "csv_path": csv_path,
+                "latest_path": latest_path,
+                "entry": entry,
+            }
+        except Exception as exc:
+            return {
+                "ok": False,
+                "index_dir": index_dir,
+                "warning": "{0}: {1}".format(exc.__class__.__name__, str(exc)),
+            }
+
+    def _read_qa_export_index_entries(self, limit=None):
+        last_error = None
+        for index_dir in self._qa_export_index_candidates():
+            jsonl_path = os.path.join(index_dir, "qa_export_index.jsonl")
+            csv_path = os.path.join(index_dir, "qa_export_index.csv")
+            if os.path.exists(jsonl_path):
+                try:
+                    entries = []
+                    stream = codecs.open(jsonl_path, "r", "utf-8")
+                    try:
+                        for line in stream:
+                            line = line.strip()
+                            if not line:
+                                continue
+                            loaded = json.loads(line)
+                            if isinstance(loaded, dict):
+                                entries.append(loaded)
+                    finally:
+                        stream.close()
+                    if limit and len(entries) > limit:
+                        return entries[-int(limit):], index_dir, None
+                    return entries, index_dir, None
+                except Exception as exc:
+                    last_error = "{0}: {1}".format(exc.__class__.__name__, str(exc))
+                    return None, index_dir, last_error
+            if os.path.exists(csv_path):
+                try:
+                    entries = []
+                    stream = codecs.open(csv_path, "r", "utf-8")
+                    try:
+                        reader = csv.DictReader(stream)
+                        for row in reader:
+                            if isinstance(row, dict):
+                                row["generated_files"] = ["report.md", "report.txt", "metadata.json", "artifact_manifest.txt"]
+                                entries.append(row)
+                    finally:
+                        stream.close()
+                    if limit and len(entries) > limit:
+                        return entries[-int(limit):], index_dir, None
+                    return entries, index_dir, None
+                except Exception as exc:
+                    last_error = "{0}: {1}".format(exc.__class__.__name__, str(exc))
+                    return None, index_dir, last_error
+        return [], self._qa_export_index_dir(), None
+
+    def _read_latest_qa_export(self):
+        last_error = None
+        for index_dir in self._qa_export_index_candidates():
+            latest_path = os.path.join(index_dir, "latest_export.json")
+            if not os.path.exists(latest_path):
+                continue
+            try:
+                stream = codecs.open(latest_path, "r", "utf-8")
+                try:
+                    loaded = json.loads(stream.read())
+                finally:
+                    stream.close()
+                if isinstance(loaded, dict):
+                    return loaded, index_dir, None
+            except Exception as exc:
+                last_error = "{0}: {1}".format(exc.__class__.__name__, str(exc))
+                return None, index_dir, last_error
+        entries, index_dir, error = self._read_qa_export_index_entries()
+        if error:
+            return None, index_dir, error
+        if entries:
+            return entries[-1], index_dir, None
+        return None, self._qa_export_index_dir(), last_error
+
+    def _format_qa_export_index_report(self):
+        entries, index_dir, error = self._read_qa_export_index_entries()
+        if error:
+            return "\n".join(
+                [
+                    "[QA EXPORT INDEX]",
+                    "QA export index exists but could not be read safely. Generate a new evidence snapshot or inspect the index file manually.",
+                    "Index folder: {0}".format(index_dir),
+                    "Error: {0}".format(error),
+                ]
+            )
+        if not entries:
+            return "\n".join(
+                [
+                    "[QA EXPORT INDEX]",
+                    "No QA export index was found. Run an evidence snapshot export first.",
+                ]
+            )
+        latest = entries[-1]
+        lines = [
+            "[QA EXPORT INDEX]",
+            "",
+            "Index folder:",
+            index_dir,
+            "",
+            "Total indexed exports: {0}".format(len(entries)),
+            "",
+            "Latest export:",
+            "- timestamp: {0}".format(latest.get("export_timestamp_local") or "unknown"),
+            "- document: {0}".format(latest.get("document_title") or "unknown"),
+            "- active view: {0} [{1}]".format(latest.get("active_view_name") or "unknown", latest.get("active_view_type") or "unknown"),
+            "- source prompt: {0}".format(latest.get("source_prompt") or "unknown"),
+            "- source header: {0}".format(latest.get("source_report_header") or "unknown"),
+            "- scope: {0}".format(latest.get("report_scope") or "unknown"),
+            "- export folder: {0}".format(latest.get("export_folder") or "unknown"),
+            "",
+            "Recent exports:",
+        ]
+        recent = entries[-10:]
+        recent.reverse()
+        for index, item in enumerate(recent):
+            lines.append(
+                "{0}. {1} | {2} | {3} | {4} | {5}".format(
+                    index + 1,
+                    item.get("export_timestamp_local") or "unknown",
+                    item.get("document_title") or "unknown",
+                    item.get("source_report_header") or "unknown",
+                    item.get("source_prompt") or "unknown",
+                    item.get("export_folder") or "unknown",
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "Safety:",
+                "- Index read only.",
+                "- Revit model data was not modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def _format_latest_qa_export_report(self):
+        latest, index_dir, error = self._read_latest_qa_export()
+        if error:
+            return "\n".join(
+                [
+                    "[QA EXPORT INDEX]",
+                    "QA export index exists but could not be read safely. Generate a new evidence snapshot or inspect the index file manually.",
+                    "Index folder: {0}".format(index_dir),
+                    "Error: {0}".format(error),
+                ]
+            )
+        if not latest:
+            return "\n".join(
+                [
+                    "[QA EXPORT INDEX]",
+                    "No QA export index was found. Run an evidence snapshot export first.",
+                ]
+            )
+        files = latest.get("generated_files") or []
+        lines = [
+            "[LATEST QA EXPORT]",
+            "",
+            "Timestamp: {0}".format(latest.get("export_timestamp_local") or "unknown"),
+            "Document: {0}".format(latest.get("document_title") or "unknown"),
+            "Active view: {0} [{1}]".format(latest.get("active_view_name") or "unknown", latest.get("active_view_type") or "unknown"),
+            "Source prompt: {0}".format(latest.get("source_prompt") or "unknown"),
+            "Source header: {0}".format(latest.get("source_report_header") or "unknown"),
+            "Scope: {0}".format(latest.get("report_scope") or "unknown"),
+            "Export folder: {0}".format(latest.get("export_folder") or "unknown"),
+            "Generated files:",
+        ]
+        for filename in files:
+            lines.append("- {0}".format(filename))
+        lines.extend(
+            [
+                "",
+                "Safety:",
+                "- Index read only.",
+                "- Revit model data was not modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def _qa_export_index_query_kind(self, prompt):
+        normalized = self._normalize_context_prompt(prompt)
+        latest_routes = [
+            "show latest qa export",
+            "latest qa evidence snapshot",
+            "latest qa export",
+        ]
+        list_routes = [
+            "list qa evidence snapshots",
+            "list qa exports",
+            "show qa export index",
+            "qa export index summary",
+            "evidence snapshot index",
+            "show evidence snapshots",
+        ]
+        if normalized in latest_routes:
+            return "latest"
+        if normalized in list_routes:
+            return "list"
+        return None
+
+    def answer_qa_export_index_question(self, prompt):
+        kind = self._qa_export_index_query_kind(prompt)
+        if kind == "latest":
+            return self._format_latest_qa_export_report()
+        if kind == "list":
+            return self._format_qa_export_index_report()
+        return None
 
     def _safe_document_path(self):
         try:
@@ -12198,18 +12536,39 @@ class OllamaAIChat(forms.WPFWindow):
                 ]
             )
 
-        return "\n".join(
+        index_result = self._write_qa_export_index_entry(metadata)
+        lines = [
+            "[QA REPORT EXPORT COMPLETE]",
+            "",
+            "Export folder:",
+            export_folder,
+            "",
+            "Generated files:",
+            "- report.md",
+            "- report.txt",
+            "- metadata.json",
+            "- artifact_manifest.txt",
+            "",
+            "Index:",
+        ]
+        if index_result.get("ok"):
+            lines.extend(
+                [
+                    "- qa_export_index.jsonl updated",
+                    "- qa_export_index.csv updated",
+                    "- latest_export.json updated",
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    "Index warning:",
+                    "- {0}".format(index_result.get("warning") or "Index write failed."),
+                    "- Export files were still created.",
+                ]
+            )
+        lines.extend(
             [
-                "[QA REPORT EXPORT COMPLETE]",
-                "",
-                "Export folder:",
-                export_folder,
-                "",
-                "Generated files:",
-                "- report.md",
-                "- report.txt",
-                "- metadata.json",
-                "- artifact_manifest.txt",
                 "",
                 "Source:",
                 "- prompt: {0}".format(source_prompt),
@@ -12222,6 +12581,7 @@ class OllamaAIChat(forms.WPFWindow):
                 "- Revit model data was not modified.",
             ]
         )
+        return "\n".join(lines)
 
     def _context_tree_item(self, header, children=None):
         from System.Windows.Controls import TreeViewItem
@@ -14103,7 +14463,10 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
-            if self._is_qa_export_request(prompt):
+            index_reply = self.answer_qa_export_index_question(prompt)
+            if index_reply is not None:
+                reply = index_reply
+            elif self._is_qa_export_request(prompt):
                 reply = self.export_latest_qa_report(prompt)
                 preserve_latest_report_state = True
             elif self._is_codex_brief_request(prompt):

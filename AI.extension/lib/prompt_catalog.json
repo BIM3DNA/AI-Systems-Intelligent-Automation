@@ -3219,5 +3219,52 @@
     "validation_state": "structural_only",
     "prompt_text": "export latest QA report",
     "mode": "deterministic"
+  },
+  {
+    "id": "list-qa-evidence-snapshots",
+    "title": "List QA evidence snapshots",
+    "category": "BIM QA",
+    "group": "Evidence Export",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "export_index",
+    "canonical_prompt": "list QA evidence snapshots",
+    "planner_aliases": [
+      "list QA evidence snapshots",
+      "list QA exports",
+      "show QA export index",
+      "QA export index summary",
+      "evidence snapshot index",
+      "show evidence snapshots"
+    ],
+    "deterministic_handler": "list_qa_evidence_snapshots",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "list QA evidence snapshots",
+    "mode": "deterministic"
+  },
+  {
+    "id": "show-latest-qa-export",
+    "title": "Show latest QA export",
+    "category": "BIM QA",
+    "group": "Evidence Export",
+    "discipline": "QA / BIM",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "export_index",
+    "canonical_prompt": "show latest QA export",
+    "planner_aliases": [
+      "show latest QA export",
+      "latest QA evidence snapshot",
+      "latest QA export"
+    ],
+    "deterministic_handler": "show_latest_qa_export",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show latest QA export",
+    "mode": "deterministic"
   }
 ]
