@@ -3268,6 +3268,36 @@
     "mode": "deterministic"
   },
   {
+    "id": "split-selected-pipes-dry-run",
+    "title": "Split selected pipes dry run",
+    "category": "BIM QA",
+    "group": "Reviewed Action Dry Runs",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selection",
+    "canonical_prompt": "split selected pipes dry run",
+    "planner_aliases": [
+      "split selected pipes dry run",
+      "dry run split selected pipes",
+      "preview split selected pipes",
+      "calculate split selected pipes",
+      "calculate pipe split candidates",
+      "split pipe candidates",
+      "selected pipe split dry run",
+      "selected pipes split dry run",
+      "preview selected pipe splits",
+      "proposed split selected pipes",
+      "pipe split dry run"
+    ],
+    "deterministic_handler": "split_selected_pipes_dry_run",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "split selected pipes dry run",
+    "mode": "deterministic"
+  },
+  {
     "id": "propose-reviewed-action",
     "title": "Propose reviewed action",
     "category": "BIM QA",
@@ -3311,9 +3341,6 @@
       "prepare split selected pipes",
       "plan split selected pipes",
       "split selected pipes proposal",
-      "split selected pipes dry run",
-      "dry run split selected pipes",
-      "preview split selected pipes",
       "preflight split selected pipes"
     ],
     "deterministic_handler": "propose_split_selected_pipes",

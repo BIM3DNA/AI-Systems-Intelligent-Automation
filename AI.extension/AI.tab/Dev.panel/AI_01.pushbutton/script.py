@@ -74,7 +74,16 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[LINK COORDINATE HEALTH]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
+    "[SPLIT SELECTED PIPES DRY RUN]",
 )
+
+PIPE_SPLIT_DRY_RUN_MAX_SELECTION = 200
+PIPE_SPLIT_DRY_RUN_DETAIL_LIMIT = 25
+PIPE_SPLIT_DRY_RUN_SAMPLE_LIMIT = 10
+# Revit internal feet; approximately 1000 mm total and 500 mm per segment.
+PIPE_SPLIT_DRY_RUN_MIN_TOTAL_LENGTH_FT = 3.28084
+PIPE_SPLIT_DRY_RUN_MIN_SEGMENT_LENGTH_FT = 1.64042
+PIPE_SPLIT_DRY_RUN_VERTICAL_Z_RATIO = 0.90
 
 THEMES = {
     "light": {
@@ -6844,6 +6853,389 @@ def report_missing_parameters_from_selection(doc, uidoc):
     return "\n".join(lines)
 
 
+def _split_pipe_dry_run_bucket():
+    return {"count": 0, "ids": [], "categories": {}}
+
+
+def _split_pipe_dry_run_add_bucket(groups, key, elem, limit=PIPE_SPLIT_DRY_RUN_SAMPLE_LIMIT):
+    bucket = groups.setdefault(key, _split_pipe_dry_run_bucket())
+    bucket["count"] += 1
+    elem_id = _safe_int_id(elem)
+    if elem_id is not None and elem_id not in bucket["ids"] and len(bucket["ids"]) < limit:
+        bucket["ids"].append(elem_id)
+    category = _category_name(elem)
+    if category:
+        bucket["categories"][category] = bucket["categories"].get(category, 0) + 1
+
+
+def _split_pipe_dry_run_bucket_line(label, bucket):
+    bucket = bucket or _split_pipe_dry_run_bucket()
+    parts = ["- {0}: {1}".format(label, bucket.get("count", 0))]
+    ids = bucket.get("ids") or []
+    if ids:
+        parts.append("sample ids: {0}".format(", ".join([safe_str(item) for item in ids[:PIPE_SPLIT_DRY_RUN_SAMPLE_LIMIT]])))
+    categories = bucket.get("categories") or {}
+    if categories:
+        category_text = ", ".join(["{0}={1}".format(key, value) for key, value in sorted(categories.items())[:5]])
+        parts.append("sample categories: {0}".format(category_text))
+    return " | ".join(parts)
+
+
+def _split_pipe_dry_run_is_pipe(elem):
+    try:
+        return elem.Category.Id.IntegerValue == int(DB.BuiltInCategory.OST_PipeCurves)
+    except:
+        return _category_name(elem) == "Pipes"
+
+
+def _split_pipe_dry_run_is_line_curve(curve):
+    try:
+        if isinstance(curve, DB.Line):
+            return True
+    except:
+        pass
+    try:
+        return curve.GetType().Name == "Line"
+    except:
+        return False
+
+
+def _split_pipe_dry_run_endpoints(curve):
+    try:
+        return curve.GetEndPoint(0), curve.GetEndPoint(1)
+    except:
+        return None, None
+
+
+def _split_pipe_dry_run_length_from_endpoints(p0, p1):
+    try:
+        dx = float(p1.X - p0.X)
+        dy = float(p1.Y - p0.Y)
+        dz = float(p1.Z - p0.Z)
+        return math.sqrt(dx * dx + dy * dy + dz * dz)
+    except:
+        return None
+
+
+def _split_pipe_dry_run_is_near_vertical(p0, p1):
+    length = _split_pipe_dry_run_length_from_endpoints(p0, p1)
+    if not length:
+        return False
+    try:
+        return abs(float(p1.Z - p0.Z) / length) > PIPE_SPLIT_DRY_RUN_VERTICAL_Z_RATIO
+    except:
+        return False
+
+
+def _split_pipe_dry_run_midpoint(p0, p1):
+    try:
+        return DB.XYZ((p0.X + p1.X) / 2.0, (p0.Y + p1.Y) / 2.0, (p0.Z + p1.Z) / 2.0)
+    except:
+        return None
+
+
+def _split_pipe_dry_run_length_text(length_ft):
+    if length_ft is None:
+        return "(unreadable)"
+    try:
+        return "{0:.3f} ft ({1:.0f} mm)".format(float(length_ft), internal_feet_to_mm(length_ft))
+    except:
+        return "{0:.3f} ft".format(float(length_ft))
+
+
+def _split_pipe_dry_run_xyz_text(point):
+    if point is None:
+        return "(unreadable)"
+    try:
+        ft_text = "internal ft: ({0:.6f}, {1:.6f}, {2:.6f})".format(point.X, point.Y, point.Z)
+    except:
+        return "(unreadable)"
+    try:
+        mm_text = "approx mm: ({0:.0f}, {1:.0f}, {2:.0f})".format(
+            internal_feet_to_mm(point.X),
+            internal_feet_to_mm(point.Y),
+            internal_feet_to_mm(point.Z),
+        )
+        return "{0}; {1}".format(ft_text, mm_text)
+    except:
+        return ft_text
+
+
+def _split_pipe_dry_run_safe_curve(elem):
+    try:
+        location = elem.Location
+    except:
+        return None, "unreadable_location_curve"
+    try:
+        if not isinstance(location, DB.LocationCurve):
+            return None, "unreadable_location_curve"
+    except:
+        if not hasattr(location, "Curve"):
+            return None, "unreadable_location_curve"
+    try:
+        curve = location.Curve
+    except:
+        return None, "unreadable_location_curve"
+    if curve is None:
+        return None, "unreadable_location_curve"
+    try:
+        if hasattr(curve, "IsBound") and not curve.IsBound:
+            return curve, "unbounded_curve"
+    except:
+        pass
+    p0, p1 = _split_pipe_dry_run_endpoints(curve)
+    if p0 is None or p1 is None:
+        return curve, "unreadable_endpoints"
+    if not _split_pipe_dry_run_is_line_curve(curve):
+        return curve, "unsupported_curve_type"
+    return curve, "ok"
+
+
+def _split_pipe_dry_run_candidate(doc, elem, curve):
+    p0, p1 = _split_pipe_dry_run_endpoints(curve)
+    try:
+        length = float(curve.Length)
+    except:
+        length = _split_pipe_dry_run_length_from_endpoints(p0, p1)
+    return {
+        "element": elem,
+        "id": _safe_int_id(elem),
+        "type": _family_and_type_text(doc, elem) or "(unreadable)",
+        "level": _element_level_name(doc, elem) or "(unreadable)",
+        "system": _system_assignment_value(elem) or "(unreadable)",
+        "diameter_size": _safe_param_text(elem, ["Diameter", "Size", "Nominal Diameter", "Outside Diameter"]) or "(unreadable)",
+        "slope": _safe_param_text(elem, ["Slope"]) or "(unreadable)",
+        "length": length,
+        "point": _split_pipe_dry_run_midpoint(p0, p1),
+        "segment_a": length / 2.0 if length is not None else None,
+        "segment_b": length / 2.0 if length is not None else None,
+    }
+
+
+def _split_pipe_dry_run_prompt_has_interval_request(prompt_text):
+    normalized = safe_str(prompt_text).lower()
+    if " every " in normalized or " interval" in normalized:
+        return True
+    return bool(re.search(r"\b\d+(?:\.\d+)?\s*(mm|m|meter|meters)\b", normalized))
+
+
+def split_selected_pipes_dry_run(doc, uidoc, context=None):
+    prompt_text = _prompt_text_from_context(context)
+    selected = _selected_elements(doc, uidoc)
+    total_selected = len(selected)
+    inspected_elements = selected[:PIPE_SPLIT_DRY_RUN_MAX_SELECTION]
+    capped = len(selected) > PIPE_SPLIT_DRY_RUN_MAX_SELECTION
+    skipped = {}
+    warnings = {}
+    candidates = []
+    total_original_length = 0.0
+
+    for elem in inspected_elements:
+        try:
+            category = _category_name(elem)
+            if not _split_pipe_dry_run_is_pipe(elem):
+                if category == "Pipe Fittings":
+                    _split_pipe_dry_run_add_bucket(skipped, "pipe_fittings", elem)
+                elif category == "Pipe Accessories":
+                    _split_pipe_dry_run_add_bucket(skipped, "pipe_accessories", elem)
+                else:
+                    _split_pipe_dry_run_add_bucket(skipped, "non_pipe_categories", elem)
+                continue
+            try:
+                if bool(elem.Pinned):
+                    _split_pipe_dry_run_add_bucket(skipped, "pinned_pipes", elem)
+                    continue
+            except:
+                pass
+            try:
+                group_id = getattr(elem, "GroupId", None)
+                if group_id is not None and group_id != DB.ElementId.InvalidElementId:
+                    _split_pipe_dry_run_add_bucket(skipped, "grouped_pipes", elem)
+                    continue
+            except:
+                pass
+            try:
+                design_option = getattr(elem, "DesignOption", None)
+                if design_option is not None:
+                    _split_pipe_dry_run_add_bucket(skipped, "design_option_pipes", elem)
+                    continue
+            except:
+                pass
+            curve, status = _split_pipe_dry_run_safe_curve(elem)
+            if status != "ok":
+                _split_pipe_dry_run_add_bucket(skipped, status, elem)
+                continue
+            p0, p1 = _split_pipe_dry_run_endpoints(curve)
+            if _split_pipe_dry_run_is_near_vertical(p0, p1):
+                _split_pipe_dry_run_add_bucket(skipped, "near_vertical_pipes", elem)
+                continue
+            try:
+                length = float(curve.Length)
+            except:
+                length = _split_pipe_dry_run_length_from_endpoints(p0, p1)
+            if length is None:
+                _split_pipe_dry_run_add_bucket(skipped, "unreadable_location_curve", elem)
+                continue
+            if length < PIPE_SPLIT_DRY_RUN_MIN_TOTAL_LENGTH_FT or (length / 2.0) < PIPE_SPLIT_DRY_RUN_MIN_SEGMENT_LENGTH_FT:
+                _split_pipe_dry_run_add_bucket(skipped, "too_short_pipes", elem)
+                continue
+            candidate = _split_pipe_dry_run_candidate(doc, elem, curve)
+            candidates.append(candidate)
+            total_original_length += length
+            if candidate.get("level") == "(unreadable)":
+                _split_pipe_dry_run_add_bucket(warnings, "missing_unreadable_level", elem)
+            if candidate.get("system") == "(unreadable)":
+                _split_pipe_dry_run_add_bucket(warnings, "missing_unreadable_system", elem)
+            if candidate.get("diameter_size") == "(unreadable)":
+                _split_pipe_dry_run_add_bucket(warnings, "missing_unreadable_diameter_size", elem)
+            if candidate.get("slope") == "(unreadable)":
+                _split_pipe_dry_run_add_bucket(warnings, "missing_unreadable_slope", elem)
+        except:
+            _split_pipe_dry_run_add_bucket(skipped, "calculation_errors", elem)
+
+    skipped_count = sum([bucket.get("count", 0) for bucket in skipped.values()])
+    warning_count = sum([bucket.get("count", 0) for bucket in warnings.values()])
+    try:
+        active_view_type = safe_str(uidoc.ActiveView.ViewType)
+    except:
+        active_view_type = "(unknown type)"
+
+    lines = [
+        "[SPLIT SELECTED PIPES DRY RUN]",
+        "",
+        "Scope:",
+        "selected elements / active document only",
+        "",
+        "Active document:",
+        _document_title(doc),
+        "",
+        "Active view:",
+        "{0} [{1}]".format(_active_view_title(doc, uidoc), active_view_type),
+        "",
+    ]
+    if total_selected == 0:
+        lines.extend(
+            [
+                "Total selected elements: 0",
+                "",
+                "Dry-run result:",
+                "Not ready",
+                "",
+                "No elements selected. Select pipes before running split dry-run.",
+                "",
+                "Safety:",
+                "- Dry-run only.",
+                "- Read-only.",
+                "- No transaction opened.",
+                "- No pipe was split.",
+                "- Revit model data was not modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    lines.extend(
+        [
+            "Candidate strategy:",
+            "Midpoint candidate only. One proposed split point per eligible straight pipe.",
+            "",
+            "Selection summary:",
+            "- Total selected elements: {0}".format(total_selected),
+            "- Elements inspected: {0}".format(len(inspected_elements)),
+            "- Eligible pipes: {0}".format(len(candidates)),
+            "- Candidate split points: {0}".format(len(candidates)),
+            "- Skipped elements: {0}".format(skipped_count),
+            "- Warnings: {0}".format(warning_count),
+            "",
+            "Candidate split summary:",
+            "- Total original pipe length: {0}".format(_split_pipe_dry_run_length_text(total_original_length if candidates else 0.0)),
+            "- Estimated segment count if later applied: {0}".format(len(candidates) * 2),
+            "- Minimum segment length rule: total >= {0}; each estimated segment >= {1}".format(
+                _split_pipe_dry_run_length_text(PIPE_SPLIT_DRY_RUN_MIN_TOTAL_LENGTH_FT),
+                _split_pipe_dry_run_length_text(PIPE_SPLIT_DRY_RUN_MIN_SEGMENT_LENGTH_FT),
+            ),
+            "- Candidate points generated: {0}".format(len(candidates)),
+            "",
+            "Candidate pipes:",
+        ]
+    )
+    if not candidates:
+        lines.append("- none")
+    else:
+        for index, candidate in enumerate(candidates[:PIPE_SPLIT_DRY_RUN_DETAIL_LIMIT]):
+            lines.extend(
+                [
+                    "{0}. Pipe {1}".format(index + 1, candidate.get("id")),
+                    "   - Type: {0}".format(candidate.get("type")),
+                    "   - Level: {0}".format(candidate.get("level")),
+                    "   - System: {0}".format(candidate.get("system")),
+                    "   - Diameter/Size: {0}".format(candidate.get("diameter_size")),
+                    "   - Slope: {0}".format(candidate.get("slope")),
+                    "   - Original length: {0}".format(_split_pipe_dry_run_length_text(candidate.get("length"))),
+                    "   - Candidate split point: {0}".format(_split_pipe_dry_run_xyz_text(candidate.get("point"))),
+                    "   - Estimated segment A: {0}".format(_split_pipe_dry_run_length_text(candidate.get("segment_a"))),
+                    "   - Estimated segment B: {0}".format(_split_pipe_dry_run_length_text(candidate.get("segment_b"))),
+                    "   - Status: dry-run only / not applied",
+                ]
+            )
+        if len(candidates) > PIPE_SPLIT_DRY_RUN_DETAIL_LIMIT:
+            lines.append("...showing first {0} of {1} eligible pipes".format(PIPE_SPLIT_DRY_RUN_DETAIL_LIMIT, len(candidates)))
+
+    lines.extend(
+        [
+            "",
+            "Skipped elements:",
+            _split_pipe_dry_run_bucket_line("Pipe fittings", skipped.get("pipe_fittings")),
+            _split_pipe_dry_run_bucket_line("Pipe accessories", skipped.get("pipe_accessories")),
+            _split_pipe_dry_run_bucket_line("Non-pipe categories", skipped.get("non_pipe_categories")),
+            _split_pipe_dry_run_bucket_line("Pinned pipes", skipped.get("pinned_pipes")),
+            _split_pipe_dry_run_bucket_line("Grouped pipes", skipped.get("grouped_pipes")),
+            _split_pipe_dry_run_bucket_line("Design-option pipes", skipped.get("design_option_pipes")),
+            _split_pipe_dry_run_bucket_line("Near-vertical pipes", skipped.get("near_vertical_pipes")),
+            _split_pipe_dry_run_bucket_line("Too-short pipes", skipped.get("too_short_pipes")),
+            _split_pipe_dry_run_bucket_line("Unreadable location curve", skipped.get("unreadable_location_curve")),
+            _split_pipe_dry_run_bucket_line("Unbounded curve", skipped.get("unbounded_curve")),
+            _split_pipe_dry_run_bucket_line("Unsupported curve type", skipped.get("unsupported_curve_type")),
+            _split_pipe_dry_run_bucket_line("Calculation errors", skipped.get("calculation_errors")),
+            "",
+            "Preflight warnings:",
+            _split_pipe_dry_run_bucket_line("Missing/unreadable level", warnings.get("missing_unreadable_level")),
+            _split_pipe_dry_run_bucket_line("Missing/unreadable system", warnings.get("missing_unreadable_system")),
+            _split_pipe_dry_run_bucket_line("Missing/unreadable diameter/size", warnings.get("missing_unreadable_diameter_size")),
+            _split_pipe_dry_run_bucket_line("Missing/unreadable slope", warnings.get("missing_unreadable_slope")),
+            "",
+            "Risks:",
+            "- Future pipe splitting can affect connected fittings, slopes, systems, tags, dimensions, schedules, and downstream coordination.",
+            "- MEP-WR-001 does not inspect connectors or connected networks.",
+            "- MEP-WR-001 does not apply changes.",
+            "- Future reviewed apply must use explicit confirmation and rollback.",
+            "",
+            "Dry-run result:",
+            "Ready for reviewed apply design" if candidates else "Not ready",
+        ]
+    )
+    if not candidates:
+        lines.extend(["", "Reason:", "No selected pipes passed the dry-run eligibility checks."])
+    if _split_pipe_dry_run_prompt_has_interval_request(prompt_text):
+        lines.extend(["", "Note:", "Interval-based splitting is not implemented in MEP-WR-001. Current dry-run uses midpoint candidate only."])
+    if capped:
+        lines.extend(["", "Note:", "Result set capped for readability/performance."])
+    lines.extend(
+        [
+            "",
+            "Next step:",
+            "Future feature MEP-WR-002 should implement reviewed apply with explicit confirmation, transaction rollback, before/after evidence, and conservative skip handling.",
+            "",
+            "Safety:",
+            "- Dry-run only.",
+            "- Read-only.",
+            "- No transaction opened.",
+            "- No pipe was split.",
+            "- Revit model data was not modified.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def split_selected_pipes(doc, uidoc, context=None):
     prompt_text = _prompt_text_from_context(context)
     selected_elements = _selected_elements(doc, uidoc)
@@ -10179,6 +10571,7 @@ REVIEWED_ACTION_HANDLERS = {
     "count_selected_elements": count_selected_elements,
     "health_check_for_active_view_selection": health_check_for_active_view_selection,
     "report_missing_parameters_from_selection": report_missing_parameters_from_selection,
+    "split_selected_pipes_dry_run": split_selected_pipes_dry_run,
     "create_3d_view_from_selection": create_3d_view_from_selection,
     "split_selected_pipes": split_selected_pipes,
     "report_duplicates": report_duplicates,
@@ -10223,6 +10616,37 @@ REVIEWED_ACTION_HANDLERS = {
 }
 
 
+def _normalize_deterministic_route_text(prompt):
+    text = safe_str(prompt).lower().strip()
+    text = re.sub(r"[\u2010-\u2015]+", "-", text)
+    text = re.sub(r"\s*/\s*", " and ", text)
+    text = re.sub(r"[-_]+", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _is_split_selected_pipes_dry_run_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "split selected pipes dry run",
+        "dry run split selected pipes",
+        "preview split selected pipes",
+        "calculate split selected pipes",
+        "calculate pipe split candidates",
+        "split pipe candidates",
+        "selected pipe split dry run",
+        "selected pipes split dry run",
+        "preview selected pipe splits",
+        "proposed split selected pipes",
+        "pipe split dry run",
+    ]
+    if normalized in routes:
+        return True
+    if "split" in normalized and "pipe" in normalized and any(token in normalized for token in ["dry run", "preview", "candidate", "calculate", "proposed"]):
+        return True
+    return False
+
+
 def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
     handler = REVIEWED_ACTION_HANDLERS.get(handler_name)
     if handler is None:
@@ -10235,6 +10659,8 @@ def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
 
 def handle_public_command(prompt, doc, uidoc):
     p = prompt.lower()
+    if _is_split_selected_pipes_dry_run_prompt(prompt):
+        return split_selected_pipes_dry_run(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
     if "split" in p and "pipe" in p:
         return split_selected_pipes(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
     if "remove duplicates" in p or "remove duplicate" in p or "clean duplicates" in p or "delete duplicate" in p:
@@ -10806,6 +11232,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_deterministic_report = None
         self.latest_chat_output_is_deterministic_report = False
         self.latest_reviewed_action_proposal = None
+        self.latest_split_pipe_dry_run = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -12368,6 +12795,45 @@ class OllamaAIChat(forms.WPFWindow):
             return self._format_qa_export_index_report()
         return None
 
+    def answer_split_selected_pipes_dry_run_question(self, prompt):
+        if not _is_split_selected_pipes_dry_run_prompt(prompt):
+            return None
+        report_text = split_selected_pipes_dry_run(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
+        def metric(label):
+            match = re.search(r"- {0}: (\d+)".format(re.escape(label)), report_text)
+            if not match and label == "Total selected elements":
+                match = re.search(r"Total selected elements: (\d+)", report_text)
+            try:
+                return int(match.group(1)) if match else 0
+            except:
+                return 0
+        result_match = re.search(r"Dry-run result:\s*\n([^\n]+)", report_text)
+        self.latest_split_pipe_dry_run = {
+            "dry_run_id": "MEP-WR-001-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "feature_id": "MEP-WR-001",
+            "source_prompt": safe_str(prompt),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "document_path": self._safe_document_path(),
+            "active_view_name": self._safe_active_view_name(),
+            "active_view_type": self._safe_active_view_type(),
+            "scope": "selected elements / active document only",
+            "total_selected": metric("Total selected elements"),
+            "inspected_count": metric("Elements inspected"),
+            "eligible_pipe_count": metric("Eligible pipes"),
+            "candidate_count": metric("Candidate split points"),
+            "skipped_count": metric("Skipped elements"),
+            "warning_count": metric("Warnings"),
+            "dry_run_result": result_match.group(1).strip() if result_match else "",
+            "candidate_summary": "midpoint candidate only",
+            "report_text": report_text,
+            "deterministic_route": True,
+            "read_only": True,
+            "model_modified": False,
+            "execution_available": False,
+        }
+        return report_text
+
     def _reviewed_action_proposal_route(self, prompt):
         normalized = self._normalize_context_prompt(prompt)
         split_routes = [
@@ -12377,9 +12843,6 @@ class OllamaAIChat(forms.WPFWindow):
             "prepare split selected pipes",
             "plan split selected pipes",
             "split selected pipes proposal",
-            "split selected pipes dry run",
-            "dry run split selected pipes",
-            "preview split selected pipes",
             "preflight split selected pipes",
         ]
         future_routes = {
@@ -14966,53 +15429,59 @@ class OllamaAIChat(forms.WPFWindow):
             if index_reply is not None:
                 reply = index_reply
             else:
-                proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
-                if proposal_reply is not None:
-                    reply = proposal_reply
-                    remember_report = True
-                elif self._is_qa_export_request(prompt):
-                    reply = self.export_latest_qa_report(prompt)
-                    preserve_latest_report_state = True
-                elif self._is_codex_brief_request(prompt):
-                    brief = self.build_codex_task_brief(prompt)
-                    self.latest_codex_brief = brief
-                    self.populate_project_context_tree()
-                    reply = "```\n{0}\n```".format(brief)
-                elif self._is_scan_request(prompt):
-                    result = self.run_project_context_scan("standard")
-                    reply = result.get("summary", "")
+                split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
+                if split_dry_run_reply is not None:
+                    reply = split_dry_run_reply
                     remember_report = True
                 else:
-                    discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
-                    if discipline_qa_reply is not None:
-                        reply = discipline_qa_reply
+                    proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
+                    if proposal_reply is not None:
+                        reply = proposal_reply
                         remember_report = True
                     else:
-                        system_reply = self.answer_system_assignment_report_question(prompt)
-                        if system_reply is not None:
-                            reply = system_reply
+                        if self._is_qa_export_request(prompt):
+                            reply = self.export_latest_qa_report(prompt)
+                            preserve_latest_report_state = True
+                        elif self._is_codex_brief_request(prompt):
+                            brief = self.build_codex_task_brief(prompt)
+                            self.latest_codex_brief = brief
+                            self.populate_project_context_tree()
+                            reply = "```\n{0}\n```".format(brief)
+                        elif self._is_scan_request(prompt):
+                            result = self.run_project_context_scan("standard")
+                            reply = result.get("summary", "")
                             remember_report = True
                         else:
-                            active_view_reply = self.answer_active_view_report_question(prompt)
-                            if active_view_reply is not None:
-                                reply = active_view_reply
+                            discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                            if discipline_qa_reply is not None:
+                                reply = discipline_qa_reply
                                 remember_report = True
                             else:
-                                selection_reply = self.answer_selection_report_question(prompt)
-                                if selection_reply is not None:
-                                    reply = selection_reply
+                                system_reply = self.answer_system_assignment_report_question(prompt)
+                                if system_reply is not None:
+                                    reply = system_reply
                                     remember_report = True
-                                elif self._is_project_context_question(prompt):
-                                    reply = self.answer_project_context_question(prompt)
-                                    remember_report = True
-                                elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                                    self.append_project_agent_plan()
-                                    reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
-                                    preserve_latest_report_state = True
                                 else:
-                                    reply = send_ollama_chat(self.model, prompt)
-                                    reply = self._sanitize_ollama_context_error(reply)
-                                    self.latest_chat_output_is_deterministic_report = False
+                                    active_view_reply = self.answer_active_view_report_question(prompt)
+                                    if active_view_reply is not None:
+                                        reply = active_view_reply
+                                        remember_report = True
+                                    else:
+                                        selection_reply = self.answer_selection_report_question(prompt)
+                                        if selection_reply is not None:
+                                            reply = selection_reply
+                                            remember_report = True
+                                        elif self._is_project_context_question(prompt):
+                                            reply = self.answer_project_context_question(prompt)
+                                            remember_report = True
+                                        elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                            self.append_project_agent_plan()
+                                            reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                            preserve_latest_report_state = True
+                                        else:
+                                            reply = send_ollama_chat(self.model, prompt)
+                                            reply = self._sanitize_ollama_context_error(reply)
+                                            self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             if remember_report:
