@@ -97,3 +97,22 @@ MEP-ACT-001 is not an LLM model-provider feature. It is a deterministic reviewed
 - no execution state, transaction, or write-action model was introduced
 - generic Ollama output remains rejected as deterministic export evidence
 - no provider configuration was changed
+
+## 2026-05-18 MEP-WR-001 Model Note
+
+MEP-WR-001 is not an LLM model-provider feature. It is a deterministic Revit selection dry-run and candidate reporting layer.
+
+- supported prompts bypass Ollama/OpenAI
+- dry-run state is session-local and exportable through deterministic report state
+- midpoint split candidates are non-executable evidence only
+- no transaction, pipe split, connector traversal, geometry extraction, linked-document scan, parameter write, or model mutation was introduced
+
+## 2026-05-18 MEP-ACT-002 Model Note
+
+MEP-ACT-002 is not an LLM model-provider feature. It is a deterministic confirmation guard layer.
+
+- supported confirmation/status prompts bypass Ollama/OpenAI
+- guard state is session-local and exportable through deterministic report state
+- confirmation/apply/execute prompts are blocked until a future reviewed apply feature exists
+- generic Ollama output remains rejected as deterministic export evidence
+- no provider configuration was changed

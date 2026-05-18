@@ -466,3 +466,22 @@ Both features remain within the safe deterministic AI-assisted BIM QA and planni
 - no tag/schedule/view/sheet/system/circuit edits
 
 Together they reduce uncertainty around the transition from read-only reporting to controlled automation by making evidence traceable and future actions proposal-first.
+
+### 2026-05-18 MEP-WR-001 and MEP-ACT-002 scope alignment
+
+MEP-WR-001 adds a read-only dry-run bridge from reviewed proposal to future apply. It produces non-executable midpoint split candidates for selected straight pipes only and does not split or mutate pipes.
+
+MEP-ACT-002 adds the confirmation governance layer required before write actions. It detects reviewed proposal and split dry-run session state, but blocks confirm/apply/execute prompts until MEP-WR-002 exists.
+
+Both features remain within safe deterministic AI-assisted BIM QA and planning scope:
+
+- deterministic routes run before Ollama fallback
+- no Revit transactions
+- no pipe split or model mutation
+- no linked-document scans
+- no connector traversal
+- no geometry extraction
+- no parameter writes
+- no tag/schedule/view/sheet/system/circuit edits
+
+The validated stack now separates reporting, evidence export/index, proposal, dry-run, and confirmation guard before any write action is introduced.

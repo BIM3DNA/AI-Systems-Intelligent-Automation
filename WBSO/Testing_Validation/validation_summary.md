@@ -305,3 +305,62 @@ MEP-ACT-001 introduces deterministic proposal-only reviewed-action preflights be
 - no transaction opened
 - no Revit model mutation indicated
 - no connector traversal, geometry extraction, linked-document scan, parameter write, tag/schedule/view/sheet creation, system/circuit edit, or pipe splitting execution indicated
+
+## 2026-05-18 - MEP-WR-001 Split Selected Pipes Dry Run Runtime Validation
+
+### Status
+
+MEP-WR-001: runtime validated.
+
+### Summary
+
+MEP-WR-001 adds deterministic dry-run-only candidate reporting for future selected pipe splitting. It reads live selected elements, classifies eligible and skipped elements, generates non-executable midpoint candidates for eligible straight pipes, and exports/indexes the report through MEP-RO-005/006.
+
+### Validation coverage
+
+- No-selection dry-run returned `[SPLIT SELECTED PIPES DRY RUN]`, Not ready, and no-mutation safety wording.
+- BUNGE mixed pipes/fittings dry-run classified 21 selected elements into 3 eligible pipes, 3 candidate split points, 8 pipe fittings, 6 near-vertical pipes, and 4 too-short pipes.
+- Candidate rows included pipe id, level, system, diameter/size, slope, original length, candidate point, and estimated segment A/B lengths.
+- Non-pipe selection dry-run skipped 9 CAD/DWG/link-like elements and returned Not ready.
+- Alias routes `calculate pipe split candidates` and `selected pipe split dry run` returned deterministic dry-run reports without Ollama fallback.
+- Export/index validation passed with source header `[SPLIT SELECTED PIPES DRY RUN]` and selected-elements scope.
+- Generic Ollama response was rejected as deterministic export evidence and did not replace the latest deterministic dry-run export.
+
+### Safety
+
+- dry-run only
+- read-only
+- no transaction opened
+- no pipe was split
+- no connector traversal, geometry extraction, linked-document scan, parameter write, or Revit model mutation indicated
+
+## 2026-05-18 - MEP-ACT-002 Reviewed Proposal / Dry-Run Confirmation Guard Runtime Validation
+
+### Status
+
+MEP-ACT-002: runtime validated after report-scope metadata hotfix.
+
+### Summary
+
+MEP-ACT-002 adds a deterministic confirmation/readiness guard between reviewed proposals, split dry-runs, and future reviewed apply features. It detects latest proposal/dry-run session state, blocks confirm/apply/execute commands, and exports/indexes guard reports as deterministic evidence.
+
+### Validation coverage
+
+- No-source guard returned source type none, Not ready, `execution_available: false`, and `execution_performed: false`.
+- Reviewed proposal state detection found the MEP-ACT-001 `[REVIEWED ACTION PROPOSAL]` state and returned status-only output.
+- Confirm latest proposal was blocked because MEP-WR-002 reviewed apply is not implemented.
+- Split dry-run state detection found the MEP-WR-001 `[SPLIT SELECTED PIPES DRY RUN]` state with 3 eligible pipes and 3 candidates, then blocked confirmation.
+- `apply reviewed action` and `execute latest proposal` were blocked with no action applied.
+- Status aliases `reviewed action status` and `can I apply latest action` returned deterministic status-only guard reports.
+- Export/index validation passed with source header `[REVIEWED ACTION CONFIRMATION GUARD]`.
+- Report-scope hotfix validated that confirmation guard exports store `session-local reviewed action state / active document only`.
+- Generic Ollama response was rejected as deterministic export evidence and did not replace the latest deterministic guard export.
+
+### Safety
+
+- confirmation guard only
+- read-only
+- no transaction opened
+- no action applied
+- no pipe was split
+- no connector traversal, geometry extraction, linked-document scan, parameter write, or Revit model mutation indicated

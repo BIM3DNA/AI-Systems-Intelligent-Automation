@@ -1204,6 +1204,77 @@ MEP-RO-002 - Active View Read-Only MEP Report Pack
 
 Runtime validated.
 
+## EV-AI-089 through EV-AI-094 - MEP-WR-001 Split Selected Pipes Dry Run
+
+### Feature
+
+MEP-WR-001 - Split Selected Pipes Dry Run
+
+### Evidence IDs
+
+- EV-AI-089: MEP-WR-001 no-selection split dry-run validation
+- EV-AI-090: BUNGE mixed pipes/fittings split dry-run candidate validation
+- EV-AI-091: non-pipe selection split dry-run rejection validation
+- EV-AI-092: split dry-run deterministic alias route validation
+- EV-AI-093: split dry-run export/index validation
+- EV-AI-094: generic Ollama rejection after split dry-run validation
+
+### Validation Summary
+
+- deterministic dry-run routes before Ollama
+- live selected elements read at execution time
+- selected-elements-only / active-document-only scope validated
+- midpoint candidate generation validated for eligible straight pipes
+- fittings, near-vertical pipes, too-short pipes, and non-pipe selections skipped correctly
+- `[SPLIT SELECTED PIPES DRY RUN]` exported and indexed through MEP-RO-005/006
+- generic Ollama response rejected as deterministic export evidence
+- no transaction, pipe split, connector traversal, geometry extraction, linked-document scan, parameter write, or model mutation observed
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-18_mep-wr-001-split-selected-pipes-dry-run-validated/`
+
+### Status
+
+Runtime validated.
+
+## EV-AI-095 through EV-AI-102 - MEP-ACT-002 Reviewed Proposal / Dry-Run Confirmation Guard
+
+### Feature
+
+MEP-ACT-002 - Reviewed Proposal / Dry-Run Confirmation Guard
+
+### Evidence IDs
+
+- EV-AI-095: MEP-ACT-002 no-source confirmation guard validation
+- EV-AI-096: reviewed proposal state detection validation
+- EV-AI-097: confirm latest proposal blocked validation
+- EV-AI-098: split dry-run state detection and confirm latest dry-run blocked validation
+- EV-AI-099: apply/execute reviewed action blocked validation
+- EV-AI-100: confirmation guard status alias validation
+- EV-AI-101: confirmation guard export/index validation and report_scope hotfix validation
+- EV-AI-102: generic Ollama rejection after confirmation guard validation
+
+### Validation Summary
+
+- deterministic confirmation/status routes before Ollama
+- no-source state handled safely
+- MEP-ACT-001 reviewed proposal state detected
+- MEP-WR-001 split dry-run state detected
+- confirm/apply/execute prompts blocked with `execution_available: false` and `execution_performed: false`
+- `[REVIEWED ACTION CONFIRMATION GUARD]` exported and indexed through MEP-RO-005/006
+- report-scope metadata hotfix validated for `session-local reviewed action state / active document only`
+- generic Ollama response rejected as deterministic export evidence
+- no transaction, action apply, pipe split, connector traversal, geometry extraction, linked-document scan, parameter write, or model mutation observed
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-18_mep-act-002-reviewed-confirmation-guard-validated/`
+
+### Status
+
+Runtime validated after report-scope metadata hotfix.
+
 ## EV-AI-076 through EV-AI-081 - MEP-RO-006 QA Export Index / Snapshot Registry Pack
 
 ### Feature

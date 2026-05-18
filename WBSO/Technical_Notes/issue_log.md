@@ -1175,3 +1175,46 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 - MEP-ACT-002 reviewed proposal confirmation guard.
 - MEP-WR-001 split selected pipes dry-run.
 - MEP-WR-002 split selected pipes reviewed apply with rollback.
+
+---
+
+## 2026-05-18 MEP-WR-001 and MEP-ACT-002 Runtime Validation
+
+**Status:** Resolved / runtime validated  
+**Type:** deterministic split dry-run and confirmation-guard validation
+
+### MEP-WR-001 validated items
+
+- No-selection split dry-run passed.
+- BUNGE mixed pipes/fittings dry-run candidate generation passed with 21 selected elements, 3 eligible pipes, 3 midpoint candidates, 8 pipe fittings skipped, 6 near-vertical pipes skipped, and 4 too-short pipes skipped.
+- Non-pipe selection rejection passed.
+- Dry-run alias routes passed for `calculate pipe split candidates` and `selected pipe split dry run`.
+- Dry-run export/index passed with source header `[SPLIT SELECTED PIPES DRY RUN]`.
+- Generic Ollama rejection after split dry-run passed.
+
+### MEP-ACT-002 validated items
+
+- No-source confirmation guard passed.
+- Reviewed proposal state detection passed.
+- Confirm latest proposal blocked passed.
+- Split dry-run state detection and confirm latest dry-run blocked passed.
+- Apply/execute reviewed action blocked passed.
+- Status aliases passed for `reviewed action status` and `can I apply latest action`.
+- Confirmation guard export/index passed with source header `[REVIEWED ACTION CONFIRMATION GUARD]`.
+- Confirmation guard `report_scope` hotfix applied and validated.
+- Generic Ollama rejection after confirmation guard passed.
+
+### Governance result
+
+- MEP-WR-001 remains dry-run-only.
+- MEP-ACT-002 remains confirmation-guard-only.
+- No Revit model mutation was observed.
+- No transactions, pipe splits, action applies, parameter writes, connector traversal, geometry extraction, linked-document scans, tag/schedule/view/sheet creation, or system/circuit edits were observed.
+
+### Future refinements
+
+- MEP-WR-002 split selected pipes reviewed apply with explicit confirmation and rollback.
+- Optional export/index browser.
+- Optional proposal/dry-run comparison report.
+- Optional pre-apply risk score.
+- Optional reviewed apply sandbox mode.

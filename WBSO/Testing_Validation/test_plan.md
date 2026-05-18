@@ -702,6 +702,58 @@ The refactor should only be considered runtime-proven after the scenario set abo
 - reviewed proposal export succeeds
 - generic Ollama response is rejected as deterministic export evidence
 
+## 2026-05-18 MEP-WR-001 Split Selected Pipes Dry Run Validation
+
+### Tested contexts
+
+- no selection
+- mixed BUNGE pipes/fittings
+- non-pipe selection
+- deterministic route aliases
+- export/index
+- generic Ollama rejection
+
+### Pass criteria
+
+- dry-run routes are deterministic
+- no Ollama fallback for dry-run prompts
+- selected straight pipes generate midpoint candidates
+- candidate segment lengths are reported
+- fittings, non-pipes, near-vertical pipes, and too-short pipes are skipped
+- no transaction is opened
+- no pipe is split
+- no model mutation occurs
+- report export/index succeeds
+- generic response is rejected as deterministic export evidence
+
+## 2026-05-18 MEP-ACT-002 Reviewed Confirmation Guard Validation
+
+### Tested contexts
+
+- no source state
+- reviewed proposal state
+- confirm latest proposal
+- split dry-run state
+- confirm latest dry-run
+- apply/execute rejection
+- status aliases
+- export/index
+- generic Ollama rejection
+
+### Pass criteria
+
+- guard routes are deterministic
+- no Ollama fallback for guard prompts
+- source states are detected
+- confirmation/apply/execute prompts are blocked
+- `execution_available` is false
+- `execution_performed` is false
+- no transaction is opened
+- no model mutation occurs
+- export/index succeeds
+- report-scope metadata is correct after hotfix
+- generic response is rejected as deterministic export evidence
+
 ## 2026-05-14 MEP-RO-005 Exportable QA Evidence Snapshot Validation
 
 ### Tested contexts

@@ -133,3 +133,21 @@ MEP-ACT-001 proposal prompts route deterministically before Ollama/OpenAI fallba
 - supported proposal prompts read live Revit context locally and safely
 - generic Ollama responses remain non-exportable as deterministic QA evidence
 - no provider configuration was changed
+
+## 2026-05-18 MEP-WR-001 Provider Boundary Note
+
+MEP-WR-001 split dry-run prompts route deterministically before Ollama/OpenAI fallback.
+
+- Ollama/OpenAI are not used for split candidate dry-runs
+- candidate reports are generated from live selected elements in the active document
+- generic Ollama responses remain non-exportable as deterministic QA evidence
+- no provider configuration was changed
+
+## 2026-05-18 MEP-ACT-002 Provider Boundary Note
+
+MEP-ACT-002 confirmation/status prompts route deterministically before Ollama/OpenAI fallback.
+
+- Ollama/OpenAI are not used for confirmation guard decisions
+- apply/execute prompts are blocked locally and deterministically
+- generic Ollama responses remain non-exportable as deterministic QA evidence
+- no provider configuration was changed

@@ -1175,6 +1175,42 @@ The export action is filesystem-only. It does not mutate the Revit model, write 
 
 Status: runtime validated.
 
+## 2026-05-18 MEP-WR-001 Split Selected Pipes Dry Run
+
+MEP-WR-001 adds a deterministic read-only dry-run layer after MEP-ACT-001 and before any future reviewed apply feature.
+
+### Architectural role
+
+- routes known split dry-run prompts deterministically before Ollama fallback
+- reads current live selected elements only in the active document
+- calculates non-executable midpoint candidate data for eligible straight pipes
+- reports candidate split point, estimated segment A/B lengths, pipe type, level, system, diameter/size, and slope
+- classifies skipped elements into pipe fittings, pipe accessories, non-pipes, pinned pipes, grouped pipes, design-option pipes, unreadable curves, unbounded curves, unsupported curve types, too-short pipes, near-vertical pipes, unreadable endpoints, and calculation errors
+- records warnings for missing/unreadable level, system, diameter/size, and slope
+- exposes `[SPLIT SELECTED PIPES DRY RUN]` as an exportable deterministic header for MEP-RO-005/006
+
+MEP-WR-001 does not call `PlumbingUtils.BreakCurve`, open transactions, split pipes, move fittings, modify systems, traverse connectors, extract geometry, scan linked documents, write parameters, or mutate the Revit model.
+
+Status: runtime validated.
+
+## 2026-05-18 MEP-ACT-002 Reviewed Proposal / Dry-Run Confirmation Guard
+
+MEP-ACT-002 adds a deterministic confirmation/readiness guard after reviewed proposals and dry-runs, and before any future reviewed apply action.
+
+### Architectural role
+
+- routes known confirmation/status prompts deterministically before Ollama fallback
+- inspects session-local source state from MEP-WR-001 split dry-runs, MEP-ACT-001 reviewed proposals, or accepted deterministic report headers
+- detects `[SPLIT SELECTED PIPES DRY RUN]` and `[REVIEWED ACTION PROPOSAL]`
+- blocks confirm/apply/execute prompts because MEP-WR-002 reviewed apply is not implemented
+- reports `execution_available: false` and `execution_performed: false`
+- exposes `[REVIEWED ACTION CONFIRMATION GUARD]` as an exportable deterministic header for MEP-RO-005/006
+- includes a report-scope hotfix so confirmation guard exports store `session-local reviewed action state / active document only`
+
+MEP-ACT-002 is confirmation-governance only. It opens no transaction and performs no pipe split, action apply, parameter write, connector traversal, geometry extraction, linked-document scan, or Revit model mutation.
+
+Status: runtime validated after report-scope metadata hotfix.
+
 ## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry
 
 MEP-RO-006 builds on MEP-RO-005 by registering every successful QA evidence export in a persistent local filesystem index.
