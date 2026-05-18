@@ -75,6 +75,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
+    "[REVIEWED ACTION CONFIRMATION GUARD]",
 )
 
 PIPE_SPLIT_DRY_RUN_MAX_SELECTION = 200
@@ -10647,6 +10648,46 @@ def _is_split_selected_pipes_dry_run_prompt(prompt):
     return False
 
 
+def _reviewed_action_confirmation_guard_request_kind(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    status_routes = [
+        "show latest reviewed action",
+        "show latest reviewed proposal",
+        "show latest dry run",
+        "reviewed action status",
+        "reviewed proposal status",
+        "dry run status",
+        "can i apply latest action",
+        "can i execute latest proposal",
+    ]
+    confirmation_routes = [
+        "confirm reviewed action",
+        "confirm latest reviewed action",
+        "confirm latest proposal",
+        "confirm latest dry run",
+        "confirm split selected pipes",
+        "apply reviewed action",
+        "apply latest reviewed action",
+        "execute reviewed action",
+        "execute latest proposal",
+        "run reviewed action",
+        "approve reviewed action",
+        "approve latest proposal",
+    ]
+    if normalized in confirmation_routes:
+        return "confirmation"
+    if normalized in status_routes:
+        return "status"
+    if any(token in normalized for token in ["confirm", "apply", "execute", "approve", "run reviewed action"]):
+        if "reviewed" in normalized or "proposal" in normalized or "dry run" in normalized or "split selected pipes" in normalized:
+            return "confirmation"
+    if ("status" in normalized or normalized.startswith("show latest") or normalized.startswith("can i ")) and (
+        "reviewed" in normalized or "proposal" in normalized or "dry run" in normalized or "latest action" in normalized
+    ):
+        return "status"
+    return None
+
+
 def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
     handler = REVIEWED_ACTION_HANDLERS.get(handler_name)
     if handler is None:
@@ -10659,6 +10700,35 @@ def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
 
 def handle_public_command(prompt, doc, uidoc):
     p = prompt.lower()
+    if _reviewed_action_confirmation_guard_request_kind(prompt):
+        return "\n".join(
+            [
+                "[REVIEWED ACTION CONFIRMATION GUARD]",
+                "",
+                "Latest reviewed source:",
+                "- Source type: none",
+                "- Source status: unavailable",
+                "",
+                "Execution status:",
+                "- Execution requested: true",
+                "- Execution available: false",
+                "- Execution performed: false",
+                "",
+                "Confirmation result:",
+                "Not ready",
+                "",
+                "Reason:",
+                "No reviewed action proposal or split dry-run is available in this stateless command path. Use the AI Workbench chat session after running a proposal or dry-run.",
+                "",
+                "Safety:",
+                "- Confirmation guard only.",
+                "- Read-only.",
+                "- No transaction opened.",
+                "- No action was applied.",
+                "- No pipe was split.",
+                "- Revit model data was not modified.",
+            ]
+        )
     if _is_split_selected_pipes_dry_run_prompt(prompt):
         return split_selected_pipes_dry_run(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
     if "split" in p and "pipe" in p:
@@ -11233,6 +11303,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = False
         self.latest_reviewed_action_proposal = None
         self.latest_split_pipe_dry_run = None
+        self.latest_reviewed_action_confirmation_guard = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -12410,6 +12481,9 @@ class OllamaAIChat(forms.WPFWindow):
         return header in QA_EXPORT_ACCEPTED_REPORT_HEADERS
 
     def _detect_report_scope(self, report_text):
+        header = self._extract_report_header(report_text)
+        if header == "[REVIEWED ACTION CONFIRMATION GUARD]":
+            return "session-local reviewed action state / active document only"
         text = safe_str(report_text).lower()
         if "selection scope: selected elements" in text or "total selected" in text or "selected supported" in text:
             return "selected elements / active document only"
@@ -12831,6 +12905,215 @@ class OllamaAIChat(forms.WPFWindow):
             "read_only": True,
             "model_modified": False,
             "execution_available": False,
+        }
+        return report_text
+
+    def _latest_guard_source_state(self, prompt):
+        normalized = _normalize_deterministic_route_text(prompt)
+        prefer_proposal = "proposal" in normalized or "reviewed action" in normalized or "reviewed proposal" in normalized
+        prefer_dry_run = "dry run" in normalized
+
+        def split_state():
+            state = self.latest_split_pipe_dry_run
+            if not state:
+                return None
+            return {
+                "source_state_type": "split_dry_run",
+                "source_feature_id": "MEP-WR-001",
+                "source_report_header": "[SPLIT SELECTED PIPES DRY RUN]",
+                "source_report_prompt": state.get("source_prompt", ""),
+                "source_report_timestamp": state.get("created_timestamp_local", ""),
+                "source_status": "available",
+                "summary": [
+                    "- Eligible pipes: {0}".format(state.get("eligible_pipe_count", 0)),
+                    "- Candidate split points: {0}".format(state.get("candidate_count", 0)),
+                    "- Skipped elements: {0}".format(state.get("skipped_count", 0)),
+                    "- Dry-run result: {0}".format(state.get("dry_run_result", "")),
+                    "- Exportable source header: [SPLIT SELECTED PIPES DRY RUN]",
+                ],
+            }
+
+        def proposal_state():
+            state = self.latest_reviewed_action_proposal
+            if not state:
+                return None
+            return {
+                "source_state_type": "reviewed_proposal",
+                "source_feature_id": "MEP-ACT-001",
+                "source_report_header": "[REVIEWED ACTION PROPOSAL]",
+                "source_report_prompt": state.get("source_prompt", ""),
+                "source_report_timestamp": state.get("created_timestamp_local", ""),
+                "source_status": "available",
+                "summary": [
+                    "- Action label: {0}".format(state.get("action_label", "")),
+                    "- Proposal status: {0}".format(state.get("proposal_status", "")),
+                    "- Eligible count: {0}".format(state.get("eligible_count", 0)),
+                    "- Skipped count: {0}".format(state.get("skipped_count", 0)),
+                    "- Warning count: {0}".format(state.get("warning_count", 0)),
+                ],
+            }
+
+        def deterministic_state():
+            state = self.latest_deterministic_report
+            if not state:
+                return None
+            header = state.get("report_header", "")
+            if header == "[SPLIT SELECTED PIPES DRY RUN]":
+                source_feature = "MEP-WR-001"
+                source_type = "deterministic_report"
+            elif header == "[REVIEWED ACTION PROPOSAL]":
+                source_feature = "MEP-ACT-001"
+                source_type = "deterministic_report"
+            else:
+                return None
+            return {
+                "source_state_type": source_type,
+                "source_feature_id": source_feature,
+                "source_report_header": header,
+                "source_report_prompt": state.get("source_prompt", ""),
+                "source_report_timestamp": state.get("report_timestamp", ""),
+                "source_status": "available",
+                "summary": [
+                    "- Source report scope: {0}".format(state.get("report_scope", "")),
+                    "- Exportable source header: {0}".format(header),
+                ],
+            }
+
+        if prefer_dry_run:
+            ordered = [split_state, proposal_state, deterministic_state]
+        elif prefer_proposal:
+            ordered = [proposal_state, split_state, deterministic_state]
+        else:
+            ordered = [split_state, proposal_state, deterministic_state]
+        for getter in ordered:
+            source = getter()
+            if source:
+                return source
+        return {
+            "source_state_type": "none",
+            "source_feature_id": "none",
+            "source_report_header": "none",
+            "source_report_prompt": "none",
+            "source_report_timestamp": "",
+            "source_status": "unavailable",
+            "summary": [],
+        }
+
+    def answer_reviewed_action_confirmation_guard_question(self, prompt):
+        kind = _reviewed_action_confirmation_guard_request_kind(prompt)
+        if not kind:
+            return None
+        execution_requested = kind == "confirmation"
+        source = self._latest_guard_source_state(prompt)
+        has_source = source.get("source_state_type") != "none"
+        guard_id = "MEP-ACT-002-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        if not has_source:
+            confirmation_result = "Not ready"
+            reason = "No reviewed action proposal or split dry-run is available in the current AI Workbench session. Run a proposal or dry-run first."
+        elif execution_requested:
+            confirmation_result = "Blocked"
+            reason = "The latest reviewed proposal or dry-run cannot be applied because MEP-WR-002 reviewed apply is not implemented. MEP-ACT-002 only validates confirmation flow and prevents accidental model mutation."
+        else:
+            confirmation_result = "Status only"
+            reason = "MEP-ACT-002 is a confirmation guard only. No reviewed apply feature is implemented yet."
+        request_label = "confirmation / apply requested" if execution_requested else "status"
+
+        lines = [
+            "[REVIEWED ACTION CONFIRMATION GUARD]",
+            "",
+            "Guard ID:",
+            guard_id,
+            "",
+            "Request:",
+            request_label,
+            "",
+            "Scope:",
+            "session-local reviewed action state / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(self._safe_active_view_name(), self._safe_active_view_type()),
+            "",
+            "Latest reviewed source:",
+            "- Source type: {0}".format(source.get("source_state_type")),
+            "- Source feature: {0}".format(source.get("source_feature_id")),
+            "- Source prompt: {0}".format(source.get("source_report_prompt")),
+            "- Source header: {0}".format(source.get("source_report_header")),
+            "- Source status: {0}".format(source.get("source_status")),
+        ]
+        if source.get("source_report_timestamp"):
+            lines.append("- Source timestamp: {0}".format(source.get("source_report_timestamp")))
+        if source.get("summary"):
+            lines.extend(["", "Source summary:"])
+            lines.extend(source.get("summary"))
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Execution requested: {0}".format("true" if execution_requested else "false"),
+                "- Execution available: false",
+                "- Execution performed: false",
+                "",
+                "Confirmation result:",
+                confirmation_result,
+                "",
+                "Reason:",
+                reason,
+            ]
+        )
+        if not has_source:
+            lines.extend(
+                [
+                    "",
+                    "Suggested prompts:",
+                    "- propose split selected pipes",
+                    "- dry run split selected pipes",
+                    "- split selected pipes dry run",
+                ]
+            )
+        lines.extend(
+            [
+                "",
+                "Next required feature:",
+                "MEP-WR-002 - Split Selected Pipes Reviewed Apply",
+                "",
+                "Safety:",
+                "- Confirmation guard only.",
+                "- Read-only.",
+                "- No transaction opened.",
+                "- No action was applied.",
+                "- No pipe was split.",
+                "- Revit model data was not modified.",
+            ]
+        )
+        report_text = "\n".join(lines)
+        self.latest_reviewed_action_confirmation_guard = {
+            "guard_id": guard_id,
+            "feature_id": "MEP-ACT-002",
+            "source_prompt": safe_str(prompt),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "document_path": self._safe_document_path(),
+            "active_view_name": self._safe_active_view_name(),
+            "active_view_type": self._safe_active_view_type(),
+            "source_state_type": source.get("source_state_type"),
+            "source_feature_id": source.get("source_feature_id"),
+            "source_report_header": source.get("source_report_header"),
+            "source_report_prompt": source.get("source_report_prompt"),
+            "source_report_timestamp": source.get("source_report_timestamp"),
+            "execution_requested": execution_requested,
+            "execution_available": False,
+            "execution_performed": False,
+            "confirmation_result": confirmation_result,
+            "reason": reason,
+            "next_required_feature": "MEP-WR-002",
+            "deterministic_route": True,
+            "read_only": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "report_text": report_text,
         }
         return report_text
 
@@ -15429,59 +15712,64 @@ class OllamaAIChat(forms.WPFWindow):
             if index_reply is not None:
                 reply = index_reply
             else:
-                split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
-                if split_dry_run_reply is not None:
-                    reply = split_dry_run_reply
+                guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
+                if guard_reply is not None:
+                    reply = guard_reply
                     remember_report = True
                 else:
-                    proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
-                    if proposal_reply is not None:
-                        reply = proposal_reply
+                    split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
+                    if split_dry_run_reply is not None:
+                        reply = split_dry_run_reply
                         remember_report = True
                     else:
-                        if self._is_qa_export_request(prompt):
-                            reply = self.export_latest_qa_report(prompt)
-                            preserve_latest_report_state = True
-                        elif self._is_codex_brief_request(prompt):
-                            brief = self.build_codex_task_brief(prompt)
-                            self.latest_codex_brief = brief
-                            self.populate_project_context_tree()
-                            reply = "```\n{0}\n```".format(brief)
-                        elif self._is_scan_request(prompt):
-                            result = self.run_project_context_scan("standard")
-                            reply = result.get("summary", "")
+                        proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
+                        if proposal_reply is not None:
+                            reply = proposal_reply
                             remember_report = True
                         else:
-                            discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
-                            if discipline_qa_reply is not None:
-                                reply = discipline_qa_reply
+                            if self._is_qa_export_request(prompt):
+                                reply = self.export_latest_qa_report(prompt)
+                                preserve_latest_report_state = True
+                            elif self._is_codex_brief_request(prompt):
+                                brief = self.build_codex_task_brief(prompt)
+                                self.latest_codex_brief = brief
+                                self.populate_project_context_tree()
+                                reply = "```\n{0}\n```".format(brief)
+                            elif self._is_scan_request(prompt):
+                                result = self.run_project_context_scan("standard")
+                                reply = result.get("summary", "")
                                 remember_report = True
                             else:
-                                system_reply = self.answer_system_assignment_report_question(prompt)
-                                if system_reply is not None:
-                                    reply = system_reply
+                                discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                                if discipline_qa_reply is not None:
+                                    reply = discipline_qa_reply
                                     remember_report = True
                                 else:
-                                    active_view_reply = self.answer_active_view_report_question(prompt)
-                                    if active_view_reply is not None:
-                                        reply = active_view_reply
+                                    system_reply = self.answer_system_assignment_report_question(prompt)
+                                    if system_reply is not None:
+                                        reply = system_reply
                                         remember_report = True
                                     else:
-                                        selection_reply = self.answer_selection_report_question(prompt)
-                                        if selection_reply is not None:
-                                            reply = selection_reply
+                                        active_view_reply = self.answer_active_view_report_question(prompt)
+                                        if active_view_reply is not None:
+                                            reply = active_view_reply
                                             remember_report = True
-                                        elif self._is_project_context_question(prompt):
-                                            reply = self.answer_project_context_question(prompt)
-                                            remember_report = True
-                                        elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                                            self.append_project_agent_plan()
-                                            reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
-                                            preserve_latest_report_state = True
                                         else:
-                                            reply = send_ollama_chat(self.model, prompt)
-                                            reply = self._sanitize_ollama_context_error(reply)
-                                            self.latest_chat_output_is_deterministic_report = False
+                                            selection_reply = self.answer_selection_report_question(prompt)
+                                            if selection_reply is not None:
+                                                reply = selection_reply
+                                                remember_report = True
+                                            elif self._is_project_context_question(prompt):
+                                                reply = self.answer_project_context_question(prompt)
+                                                remember_report = True
+                                            elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                                self.append_project_agent_plan()
+                                                reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                                preserve_latest_report_state = True
+                                            else:
+                                                reply = send_ollama_chat(self.model, prompt)
+                                                reply = self._sanitize_ollama_context_error(reply)
+                                                self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             if remember_report:

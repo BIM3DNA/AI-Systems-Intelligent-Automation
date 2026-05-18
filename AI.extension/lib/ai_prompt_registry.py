@@ -34,6 +34,7 @@ class PromptCatalog(object):
         "Selection Reports",
         "Evidence Export",
         "Reviewed Action Dry Runs",
+        "Reviewed Action Guards",
         "Reviewed Action Proposals",
         "Pipes",
         "Ducts",
