@@ -653,6 +653,58 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-05-19 MEP-WR-002 Rollback Test Validation
+
+### Contexts
+
+- no dry-run source
+- dry-run source available but token missing
+- tokenized route failure and hotfix
+- rollback test with `ROLLBACK-TEST-OK`
+- rollback verification
+- export/index
+
+### Pass criteria
+
+- rollback-test prompts route deterministically before Ollama
+- token required before transaction
+- tokenized prompts route deterministically after hotfix
+- `BreakCurve` called only inside rollback transaction group
+- `TransactionGroup` rolled back
+- temporary returned pipe ids removed
+- original pipe ids still resolve
+- original lengths restored within tolerance
+- persistent model mutation remains false
+- export/index succeeds with `[SPLIT SELECTED PIPES ROLLBACK TEST]`
+
+## 2026-05-19 MEP-WR-003 Single-Candidate Reviewed Apply Validation
+
+### Contexts
+
+- no/not-ready source
+- valid source readiness listing
+- missing candidate selection
+- missing persistent token
+- capped/untested candidate blocked
+- candidate 1 persistent apply
+- generic apply/execute blocked by MEP-ACT-002
+- export/index
+- generic Ollama rejection
+
+### Pass criteria
+
+- reviewed-apply prompts route deterministically before Ollama
+- explicit candidate selection required
+- explicit `PERSISTENT-SPLIT-OK` token required
+- only rollback-tested candidates allowed
+- capped candidates blocked
+- exactly one split applied
+- `TransactionGroup.Assimilate()` occurs only after validation
+- persistent model changes true only after confirmed apply
+- no batch apply exists
+- export/index succeeds with `[SPLIT SELECTED PIPE REVIEWED APPLY]`
+- generic Ollama output remains rejected as deterministic export evidence
+
 ## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry Validation
 
 ### Tested contexts

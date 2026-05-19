@@ -116,3 +116,25 @@ MEP-ACT-002 is not an LLM model-provider feature. It is a deterministic confirma
 - confirmation/apply/execute prompts are blocked until a future reviewed apply feature exists
 - generic Ollama output remains rejected as deterministic export evidence
 - no provider configuration was changed
+
+## 2026-05-19 MEP-WR-002 Model Note
+
+MEP-WR-002 is not an LLM model-provider feature. It is deterministic Revit API rollback-test logic for split dry-run candidates.
+
+- supported rollback-test prompts bypass Ollama/OpenAI
+- `ROLLBACK-TEST-OK` gates transaction opening
+- `PlumbingUtils.BreakCurve` is used only inside a rollback transaction group
+- rollback-test state is session-local and exportable through deterministic report state
+- no persistent model store was introduced
+- generic Ollama output remains rejected as deterministic export evidence
+
+## 2026-05-19 MEP-WR-003 Model Note
+
+MEP-WR-003 is not an LLM model-provider feature. It is deterministic reviewed apply logic for one rollback-tested split candidate.
+
+- supported reviewed-apply prompts bypass Ollama/OpenAI
+- candidate eligibility is decided from MEP-WR-001 and MEP-WR-002 session state, not provider output
+- `PERSISTENT-SPLIT-OK` gates persistent transaction execution
+- exactly one candidate can be applied per command
+- generic Ollama output remains rejected as deterministic export evidence
+- no provider configuration was changed

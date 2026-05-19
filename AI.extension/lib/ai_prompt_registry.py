@@ -33,6 +33,7 @@ class PromptCatalog(object):
         "Developer Briefs",
         "Selection Reports",
         "Evidence Export",
+        "Reviewed Action Apply",
         "Reviewed Action Rollback Tests",
         "Reviewed Action Dry Runs",
         "Reviewed Action Guards",

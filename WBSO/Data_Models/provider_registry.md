@@ -151,3 +151,22 @@ MEP-ACT-002 confirmation/status prompts route deterministically before Ollama/Op
 - apply/execute prompts are blocked locally and deterministically
 - generic Ollama responses remain non-exportable as deterministic QA evidence
 - no provider configuration was changed
+
+## 2026-05-19 MEP-WR-002 Provider Boundary Note
+
+MEP-WR-002 rollback-test prompts route deterministically before Ollama/OpenAI fallback.
+
+- LLM providers are not used to decide rollback-test eligibility or transaction execution
+- tokenized rollback-test prompts are routed after stripping/detecting `ROLLBACK-TEST-OK`
+- generic LLM output remains rejected by export as deterministic evidence
+- no provider configuration was changed
+
+## 2026-05-19 MEP-WR-003 Provider Boundary Note
+
+MEP-WR-003 reviewed-apply prompts route deterministically before Ollama/OpenAI fallback.
+
+- LLM providers are not used to choose candidates, decide eligibility, or execute persistent apply
+- persistent apply requires explicit candidate selection and `PERSISTENT-SPLIT-OK`
+- generic `apply reviewed action` and `execute latest proposal` remain blocked by deterministic MEP-ACT-002 guard logic
+- generic LLM output remains rejected by export as deterministic evidence
+- no provider configuration was changed

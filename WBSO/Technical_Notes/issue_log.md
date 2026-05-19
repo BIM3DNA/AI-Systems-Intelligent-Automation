@@ -1218,3 +1218,55 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 - Optional proposal/dry-run comparison report.
 - Optional pre-apply risk score.
 - Optional reviewed apply sandbox mode.
+
+---
+
+## 2026-05-19 MEP-WR-002 and MEP-WR-003 Runtime Validation
+
+**Status:** Resolved / runtime validated and core runtime validated  
+**Type:** rollback-test and first persistent reviewed apply validation
+
+### MEP-WR-002 validated items
+
+- MEP-WR-002 implemented as rollback-test-only.
+- No-source rollback-test guard passed.
+- Dry-run source available but token missing returned confirmation-required with no transaction and no `BreakCurve`.
+- Tokenized route initially failed and fell through to generic Ollama for `run split rollback test ROLLBACK-TEST-OK`.
+- Route matcher hotfix applied: token is detected separately and stripped before alias matching.
+- Tokenized rollback-test prompt routed deterministically after hotfix.
+- Rollback transaction and `PlumbingUtils.BreakCurve` probe passed.
+- Five of seven candidates were processed under the safety cap; two candidates were skipped because of cap.
+- Rollback verification passed: original pipe ids resolved, temporary new ids disappeared, and original lengths were restored.
+- Rollback-test export/index passed with source header `[SPLIT SELECTED PIPES ROLLBACK TEST]`.
+
+### MEP-WR-003 validated items
+
+- MEP-WR-003 implemented as single-candidate persistent reviewed apply.
+- Source-not-ready guard behavior passed.
+- Valid source readiness listing passed.
+- Missing candidate selection was blocked.
+- Missing `PERSISTENT-SPLIT-OK` token was blocked.
+- Capped/untested candidate 6 was blocked.
+- Candidate 1 persistent apply passed for original pipe `3003513`.
+- `TransactionGroup.Assimilate()` occurred only after validation of one selected candidate.
+- Returned new pipe id `3130288` was reported.
+- Combined segment length matched original length with `0 mm` delta.
+- Reviewed apply export/index passed with source header `[SPLIT SELECTED PIPE REVIEWED APPLY]`.
+- Generic `apply reviewed action` and `execute latest proposal` remained blocked by MEP-ACT-002.
+- Generic Ollama output remained non-exportable as deterministic evidence.
+- Post-apply repeated dry-run verification was inconclusive because the active selection was empty.
+
+### Governance result
+
+- MEP-WR-002 leaves no persistent model mutation.
+- MEP-WR-003 intentionally performs exactly one persistent model change after explicit candidate selection and token confirmation.
+- No batch apply exists.
+- No connector traversal, geometry extraction, linked-document scan, parameter write, tag/schedule/view/sheet creation, or system/circuit edit was added.
+
+### Future refinements
+
+- add `select returned new pipe` or `show latest split result` helper.
+- add post-apply model verification by stored pipe ids instead of relying on current selection.
+- add explicit reviewed apply undo note/manual recovery procedure.
+- add batch apply only after additional controlled R&D.
+- rename any future batch feature consistently as MEP-WR-004 if developed.

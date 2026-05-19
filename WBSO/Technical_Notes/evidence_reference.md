@@ -1204,6 +1204,81 @@ MEP-RO-002 - Active View Read-Only MEP Report Pack
 
 Runtime validated.
 
+## EV-AI-103 through EV-AI-108 - MEP-WR-002 Split Selected Pipes Rollback Test
+
+### Feature
+
+MEP-WR-002 - Split Selected Pipes Rollback Test
+
+### Evidence IDs
+
+- EV-AI-103: MEP-WR-002 no-source rollback-test guard validation
+- EV-AI-104: MEP-WR-002 dry-run source available but rollback token missing validation
+- EV-AI-105: MEP-WR-002 tokenized route failure and hotfix validation
+- EV-AI-106: MEP-WR-002 rollback transaction / BreakCurve probe validation
+- EV-AI-107: MEP-WR-002 rollback verification validation
+- EV-AI-108: MEP-WR-002 rollback-test export/index validation
+
+### Validation Summary
+
+- deterministic rollback-test routing before Ollama
+- explicit `ROLLBACK-TEST-OK` token required before transaction
+- initial tokenized route failure preserved as negative validation evidence
+- tokenized route hotfix validated
+- `PlumbingUtils.BreakCurve` called inside rollback transaction group
+- transaction group rolled back
+- original pipe ids restored and temporary pipe ids removed
+- no persistent model mutation
+- rollback-test report exported and indexed
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-19_mep-wr-002-split-selected-pipes-rollback-test-validated/`
+
+### Status
+
+Runtime validated.
+
+## EV-AI-109 through EV-AI-116 - MEP-WR-003 Split Selected Pipe Single-Candidate Persistent Reviewed Apply
+
+### Feature
+
+MEP-WR-003 - Split Selected Pipe Single-Candidate Persistent Reviewed Apply
+
+### Evidence IDs
+
+- EV-AI-109: MEP-WR-003 source-not-ready and guard behavior validation
+- EV-AI-110: MEP-WR-003 valid source readiness listing validation
+- EV-AI-111: MEP-WR-003 missing candidate selection validation
+- EV-AI-112: MEP-WR-003 missing persistent token validation
+- EV-AI-113: MEP-WR-003 capped untested candidate blocked validation
+- EV-AI-114: MEP-WR-003 single-candidate persistent apply validation
+- EV-AI-115: MEP-WR-003 reviewed apply export/index validation
+- EV-AI-116: MEP-WR-003 post-apply generic guard and Ollama rejection validation
+
+### Validation Summary
+
+- deterministic reviewed-apply routing before Ollama
+- explicit candidate selection required
+- explicit `PERSISTENT-SPLIT-OK` token required
+- only rollback-tested candidates accepted
+- capped untested candidate blocked
+- exactly one persistent split applied
+- original pipe `3003513` split with returned new pipe id `3130288`
+- combined length matched original length with `0 mm` delta
+- no batch apply
+- generic apply/execute prompts remained blocked by MEP-ACT-002
+- post-apply repeated dry-run verification inconclusive because active selection was empty
+- reviewed apply report exported and indexed
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-19_mep-wr-003-single-candidate-pipe-split-reviewed-apply-validated/`
+
+### Status
+
+Core runtime validated.
+
 ## EV-AI-089 through EV-AI-094 - MEP-WR-001 Split Selected Pipes Dry Run
 
 ### Feature
