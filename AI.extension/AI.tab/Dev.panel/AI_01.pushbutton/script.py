@@ -76,6 +76,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
     "[REVIEWED ACTION CONFIRMATION GUARD]",
+    "[SPLIT SELECTED PIPES ROLLBACK TEST]",
 )
 
 PIPE_SPLIT_DRY_RUN_MAX_SELECTION = 200
@@ -85,6 +86,9 @@ PIPE_SPLIT_DRY_RUN_SAMPLE_LIMIT = 10
 PIPE_SPLIT_DRY_RUN_MIN_TOTAL_LENGTH_FT = 3.28084
 PIPE_SPLIT_DRY_RUN_MIN_SEGMENT_LENGTH_FT = 1.64042
 PIPE_SPLIT_DRY_RUN_VERTICAL_Z_RATIO = 0.90
+MAX_ROLLBACK_SPLIT_CANDIDATES = 5
+ROLLBACK_SPLIT_LENGTH_TOLERANCE_FT = 1.0 / 304.8
+ROLLBACK_TEST_CONFIRMATION_TOKEN = "ROLLBACK-TEST-OK"
 
 THEMES = {
     "light": {
@@ -7237,6 +7241,57 @@ def split_selected_pipes_dry_run(doc, uidoc, context=None):
     return "\n".join(lines)
 
 
+def split_selected_pipes_rollback_test(doc, uidoc, context=None):
+    try:
+        active_view_type = safe_str(uidoc.ActiveView.ViewType)
+    except:
+        active_view_type = "(unknown type)"
+    return "\n".join(
+        [
+            "[SPLIT SELECTED PIPES ROLLBACK TEST]",
+            "",
+            "Rollback Test ID:",
+            "MEP-WR-002-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "",
+            "Scope:",
+            "latest split dry-run candidates / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(_active_view_title(doc, uidoc), active_view_type),
+            "",
+            "Source dry-run:",
+            "- Source status: unavailable",
+            "",
+            "Execution status:",
+            "- Rollback test requested: true",
+            "- Confirmation token present: {0}".format("true" if _has_rollback_test_token(_prompt_text_from_context(context)) else "false"),
+            "- Execution available: false",
+            "- Transaction opened: false",
+            "- BreakCurve called: false",
+            "- Transaction group rolled back: false",
+            "- Persistent model changes: false",
+            "",
+            "Rollback-test result:",
+            "Not ready",
+            "",
+            "Reason:",
+            "No valid split selected pipes dry-run is available in this stateless command path.",
+            "",
+            "Required previous step:",
+            "dry run split selected pipes",
+            "",
+            "Safety:",
+            "- Rollback-test guard only.",
+            "- No transaction opened.",
+            "- BreakCurve was not called.",
+            "- Revit model data was not modified.",
+        ]
+    )
+
+
 def split_selected_pipes(doc, uidoc, context=None):
     prompt_text = _prompt_text_from_context(context)
     selected_elements = _selected_elements(doc, uidoc)
@@ -10573,6 +10628,7 @@ REVIEWED_ACTION_HANDLERS = {
     "health_check_for_active_view_selection": health_check_for_active_view_selection,
     "report_missing_parameters_from_selection": report_missing_parameters_from_selection,
     "split_selected_pipes_dry_run": split_selected_pipes_dry_run,
+    "split_selected_pipes_rollback_test": split_selected_pipes_rollback_test,
     "create_3d_view_from_selection": create_3d_view_from_selection,
     "split_selected_pipes": split_selected_pipes,
     "report_duplicates": report_duplicates,
@@ -10648,6 +10704,36 @@ def _is_split_selected_pipes_dry_run_prompt(prompt):
     return False
 
 
+def _is_split_rollback_test_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    route_text = re.sub(r"\brollback\s+test\s+ok\b", " ", normalized)
+    route_text = re.sub(r"\s+", " ", route_text).strip()
+    routes = [
+        "split selected pipes rollback test",
+        "rollback test split selected pipes",
+        "run split rollback test",
+        "test split selected pipes with rollback",
+        "simulate split selected pipes rollback",
+        "validate split apply rollback",
+        "reviewed split rollback test",
+        "pipe split rollback test",
+        "split pipe write api rollback test",
+        "probe split selected pipes rollback",
+    ]
+    if route_text in routes:
+        return True
+    for route in routes:
+        if route in route_text:
+            return True
+    return "rollback" in route_text and "split" in route_text and "pipe" in route_text
+
+
+def _has_rollback_test_token(prompt):
+    raw_prompt = safe_str(prompt)
+    normalized = _normalize_deterministic_route_text(raw_prompt)
+    return ROLLBACK_TEST_CONFIRMATION_TOKEN in raw_prompt or "rollback test ok" in normalized
+
+
 def _reviewed_action_confirmation_guard_request_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     status_routes = [
@@ -10700,6 +10786,8 @@ def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
 
 def handle_public_command(prompt, doc, uidoc):
     p = prompt.lower()
+    if _is_split_rollback_test_prompt(prompt):
+        return split_selected_pipes_rollback_test(doc, uidoc, {"requested_prompt": prompt, "prompt_text": prompt})
     if _reviewed_action_confirmation_guard_request_kind(prompt):
         return "\n".join(
             [
@@ -11304,6 +11392,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_reviewed_action_proposal = None
         self.latest_split_pipe_dry_run = None
         self.latest_reviewed_action_confirmation_guard = None
+        self.latest_split_rollback_test_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -12482,6 +12571,8 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _detect_report_scope(self, report_text):
         header = self._extract_report_header(report_text)
+        if header == "[SPLIT SELECTED PIPES ROLLBACK TEST]":
+            return "latest split dry-run candidates / active document only"
         if header == "[REVIEWED ACTION CONFIRMATION GUARD]":
             return "session-local reviewed action state / active document only"
         text = safe_str(report_text).lower()
@@ -12868,6 +12959,493 @@ class OllamaAIChat(forms.WPFWindow):
         if kind == "list":
             return self._format_qa_export_index_report()
         return None
+
+    def _parse_split_dry_run_candidates(self, report_text):
+        candidates = []
+        pattern = re.compile(
+            r"(?ms)^\d+\. Pipe\s+(\d+).*?"
+            r"Candidate split point:\s+internal ft:\s+\(([^,]+),\s*([^,]+),\s*([^)]+)\).*?"
+            r"Estimated segment A:\s+([0-9.]+)\s+ft.*?"
+            r"Estimated segment B:\s+([0-9.]+)\s+ft"
+        )
+        for match in pattern.finditer(safe_str(report_text)):
+            try:
+                pipe_id = int(match.group(1))
+                point = DB.XYZ(float(match.group(2)), float(match.group(3)), float(match.group(4)))
+                segment_a = float(match.group(5))
+                segment_b = float(match.group(6))
+                candidates.append(
+                    {
+                        "pipe_id": pipe_id,
+                        "point": point,
+                        "estimated_segment_a": segment_a,
+                        "estimated_segment_b": segment_b,
+                    }
+                )
+            except:
+                continue
+        return candidates
+
+    def _latest_split_dry_run_source_for_rollback(self):
+        state = self.latest_split_pipe_dry_run
+        if state and state.get("report_text"):
+            parsed_candidates = self._parse_split_dry_run_candidates(state.get("report_text", ""))
+            return {
+                "source_status": "available",
+                "source_feature_id": "MEP-WR-001",
+                "source_prompt": state.get("source_prompt", ""),
+                "source_header": "[SPLIT SELECTED PIPES DRY RUN]",
+                "eligible_pipe_count": state.get("eligible_pipe_count", 0) or len(parsed_candidates),
+                "candidate_count": state.get("candidate_count", 0) or len(parsed_candidates),
+                "dry_run_result": state.get("dry_run_result", ""),
+                "dry_run_id": state.get("dry_run_id", ""),
+                "report_text": state.get("report_text", ""),
+                "candidates": parsed_candidates,
+            }
+        report = self.latest_deterministic_report
+        if report and report.get("report_header") == "[SPLIT SELECTED PIPES DRY RUN]":
+            report_text = report.get("report_text", "")
+            result_match = re.search(r"Dry-run result:\s*\n([^\n]+)", safe_str(report_text))
+            parsed_candidates = self._parse_split_dry_run_candidates(report_text)
+            return {
+                "source_status": "available",
+                "source_feature_id": "MEP-WR-001",
+                "source_prompt": report.get("source_prompt", ""),
+                "source_header": "[SPLIT SELECTED PIPES DRY RUN]",
+                "eligible_pipe_count": len(parsed_candidates),
+                "candidate_count": len(parsed_candidates),
+                "dry_run_result": result_match.group(1).strip() if result_match else "",
+                "dry_run_id": "",
+                "report_text": report_text,
+                "candidates": parsed_candidates,
+            }
+        return {
+            "source_status": "unavailable",
+            "source_feature_id": "none",
+            "source_prompt": "none",
+            "source_header": "none",
+            "eligible_pipe_count": 0,
+            "candidate_count": 0,
+            "dry_run_result": "",
+            "dry_run_id": "",
+            "report_text": "",
+            "candidates": [],
+        }
+
+    def _point_distance_to_pipe_segment(self, point, p0, p1):
+        try:
+            vx = float(p1.X - p0.X)
+            vy = float(p1.Y - p0.Y)
+            vz = float(p1.Z - p0.Z)
+            wx = float(point.X - p0.X)
+            wy = float(point.Y - p0.Y)
+            wz = float(point.Z - p0.Z)
+            length_sq = vx * vx + vy * vy + vz * vz
+            if length_sq <= 0:
+                return None
+            t = (wx * vx + wy * vy + wz * vz) / length_sq
+            if t < 0.0:
+                t = 0.0
+            if t > 1.0:
+                t = 1.0
+            cx = p0.X + t * vx
+            cy = p0.Y + t * vy
+            cz = p0.Z + t * vz
+            dx = point.X - cx
+            dy = point.Y - cy
+            dz = point.Z - cz
+            return math.sqrt(dx * dx + dy * dy + dz * dz)
+        except:
+            return None
+
+    def _validate_split_rollback_candidate(self, candidate):
+        pipe_id = candidate.get("pipe_id")
+        try:
+            elem = doc.GetElement(DB.ElementId(int(pipe_id)))
+        except:
+            elem = None
+        if elem is None:
+            return None, "original pipe id no longer resolves"
+        if not _split_pipe_dry_run_is_pipe(elem):
+            return None, "candidate element is no longer a pipe"
+        try:
+            if bool(elem.Pinned):
+                return None, "pipe is pinned"
+        except:
+            pass
+        try:
+            group_id = getattr(elem, "GroupId", None)
+            if group_id is not None and group_id != DB.ElementId.InvalidElementId:
+                return None, "pipe is in a group"
+        except:
+            pass
+        try:
+            design_option = getattr(elem, "DesignOption", None)
+            if design_option is not None:
+                return None, "pipe is in a design option"
+        except:
+            pass
+        curve, status = _split_pipe_dry_run_safe_curve(elem)
+        if status != "ok":
+            return None, status.replace("_", " ")
+        p0, p1 = _split_pipe_dry_run_endpoints(curve)
+        if _split_pipe_dry_run_is_near_vertical(p0, p1):
+            return None, "pipe is near vertical"
+        point = candidate.get("point")
+        if point is None:
+            return None, "candidate split point is unavailable"
+        distance = self._point_distance_to_pipe_segment(point, p0, p1)
+        if distance is None or distance > ROLLBACK_SPLIT_LENGTH_TOLERANCE_FT:
+            return None, "candidate split point is not on or near the current pipe curve"
+        segment_a = _split_pipe_dry_run_length_from_endpoints(p0, point)
+        segment_b = _split_pipe_dry_run_length_from_endpoints(point, p1)
+        if segment_a is None or segment_b is None:
+            return None, "candidate segment lengths are unreadable"
+        if segment_a < PIPE_SPLIT_DRY_RUN_MIN_SEGMENT_LENGTH_FT or segment_b < PIPE_SPLIT_DRY_RUN_MIN_SEGMENT_LENGTH_FT:
+            return None, "candidate would create a segment below the minimum length rule"
+        try:
+            original_length = float(curve.Length)
+        except:
+            original_length = _split_pipe_dry_run_length_from_endpoints(p0, p1)
+        return {
+            "pipe": elem,
+            "pipe_id": pipe_id,
+            "point": point,
+            "original_length": original_length,
+            "segment_a": segment_a,
+            "segment_b": segment_b,
+        }, ""
+
+    def _safe_pipe_length_by_id(self, pipe_id):
+        try:
+            elem = doc.GetElement(DB.ElementId(int(pipe_id)))
+        except:
+            elem = None
+        if elem is None:
+            return None
+        try:
+            curve, status = _split_pipe_dry_run_safe_curve(elem)
+            if status != "ok":
+                return None
+            return float(curve.Length)
+        except:
+            return None
+
+    def _run_split_rollback_batch(self, validated):
+        results = []
+        failures = []
+        transaction_opened = False
+        breakcurve_called = False
+        group_rolled_back = False
+        group = None
+        try:
+            try:
+                from Autodesk.Revit.DB.Plumbing import PlumbingUtils
+            except:
+                from Autodesk.Revit.DB import PlumbingUtils
+            group = DB.TransactionGroup(doc, "AI Split Selected Pipes Rollback Test")
+            group.Start()
+            transaction_opened = True
+            for item in validated:
+                trans = None
+                new_id_value = None
+                try:
+                    trans = DB.Transaction(doc, "AI rollback pipe split candidate")
+                    trans.Start()
+                    breakcurve_called = True
+                    new_id = PlumbingUtils.BreakCurve(doc, item.get("pipe").Id, item.get("point"))
+                    try:
+                        doc.Regenerate()
+                    except:
+                        pass
+                    try:
+                        new_id_value = new_id.IntegerValue
+                    except:
+                        new_id_value = None
+                    temp_original_length = self._safe_pipe_length_by_id(item.get("pipe_id"))
+                    temp_new_length = self._safe_pipe_length_by_id(new_id_value) if new_id_value is not None else None
+                    trans.Commit()
+                    results.append(
+                        {
+                            "pipe_id": item.get("pipe_id"),
+                            "point": item.get("point"),
+                            "original_length": item.get("original_length"),
+                            "new_id": new_id_value,
+                            "temp_original_length": temp_original_length,
+                            "temp_new_length": temp_new_length,
+                            "status": "temporary split succeeded / rolled back",
+                        }
+                    )
+                except Exception as exc:
+                    try:
+                        if trans is not None:
+                            trans.RollBack()
+                    except:
+                        pass
+                    failures.append({"pipe_id": item.get("pipe_id"), "reason": safe_str(exc)})
+            try:
+                group.RollBack()
+                group_rolled_back = True
+            except Exception as exc:
+                failures.append({"pipe_id": "(group)", "reason": "TransactionGroup rollback failed: {0}".format(safe_str(exc))})
+        except Exception as exc:
+            failures.append({"pipe_id": "(setup)", "reason": safe_str(exc)})
+            try:
+                if group is not None:
+                    group.RollBack()
+                    group_rolled_back = True
+            except:
+                pass
+        return {
+            "results": results,
+            "failures": failures,
+            "transaction_opened": transaction_opened,
+            "breakcurve_called": breakcurve_called,
+            "group_rolled_back": group_rolled_back,
+        }
+
+    def _format_split_rollback_test_report(self, prompt, source, token_present, rollback_data=None, skipped=None, reason=None):
+        rollback_data = rollback_data or {}
+        skipped = skipped or []
+        rollback_test_id = "MEP-WR-002-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        has_source = source.get("source_status") == "available"
+        candidates = source.get("candidates") or []
+        results = rollback_data.get("results") or []
+        failures = rollback_data.get("failures") or []
+        transaction_opened = bool(rollback_data.get("transaction_opened"))
+        breakcurve_called = bool(rollback_data.get("breakcurve_called"))
+        group_rolled_back = bool(rollback_data.get("group_rolled_back"))
+        if not has_source:
+            result_text = "Not ready"
+            reason_text = "No valid split selected pipes dry-run is available in the current AI Workbench session."
+        elif not token_present:
+            result_text = "Confirmation required"
+            reason_text = "Confirmation token is required before opening a rollback-only transaction group."
+        elif failures and results:
+            result_text = "Passed with warnings" if group_rolled_back else "Failed and rolled back"
+            reason_text = reason or "Some candidates failed during rollback-test validation or temporary split."
+        elif failures and not results:
+            result_text = "Failed and rolled back" if group_rolled_back else "Failed"
+            reason_text = reason or "No candidate completed a temporary split."
+        else:
+            result_text = "Passed" if group_rolled_back and results else "Not ready"
+            reason_text = reason or ""
+        execution_available = bool(token_present and has_source and source.get("dry_run_result") == "Ready for reviewed apply design" and transaction_opened)
+
+        lines = [
+            "[SPLIT SELECTED PIPES ROLLBACK TEST]",
+            "",
+            "Rollback Test ID:",
+            rollback_test_id,
+            "",
+            "Scope:",
+            "latest split dry-run candidates / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(self._safe_active_view_name(), self._safe_active_view_type()),
+            "",
+            "Source dry-run:",
+            "- Source status: {0}".format(source.get("source_status")),
+        ]
+        if has_source:
+            lines.extend(
+                [
+                    "- Source feature: {0}".format(source.get("source_feature_id")),
+                    "- Source prompt: {0}".format(source.get("source_prompt")),
+                    "- Source header: {0}".format(source.get("source_header")),
+                    "- Eligible pipes: {0}".format(source.get("eligible_pipe_count")),
+                    "- Candidate split points: {0}".format(source.get("candidate_count") or len(candidates)),
+                    "- Dry-run result: {0}".format(source.get("dry_run_result")),
+                ]
+            )
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Rollback test requested: true",
+                "- Confirmation token present: {0}".format("true" if token_present else "false"),
+                "- Execution available: {0}".format("true" if execution_available else "false"),
+                "- Transaction opened: {0}".format("true" if transaction_opened else "false"),
+                "- BreakCurve called: {0}".format("true" if breakcurve_called else "false"),
+                "- Transaction group rolled back: {0}".format("true" if group_rolled_back else "false"),
+                "- Persistent model changes: false",
+            ]
+        )
+        if not has_source:
+            lines.extend(
+                [
+                    "",
+                    "Rollback-test result:",
+                    result_text,
+                    "",
+                    "Reason:",
+                    reason_text,
+                    "",
+                    "Required previous step:",
+                    "dry run split selected pipes",
+                ]
+            )
+        elif not token_present:
+            lines.extend(
+                [
+                    "",
+                    "Rollback-test result:",
+                    result_text,
+                    "",
+                    "Required command:",
+                    "run split rollback test ROLLBACK-TEST-OK",
+                ]
+            )
+        else:
+            verification_warnings = 0
+            original_resolve = 0
+            new_removed = 0
+            length_restored = 0
+            for result in results:
+                after_length = self._safe_pipe_length_by_id(result.get("pipe_id"))
+                if after_length is not None:
+                    original_resolve += 1
+                if result.get("new_id") is not None and self._safe_pipe_length_by_id(result.get("new_id")) is None:
+                    new_removed += 1
+                if after_length is not None and result.get("original_length") is not None and abs(after_length - result.get("original_length")) <= ROLLBACK_SPLIT_LENGTH_TOLERANCE_FT:
+                    length_restored += 1
+                else:
+                    verification_warnings += 1
+            lines.extend(
+                [
+                    "",
+                    "Rollback test summary:",
+                    "- Candidates available from dry-run: {0}".format(len(candidates)),
+                    "- Candidates selected for rollback test: {0}".format(min(len(candidates), MAX_ROLLBACK_SPLIT_CANDIDATES)),
+                    "- Successful temporary splits: {0}".format(len(results)),
+                    "- Failed temporary splits: {0}".format(len(failures)),
+                    "- Skipped candidates: {0}".format(len(skipped)),
+                    "- Processing cap: {0}".format(MAX_ROLLBACK_SPLIT_CANDIDATES),
+                    "- Result: Rolled back" if group_rolled_back else "- Result: Rollback incomplete or not opened",
+                    "",
+                    "Candidate results:",
+                ]
+            )
+            if results:
+                for index, result in enumerate(results):
+                    lines.extend(
+                        [
+                            "{0}. Pipe {1}".format(index + 1, result.get("pipe_id")),
+                            "   - Candidate point: {0}".format(_split_pipe_dry_run_xyz_text(result.get("point"))),
+                            "   - Original length before rollback test: {0}".format(_split_pipe_dry_run_length_text(result.get("original_length"))),
+                            "   - Temporary returned new pipe id: {0}".format(result.get("new_id")),
+                            "   - Temporary original segment length: {0}".format(_split_pipe_dry_run_length_text(result.get("temp_original_length"))),
+                            "   - Temporary new segment length: {0}".format(_split_pipe_dry_run_length_text(result.get("temp_new_length"))),
+                            "   - Rollback verification: original restored check performed after TransactionGroup rollback",
+                            "   - Status: {0}".format(result.get("status")),
+                        ]
+                    )
+            else:
+                lines.append("- none")
+            lines.append("")
+            lines.append("Failed candidates:")
+            if failures:
+                for failure in failures:
+                    lines.append("- Pipe {0} | reason: {1}".format(failure.get("pipe_id"), failure.get("reason")))
+            else:
+                lines.append("- none")
+            lines.append("")
+            lines.append("Skipped candidates:")
+            if skipped:
+                for item in skipped:
+                    lines.append("- Pipe {0} | reason: {1}".format(item.get("pipe_id"), item.get("reason")))
+            else:
+                lines.append("- none")
+            lines.extend(
+                [
+                    "",
+                    "Rollback verification:",
+                    "- Original pipe ids still resolve after rollback: {0}/{1}".format(original_resolve, len(results)),
+                    "- Temporary returned new pipe ids no longer resolve after rollback: {0}/{1}".format(new_removed, len(results)),
+                    "- Original lengths restored within tolerance: {0}/{1}".format(length_restored, len(results)),
+                    "- Verification warnings: {0}".format(verification_warnings),
+                    "",
+                    "Rollback-test result:",
+                    result_text,
+                ]
+            )
+            if reason_text:
+                lines.extend(["", "Reason:", reason_text])
+        lines.extend(
+            [
+                "",
+                "Safety:",
+                "- Rollback test only.",
+                "- TransactionGroup was rolled back." if group_rolled_back else "- No persistent TransactionGroup assimilation occurred.",
+                "- No persistent pipe split was applied.",
+                "- Revit model data should be unchanged.",
+                "- This is not a reviewed apply feature.",
+                "",
+                "Next required feature:",
+                "MEP-WR-003 or MEP-WR-002B - Split Selected Pipes Persistent Reviewed Apply",
+            ]
+        )
+        report_text = "\n".join(lines)
+        self.latest_split_rollback_test_state = {
+            "rollback_test_id": rollback_test_id,
+            "feature_id": "MEP-WR-002",
+            "source_prompt": safe_str(prompt),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "document_path": self._safe_document_path(),
+            "active_view_name": self._safe_active_view_name(),
+            "active_view_type": self._safe_active_view_type(),
+            "source_dry_run_id": source.get("dry_run_id"),
+            "source_feature_id": source.get("source_feature_id"),
+            "source_report_header": source.get("source_header"),
+            "rollback_report_header": "[SPLIT SELECTED PIPES ROLLBACK TEST]",
+            "confirmation_token_present": token_present,
+            "transaction_opened": transaction_opened,
+            "breakcurve_called": breakcurve_called,
+            "transaction_group_rolled_back": group_rolled_back,
+            "persistent_model_changes": False,
+            "candidates_available": len(candidates),
+            "candidates_tested": len(results) + len(failures),
+            "temporary_success_count": len(results),
+            "failure_count": len(failures),
+            "skipped_count": len(skipped),
+            "verification_warning_count": verification_warnings if token_present and has_source else 0,
+            "rollback_test_result": result_text,
+            "deterministic_route": True,
+            "report_text": report_text,
+        }
+        return report_text
+
+    def answer_split_selected_pipes_rollback_test_question(self, prompt):
+        if not _is_split_rollback_test_prompt(prompt):
+            return None
+        source = self._latest_split_dry_run_source_for_rollback()
+        token_present = _has_rollback_test_token(prompt)
+        if source.get("source_status") != "available":
+            return self._format_split_rollback_test_report(prompt, source, token_present)
+        if not token_present:
+            return self._format_split_rollback_test_report(prompt, source, token_present)
+        if source.get("dry_run_result") != "Ready for reviewed apply design":
+            return self._format_split_rollback_test_report(prompt, source, token_present, reason="Source dry-run result is not ready for reviewed apply design.")
+        candidates = source.get("candidates") or []
+        validated = []
+        skipped = []
+        for candidate in candidates[:MAX_ROLLBACK_SPLIT_CANDIDATES]:
+            valid, reason = self._validate_split_rollback_candidate(candidate)
+            if valid:
+                validated.append(valid)
+            else:
+                skipped.append({"pipe_id": candidate.get("pipe_id"), "reason": reason})
+        if len(candidates) > MAX_ROLLBACK_SPLIT_CANDIDATES:
+            for candidate in candidates[MAX_ROLLBACK_SPLIT_CANDIDATES:]:
+                skipped.append({"pipe_id": candidate.get("pipe_id"), "reason": "rollback test capped for safety"})
+        if not validated:
+            return self._format_split_rollback_test_report(prompt, source, token_present, {"results": [], "failures": [], "transaction_opened": False, "breakcurve_called": False, "group_rolled_back": False}, skipped, "No candidates passed current rollback-test validation.")
+        rollback_data = self._run_split_rollback_batch(validated)
+        return self._format_split_rollback_test_report(prompt, source, token_present, rollback_data, skipped)
 
     def answer_split_selected_pipes_dry_run_question(self, prompt):
         if not _is_split_selected_pipes_dry_run_prompt(prompt):
@@ -15712,64 +16290,69 @@ class OllamaAIChat(forms.WPFWindow):
             if index_reply is not None:
                 reply = index_reply
             else:
-                guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
-                if guard_reply is not None:
-                    reply = guard_reply
+                rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
+                if rollback_reply is not None:
+                    reply = rollback_reply
                     remember_report = True
                 else:
-                    split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
-                    if split_dry_run_reply is not None:
-                        reply = split_dry_run_reply
+                    guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
+                    if guard_reply is not None:
+                        reply = guard_reply
                         remember_report = True
                     else:
-                        proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
-                        if proposal_reply is not None:
-                            reply = proposal_reply
+                        split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
+                        if split_dry_run_reply is not None:
+                            reply = split_dry_run_reply
                             remember_report = True
                         else:
-                            if self._is_qa_export_request(prompt):
-                                reply = self.export_latest_qa_report(prompt)
-                                preserve_latest_report_state = True
-                            elif self._is_codex_brief_request(prompt):
-                                brief = self.build_codex_task_brief(prompt)
-                                self.latest_codex_brief = brief
-                                self.populate_project_context_tree()
-                                reply = "```\n{0}\n```".format(brief)
-                            elif self._is_scan_request(prompt):
-                                result = self.run_project_context_scan("standard")
-                                reply = result.get("summary", "")
+                            proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
+                            if proposal_reply is not None:
+                                reply = proposal_reply
                                 remember_report = True
                             else:
-                                discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
-                                if discipline_qa_reply is not None:
-                                    reply = discipline_qa_reply
+                                if self._is_qa_export_request(prompt):
+                                    reply = self.export_latest_qa_report(prompt)
+                                    preserve_latest_report_state = True
+                                elif self._is_codex_brief_request(prompt):
+                                    brief = self.build_codex_task_brief(prompt)
+                                    self.latest_codex_brief = brief
+                                    self.populate_project_context_tree()
+                                    reply = "```\n{0}\n```".format(brief)
+                                elif self._is_scan_request(prompt):
+                                    result = self.run_project_context_scan("standard")
+                                    reply = result.get("summary", "")
                                     remember_report = True
                                 else:
-                                    system_reply = self.answer_system_assignment_report_question(prompt)
-                                    if system_reply is not None:
-                                        reply = system_reply
+                                    discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                                    if discipline_qa_reply is not None:
+                                        reply = discipline_qa_reply
                                         remember_report = True
                                     else:
-                                        active_view_reply = self.answer_active_view_report_question(prompt)
-                                        if active_view_reply is not None:
-                                            reply = active_view_reply
+                                        system_reply = self.answer_system_assignment_report_question(prompt)
+                                        if system_reply is not None:
+                                            reply = system_reply
                                             remember_report = True
                                         else:
-                                            selection_reply = self.answer_selection_report_question(prompt)
-                                            if selection_reply is not None:
-                                                reply = selection_reply
+                                            active_view_reply = self.answer_active_view_report_question(prompt)
+                                            if active_view_reply is not None:
+                                                reply = active_view_reply
                                                 remember_report = True
-                                            elif self._is_project_context_question(prompt):
-                                                reply = self.answer_project_context_question(prompt)
-                                                remember_report = True
-                                            elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                                                self.append_project_agent_plan()
-                                                reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
-                                                preserve_latest_report_state = True
                                             else:
-                                                reply = send_ollama_chat(self.model, prompt)
-                                                reply = self._sanitize_ollama_context_error(reply)
-                                                self.latest_chat_output_is_deterministic_report = False
+                                                selection_reply = self.answer_selection_report_question(prompt)
+                                                if selection_reply is not None:
+                                                    reply = selection_reply
+                                                    remember_report = True
+                                                elif self._is_project_context_question(prompt):
+                                                    reply = self.answer_project_context_question(prompt)
+                                                    remember_report = True
+                                                elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                                    self.append_project_agent_plan()
+                                                    reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                                    preserve_latest_report_state = True
+                                                else:
+                                                    reply = send_ollama_chat(self.model, prompt)
+                                                    reply = self._sanitize_ollama_context_error(reply)
+                                                    self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             if remember_report:

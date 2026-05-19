@@ -3268,6 +3268,35 @@
     "mode": "deterministic"
   },
   {
+    "id": "split-selected-pipes-rollback-test",
+    "title": "Split selected pipes rollback test",
+    "category": "BIM QA",
+    "group": "Reviewed Action Rollback Tests",
+    "discipline": "Piping",
+    "role": "review",
+    "risk_level": "medium",
+    "scope_type": "latest_split_dry_run",
+    "canonical_prompt": "split selected pipes rollback test",
+    "planner_aliases": [
+      "split selected pipes rollback test",
+      "rollback test split selected pipes",
+      "run split rollback test",
+      "test split selected pipes with rollback",
+      "simulate split selected pipes rollback",
+      "validate split apply rollback",
+      "reviewed split rollback test",
+      "pipe split rollback test",
+      "split pipe write api rollback test",
+      "probe split selected pipes rollback"
+    ],
+    "deterministic_handler": "split_selected_pipes_rollback_test",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "split selected pipes rollback test",
+    "mode": "deterministic"
+  },
+  {
     "id": "reviewed-action-confirmation-guard",
     "title": "Reviewed action confirmation guard",
     "category": "BIM QA",
