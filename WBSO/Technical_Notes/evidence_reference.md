@@ -1204,6 +1204,49 @@ MEP-RO-002 - Active View Read-Only MEP Report Pack
 
 Runtime validated.
 
+## EV-AI-117 through EV-AI-124 - MEP-WR-005 Split Apply Source Consumption / Staleness Guard
+
+### Feature
+
+MEP-WR-005 - Split Apply Source Consumption / Staleness Guard
+
+### Evidence IDs
+
+- EV-AI-117: MEP-WR-005 initial split apply source-state route validation. Prompt `show split apply source state` returned `[SPLIT APPLY SOURCE STATE]` with dry-run, rollback, and persistent apply unavailable; consumed false; persistent apply currently allowed false.
+- EV-AI-118: MEP-WR-005 fresh dry-run and rollback source allowed persistent apply. `dry run split selected pipes` produced 7 candidates and `run split rollback test ROLLBACK-TEST-OK` passed for 5 temporary splits; source state showed persistent apply allowed true.
+- EV-AI-119: MEP-WR-005 source consumed after successful MEP-WR-003 apply. `apply split candidate 1 PERSISTENT-SPLIT-OK` applied pipe `3003513`, returned new pipe `3130274`, and source state showed consumed true.
+- EV-AI-120: MEP-WR-005 second stale persistent apply blocked before transaction. `apply split candidate 2 PERSISTENT-SPLIT-OK` returned Blocked with transaction opened false, BreakCurve called false, and persistent model changes false.
+- EV-AI-121: MEP-WR-004 verification did not clear consumed source. `verify latest split apply` verified pipe `3003513` and new pipe `3130274`; follow-up source-state report still showed consumed true and apply allowed false.
+- EV-AI-122: MEP-WR-005 refreshed dry-run and rollback source restored eligibility. New dry-run and rollback-test after the consumed timestamp showed current source fresh true and persistent apply currently allowed true.
+- EV-AI-123: MEP-WR-005 generic apply / verification route regression validation. `apply reviewed action` remained MEP-ACT-002 blocked; `verify latest split apply` remained MEP-WR-004.
+- EV-AI-124: MEP-WR-005 source-state export/index validation. `show split apply source state` exported through MEP-RO-005 and indexed through MEP-RO-006 with source header `[SPLIT APPLY SOURCE STATE]`.
+
+### Validation Summary
+
+- deterministic source-state routes before Ollama
+- consumed-source marker added after successful MEP-WR-003 persistent apply
+- stale second apply blocked before transaction
+- MEP-WR-004 verification does not clear consumed state
+- new rollback-test after consumed timestamp restores eligibility
+- source-state report export/index works
+- generic LLM output remains non-exportable as deterministic evidence
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-05-25_mep-wr-005-split-apply-source-consumption-guard-validated/`
+
+### Export Artifact
+
+`C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260525_171457`
+
+### Related Commit
+
+`<paste commit hash for "Add split apply source consumption guard">`
+
+### Status
+
+Runtime validated.
+
 ## EV-AI-103 through EV-AI-108 - MEP-WR-002 Split Selected Pipes Rollback Test
 
 ### Feature

@@ -170,3 +170,13 @@ MEP-WR-003 reviewed-apply prompts route deterministically before Ollama/OpenAI f
 - generic `apply reviewed action` and `execute latest proposal` remain blocked by deterministic MEP-ACT-002 guard logic
 - generic LLM output remains rejected by export as deterministic evidence
 - no provider configuration was changed
+
+## 2026-05-25 MEP-WR-005 Provider Boundary Note
+
+MEP-WR-005 source-consumption prompts route deterministically before Ollama/OpenAI fallback.
+
+- LLM providers are not used to decide source freshness, consumed-source state, or persistent-apply eligibility
+- status prompts such as `show split apply source state` and `split apply staleness status` are provider-independent
+- MEP-WR-003 apply routes consult MEP-WR-005 session state before any transaction path
+- generic LLM output remains rejected by export as deterministic evidence
+- no provider configuration was changed

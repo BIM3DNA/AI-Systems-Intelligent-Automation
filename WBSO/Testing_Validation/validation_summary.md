@@ -438,3 +438,50 @@ Post-apply model-state verification via repeated `dry run split selected pipes` 
 - no linked-document scan
 - no parameter write
 - no tag/schedule/view/sheet/system/circuit edit
+
+## 2026-05-25 - MEP-WR-005 Split Apply Source Consumption / Staleness Guard Runtime Validation
+
+### Status
+
+MEP-WR-005: runtime validated.
+
+### Summary
+
+MEP-WR-005 was runtime validated in `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, active view `TEST [FloorPlan]`. It adds a session-local consumed-source guard so a MEP-WR-001 dry-run / MEP-WR-002 rollback-test pair cannot be reused for additional persistent MEP-WR-003 applies after one successful model mutation.
+
+### Main finding
+
+A successful MEP-WR-003 persistent split marks the source dry-run/rollback pair consumed. A second persistent apply attempt from the same source is blocked before transaction and before `BreakCurve`.
+
+### Critical safety validation
+
+- stale candidate 2 apply blocked
+- `Transaction opened: false`
+- `BreakCurve called: false`
+- `Transaction group assimilated: false`
+- `Persistent model changes: false`
+
+### Validation coverage
+
+- Initial source-state route returned `[SPLIT APPLY SOURCE STATE]` with no source and apply allowed false.
+- Fresh dry-run produced 7 candidate split points from 31 selected elements.
+- Rollback-test processed 5 of 7 candidates, rolled back successfully, and passed.
+- Source-state report showed current source fresh true and persistent apply allowed true before apply.
+- Candidate 1 persistent apply split pipe `3003513` and returned new pipe `3130274`.
+- Source-state report after apply showed consumed true, consumed by MEP-WR-003, applied candidate 1, original pipe `3003513`, returned new pipe `3130274`, current source fresh false, and persistent apply allowed false.
+- `apply split candidate 2 PERSISTENT-SPLIT-OK` was blocked from stale source before transaction.
+- MEP-WR-004 verification resolved original pipe `3003513` and returned new pipe `3130274`, verified lengths, and did not clear consumed source.
+- Refreshed dry-run and rollback-test after the consumed timestamp restored source freshness and persistent-apply eligibility.
+- Generic `apply reviewed action` remained blocked by MEP-ACT-002.
+- `[SPLIT APPLY SOURCE STATE]` export/index validation passed with export folder `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260525_171457`.
+
+### Safety
+
+- WR-005 adds no new write API
+- no new transaction
+- no new `BreakCurve`
+- no connector traversal
+- no geometry extraction
+- no linked-document scan
+- no parameter write
+- no tag/schedule/view/sheet/system/circuit edit

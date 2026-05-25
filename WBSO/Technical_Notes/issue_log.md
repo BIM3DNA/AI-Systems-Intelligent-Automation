@@ -1270,3 +1270,35 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 - add explicit reviewed apply undo note/manual recovery procedure.
 - add batch apply only after additional controlled R&D.
 - rename any future batch feature consistently as MEP-WR-004 if developed.
+
+---
+
+## 2026-05-25 MEP-WR-005 Source Consumption / Staleness Guard
+
+**Status:** Resolved / runtime validated  
+**Type:** reviewed-apply governance and stale-source prevention
+
+### Issue
+
+Persistent split apply could allow a second candidate apply from a dry-run / rollback-test source that was generated before the first persistent split.
+
+### Risk
+
+After MEP-WR-003 modifies the model, the old MEP-WR-001 candidates and MEP-WR-002 rollback-test evidence may no longer represent current model state. Applying candidate 2 or 3 from that stale source could produce a second persistent mutation from outdated preflight data.
+
+### Resolution
+
+MEP-WR-005 adds session-local `latest_split_apply_consumed_source_state`. After successful MEP-WR-003 apply, the source pair is marked consumed. Later MEP-WR-003 candidate apply prompts consult this guard before transaction and are blocked until a new dry-run and successful rollback-test are generated.
+
+### Runtime result
+
+- Initial source-state route passed.
+- Fresh dry-run and rollback-test made persistent apply eligible.
+- Candidate 1 persistent apply marked source consumed.
+- `apply split candidate 2 PERSISTENT-SPLIT-OK` was blocked before transaction.
+- MEP-WR-004 verification did not clear consumed state.
+- New dry-run and rollback-test after the consumed timestamp restored eligibility.
+- Generic `apply reviewed action` remained blocked by MEP-ACT-002.
+- `[SPLIT APPLY SOURCE STATE]` export/index passed.
+
+No new transaction, `BreakCurve`, model mutation API, connector traversal, geometry extraction, linked-document scan, or parameter write was introduced by WR-005.

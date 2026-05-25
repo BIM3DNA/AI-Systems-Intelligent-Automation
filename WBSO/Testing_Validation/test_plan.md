@@ -653,6 +653,83 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-05-25 MEP-WR-005 Split Apply Source Consumption / Staleness Guard Validation
+
+### Context
+
+Runtime validation was performed in `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, active view `TEST [FloorPlan]`.
+
+### Test A - Initial source-state route
+
+- Prompt: `show split apply source state`
+- Expected: `[SPLIT APPLY SOURCE STATE]`, dry-run unavailable, rollback-test unavailable, consumed false, persistent apply allowed false, no transaction, no model mutation.
+- Result: passed.
+
+### Test B - Fresh dry-run and rollback source
+
+- Prompt: `dry run split selected pipes`
+- Expected: selected pipes produce eligible midpoint candidates without mutation.
+- Observed: 31 selected, 7 eligible pipes, 7 candidate split points, 24 skipped, dry-run result Ready for reviewed apply design.
+- Prompt: `run split rollback test ROLLBACK-TEST-OK`
+- Expected: rollback-test passes inside rolled-back transaction group.
+- Observed: 5 of 7 candidates tested, 5 temporary successes, 0 failures, 2 skipped by cap, TransactionGroup rolled back, no persistent model change.
+- Prompt: `show split apply source state`
+- Expected: persistent apply currently allowed true.
+- Result: passed.
+
+### Test C - Persistent apply candidate 1
+
+- Prompt: `apply split candidate 1 PERSISTENT-SPLIT-OK`
+- Expected: exactly one split applied after explicit candidate and token.
+- Observed: pipe `3003513` split, returned new pipe `3130274`, Transaction opened true, BreakCurve called true, TransactionGroup assimilated true, persistent model changes true.
+- Result: passed.
+
+### Test D - Source consumed after apply
+
+- Prompt: `show split apply source state`
+- Expected: consumed true, consumed by MEP-WR-003, candidate 1 recorded, persistent apply allowed false.
+- Result: passed.
+
+### Test E - Stale candidate 2 apply blocked
+
+- Prompt: `apply split candidate 2 PERSISTENT-SPLIT-OK`
+- Expected: blocked before transaction from consumed source.
+- Observed: candidate status stale, transaction opened false, BreakCurve called false, TransactionGroup assimilated false, persistent model changes false, result Blocked.
+- Result: passed.
+
+### Test F - MEP-WR-004 verification does not clear consumed source
+
+- Prompt: `verify latest split apply`
+- Expected: verification report remains read-only and consumed source remains consumed afterward.
+- Observed: pipe `3003513` and new pipe `3130274` resolved, lengths matched, verification result Verified; follow-up source-state still consumed true and apply allowed false.
+- Result: passed.
+
+### Test G - New dry-run and rollback refresh source
+
+- Prompt sequence: `dry run split selected pipes`, `run split rollback test ROLLBACK-TEST-OK`, `show split apply source state`
+- Expected: new successful rollback-test after consumed timestamp restores eligibility.
+- Observed: refreshed dry-run reflected changed current model, rollback-test passed, current source fresh true, persistent apply allowed true.
+- Result: passed.
+
+### Test H - Generic apply guard regression
+
+- Prompt: `apply reviewed action`
+- Expected: MEP-ACT-002 confirmation guard, execution available false, no transaction, no mutation.
+- Result: passed.
+
+### Test I - MEP-WR-004 route regression
+
+- Prompt: `verify latest split apply`
+- Expected: MEP-WR-004 route remains separate from WR-005 and returns `[SPLIT APPLY VERIFICATION REPORT]`.
+- Result: passed.
+
+### Test J - Source-state export/index
+
+- Prompt sequence: `show split apply source state`, `export latest QA report`, `show latest QA export`
+- Expected: source header `[SPLIT APPLY SOURCE STATE]`, scope `session-local split apply source state / active document only`, index updated.
+- Observed export folder: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260525_171457`.
+- Result: passed.
+
 ## 2026-05-19 MEP-WR-002 Rollback Test Validation
 
 ### Contexts

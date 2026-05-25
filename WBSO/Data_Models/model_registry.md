@@ -138,3 +138,15 @@ MEP-WR-003 is not an LLM model-provider feature. It is deterministic reviewed ap
 - exactly one candidate can be applied per command
 - generic Ollama output remains rejected as deterministic export evidence
 - no provider configuration was changed
+
+## 2026-05-25 MEP-WR-005 Model Note
+
+MEP-WR-005 is not an LLM model-provider feature. It is a session-local governance state layer for split apply source consumption and staleness.
+
+- state object: `latest_split_apply_consumed_source_state`
+- records `consumed_by_feature_id`, consumed timestamp, dry-run source timestamp, rollback-test source timestamp, applied candidate number, applied original pipe id, returned new pipe id, consumed true/false, and persistent-apply eligibility
+- marks a MEP-WR-001 dry-run / MEP-WR-002 rollback-test source as consumed only after successful MEP-WR-003 persistent apply
+- blocks second persistent apply attempts from the consumed source before transaction
+- requires a new successful rollback-test after the consumed timestamp before persistent apply is eligible again
+- exposes `[SPLIT APPLY SOURCE STATE]` as a deterministic source-state report
+- runtime validated in BUNGE on 2026-05-25

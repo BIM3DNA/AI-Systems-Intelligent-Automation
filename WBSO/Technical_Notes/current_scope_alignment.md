@@ -502,3 +502,26 @@ Both features support the approved direction of moving from deterministic report
 - no connector traversal, geometry extraction, linked-document scan, parameter write, tag/schedule/view/sheet creation, or system/circuit edit is part of the WR-002/WR-003 scope
 
 The validated stack now separates reporting, evidence export/index, proposal, dry-run, confirmation guard, rollback probe, and single-candidate reviewed apply before any broader write automation is considered.
+
+### 2026-05-25 MEP-WR-005 scope alignment
+
+MEP-WR-005 validates the source-consumption and staleness guard required after a persistent reviewed apply. It marks the dry-run / rollback-test source consumed after one successful MEP-WR-003 apply and blocks a second persistent apply from that stale source before transaction.
+
+This remains within the current approved deterministic automation scope:
+
+- deterministic source-state routes run before Ollama fallback
+- source-state status report is exportable as `[SPLIT APPLY SOURCE STATE]`
+- stale candidate 2 apply was blocked before transaction
+- new dry-run and rollback-test after the consumed timestamp restored eligibility
+- generic apply/execute prompts remain blocked by MEP-ACT-002
+- MEP-WR-004 verification does not clear consumed state
+
+Still out of scope:
+
+- batch apply
+- connector traversal
+- fitting reconnection
+- geometry extraction
+- production model use
+- persistent apply without new rollback source
+- automatic undo/reversal helper

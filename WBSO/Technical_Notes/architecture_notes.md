@@ -1264,6 +1264,28 @@ MEP-WR-003 does not implement batch apply, apply-all, connector traversal, geome
 
 Status: core runtime validated.
 
+## 2026-05-25 MEP-WR-005 Split Apply Source Consumption / Staleness Guard
+
+MEP-WR-005 adds a session-local source-consumption guard after the first persistent pipe split apply. The problem it addresses is that a MEP-WR-001 dry-run and MEP-WR-002 rollback-test source were created before the model was changed by MEP-WR-003; after a persistent split, those old candidates may no longer represent the current Revit model.
+
+### Architectural role
+
+- stores `latest_split_apply_consumed_source_state`
+- marks the dry-run / rollback-test source consumed only after successful MEP-WR-003 persistent apply
+- records consumed timestamp, source timestamps, applied candidate number, applied original pipe id, and returned new pipe id
+- blocks any second persistent apply from the consumed source before transaction and before `BreakCurve`
+- requires a new successful MEP-WR-002 rollback-test after the consumed timestamp to restore eligibility
+- exposes `[SPLIT APPLY SOURCE STATE]` as an exportable deterministic status report
+- keeps MEP-WR-004 verification read-only and explicitly does not clear consumed state
+
+Runtime validation used BUNGE `TEST [FloorPlan]`. MEP-WR-001 generated seven candidates, MEP-WR-002 rollback-tested five, MEP-WR-003 applied candidate 1 on pipe `3003513`, and MEP-WR-004 verified returned new pipe `3130274`. MEP-WR-005 then reported the source consumed and blocked `apply split candidate 2 PERSISTENT-SPLIT-OK` with `Transaction opened: false`, `BreakCurve called: false`, and `Persistent model changes: false`.
+
+A refreshed dry-run and rollback-test after the apply produced a newer rollback timestamp and restored persistent-apply eligibility. This validates the governance boundary needed before any future batch apply or connector-aware apply research.
+
+MEP-WR-005 adds no new write API, transaction, connector traversal, geometry extraction, linked-document scan, parameter write, tag/schedule/view/sheet creation, system/circuit edit, or family/type creation.
+
+Status: runtime validated.
+
 ## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry
 
 MEP-RO-006 builds on MEP-RO-005 by registering every successful QA evidence export in a persistent local filesystem index.
