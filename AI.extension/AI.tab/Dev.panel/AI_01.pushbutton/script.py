@@ -78,6 +78,8 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[REVIEWED ACTION CONFIRMATION GUARD]",
     "[SPLIT SELECTED PIPES ROLLBACK TEST]",
     "[SPLIT SELECTED PIPE REVIEWED APPLY]",
+    "[SPLIT APPLY VERIFICATION REPORT]",
+    "[SPLIT APPLY SOURCE STATE]",
 )
 
 PIPE_SPLIT_DRY_RUN_MAX_SELECTION = 200
@@ -92,6 +94,7 @@ ROLLBACK_SPLIT_LENGTH_TOLERANCE_FT = 1.0 / 304.8
 ROLLBACK_TEST_CONFIRMATION_TOKEN = "ROLLBACK-TEST-OK"
 MAX_PERSISTENT_SPLIT_CANDIDATES = 1
 PERSISTENT_SPLIT_CONFIRMATION_TOKEN = "PERSISTENT-SPLIT-OK"
+SPLIT_APPLY_VERIFICATION_LENGTH_TOLERANCE_FT = 0.00328084
 
 THEMES = {
     "light": {
@@ -7337,6 +7340,86 @@ def split_selected_pipe_reviewed_apply(doc, uidoc, context=None):
     )
 
 
+def split_apply_verification_report(doc, uidoc, context=None):
+    try:
+        active_view_type = safe_str(uidoc.ActiveView.ViewType)
+    except:
+        active_view_type = "(unknown type)"
+    return "\n".join(
+        [
+            "[SPLIT APPLY VERIFICATION REPORT]",
+            "",
+            "Verification ID:",
+            "MEP-WR-004-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "",
+            "Scope:",
+            "latest reviewed split apply result / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(_active_view_title(doc, uidoc), active_view_type),
+            "",
+            "Source reviewed apply:",
+            "- Source status: unavailable",
+            "",
+            "Execution status:",
+            "- Verification requested: true",
+            "- Transaction opened: false",
+            "- BreakCurve called: false",
+            "- Model modified: false",
+            "",
+            "Verification result:",
+            "Not ready",
+            "",
+            "Reason:",
+            "No latest MEP-WR-003 reviewed apply state is available in this stateless command path.",
+            "",
+            "Safety:",
+            "- Read-only verification only.",
+            "- No transaction opened.",
+            "- No pipe was split.",
+            "- Revit model data was not modified.",
+        ]
+    )
+
+
+def split_apply_source_state_report(doc, uidoc, context=None):
+    try:
+        active_view_type = safe_str(uidoc.ActiveView.ViewType)
+    except:
+        active_view_type = "(unknown type)"
+    return "\n".join(
+        [
+            "[SPLIT APPLY SOURCE STATE]",
+            "",
+            "Source State ID:",
+            "MEP-WR-005-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "",
+            "Scope:",
+            "session-local split apply source state / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(_active_view_title(doc, uidoc), active_view_type),
+            "",
+            "Staleness decision:",
+            "- Persistent apply currently allowed: false",
+            "- Reason: Session-local split apply source state is only available in the AI Workbench window session.",
+            "",
+            "Safety:",
+            "- Status only.",
+            "- Read-only.",
+            "- No transaction opened.",
+            "- No pipe was split.",
+            "- Revit model data was not modified.",
+        ]
+    )
+
+
 def split_selected_pipes(doc, uidoc, context=None):
     prompt_text = _prompt_text_from_context(context)
     selected_elements = _selected_elements(doc, uidoc)
@@ -10675,6 +10758,8 @@ REVIEWED_ACTION_HANDLERS = {
     "split_selected_pipes_dry_run": split_selected_pipes_dry_run,
     "split_selected_pipes_rollback_test": split_selected_pipes_rollback_test,
     "split_selected_pipe_reviewed_apply": split_selected_pipe_reviewed_apply,
+    "split_apply_verification_report": split_apply_verification_report,
+    "split_apply_source_state_report": split_apply_source_state_report,
     "create_3d_view_from_selection": create_3d_view_from_selection,
     "split_selected_pipes": split_selected_pipes,
     "report_duplicates": report_duplicates,
@@ -10842,6 +10927,66 @@ def _parse_split_apply_candidate_selection(prompt):
     return {"kind": "missing", "value": None}
 
 
+def _is_split_apply_verification_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "verify latest split apply",
+        "verify latest pipe split",
+        "verify split apply result",
+        "verify pipe split result",
+        "verify latest reviewed split apply",
+        "verify latest reviewed pipe split",
+        "show latest split apply result",
+        "show latest pipe split result",
+        "check latest split apply",
+        "check pipe split result",
+        "post apply split verification",
+        "post apply split verification",
+        "split apply verification",
+        "pipe split verification",
+        "verify split result pipe",
+        "verify pipe split result",
+    ]
+    if normalized in routes:
+        return True
+    for route in routes:
+        if normalized.startswith(route) or route in normalized:
+            return True
+    return False
+
+
+def _parse_explicit_split_verification_ids(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    match = re.search(r"\bverify\s+split\s+result\s+pipe\s+(\d+)\s+new\s+pipe\s+(\d+)\b", normalized)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    match = re.search(r"\bverify\s+pipe\s+split\s+result\s+(\d+)\s+(\d+)\b", normalized)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    return None, None
+
+
+def _is_split_apply_source_state_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show split apply source state",
+        "split apply source state",
+        "show split source consumption",
+        "split source consumption status",
+        "show consumed split source",
+        "show latest split source status",
+        "reviewed split source status",
+        "split apply staleness status",
+        "show split apply staleness",
+    ]
+    if normalized in routes:
+        return True
+    for route in routes:
+        if normalized.startswith(route) or route in normalized:
+            return True
+    return False
+
+
 def _reviewed_action_confirmation_guard_request_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     status_routes = [
@@ -10894,6 +11039,40 @@ def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
 
 def handle_public_command(prompt, doc, uidoc):
     p = prompt.lower()
+    if _is_split_apply_verification_prompt(prompt):
+        return "\n".join(
+            [
+                "[SPLIT APPLY VERIFICATION REPORT]",
+                "",
+                "Verification result:",
+                "Not ready",
+                "",
+                "Reason:",
+                "No latest MEP-WR-003 reviewed apply state is available in this stateless command path.",
+                "",
+                "Safety:",
+                "- Read-only verification only.",
+                "- No transaction opened.",
+                "- No pipe was split.",
+                "- Revit model data was not modified.",
+            ]
+        )
+    if _is_split_apply_source_state_prompt(prompt):
+        return "\n".join(
+            [
+                "[SPLIT APPLY SOURCE STATE]",
+                "",
+                "Source state:",
+                "Session-local split apply source state is only available in the AI Workbench window session.",
+                "",
+                "Safety:",
+                "- Status only.",
+                "- Read-only.",
+                "- No transaction opened.",
+                "- No pipe was split.",
+                "- Revit model data was not modified.",
+            ]
+        )
     if _split_reviewed_apply_request_kind(prompt):
         return "\n".join(
             [
@@ -11523,6 +11702,8 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_reviewed_action_confirmation_guard = None
         self.latest_split_rollback_test_state = None
         self.latest_split_reviewed_apply_state = None
+        self.latest_split_apply_verification_state = None
+        self.latest_split_apply_consumed_source_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -12701,6 +12882,10 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _detect_report_scope(self, report_text):
         header = self._extract_report_header(report_text)
+        if header == "[SPLIT APPLY SOURCE STATE]":
+            return "session-local split apply source state / active document only"
+        if header == "[SPLIT APPLY VERIFICATION REPORT]":
+            return "latest reviewed split apply result / active document only"
         if header == "[SPLIT SELECTED PIPE REVIEWED APPLY]":
             return "single split candidate / active document only"
         if header == "[SPLIT SELECTED PIPES ROLLBACK TEST]":
@@ -13131,6 +13316,7 @@ class OllamaAIChat(forms.WPFWindow):
                 "candidate_count": state.get("candidate_count", 0) or len(parsed_candidates),
                 "dry_run_result": state.get("dry_run_result", ""),
                 "dry_run_id": state.get("dry_run_id", ""),
+                "created_timestamp_local": state.get("created_timestamp_local", ""),
                 "document_title": state.get("document_title", ""),
                 "document_path": state.get("document_path", None),
                 "report_text": state.get("report_text", ""),
@@ -13150,6 +13336,7 @@ class OllamaAIChat(forms.WPFWindow):
                 "candidate_count": len(parsed_candidates),
                 "dry_run_result": result_match.group(1).strip() if result_match else "",
                 "dry_run_id": "",
+                "created_timestamp_local": report.get("created_timestamp_local", ""),
                 "document_title": _document_title(doc),
                 "document_path": self._safe_document_path(),
                 "report_text": report_text,
@@ -13164,6 +13351,7 @@ class OllamaAIChat(forms.WPFWindow):
             "candidate_count": 0,
             "dry_run_result": "",
             "dry_run_id": "",
+            "created_timestamp_local": "",
             "report_text": "",
             "candidates": [],
         }
@@ -13578,6 +13766,7 @@ class OllamaAIChat(forms.WPFWindow):
             "source_header": rollback_state.get("rollback_report_header", "none") if rollback_state else "none",
             "rollback_test_result": rollback_result or "Unavailable",
             "successful_pipe_ids": success_ids,
+            "created_timestamp_local": rollback_state.get("created_timestamp_local", "") if rollback_state else "",
             "document_title": rollback_state.get("document_title", "") if rollback_state else "",
             "document_path": rollback_state.get("document_path", None) if rollback_state else None,
             "report_text": rollback_report,
@@ -13634,6 +13823,175 @@ class OllamaAIChat(forms.WPFWindow):
         if not valid:
             return None, reason
         return valid, ""
+
+    def _split_apply_source_signature(self, dry_source=None, rollback_source=None):
+        dry_source = dry_source or {}
+        rollback_source = rollback_source or {}
+        candidate_ids = []
+        for candidate in dry_source.get("candidates") or []:
+            try:
+                candidate_ids.append(str(int(candidate.get("pipe_id"))))
+            except:
+                pass
+        rollback_ids = []
+        for pipe_id in rollback_source.get("successful_pipe_ids") or []:
+            try:
+                rollback_ids.append(str(int(pipe_id)))
+            except:
+                pass
+        parts = [
+            safe_str(dry_source.get("document_path") or dry_source.get("document_title") or _document_title(doc)),
+            safe_str(dry_source.get("dry_run_id")),
+            safe_str(rollback_source.get("source_prompt")),
+            safe_str(rollback_source.get("created_timestamp_local")),
+            safe_str(dry_source.get("candidate_count") or len(dry_source.get("candidates") or [])),
+            ",".join(sorted(candidate_ids)),
+            ",".join(sorted(rollback_ids)),
+        ]
+        return "|".join(parts)
+
+    def _timestamp_after(self, newer_value, older_value):
+        if not newer_value or not older_value:
+            return False
+        try:
+            return safe_str(newer_value) > safe_str(older_value)
+        except:
+            return False
+
+    def _current_split_apply_source_is_consumed(self, dry_source, rollback_source):
+        consumed = self.latest_split_apply_consumed_source_state
+        if not consumed or not consumed.get("consumed"):
+            return False, consumed, "No consumed source marker exists."
+        if consumed.get("document_title") and consumed.get("document_title") != _document_title(doc):
+            return False, consumed, "Consumed source belongs to a different active document title."
+        consumed_timestamp = consumed.get("consumed_timestamp_local")
+        rollback_timestamp = rollback_source.get("created_timestamp_local")
+        rollback_passed = rollback_source.get("rollback_test_result") in ("Passed", "Passed with warnings")
+        if rollback_passed and self._timestamp_after(rollback_timestamp, consumed_timestamp):
+            return False, consumed, "Latest rollback-test source is newer than the consumed apply source."
+        return True, consumed, "Latest split dry-run / rollback-test source was already consumed by a persistent apply. Rerun dry-run and rollback-test before applying another candidate."
+
+    def _mark_split_apply_source_consumed(self, reviewed_apply_id, dry_source, rollback_source, selected_candidate, apply_data, report_text):
+        if not apply_data or apply_data.get("apply_result") != "Applied":
+            return
+        self.latest_split_apply_consumed_source_state = {
+            "feature_id": "MEP-WR-005",
+            "consumed_by_feature_id": "MEP-WR-003",
+            "consumed_by_report_header": "[SPLIT SELECTED PIPE REVIEWED APPLY]",
+            "consumed_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "document_path": self._safe_document_path(),
+            "active_view_name": self._safe_active_view_name(),
+            "active_view_type": self._safe_active_view_type(),
+            "source_dry_run_feature_id": dry_source.get("source_feature_id"),
+            "source_dry_run_header": dry_source.get("source_header"),
+            "source_dry_run_prompt": dry_source.get("source_prompt"),
+            "source_dry_run_timestamp": dry_source.get("created_timestamp_local") or dry_source.get("dry_run_id"),
+            "source_rollback_feature_id": rollback_source.get("source_feature_id"),
+            "source_rollback_header": rollback_source.get("source_header"),
+            "source_rollback_prompt": rollback_source.get("source_prompt"),
+            "source_rollback_timestamp": rollback_source.get("created_timestamp_local"),
+            "applied_candidate_number": selected_candidate.get("candidate_number") if selected_candidate else None,
+            "applied_original_pipe_id": selected_candidate.get("pipe_id") if selected_candidate else None,
+            "returned_new_pipe_id": apply_data.get("returned_new_pipe_id"),
+            "reviewed_apply_id": reviewed_apply_id,
+            "source_signature": self._split_apply_source_signature(dry_source, rollback_source),
+            "consumed": True,
+            "model_modified": True,
+            "transaction_group_assimilated": True,
+            "report_text": report_text,
+        }
+
+    def _format_split_apply_source_state_report(self, prompt):
+        dry_source, rollback_source = self._latest_split_apply_sources()
+        consumed = self.latest_split_apply_consumed_source_state or {}
+        apply_state = self.latest_split_reviewed_apply_state or {}
+        is_consumed, consumed_state, reason = self._current_split_apply_source_is_consumed(dry_source, rollback_source)
+        dry_available = dry_source.get("source_status") == "available"
+        rollback_available = rollback_source.get("source_status") == "available"
+        rollback_passed = rollback_source.get("rollback_test_result") in ("Passed", "Passed with warnings")
+        apply_allowed = bool(dry_available and rollback_available and rollback_passed and not is_consumed)
+        source_state_id = "MEP-WR-005-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        consumed_for_output = consumed_state or consumed
+        lines = [
+            "[SPLIT APPLY SOURCE STATE]",
+            "",
+            "Source State ID:",
+            source_state_id,
+            "",
+            "Request:",
+            "status",
+            "",
+            "Scope:",
+            "session-local split apply source state / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(self._safe_active_view_name(), self._safe_active_view_type()),
+            "",
+            "Latest dry-run source:",
+            "- Source status: {0}".format(dry_source.get("source_status")),
+            "- Source feature: {0}".format(dry_source.get("source_feature_id")),
+            "- Source header: {0}".format(dry_source.get("source_header")),
+            "- Candidate split points: {0}".format(dry_source.get("candidate_count") or len(dry_source.get("candidates") or [])),
+            "- Dry-run result: {0}".format(dry_source.get("dry_run_result")),
+            "- Source timestamp: {0}".format(dry_source.get("created_timestamp_local") or dry_source.get("dry_run_id") or "unavailable"),
+            "",
+            "Latest rollback-test source:",
+            "- Source status: {0}".format(rollback_source.get("source_status")),
+            "- Source feature: {0}".format(rollback_source.get("source_feature_id")),
+            "- Source header: {0}".format(rollback_source.get("source_header")),
+            "- Rollback-test result: {0}".format(rollback_source.get("rollback_test_result")),
+            "- Successful rollback-tested candidates: {0}".format(len(rollback_source.get("successful_pipe_ids") or [])),
+            "- Source timestamp: {0}".format(rollback_source.get("created_timestamp_local") or "unavailable"),
+            "",
+            "Latest persistent apply:",
+            "- Source status: {0}".format("available" if apply_state else "unavailable"),
+            "- Source feature: {0}".format(apply_state.get("feature_id", "none")),
+            "- Source header: {0}".format(apply_state.get("report_header", "none")),
+            "- Reviewed apply result: {0}".format(apply_state.get("apply_result", "Unavailable")),
+            "- Applied candidate: {0}".format(apply_state.get("selected_candidate_number", "none")),
+            "- Original pipe id: {0}".format(apply_state.get("selected_pipe_id", "none")),
+            "- Returned new pipe id: {0}".format(apply_state.get("returned_new_pipe_id", "none")),
+            "- Persistent model changes: {0}".format("true" if apply_state.get("persistent_model_changes") else "false"),
+            "- Source timestamp: {0}".format(apply_state.get("created_timestamp_local", "unavailable")),
+            "",
+            "Consumed source:",
+            "- Consumed: {0}".format("true" if consumed_for_output.get("consumed") else "false"),
+            "- Consumed by feature: {0}".format(consumed_for_output.get("consumed_by_feature_id", "none")),
+            "- Applied candidate: {0}".format(consumed_for_output.get("applied_candidate_number", "none")),
+            "- Applied original pipe id: {0}".format(consumed_for_output.get("applied_original_pipe_id", "none")),
+            "- Returned new pipe id: {0}".format(consumed_for_output.get("returned_new_pipe_id", "none")),
+            "- Consumed timestamp: {0}".format(consumed_for_output.get("consumed_timestamp_local", "unavailable")),
+            "",
+            "Staleness decision:",
+            "- Current source is fresh: {0}".format("true" if not is_consumed and rollback_passed else "false"),
+            "- Persistent apply currently allowed: {0}".format("true" if apply_allowed else "false"),
+            "- Reason: {0}".format(reason if reason else "Fresh dry-run and rollback-test source is available."),
+            "",
+            "Safety:",
+            "- Status only.",
+            "- Read-only.",
+            "- No transaction opened.",
+            "- No pipe was split.",
+            "- Revit model data was not modified.",
+        ]
+        report_text = "\n".join(lines)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[SPLIT APPLY SOURCE STATE]",
+            "report_text": report_text,
+            "report_scope": "session-local split apply source state / active document only",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        return report_text
+
+    def answer_split_apply_source_state_question(self, prompt):
+        if not _is_split_apply_source_state_prompt(prompt):
+            return None
+        return self._format_split_apply_source_state_report(prompt)
 
     def _run_single_split_persistent_apply(self, validated):
         transaction_opened = False
@@ -13760,6 +14118,8 @@ class OllamaAIChat(forms.WPFWindow):
             result_text = "Status only" if dry_available and rollback_available else "Not ready"
         elif selection.get("kind") == "batch":
             result_text = "Blocked"
+        elif apply_data.get("apply_result") == "Blocked":
+            result_text = "Blocked"
         elif not candidate_selected:
             result_text = "Candidate selection required"
         elif not token_present:
@@ -13826,7 +14186,7 @@ class OllamaAIChat(forms.WPFWindow):
                     "",
                     "Selected candidate:",
                     "- Candidate: {0}".format(selection.get("value") if selection.get("value") is not None else "none"),
-                    "- Candidate status: {0}".format("available" if selected_candidate else "unavailable"),
+                    "- Candidate status: {0}".format("stale" if apply_data.get("source_consumed") else "available" if selected_candidate else "unavailable"),
                 ]
             )
             if selected_candidate:
@@ -13837,6 +14197,19 @@ class OllamaAIChat(forms.WPFWindow):
                         "- Candidate point: {0}".format(_split_pipe_dry_run_xyz_text(selected_candidate.get("point"))),
                     ]
                 )
+        consumed_state = apply_data.get("consumed_state") or {}
+        if apply_data.get("source_consumed") or consumed_state.get("consumed"):
+            lines.extend(
+                [
+                    "",
+                    "Consumed source:",
+                    "- Consumed: true",
+                    "- Consumed by: {0}".format(consumed_state.get("consumed_by_feature_id", "MEP-WR-003")),
+                    "- Applied candidate: {0}".format(consumed_state.get("applied_candidate_number", "none")),
+                    "- Applied original pipe id: {0}".format(consumed_state.get("applied_original_pipe_id", "none")),
+                    "- Returned new pipe id: {0}".format(consumed_state.get("returned_new_pipe_id", "none")),
+                ]
+            )
         lines.extend(
             [
                 "",
@@ -13887,6 +14260,8 @@ class OllamaAIChat(forms.WPFWindow):
             lines.extend(["", "Required command:", "apply split candidate <n> PERSISTENT-SPLIT-OK"])
         elif result_text == "Not ready":
             lines.extend(["", "Required previous steps:", "1. dry run split selected pipes", "2. run split rollback test ROLLBACK-TEST-OK"])
+        elif result_text == "Blocked" and apply_data.get("source_consumed"):
+            lines.extend(["", "Required previous steps:", "1. dry run split selected pipes", "2. run split rollback test ROLLBACK-TEST-OK"])
         elif result_text == "Status only":
             lines.extend(["", "Suggested command:", "apply split candidate 1 PERSISTENT-SPLIT-OK"])
         lines.extend(
@@ -13904,7 +14279,7 @@ class OllamaAIChat(forms.WPFWindow):
         if persistent_changes:
             lines.extend(["", "Next recommended step:", "Run dry run split selected pipes again to verify the updated candidate state."])
         report_text = "\n".join(lines)
-        self.latest_split_reviewed_apply_state = {
+        reviewed_apply_state = {
             "reviewed_apply_id": reviewed_apply_id,
             "feature_id": "MEP-WR-003",
             "source_dry_run_feature_id": "MEP-WR-001",
@@ -13935,7 +14310,385 @@ class OllamaAIChat(forms.WPFWindow):
             "deterministic_route": True,
             "report_text": report_text,
         }
+        existing_apply_state = self.latest_split_reviewed_apply_state
+        if persistent_changes or not existing_apply_state or existing_apply_state.get("apply_result") != "Applied":
+            self.latest_split_reviewed_apply_state = reviewed_apply_state
+        if persistent_changes:
+            self._mark_split_apply_source_consumed(reviewed_apply_id, dry_source, rollback_source, selected_candidate, apply_data, report_text)
         return report_text
+
+    def _parse_reviewed_apply_report_source(self, report_text):
+        text = safe_str(report_text)
+        def int_match(pattern):
+            match = re.search(pattern, text, re.I)
+            try:
+                return int(match.group(1)) if match else None
+            except:
+                return None
+        def length_match(pattern):
+            match = re.search(pattern, text, re.I)
+            try:
+                return float(match.group(1)) if match else None
+            except:
+                return None
+        return {
+            "source_status": "available",
+            "source_feature_id": "MEP-WR-003",
+            "source_prompt": self.latest_deterministic_report.get("source_prompt", "") if self.latest_deterministic_report else "",
+            "source_header": "[SPLIT SELECTED PIPE REVIEWED APPLY]",
+            "apply_result": "Applied" if re.search(r"Reviewed apply result:\s*\nApplied", text, re.I) else "",
+            "persistent_model_changes": bool(re.search(r"Persistent model changes:\s*true", text, re.I)),
+            "original_pipe_id": int_match(r"Original pipe id(?: after apply)?:\s*(\d+)"),
+            "returned_new_pipe_id": int_match(r"Returned new pipe id:\s*(\d+)"),
+            "source_original_length_before_apply": length_match(r"Original length before apply:\s*([0-9.]+)\s*ft"),
+            "source_original_segment_length_after_apply": length_match(r"Original segment length after apply:\s*([0-9.]+)\s*ft"),
+            "source_new_segment_length_after_apply": length_match(r"New segment length after apply:\s*([0-9.]+)\s*ft"),
+            "source_combined_length": length_match(r"Combined segment length:\s*([0-9.]+)\s*ft"),
+            "source_length_delta": length_match(r"Length delta from original:\s*([0-9.]+)\s*ft"),
+            "document_title": _document_title(doc),
+            "document_path": self._safe_document_path(),
+        }
+
+    def _latest_split_apply_verification_source(self, prompt):
+        state = self.latest_split_reviewed_apply_state
+        if state and state.get("apply_result") == "Applied":
+            return {
+                "source_status": "available",
+                "source_feature_id": "MEP-WR-003",
+                "source_prompt": state.get("source_prompt", ""),
+                "source_header": state.get("report_header", "[SPLIT SELECTED PIPE REVIEWED APPLY]"),
+                "apply_result": state.get("apply_result", ""),
+                "persistent_model_changes": bool(state.get("persistent_model_changes")),
+                "original_pipe_id": state.get("selected_pipe_id"),
+                "returned_new_pipe_id": state.get("returned_new_pipe_id"),
+                "source_original_length_before_apply": state.get("original_length_before_apply"),
+                "source_original_segment_length_after_apply": state.get("original_segment_length_after_apply"),
+                "source_new_segment_length_after_apply": state.get("new_segment_length_after_apply"),
+                "source_combined_length": state.get("combined_segment_length"),
+                "source_length_delta": state.get("length_delta"),
+                "document_title": state.get("document_title", ""),
+                "document_path": state.get("document_path", None),
+            }
+        report = self.latest_deterministic_report
+        if report and report.get("report_header") == "[SPLIT SELECTED PIPE REVIEWED APPLY]":
+            parsed = self._parse_reviewed_apply_report_source(report.get("report_text", ""))
+            if parsed.get("original_pipe_id") and parsed.get("returned_new_pipe_id"):
+                parsed["source_prompt"] = report.get("source_prompt", "")
+                return parsed
+        original_id, new_id = _parse_explicit_split_verification_ids(prompt)
+        if original_id and new_id:
+            return {
+                "source_status": "explicit prompt IDs",
+                "source_feature_id": "explicit prompt IDs",
+                "source_prompt": safe_str(prompt),
+                "source_header": "explicit prompt IDs",
+                "apply_result": "unknown",
+                "persistent_model_changes": False,
+                "original_pipe_id": original_id,
+                "returned_new_pipe_id": new_id,
+                "source_original_length_before_apply": None,
+                "source_original_segment_length_after_apply": None,
+                "source_new_segment_length_after_apply": None,
+                "source_combined_length": None,
+                "source_length_delta": None,
+                "document_title": _document_title(doc),
+                "document_path": self._safe_document_path(),
+            }
+        return {
+            "source_status": "unavailable",
+            "source_feature_id": "none",
+            "source_prompt": "none",
+            "source_header": "none",
+            "apply_result": "Unavailable",
+            "persistent_model_changes": False,
+            "original_pipe_id": None,
+            "returned_new_pipe_id": None,
+        }
+
+    def _pipe_verification_info(self, pipe_id):
+        info = {
+            "pipe_id": pipe_id,
+            "resolves": False,
+            "is_pipe": False,
+            "length_readable": False,
+            "length": None,
+            "reason": "",
+        }
+        try:
+            elem = doc.GetElement(DB.ElementId(int(pipe_id)))
+        except Exception as exc:
+            info["reason"] = safe_str(exc)
+            return info
+        if elem is None:
+            info["reason"] = "element id does not resolve"
+            return info
+        info["resolves"] = True
+        info["is_pipe"] = bool(_split_pipe_dry_run_is_pipe(elem))
+        if not info["is_pipe"]:
+            info["reason"] = "element is not a pipe"
+            return info
+        try:
+            curve, status = _split_pipe_dry_run_safe_curve(elem)
+            if status != "ok":
+                info["reason"] = status.replace("_", " ")
+                return info
+            info["length"] = float(curve.Length)
+            info["length_readable"] = True
+        except Exception as exc:
+            info["reason"] = safe_str(exc)
+        return info
+
+    def _length_delta(self, value, reference):
+        if value is None or reference is None:
+            return None
+        try:
+            return abs(float(value) - float(reference))
+        except:
+            return None
+
+    def _split_apply_verification_check(self, source):
+        original = self._pipe_verification_info(source.get("original_pipe_id"))
+        returned = self._pipe_verification_info(source.get("returned_new_pipe_id"))
+        combined = None
+        if original.get("length_readable") and returned.get("length_readable"):
+            combined = original.get("length") + returned.get("length")
+        source_combined = source.get("source_combined_length")
+        source_original = source.get("source_original_length_before_apply")
+        comparison_source = source_combined if source_combined is not None else source_original
+        delta_combined = self._length_delta(combined, source_combined)
+        delta_original = self._length_delta(combined, source_original)
+        delta_comparison = self._length_delta(combined, comparison_source)
+        delta_original_segment = self._length_delta(original.get("length"), source.get("source_original_segment_length_after_apply"))
+        delta_new_segment = self._length_delta(returned.get("length"), source.get("source_new_segment_length_after_apply"))
+        warnings = []
+        failures = []
+        both_resolve = bool(original.get("resolves") and returned.get("resolves"))
+        both_pipes = bool(original.get("is_pipe") and returned.get("is_pipe"))
+        both_lengths_readable = bool(original.get("length_readable") and returned.get("length_readable"))
+        combined_check = "not evaluated"
+        if both_resolve and both_pipes and both_lengths_readable and combined is not None and comparison_source is not None:
+            if delta_comparison is not None and delta_comparison <= SPLIT_APPLY_VERIFICATION_LENGTH_TOLERANCE_FT:
+                combined_check = "pass"
+            else:
+                combined_check = "fail"
+        source_persistent_check = "not evaluated"
+        if source.get("source_status") != "explicit prompt IDs":
+            if source.get("source_feature_id") == "MEP-WR-003" and source.get("apply_result") == "Applied" and bool(source.get("persistent_model_changes")):
+                source_persistent_check = "pass"
+            elif source.get("source_feature_id") == "MEP-WR-003" or source.get("apply_result") or source.get("persistent_model_changes") is not None:
+                source_persistent_check = "fail"
+        if not original.get("resolves"):
+            failures.append("Original pipe id does not resolve.")
+        if not returned.get("resolves"):
+            failures.append("Returned new pipe id does not resolve.")
+        if original.get("resolves") and not original.get("is_pipe"):
+            failures.append("Original element is not a pipe.")
+        if returned.get("resolves") and not returned.get("is_pipe"):
+            failures.append("Returned new element is not a pipe.")
+        if original.get("is_pipe") and not original.get("length_readable"):
+            failures.append("Original pipe length is unreadable.")
+        if returned.get("is_pipe") and not returned.get("length_readable"):
+            failures.append("Returned new pipe length is unreadable.")
+        if delta_combined is not None and delta_combined > SPLIT_APPLY_VERIFICATION_LENGTH_TOLERANCE_FT:
+            failures.append("Combined length differs from source combined length beyond tolerance.")
+        if delta_original is not None and delta_original > SPLIT_APPLY_VERIFICATION_LENGTH_TOLERANCE_FT:
+            failures.append("Combined length differs from source original length beyond tolerance.")
+        if combined_check == "fail" and not any("Combined length differs" in failure for failure in failures):
+            failures.append("Combined length differs from available source length beyond tolerance.")
+        if delta_original_segment is not None and delta_original_segment > SPLIT_APPLY_VERIFICATION_LENGTH_TOLERANCE_FT:
+            warnings.append("Current original segment differs from apply report segment length beyond tolerance.")
+        if delta_new_segment is not None and delta_new_segment > SPLIT_APPLY_VERIFICATION_LENGTH_TOLERANCE_FT:
+            warnings.append("Current returned segment differs from apply report segment length beyond tolerance.")
+        if source.get("source_status") == "explicit prompt IDs" and (source_combined is None and source_original is None):
+            warnings.append("Explicit ID source has no original pre-apply length for full source comparison.")
+        if source_persistent_check == "fail":
+            warnings.append("Source apply result does not explicitly confirm MEP-WR-003 Applied with persistent model changes true.")
+        if source.get("document_title") and source.get("document_title") != _document_title(doc):
+            warnings.append("Source document title differs from active document title.")
+        if failures:
+            result = "Failed"
+        elif source.get("source_status") == "unavailable":
+            result = "Not ready"
+        elif combined_check == "pass" and source_persistent_check in ("pass", "not evaluated") and not warnings:
+            result = "Verified"
+        elif both_resolve and both_pipes and both_lengths_readable:
+            result = "Verified with warnings"
+        elif warnings:
+            result = "Verified with warnings"
+        else:
+            result = "Failed"
+        return {
+            "original": original,
+            "returned": returned,
+            "combined": combined,
+            "delta_combined": delta_combined,
+            "delta_original": delta_original,
+            "delta_comparison": delta_comparison,
+            "combined_check": combined_check,
+            "source_persistent_check": source_persistent_check,
+            "delta_original_segment": delta_original_segment,
+            "delta_new_segment": delta_new_segment,
+            "warnings": warnings,
+            "failures": failures,
+            "result": result,
+        }
+
+    def _format_split_apply_verification_report(self, prompt, source):
+        verification_id = "MEP-WR-004-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        has_source = source.get("source_status") != "unavailable"
+        data = self._split_apply_verification_check(source) if has_source else {}
+        original = data.get("original", {})
+        returned = data.get("returned", {})
+        lines = [
+            "[SPLIT APPLY VERIFICATION REPORT]",
+            "",
+            "Verification ID:",
+            verification_id,
+            "",
+            "Request:",
+            "verification",
+            "",
+            "Scope:",
+            "latest reviewed split apply result / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(self._safe_active_view_name(), self._safe_active_view_type()),
+            "",
+            "Source reviewed apply:",
+            "- Source status: {0}".format(source.get("source_status")),
+        ]
+        if has_source:
+            lines.extend(
+                [
+                    "- Source feature: {0}".format(source.get("source_feature_id")),
+                    "- Source prompt: {0}".format(source.get("source_prompt")),
+                    "- Source header: {0}".format(source.get("source_header")),
+                    "- Reviewed apply result: {0}".format(source.get("apply_result")),
+                    "- Persistent model changes: {0}".format("true" if source.get("persistent_model_changes") else "false"),
+                    "",
+                    "Source split result:",
+                    "- Original pipe id: {0}".format(source.get("original_pipe_id")),
+                    "- Returned new pipe id: {0}".format(source.get("returned_new_pipe_id")),
+                    "- Original length before apply: {0}".format(_split_pipe_dry_run_length_text(source.get("source_original_length_before_apply"))),
+                    "- Source original segment length after apply: {0}".format(_split_pipe_dry_run_length_text(source.get("source_original_segment_length_after_apply"))),
+                    "- Source new segment length after apply: {0}".format(_split_pipe_dry_run_length_text(source.get("source_new_segment_length_after_apply"))),
+                    "- Source combined segment length: {0}".format(_split_pipe_dry_run_length_text(source.get("source_combined_length"))),
+                    "- Source length delta: {0}".format(_split_pipe_dry_run_length_text(source.get("source_length_delta"))),
+                    "",
+                    "Current verification:",
+                    "- Original pipe resolves: {0}".format("true" if original.get("resolves") else "false"),
+                    "- Returned new pipe resolves: {0}".format("true" if returned.get("resolves") else "false"),
+                    "- Original element is pipe: {0}".format("true" if original.get("is_pipe") else "false"),
+                    "- Returned new element is pipe: {0}".format("true" if returned.get("is_pipe") else "false"),
+                    "- Original segment length readable: {0}".format("true" if original.get("length_readable") else "false"),
+                    "- Returned new segment length readable: {0}".format("true" if returned.get("length_readable") else "false"),
+                    "- Current original segment length: {0}".format(_split_pipe_dry_run_length_text(original.get("length"))),
+                    "- Current new segment length: {0}".format(_split_pipe_dry_run_length_text(returned.get("length"))),
+                    "- Current combined segment length: {0}".format(_split_pipe_dry_run_length_text(data.get("combined"))),
+                    "- Delta from source combined length: {0}".format(_split_pipe_dry_run_length_text(data.get("delta_combined"))),
+                    "- Delta from source original length before apply: {0}".format(_split_pipe_dry_run_length_text(data.get("delta_original"))),
+                    "- Length tolerance: {0}".format(_split_pipe_dry_run_length_text(SPLIT_APPLY_VERIFICATION_LENGTH_TOLERANCE_FT)),
+                    "",
+                    "Verification checks:",
+                    "- Original pipe id still exists: {0}".format("pass" if original.get("resolves") else "fail"),
+                    "- Returned new pipe id exists: {0}".format("pass" if returned.get("resolves") else "fail"),
+                    "- Both elements are pipes: {0}".format("pass" if original.get("is_pipe") and returned.get("is_pipe") else "fail"),
+                    "- Segment lengths readable: {0}".format("pass" if original.get("length_readable") and returned.get("length_readable") else "fail"),
+                    "- Combined length within tolerance: {0}".format(data.get("combined_check", "not evaluated")),
+                    "- Source apply result was persistent: {0}".format(data.get("source_persistent_check", "not evaluated")),
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    "",
+                    "Reason:",
+                    "No latest MEP-WR-003 reviewed apply state is available in the current AI Workbench session.",
+                    "",
+                    "Supported fallback:",
+                    "verify split result pipe <original pipe id> new pipe <returned new pipe id>",
+                ]
+            )
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Verification requested: true",
+                "- Transaction opened: false",
+                "- BreakCurve called: false",
+                "- Model modified: false",
+                "",
+                "Verification result:",
+                data.get("result", "Not ready") if has_source else "Not ready",
+                "",
+                "Warnings:",
+            ]
+        )
+        warnings = data.get("warnings") or []
+        failures = data.get("failures") or []
+        if warnings:
+            for warning in warnings:
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        if failures:
+            lines.extend(["", "Failures:"])
+            for failure in failures:
+                lines.append("- {0}".format(failure))
+        lines.extend(
+            [
+                "",
+                "Safety:",
+                "- Read-only verification only.",
+                "- No transaction opened.",
+                "- No pipe was split.",
+                "- Revit model data was not modified.",
+            ]
+        )
+        report_text = "\n".join(lines)
+        self.latest_split_apply_verification_state = {
+            "verification_id": verification_id,
+            "feature_id": "MEP-WR-004",
+            "source_feature_id": source.get("source_feature_id"),
+            "source_prompt": source.get("source_prompt"),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "document_path": self._safe_document_path(),
+            "active_view_name": self._safe_active_view_name(),
+            "active_view_type": self._safe_active_view_type(),
+            "report_header": "[SPLIT APPLY VERIFICATION REPORT]",
+            "source_report_header": source.get("source_header"),
+            "original_pipe_id": source.get("original_pipe_id"),
+            "returned_new_pipe_id": source.get("returned_new_pipe_id"),
+            "original_pipe_resolves": original.get("resolves", False),
+            "returned_new_pipe_resolves": returned.get("resolves", False),
+            "original_is_pipe": original.get("is_pipe", False),
+            "returned_new_is_pipe": returned.get("is_pipe", False),
+            "original_length_current": original.get("length"),
+            "returned_new_length_current": returned.get("length"),
+            "combined_length_current": data.get("combined"),
+            "source_original_length_before_apply": source.get("source_original_length_before_apply"),
+            "source_combined_length": source.get("source_combined_length"),
+            "delta_from_source_combined": data.get("delta_combined"),
+            "delta_from_original_before_apply": data.get("delta_original"),
+            "verification_result": data.get("result", "Not ready") if has_source else "Not ready",
+            "warning_count": len(data.get("warnings") or []),
+            "deterministic_route": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "breakcurve_called": False,
+            "report_text": report_text,
+        }
+        return report_text
+
+    def answer_split_apply_verification_question(self, prompt):
+        if not _is_split_apply_verification_prompt(prompt):
+            return None
+        source = self._latest_split_apply_verification_source(prompt)
+        return self._format_split_apply_verification_report(prompt, source)
 
     def answer_split_reviewed_apply_question(self, prompt):
         request_kind = _split_reviewed_apply_request_kind(prompt)
@@ -13964,6 +14717,26 @@ class OllamaAIChat(forms.WPFWindow):
             return self._format_split_reviewed_apply_report(prompt, request_kind, dry_source, rollback_source, selection, selected_candidate, reason="Rollback test did not pass.")
         if not selected_candidate:
             return self._format_split_reviewed_apply_report(prompt, request_kind, dry_source, rollback_source, selection, selected_candidate, reason="Selected candidate was not found in the latest dry-run.")
+        source_consumed, consumed_state, consumed_reason = self._current_split_apply_source_is_consumed(dry_source, rollback_source)
+        if source_consumed:
+            return self._format_split_reviewed_apply_report(
+                prompt,
+                request_kind,
+                dry_source,
+                rollback_source,
+                selection,
+                selected_candidate,
+                {
+                    "apply_result": "Blocked",
+                    "source_consumed": True,
+                    "consumed_state": consumed_state,
+                    "transaction_opened": False,
+                    "breakcurve_called": False,
+                    "group_assimilated": False,
+                    "persistent_model_changes": False,
+                },
+                consumed_reason,
+            )
         validated, reason = self._validate_persistent_split_candidate(selected_candidate, rollback_source)
         if not validated:
             return self._format_split_reviewed_apply_report(prompt, request_kind, dry_source, rollback_source, selection, selected_candidate, reason=reason)
@@ -16841,74 +17614,84 @@ class OllamaAIChat(forms.WPFWindow):
             if index_reply is not None:
                 reply = index_reply
             else:
-                reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
-                if reviewed_apply_reply is not None:
-                    reply = reviewed_apply_reply
+                split_source_state_reply = self.answer_split_apply_source_state_question(prompt)
+                if split_source_state_reply is not None:
+                    reply = split_source_state_reply
                     remember_report = True
                 else:
-                    rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
-                    if rollback_reply is not None:
-                        reply = rollback_reply
+                    split_verification_reply = self.answer_split_apply_verification_question(prompt)
+                    if split_verification_reply is not None:
+                        reply = split_verification_reply
                         remember_report = True
                     else:
-                        guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
-                        if guard_reply is not None:
-                            reply = guard_reply
+                        reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
+                        if reviewed_apply_reply is not None:
+                            reply = reviewed_apply_reply
                             remember_report = True
                         else:
-                            split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
-                            if split_dry_run_reply is not None:
-                                reply = split_dry_run_reply
+                            rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
+                            if rollback_reply is not None:
+                                reply = rollback_reply
                                 remember_report = True
                             else:
-                                proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
-                                if proposal_reply is not None:
-                                    reply = proposal_reply
+                                guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
+                                if guard_reply is not None:
+                                    reply = guard_reply
                                     remember_report = True
                                 else:
-                                    if self._is_qa_export_request(prompt):
-                                        reply = self.export_latest_qa_report(prompt)
-                                        preserve_latest_report_state = True
-                                    elif self._is_codex_brief_request(prompt):
-                                        brief = self.build_codex_task_brief(prompt)
-                                        self.latest_codex_brief = brief
-                                        self.populate_project_context_tree()
-                                        reply = "```\n{0}\n```".format(brief)
-                                    elif self._is_scan_request(prompt):
-                                        result = self.run_project_context_scan("standard")
-                                        reply = result.get("summary", "")
+                                    split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
+                                    if split_dry_run_reply is not None:
+                                        reply = split_dry_run_reply
                                         remember_report = True
                                     else:
-                                        discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
-                                        if discipline_qa_reply is not None:
-                                            reply = discipline_qa_reply
+                                        proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
+                                        if proposal_reply is not None:
+                                            reply = proposal_reply
                                             remember_report = True
                                         else:
-                                            system_reply = self.answer_system_assignment_report_question(prompt)
-                                            if system_reply is not None:
-                                                reply = system_reply
+                                            if self._is_qa_export_request(prompt):
+                                                reply = self.export_latest_qa_report(prompt)
+                                                preserve_latest_report_state = True
+                                            elif self._is_codex_brief_request(prompt):
+                                                brief = self.build_codex_task_brief(prompt)
+                                                self.latest_codex_brief = brief
+                                                self.populate_project_context_tree()
+                                                reply = "```\n{0}\n```".format(brief)
+                                            elif self._is_scan_request(prompt):
+                                                result = self.run_project_context_scan("standard")
+                                                reply = result.get("summary", "")
                                                 remember_report = True
                                             else:
-                                                active_view_reply = self.answer_active_view_report_question(prompt)
-                                                if active_view_reply is not None:
-                                                    reply = active_view_reply
+                                                discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                                                if discipline_qa_reply is not None:
+                                                    reply = discipline_qa_reply
                                                     remember_report = True
                                                 else:
-                                                    selection_reply = self.answer_selection_report_question(prompt)
-                                                    if selection_reply is not None:
-                                                        reply = selection_reply
+                                                    system_reply = self.answer_system_assignment_report_question(prompt)
+                                                    if system_reply is not None:
+                                                        reply = system_reply
                                                         remember_report = True
-                                                    elif self._is_project_context_question(prompt):
-                                                        reply = self.answer_project_context_question(prompt)
-                                                        remember_report = True
-                                                    elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                                                        self.append_project_agent_plan()
-                                                        reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
-                                                        preserve_latest_report_state = True
                                                     else:
-                                                        reply = send_ollama_chat(self.model, prompt)
-                                                        reply = self._sanitize_ollama_context_error(reply)
-                                                        self.latest_chat_output_is_deterministic_report = False
+                                                        active_view_reply = self.answer_active_view_report_question(prompt)
+                                                        if active_view_reply is not None:
+                                                            reply = active_view_reply
+                                                            remember_report = True
+                                                        else:
+                                                            selection_reply = self.answer_selection_report_question(prompt)
+                                                            if selection_reply is not None:
+                                                                reply = selection_reply
+                                                                remember_report = True
+                                                            elif self._is_project_context_question(prompt):
+                                                                reply = self.answer_project_context_question(prompt)
+                                                                remember_report = True
+                                                            elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                                                self.append_project_agent_plan()
+                                                                reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                                                preserve_latest_report_state = True
+                                                            else:
+                                                                reply = send_ollama_chat(self.model, prompt)
+                                                                reply = self._sanitize_ollama_context_error(reply)
+                                                                self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             if remember_report:
