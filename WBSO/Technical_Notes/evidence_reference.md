@@ -1247,6 +1247,35 @@ MEP-WR-005 - Split Apply Source Consumption / Staleness Guard
 
 Runtime validated.
 
+## MEP-WR-006 - Split Result Visual Review / Select Elements Helper
+
+### Status
+
+Runtime validated.
+
+### Date
+
+2026-05-26
+
+### Evidence
+
+- EV-AI-125: No-source safety path returned Not ready without selection change or model mutation.
+- EV-AI-126: Explicit old ID selection handled missing returned pipe id `3130274` with partial selection only.
+- EV-AI-127: Missing returned pipe id `999999999` handled with partial selection only.
+- EV-AI-128: ShowElements route operated on the resolving subset and did not mutate model data.
+- EV-AI-129: Latest WR-004 verified split result selected original pipe `3003513` and returned pipe `3130262`.
+- EV-AI-130: Explicit fresh IDs `3003513` and `3130262` selected both elements successfully.
+- EV-AI-131: `show latest split result in model` selected and showed both elements successfully.
+- EV-AI-132: `[SPLIT RESULT VISUAL REVIEW]` report exported and indexed at `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260526_180331`.
+
+### Validation Folder
+
+`WBSO/Testing_Validation/runs/2026-05-26_mep-wr-006-split-result-visual-review-validated/`
+
+### Technical Conclusion
+
+MEP-WR-006 provides deterministic UI-only visual review of split results. It resolves latest verified split state or explicit IDs, updates Revit UI selection, optionally calls ShowElements, and performs no model mutation.
+
 ## EV-AI-103 through EV-AI-108 - MEP-WR-002 Split Selected Pipes Rollback Test
 
 ### Feature

@@ -150,3 +150,20 @@ MEP-WR-005 is not an LLM model-provider feature. It is a session-local governanc
 - requires a new successful rollback-test after the consumed timestamp before persistent apply is eligible again
 - exposes `[SPLIT APPLY SOURCE STATE]` as a deterministic source-state report
 - runtime validated in BUNGE on 2026-05-25
+
+## 2026-05-26 MEP-WR-006 Model Note
+
+Feature ID: MEP-WR-006
+Feature: Split Result Visual Review / Select Elements Helper
+Status: Runtime validated
+Evidence: EV-AI-125 to EV-AI-132
+
+MEP-WR-006 is a deterministic UI-only visual review helper for verified split results. It selects/highlights original and returned pipe elements from latest WR-004 / WR-003 state or explicit IDs.
+
+- primary export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260526_180331`
+- validated original pipe id: `3003513`
+- validated returned new pipe id: `3130262`
+- no transaction
+- no BreakCurve
+- no model mutation
+- UI selection only
