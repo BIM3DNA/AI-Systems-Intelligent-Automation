@@ -80,6 +80,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[SPLIT SELECTED PIPE REVIEWED APPLY]",
     "[SPLIT APPLY VERIFICATION REPORT]",
     "[SPLIT APPLY SOURCE STATE]",
+    "[SPLIT RESULT VISUAL REVIEW]",
 )
 
 PIPE_SPLIT_DRY_RUN_MAX_SELECTION = 200
@@ -7420,6 +7421,53 @@ def split_apply_source_state_report(doc, uidoc, context=None):
     )
 
 
+def split_result_visual_review(doc, uidoc, context=None):
+    try:
+        active_view_type = safe_str(uidoc.ActiveView.ViewType)
+    except:
+        active_view_type = "(unknown type)"
+    return "\n".join(
+        [
+            "[SPLIT RESULT VISUAL REVIEW]",
+            "",
+            "Visual Review ID:",
+            "MEP-WR-006-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "",
+            "Scope:",
+            "split result visual review / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(_active_view_title(doc, uidoc), active_view_type),
+            "",
+            "Source split result:",
+            "- Source status: unavailable",
+            "",
+            "UI action:",
+            "- UI selection requested: true",
+            "- UI selection changed: false",
+            "- Elements selected: 0",
+            "",
+            "Execution status:",
+            "- Transaction opened: false",
+            "- BreakCurve called: false",
+            "- Model modified: false",
+            "- UI selection modified: false",
+            "",
+            "Visual review result:",
+            "Not ready",
+            "",
+            "Safety:",
+            "- UI selection helper only.",
+            "- No transaction opened.",
+            "- No pipe was split.",
+            "- Revit model data was not modified.",
+        ]
+    )
+
+
 def split_selected_pipes(doc, uidoc, context=None):
     prompt_text = _prompt_text_from_context(context)
     selected_elements = _selected_elements(doc, uidoc)
@@ -10760,6 +10808,7 @@ REVIEWED_ACTION_HANDLERS = {
     "split_selected_pipe_reviewed_apply": split_selected_pipe_reviewed_apply,
     "split_apply_verification_report": split_apply_verification_report,
     "split_apply_source_state_report": split_apply_source_state_report,
+    "split_result_visual_review": split_result_visual_review,
     "create_3d_view_from_selection": create_3d_view_from_selection,
     "split_selected_pipes": split_selected_pipes,
     "report_duplicates": report_duplicates,
@@ -10966,6 +11015,42 @@ def _parse_explicit_split_verification_ids(prompt):
     return None, None
 
 
+def _is_split_result_visual_review_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "select latest split result",
+        "highlight latest split result",
+        "show latest split result in model",
+        "select verified split result",
+        "highlight verified split result",
+        "select split apply result",
+        "show split apply result in model",
+        "zoom to latest split result",
+        "select split result pipe",
+        "highlight split result pipe",
+        "show split result pipe",
+    ]
+    if normalized in routes:
+        return True
+    for route in routes:
+        if normalized.startswith(route):
+            return True
+    return False
+
+
+def _parse_split_result_visual_review_ids(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    match = re.search(r"\b(?:select|highlight|show)\s+split\s+result\s+pipe\s+(\d+)\s+new\s+pipe\s+(\d+)\b", normalized)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    return None, None
+
+
+def _split_result_visual_review_show_requested(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized.startswith("show ") or normalized.startswith("zoom ")
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -11068,6 +11153,24 @@ def handle_public_command(prompt, doc, uidoc):
                 "Safety:",
                 "- Status only.",
                 "- Read-only.",
+                "- No transaction opened.",
+                "- No pipe was split.",
+                "- Revit model data was not modified.",
+            ]
+        )
+    if _is_split_result_visual_review_prompt(prompt):
+        return "\n".join(
+            [
+                "[SPLIT RESULT VISUAL REVIEW]",
+                "",
+                "Visual review result:",
+                "Not ready",
+                "",
+                "Reason:",
+                "Split result visual review requires AI Workbench session state or explicit pipe ids.",
+                "",
+                "Safety:",
+                "- UI selection helper only.",
                 "- No transaction opened.",
                 "- No pipe was split.",
                 "- Revit model data was not modified.",
@@ -11704,6 +11807,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_split_reviewed_apply_state = None
         self.latest_split_apply_verification_state = None
         self.latest_split_apply_consumed_source_state = None
+        self.latest_split_result_visual_review_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -12882,6 +12986,8 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _detect_report_scope(self, report_text):
         header = self._extract_report_header(report_text)
+        if header == "[SPLIT RESULT VISUAL REVIEW]":
+            return "split result visual review / active document only"
         if header == "[SPLIT APPLY SOURCE STATE]":
             return "session-local split apply source state / active document only"
         if header == "[SPLIT APPLY VERIFICATION REPORT]":
@@ -14689,6 +14795,235 @@ class OllamaAIChat(forms.WPFWindow):
             return None
         source = self._latest_split_apply_verification_source(prompt)
         return self._format_split_apply_verification_report(prompt, source)
+
+    def _latest_split_result_for_visual_review(self, prompt):
+        original_id, new_id = _parse_split_result_visual_review_ids(prompt)
+        if original_id and new_id:
+            return {
+                "source_status": "explicit prompt IDs",
+                "source_feature_id": "explicit prompt IDs",
+                "source_prompt": safe_str(prompt),
+                "source_header": "explicit prompt IDs",
+                "source_result": "unknown",
+                "original_pipe_id": original_id,
+                "returned_new_pipe_id": new_id,
+            }
+        verification = self.latest_split_apply_verification_state
+        if verification and verification.get("verification_result") in ("Verified", "Verified with warnings"):
+            return {
+                "source_status": "available",
+                "source_feature_id": "MEP-WR-004",
+                "source_prompt": verification.get("source_prompt", ""),
+                "source_header": verification.get("report_header", "[SPLIT APPLY VERIFICATION REPORT]"),
+                "source_result": verification.get("verification_result", ""),
+                "original_pipe_id": verification.get("original_pipe_id"),
+                "returned_new_pipe_id": verification.get("returned_new_pipe_id"),
+            }
+        apply_state = self.latest_split_reviewed_apply_state
+        if apply_state and apply_state.get("apply_result") == "Applied" and apply_state.get("persistent_model_changes"):
+            return {
+                "source_status": "available",
+                "source_feature_id": "MEP-WR-003",
+                "source_prompt": apply_state.get("source_prompt", ""),
+                "source_header": apply_state.get("report_header", "[SPLIT SELECTED PIPE REVIEWED APPLY]"),
+                "source_result": apply_state.get("apply_result", ""),
+                "original_pipe_id": apply_state.get("selected_pipe_id"),
+                "returned_new_pipe_id": apply_state.get("returned_new_pipe_id"),
+            }
+        return {
+            "source_status": "unavailable",
+            "source_feature_id": "none",
+            "source_prompt": "none",
+            "source_header": "none",
+            "source_result": "Unavailable",
+            "original_pipe_id": None,
+            "returned_new_pipe_id": None,
+        }
+
+    def _select_elements_for_visual_review(self, element_ids, show_requested):
+        selected_values = []
+        selection_changed = False
+        show_performed = False
+        show_warning = "none"
+        try:
+            id_list = System.Collections.Generic.List[DB.ElementId]()
+            for value in element_ids:
+                try:
+                    elem_id = DB.ElementId(int(value))
+                    if doc.GetElement(elem_id) is not None:
+                        id_list.Add(elem_id)
+                        selected_values.append(int(value))
+                except:
+                    pass
+            if id_list.Count > 0:
+                uidoc.Selection.SetElementIds(id_list)
+                selection_changed = True
+                if show_requested:
+                    try:
+                        uidoc.ShowElements(id_list)
+                        show_performed = True
+                    except Exception as exc:
+                        show_warning = safe_str(exc)
+            elif show_requested:
+                show_warning = "No resolving elements were available for ShowElements."
+        except Exception as exc:
+            show_warning = safe_str(exc)
+        return {
+            "selection_changed": selection_changed,
+            "selected_ids": selected_values,
+            "show_performed": show_performed,
+            "show_warning": show_warning,
+        }
+
+    def _format_split_result_visual_review_report(self, prompt, source):
+        visual_review_id = "MEP-WR-006-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        has_source = source.get("source_status") != "unavailable"
+        original = self._pipe_verification_info(source.get("original_pipe_id")) if has_source else {}
+        returned = self._pipe_verification_info(source.get("returned_new_pipe_id")) if has_source else {}
+        warnings = []
+        if has_source:
+            if not original.get("resolves"):
+                warnings.append("Original pipe id does not resolve.")
+            if not returned.get("resolves"):
+                warnings.append("Returned new pipe id does not resolve.")
+            if original.get("resolves") and not original.get("is_pipe"):
+                warnings.append("Original element is not a pipe.")
+            if returned.get("resolves") and not returned.get("is_pipe"):
+                warnings.append("Returned new element is not a pipe.")
+            if original.get("is_pipe") and not original.get("length_readable"):
+                warnings.append("Original segment length is unreadable.")
+            if returned.get("is_pipe") and not returned.get("length_readable"):
+                warnings.append("Returned new segment length is unreadable.")
+        selected_targets = []
+        if original.get("resolves"):
+            selected_targets.append(source.get("original_pipe_id"))
+        if returned.get("resolves"):
+            selected_targets.append(source.get("returned_new_pipe_id"))
+        show_requested = _split_result_visual_review_show_requested(prompt)
+        ui_data = self._select_elements_for_visual_review(selected_targets, show_requested) if has_source and selected_targets else {
+            "selection_changed": False,
+            "selected_ids": [],
+            "show_performed": False,
+            "show_warning": "No resolving elements were available." if show_requested else "none",
+        }
+        selected_count = len(ui_data.get("selected_ids") or [])
+        if not has_source:
+            result_text = "Not ready"
+        elif selected_count == 2 and original.get("is_pipe") and returned.get("is_pipe"):
+            result_text = "Selected"
+        elif selected_count > 0:
+            result_text = "Partially selected"
+        else:
+            result_text = "Failed"
+        lines = [
+            "[SPLIT RESULT VISUAL REVIEW]",
+            "",
+            "Visual Review ID:",
+            visual_review_id,
+            "",
+            "Request:",
+            "select / visual review",
+            "",
+            "Scope:",
+            "split result visual review / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(self._safe_active_view_name(), self._safe_active_view_type()),
+            "",
+            "Source split result:",
+            "- Source status: {0}".format(source.get("source_status")),
+            "- Source feature: {0}".format(source.get("source_feature_id")),
+            "- Source prompt: {0}".format(source.get("source_prompt")),
+            "- Source header: {0}".format(source.get("source_header")),
+            "- Source result: {0}".format(source.get("source_result")),
+            "",
+            "Target elements:",
+            "- Original pipe id: {0}".format(source.get("original_pipe_id")),
+            "- Returned new pipe id: {0}".format(source.get("returned_new_pipe_id")),
+            "",
+            "Current resolution:",
+            "- Original pipe resolves: {0}".format("true" if original.get("resolves") else "false"),
+            "- Returned new pipe resolves: {0}".format("true" if returned.get("resolves") else "false"),
+            "- Original element is pipe: {0}".format("true" if original.get("is_pipe") else "false"),
+            "- Returned new element is pipe: {0}".format("true" if returned.get("is_pipe") else "false"),
+            "- Original segment length readable: {0}".format("true" if original.get("length_readable") else "false"),
+            "- Returned new segment length readable: {0}".format("true" if returned.get("length_readable") else "false"),
+            "- Original segment length: {0}".format(_split_pipe_dry_run_length_text(original.get("length"))),
+            "- Returned new segment length: {0}".format(_split_pipe_dry_run_length_text(returned.get("length"))),
+            "",
+            "UI action:",
+            "- UI selection requested: true",
+            "- UI selection changed: {0}".format("true" if ui_data.get("selection_changed") else "false"),
+            "- Elements selected: {0}".format(selected_count),
+            "- Selected element ids: {0}".format(", ".join([safe_str(item) for item in ui_data.get("selected_ids") or []]) if selected_count else "none"),
+            "- ShowElements requested: {0}".format("true" if show_requested else "false"),
+            "- ShowElements performed: {0}".format("true" if ui_data.get("show_performed") else "false"),
+            "- ShowElements warning: {0}".format(ui_data.get("show_warning") or "none"),
+            "",
+            "Execution status:",
+            "- Transaction opened: false",
+            "- BreakCurve called: false",
+            "- Model modified: false",
+            "- UI selection modified: {0}".format("true" if ui_data.get("selection_changed") else "false"),
+            "",
+            "Visual review result:",
+            result_text,
+            "",
+            "Warnings:",
+        ]
+        if warnings:
+            for warning in warnings:
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Safety:",
+                "- UI selection helper only.",
+                "- No transaction opened.",
+                "- No pipe was split.",
+                "- Revit model data was not modified.",
+                "- Revit UI selection may have been changed for visual review.",
+            ]
+        )
+        report_text = "\n".join(lines)
+        self.latest_split_result_visual_review_state = {
+            "visual_review_id": visual_review_id,
+            "feature_id": "MEP-WR-006",
+            "source_feature_id": source.get("source_feature_id"),
+            "source_prompt": source.get("source_prompt"),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "document_path": self._safe_document_path(),
+            "active_view_name": self._safe_active_view_name(),
+            "active_view_type": self._safe_active_view_type(),
+            "report_header": "[SPLIT RESULT VISUAL REVIEW]",
+            "source_report_header": source.get("source_header"),
+            "original_pipe_id": source.get("original_pipe_id"),
+            "returned_new_pipe_id": source.get("returned_new_pipe_id"),
+            "selected_element_ids": ui_data.get("selected_ids") or [],
+            "ui_selection_modified": bool(ui_data.get("selection_changed")),
+            "showelements_requested": show_requested,
+            "showelements_performed": bool(ui_data.get("show_performed")),
+            "visual_review_result": result_text,
+            "warning_count": len(warnings),
+            "deterministic_route": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "breakcurve_called": False,
+            "report_text": report_text,
+        }
+        return report_text
+
+    def answer_split_result_visual_review_question(self, prompt):
+        if not _is_split_result_visual_review_prompt(prompt):
+            return None
+        source = self._latest_split_result_for_visual_review(prompt)
+        return self._format_split_result_visual_review_report(prompt, source)
 
     def answer_split_reviewed_apply_question(self, prompt):
         request_kind = _split_reviewed_apply_request_kind(prompt)
@@ -17619,79 +17954,84 @@ class OllamaAIChat(forms.WPFWindow):
                     reply = split_source_state_reply
                     remember_report = True
                 else:
-                    split_verification_reply = self.answer_split_apply_verification_question(prompt)
-                    if split_verification_reply is not None:
-                        reply = split_verification_reply
+                    split_visual_review_reply = self.answer_split_result_visual_review_question(prompt)
+                    if split_visual_review_reply is not None:
+                        reply = split_visual_review_reply
                         remember_report = True
                     else:
-                        reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
-                        if reviewed_apply_reply is not None:
-                            reply = reviewed_apply_reply
+                        split_verification_reply = self.answer_split_apply_verification_question(prompt)
+                        if split_verification_reply is not None:
+                            reply = split_verification_reply
                             remember_report = True
                         else:
-                            rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
-                            if rollback_reply is not None:
-                                reply = rollback_reply
+                            reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
+                            if reviewed_apply_reply is not None:
+                                reply = reviewed_apply_reply
                                 remember_report = True
                             else:
-                                guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
-                                if guard_reply is not None:
-                                    reply = guard_reply
+                                rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
+                                if rollback_reply is not None:
+                                    reply = rollback_reply
                                     remember_report = True
                                 else:
-                                    split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
-                                    if split_dry_run_reply is not None:
-                                        reply = split_dry_run_reply
+                                    guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
+                                    if guard_reply is not None:
+                                        reply = guard_reply
                                         remember_report = True
                                     else:
-                                        proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
-                                        if proposal_reply is not None:
-                                            reply = proposal_reply
+                                        split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
+                                        if split_dry_run_reply is not None:
+                                            reply = split_dry_run_reply
                                             remember_report = True
                                         else:
-                                            if self._is_qa_export_request(prompt):
-                                                reply = self.export_latest_qa_report(prompt)
-                                                preserve_latest_report_state = True
-                                            elif self._is_codex_brief_request(prompt):
-                                                brief = self.build_codex_task_brief(prompt)
-                                                self.latest_codex_brief = brief
-                                                self.populate_project_context_tree()
-                                                reply = "```\n{0}\n```".format(brief)
-                                            elif self._is_scan_request(prompt):
-                                                result = self.run_project_context_scan("standard")
-                                                reply = result.get("summary", "")
+                                            proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
+                                            if proposal_reply is not None:
+                                                reply = proposal_reply
                                                 remember_report = True
                                             else:
-                                                discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
-                                                if discipline_qa_reply is not None:
-                                                    reply = discipline_qa_reply
+                                                if self._is_qa_export_request(prompt):
+                                                    reply = self.export_latest_qa_report(prompt)
+                                                    preserve_latest_report_state = True
+                                                elif self._is_codex_brief_request(prompt):
+                                                    brief = self.build_codex_task_brief(prompt)
+                                                    self.latest_codex_brief = brief
+                                                    self.populate_project_context_tree()
+                                                    reply = "```\n{0}\n```".format(brief)
+                                                elif self._is_scan_request(prompt):
+                                                    result = self.run_project_context_scan("standard")
+                                                    reply = result.get("summary", "")
                                                     remember_report = True
                                                 else:
-                                                    system_reply = self.answer_system_assignment_report_question(prompt)
-                                                    if system_reply is not None:
-                                                        reply = system_reply
+                                                    discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                                                    if discipline_qa_reply is not None:
+                                                        reply = discipline_qa_reply
                                                         remember_report = True
                                                     else:
-                                                        active_view_reply = self.answer_active_view_report_question(prompt)
-                                                        if active_view_reply is not None:
-                                                            reply = active_view_reply
+                                                        system_reply = self.answer_system_assignment_report_question(prompt)
+                                                        if system_reply is not None:
+                                                            reply = system_reply
                                                             remember_report = True
                                                         else:
-                                                            selection_reply = self.answer_selection_report_question(prompt)
-                                                            if selection_reply is not None:
-                                                                reply = selection_reply
+                                                            active_view_reply = self.answer_active_view_report_question(prompt)
+                                                            if active_view_reply is not None:
+                                                                reply = active_view_reply
                                                                 remember_report = True
-                                                            elif self._is_project_context_question(prompt):
-                                                                reply = self.answer_project_context_question(prompt)
-                                                                remember_report = True
-                                                            elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                                                                self.append_project_agent_plan()
-                                                                reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
-                                                                preserve_latest_report_state = True
                                                             else:
-                                                                reply = send_ollama_chat(self.model, prompt)
-                                                                reply = self._sanitize_ollama_context_error(reply)
-                                                                self.latest_chat_output_is_deterministic_report = False
+                                                                selection_reply = self.answer_selection_report_question(prompt)
+                                                                if selection_reply is not None:
+                                                                    reply = selection_reply
+                                                                    remember_report = True
+                                                                elif self._is_project_context_question(prompt):
+                                                                    reply = self.answer_project_context_question(prompt)
+                                                                    remember_report = True
+                                                                elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                                                    self.append_project_agent_plan()
+                                                                    reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                                                    preserve_latest_report_state = True
+                                                                else:
+                                                                    reply = send_ollama_chat(self.model, prompt)
+                                                                    reply = self._sanitize_ollama_context_error(reply)
+                                                                    self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             if remember_report:

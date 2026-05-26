@@ -3268,6 +3268,36 @@
     "mode": "deterministic"
   },
   {
+    "id": "split-result-visual-review",
+    "title": "Split result visual review",
+    "category": "BIM QA",
+    "group": "Reviewed Action Verification",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_document_ui_selection",
+    "canonical_prompt": "select latest split result",
+    "planner_aliases": [
+      "select latest split result",
+      "highlight latest split result",
+      "show latest split result in model",
+      "select verified split result",
+      "highlight verified split result",
+      "select split apply result",
+      "show split apply result in model",
+      "zoom to latest split result",
+      "select split result pipe",
+      "highlight split result pipe",
+      "show split result pipe"
+    ],
+    "deterministic_handler": "split_result_visual_review",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "select latest split result",
+    "mode": "deterministic"
+  },
+  {
     "id": "split-apply-source-state",
     "title": "Split apply source state",
     "category": "BIM QA",
