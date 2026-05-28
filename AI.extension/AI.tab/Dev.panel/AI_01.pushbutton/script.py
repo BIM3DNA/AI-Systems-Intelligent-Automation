@@ -81,6 +81,8 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[SPLIT APPLY VERIFICATION REPORT]",
     "[SPLIT APPLY SOURCE STATE]",
     "[SPLIT RESULT VISUAL REVIEW]",
+    "[SPLIT WORKFLOW SESSION STATE]",
+    "[SPLIT WORKFLOW SESSION RESET]",
 )
 
 PIPE_SPLIT_DRY_RUN_MAX_SELECTION = 200
@@ -7468,6 +7470,62 @@ def split_result_visual_review(doc, uidoc, context=None):
     )
 
 
+def split_workflow_session_state_report(doc, uidoc, context=None):
+    try:
+        active_view_type = safe_str(uidoc.ActiveView.ViewType)
+    except:
+        active_view_type = "(unknown type)"
+    return "\n".join(
+        [
+            "[SPLIT WORKFLOW SESSION STATE]",
+            "",
+            "Session State ID:",
+            "MEP-WR-007-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "",
+            "Request:",
+            "status / dashboard",
+            "",
+            "Scope:",
+            "session-local reviewed split workflow state / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(_active_view_title(doc, uidoc), active_view_type),
+            "",
+            "State summary:",
+            "- Dry-run state available: false",
+            "- Rollback-test state available: false",
+            "- Reviewed apply state available: false",
+            "- Verification state available: false",
+            "- Consumed-source state available: false",
+            "- Visual review state available: false",
+            "- Latest QA report state available: false",
+            "- Latest QA export state available: false",
+            "",
+            "Execution status:",
+            "- Status requested: true",
+            "- Reset requested: false",
+            "- Reset token present: false",
+            "- State cleared: false",
+            "- Transaction opened: false",
+            "- BreakCurve called: false",
+            "- Model modified: false",
+            "",
+            "Dashboard result:",
+            "Empty",
+            "",
+            "Safety:",
+            "- Session-state dashboard only.",
+            "- Read-only with respect to Revit model data.",
+            "- No transaction opened.",
+            "- No pipe was split.",
+            "- Revit model data was not modified.",
+        ]
+    )
+
+
 def split_selected_pipes(doc, uidoc, context=None):
     prompt_text = _prompt_text_from_context(context)
     selected_elements = _selected_elements(doc, uidoc)
@@ -10809,6 +10867,7 @@ REVIEWED_ACTION_HANDLERS = {
     "split_apply_verification_report": split_apply_verification_report,
     "split_apply_source_state_report": split_apply_source_state_report,
     "split_result_visual_review": split_result_visual_review,
+    "split_workflow_session_state_report": split_workflow_session_state_report,
     "create_3d_view_from_selection": create_3d_view_from_selection,
     "split_selected_pipes": split_selected_pipes,
     "report_duplicates": report_duplicates,
@@ -11051,6 +11110,58 @@ def _split_result_visual_review_show_requested(prompt):
     return normalized.startswith("show ") or normalized.startswith("zoom ")
 
 
+def _has_clear_split_state_token(prompt):
+    raw_prompt = safe_str(prompt)
+    normalized = _normalize_deterministic_route_text(raw_prompt)
+    return "clear split state ok" in normalized or "clear-split-state-ok" in raw_prompt.lower()
+
+
+def _split_workflow_route_text(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    route_text = normalized.replace("clear split state ok", " ")
+    route_text = re.sub(r"\s+", " ", route_text).strip()
+    return route_text
+
+
+def _is_split_workflow_reset_preview_prompt(prompt):
+    route_text = _split_workflow_route_text(prompt)
+    routes = [
+        "preview clear split workflow state",
+        "preview reset split workflow state",
+        "dry run clear split workflow state",
+        "dry run reset split workflow state",
+    ]
+    return route_text in routes
+
+
+def _is_split_workflow_reset_prompt(prompt):
+    route_text = _split_workflow_route_text(prompt)
+    routes = [
+        "clear split workflow state",
+        "reset split workflow state",
+        "clear reviewed split state",
+        "reset reviewed split state",
+    ]
+    return route_text in routes
+
+
+def _is_split_workflow_state_prompt(prompt):
+    route_text = _split_workflow_route_text(prompt)
+    routes = [
+        "show split workflow state",
+        "show split session state",
+        "split workflow state",
+        "split session state",
+        "show reviewed split state",
+        "reviewed split state",
+        "show split workflow dashboard",
+        "split workflow dashboard",
+        "show split memory",
+        "split memory status",
+    ]
+    return route_text in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -11124,6 +11235,41 @@ def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
 
 def handle_public_command(prompt, doc, uidoc):
     p = prompt.lower()
+    if _is_split_workflow_state_prompt(prompt) or _is_split_workflow_reset_preview_prompt(prompt):
+        return split_workflow_session_state_report(doc, uidoc, {"prompt": prompt})
+    if _is_split_workflow_reset_prompt(prompt):
+        token_present = _has_clear_split_state_token(prompt)
+        return "\n".join(
+            [
+                "[SPLIT WORKFLOW SESSION RESET]",
+                "",
+                "Session Reset ID:",
+                "MEP-WR-007-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+                "",
+                "Confirmation:",
+                "- Reset requested: true",
+                "- Confirmation token present: {0}".format("true" if token_present else "false"),
+                "- Confirmation token required: CLEAR-SPLIT-STATE-OK",
+                "",
+                "Execution status:",
+                "- State cleared: false",
+                "- Transaction opened: false",
+                "- BreakCurve called: false",
+                "- Model modified: false",
+                "",
+                "Reset result:",
+                "Blocked",
+                "",
+                "Reason:",
+                "Session-local split workflow state is only available in the AI Workbench window session.",
+                "",
+                "Safety:",
+                "- Session-state reset only.",
+                "- No transaction opened.",
+                "- No pipe was split.",
+                "- No Revit model data was modified.",
+            ]
+        )
     if _is_split_apply_verification_prompt(prompt):
         return "\n".join(
             [
@@ -11808,6 +11954,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_split_apply_verification_state = None
         self.latest_split_apply_consumed_source_state = None
         self.latest_split_result_visual_review_state = None
+        self.latest_split_workflow_session_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -12986,6 +13133,10 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _detect_report_scope(self, report_text):
         header = self._extract_report_header(report_text)
+        if header == "[SPLIT WORKFLOW SESSION STATE]":
+            return "session-local reviewed split workflow state / active document only"
+        if header == "[SPLIT WORKFLOW SESSION RESET]":
+            return "session-local reviewed split workflow state / active document only"
         if header == "[SPLIT RESULT VISUAL REVIEW]":
             return "split result visual review / active document only"
         if header == "[SPLIT APPLY SOURCE STATE]":
@@ -14098,6 +14249,428 @@ class OllamaAIChat(forms.WPFWindow):
         if not _is_split_apply_source_state_prompt(prompt):
             return None
         return self._format_split_apply_source_state_report(prompt)
+
+    def _workflow_state_available(self, state):
+        return bool(state and isinstance(state, dict))
+
+    def _workflow_yes_no(self, value):
+        return "true" if bool(value) else "false"
+
+    def _workflow_state_timestamp(self, state):
+        if not state:
+            return "unavailable"
+        return state.get("created_timestamp_local") or state.get("report_timestamp") or state.get("dry_run_id") or state.get("consumed_timestamp_local") or "unavailable"
+
+    def _latest_workflow_export_state(self):
+        try:
+            latest, index_dir, error = self._read_latest_qa_export()
+            if latest and isinstance(latest, dict):
+                return {
+                    "available": True,
+                    "header": latest.get("source_report_header") or latest.get("report_header") or "none",
+                    "prompt": latest.get("source_prompt") or "none",
+                    "timestamp": latest.get("export_timestamp_local") or latest.get("created_timestamp_local") or "none",
+                    "folder": latest.get("export_folder") or "none",
+                    "index_dir": index_dir,
+                    "error": error,
+                }
+            return {"available": False, "header": "none", "prompt": "none", "timestamp": "none", "folder": "none", "index_dir": index_dir, "error": error}
+        except Exception as exc:
+            return {"available": False, "header": "none", "prompt": "none", "timestamp": "none", "folder": "none", "index_dir": "none", "error": safe_str(exc)}
+
+    def _collect_split_workflow_session_state(self):
+        dry_source, rollback_source = self._latest_split_apply_sources()
+        dry_state = self.latest_split_pipe_dry_run or {}
+        rollback_state = self.latest_split_rollback_test_state or {}
+        apply_state = self.latest_split_reviewed_apply_state or {}
+        verification_state = self.latest_split_apply_verification_state or {}
+        consumed_state = self.latest_split_apply_consumed_source_state or {}
+        visual_state = self.latest_split_result_visual_review_state or {}
+        latest_report = self.latest_deterministic_report or {}
+        latest_export = self._latest_workflow_export_state()
+        is_consumed, consumed_for_decision, consumed_reason = self._current_split_apply_source_is_consumed(dry_source, rollback_source)
+        rollback_passed = rollback_source.get("rollback_test_result") in ("Passed", "Passed with warnings")
+        dry_available = dry_source.get("source_status") == "available"
+        rollback_available = rollback_source.get("source_status") == "available"
+        fresh_source = bool(dry_available and rollback_available and rollback_passed and not is_consumed)
+        verified_result = verification_state.get("verification_result") in ("Verified", "Verified with warnings")
+        applied_result = apply_state.get("apply_result") == "Applied" and bool(apply_state.get("persistent_model_changes"))
+        has_verified_split_result = bool(verified_result or applied_result)
+        available_count = 0
+        for item in [dry_state, rollback_state, apply_state, verification_state, consumed_state, visual_state]:
+            if self._workflow_state_available(item):
+                available_count += 1
+        if available_count == 0:
+            dashboard_result = "Empty"
+        elif available_count >= 3:
+            dashboard_result = "Available"
+        else:
+            dashboard_result = "Partial"
+        recommended = "none"
+        if not dry_available:
+            recommended = "run dry run split selected pipes"
+        elif not rollback_available or not rollback_passed:
+            recommended = "run split rollback test ROLLBACK-TEST-OK"
+        elif fresh_source and not applied_result:
+            recommended = "apply split candidate 1 PERSISTENT-SPLIT-OK"
+        elif applied_result and not verified_result:
+            recommended = "verify latest split apply"
+        elif has_verified_split_result and not self._workflow_state_available(visual_state):
+            recommended = "select latest split result"
+        elif consumed_state.get("consumed"):
+            recommended = "clear split workflow state CLEAR-SPLIT-STATE-OK"
+        return {
+            "dry_source": dry_source,
+            "rollback_source": rollback_source,
+            "dry_state": dry_state,
+            "rollback_state": rollback_state,
+            "apply_state": apply_state,
+            "verification_state": verification_state,
+            "consumed_state": consumed_for_decision or consumed_state,
+            "visual_state": visual_state,
+            "latest_report": latest_report,
+            "latest_export": latest_export,
+            "dry_available": self._workflow_state_available(dry_state),
+            "rollback_available": self._workflow_state_available(rollback_state),
+            "apply_available": self._workflow_state_available(apply_state),
+            "verification_available": self._workflow_state_available(verification_state),
+            "consumed_available": self._workflow_state_available(consumed_state),
+            "visual_available": self._workflow_state_available(visual_state),
+            "latest_report_available": self._workflow_state_available(latest_report),
+            "latest_export_available": bool(latest_export.get("available")),
+            "fresh_source": fresh_source,
+            "has_verified_split_result": has_verified_split_result,
+            "has_consumed_marker": bool(consumed_state.get("consumed")),
+            "persistent_apply_allowed": fresh_source,
+            "staleness_reason": consumed_reason,
+            "recommended_next_action": recommended,
+            "dashboard_result": dashboard_result,
+        }
+
+    def _format_split_workflow_session_state_report(self, prompt, request_label):
+        state = self._collect_split_workflow_session_state()
+        session_state_id = "MEP-WR-007-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        dry_source = state.get("dry_source") or {}
+        rollback_source = state.get("rollback_source") or {}
+        apply_state = state.get("apply_state") or {}
+        verification_state = state.get("verification_state") or {}
+        consumed_state = state.get("consumed_state") or {}
+        visual_state = state.get("visual_state") or {}
+        latest_report = state.get("latest_report") or {}
+        latest_export = state.get("latest_export") or {}
+        preview = request_label == "reset preview"
+        lines = [
+            "[SPLIT WORKFLOW SESSION STATE]",
+            "",
+            "Session State ID:",
+            session_state_id,
+            "",
+            "Request:",
+            request_label,
+            "",
+            "Scope:",
+            "session-local reviewed split workflow state / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(self._safe_active_view_name(), self._safe_active_view_type()),
+            "",
+            "State summary:",
+            "- Dry-run state available: {0}".format(self._workflow_yes_no(state.get("dry_available"))),
+            "- Rollback-test state available: {0}".format(self._workflow_yes_no(state.get("rollback_available"))),
+            "- Reviewed apply state available: {0}".format(self._workflow_yes_no(state.get("apply_available"))),
+            "- Verification state available: {0}".format(self._workflow_yes_no(state.get("verification_available"))),
+            "- Consumed-source state available: {0}".format(self._workflow_yes_no(state.get("consumed_available"))),
+            "- Visual review state available: {0}".format(self._workflow_yes_no(state.get("visual_available"))),
+            "- Latest QA report state available: {0}".format(self._workflow_yes_no(state.get("latest_report_available"))),
+            "- Latest QA export state available: {0}".format(self._workflow_yes_no(state.get("latest_export_available"))),
+            "",
+            "Dry-run state:",
+            "- Source feature: {0}".format(dry_source.get("source_feature_id") or "none"),
+            "- Source header: {0}".format(dry_source.get("source_header") or "none"),
+            "- Source prompt: {0}".format(dry_source.get("source_prompt") or "none"),
+            "- Source timestamp: {0}".format(dry_source.get("created_timestamp_local") or dry_source.get("dry_run_id") or "unavailable"),
+            "- Candidate split points: {0}".format(dry_source.get("candidate_count") or 0),
+            "- Eligible pipes: {0}".format(dry_source.get("eligible_pipe_count") or 0),
+            "- Dry-run result: {0}".format(dry_source.get("dry_run_result") or "unavailable"),
+            "",
+            "Rollback-test state:",
+            "- Source feature: {0}".format(rollback_source.get("source_feature_id") or "none"),
+            "- Source header: {0}".format(rollback_source.get("source_header") or "none"),
+            "- Source prompt: {0}".format(rollback_source.get("source_prompt") or "none"),
+            "- Source timestamp: {0}".format(rollback_source.get("created_timestamp_local") or "unavailable"),
+            "- Rollback-test result: {0}".format(rollback_source.get("rollback_test_result") or "Unavailable"),
+            "- Successful rollback-tested candidates: {0}".format(len(rollback_source.get("successful_pipe_ids") or [])),
+            "- Persistent model changes: {0}".format(self._workflow_yes_no(rollback_source.get("persistent_model_changes") is True)),
+            "",
+            "Reviewed apply state:",
+            "- Source feature: {0}".format(apply_state.get("feature_id", "none")),
+            "- Source header: {0}".format(apply_state.get("report_header", "none")),
+            "- Source prompt: {0}".format(apply_state.get("source_prompt", "none")),
+            "- Source timestamp: {0}".format(self._workflow_state_timestamp(apply_state)),
+            "- Reviewed apply result: {0}".format(apply_state.get("apply_result", "Unavailable")),
+            "- Applied candidate: {0}".format(apply_state.get("selected_candidate_number", "none")),
+            "- Original pipe id: {0}".format(apply_state.get("selected_pipe_id", "none")),
+            "- Returned new pipe id: {0}".format(apply_state.get("returned_new_pipe_id", "none")),
+            "- Persistent model changes: {0}".format(self._workflow_yes_no(apply_state.get("persistent_model_changes"))),
+            "",
+            "Verification state:",
+            "- Source feature: {0}".format(verification_state.get("feature_id", "none")),
+            "- Source header: {0}".format(verification_state.get("report_header", "none")),
+            "- Source prompt: {0}".format(verification_state.get("source_prompt", "none")),
+            "- Source timestamp: {0}".format(self._workflow_state_timestamp(verification_state)),
+            "- Verification result: {0}".format(verification_state.get("verification_result", "Unavailable")),
+            "- Original pipe id: {0}".format(verification_state.get("original_pipe_id", "none")),
+            "- Returned new pipe id: {0}".format(verification_state.get("returned_new_pipe_id", "none")),
+            "- Model modified: {0}".format(self._workflow_yes_no(verification_state.get("model_modified"))),
+            "",
+            "Consumed-source state:",
+            "- Source feature: {0}".format(consumed_state.get("feature_id", "none")),
+            "- Consumed: {0}".format(self._workflow_yes_no(consumed_state.get("consumed"))),
+            "- Consumed by feature: {0}".format(consumed_state.get("consumed_by_feature_id", "none")),
+            "- Applied candidate: {0}".format(consumed_state.get("applied_candidate_number", "none")),
+            "- Applied original pipe id: {0}".format(consumed_state.get("applied_original_pipe_id", "none")),
+            "- Returned new pipe id: {0}".format(consumed_state.get("returned_new_pipe_id", "none")),
+            "- Current source fresh: {0}".format(self._workflow_yes_no(state.get("fresh_source"))),
+            "- Persistent apply currently allowed: {0}".format(self._workflow_yes_no(state.get("persistent_apply_allowed"))),
+            "- Reason: {0}".format(state.get("staleness_reason") or "none"),
+            "",
+            "Visual review state:",
+            "- Source feature: {0}".format(visual_state.get("feature_id", "none")),
+            "- Source header: {0}".format(visual_state.get("report_header", "none")),
+            "- Source prompt: {0}".format(visual_state.get("source_prompt", "none")),
+            "- Source timestamp: {0}".format(self._workflow_state_timestamp(visual_state)),
+            "- Visual review result: {0}".format(visual_state.get("visual_review_result", "Unavailable")),
+            "- Selected element ids: {0}".format(", ".join([safe_str(item) for item in visual_state.get("selected_element_ids") or []]) if visual_state.get("selected_element_ids") else "none"),
+            "- UI selection modified: {0}".format(self._workflow_yes_no(visual_state.get("ui_selection_modified"))),
+            "- Model modified: {0}".format(self._workflow_yes_no(visual_state.get("model_modified"))),
+            "",
+            "Latest QA report / export:",
+            "- Latest report header: {0}".format(latest_report.get("report_header", "none")),
+            "- Latest report prompt: {0}".format(latest_report.get("source_prompt", "none")),
+            "- Latest export folder: {0}".format(latest_export.get("folder") or "none"),
+            "- Latest export header: {0}".format(latest_export.get("header") or "none"),
+            "- Latest export timestamp: {0}".format(latest_export.get("timestamp") or "none"),
+            "",
+            "Staleness / readiness summary:",
+            "- Has fresh rollback-tested source for apply: {0}".format(self._workflow_yes_no(state.get("fresh_source"))),
+            "- Has verified split result for visual review: {0}".format(self._workflow_yes_no(state.get("has_verified_split_result"))),
+            "- Has consumed source marker: {0}".format(self._workflow_yes_no(state.get("has_consumed_marker"))),
+            "- Recommended next action: {0}".format(state.get("recommended_next_action") or "none"),
+        ]
+        if preview:
+            lines.extend(
+                [
+                    "",
+                    "Reset preview:",
+                    "- Would clear latest split dry-run state: {0}".format(self._workflow_yes_no(state.get("dry_available"))),
+                    "- Would clear latest rollback-test state: {0}".format(self._workflow_yes_no(state.get("rollback_available"))),
+                    "- Would clear latest reviewed apply state: {0}".format(self._workflow_yes_no(state.get("apply_available"))),
+                    "- Would clear latest verification state: {0}".format(self._workflow_yes_no(state.get("verification_available"))),
+                    "- Would clear latest consumed-source state: {0}".format(self._workflow_yes_no(state.get("consumed_available"))),
+                    "- Would clear latest visual review state: {0}".format(self._workflow_yes_no(state.get("visual_available"))),
+                    "- Would clear latest split workflow dashboard state: {0}".format(self._workflow_yes_no(self.latest_split_workflow_session_state is not None)),
+                    "",
+                    "Would not clear:",
+                    "- Revit model elements",
+                    "- Revit selection",
+                    "- QA export files on disk",
+                    "- Git/WBSO docs",
+                    "- Persistent Revit model changes already applied",
+                    "",
+                    "Preview result:",
+                    "Ready for explicit reset",
+                    "",
+                    "Required confirmation:",
+                    "clear split workflow state CLEAR-SPLIT-STATE-OK",
+                ]
+            )
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Status requested: true",
+                "- Reset requested: {0}".format("preview only" if preview else "false"),
+                "- Reset token present: false",
+                "- State cleared: false",
+                "- Transaction opened: false",
+                "- BreakCurve called: false",
+                "- Model modified: false",
+                "",
+                "Dashboard result:",
+                state.get("dashboard_result") or "Empty",
+                "",
+                "Safety:",
+                "- Session-state dashboard only.",
+                "- Read-only with respect to Revit model data.",
+                "- No transaction opened.",
+                "- No pipe was split.",
+                "- Revit model data was not modified.",
+            ]
+        )
+        report_text = "\n".join(lines)
+        self.latest_split_workflow_session_state = {
+            "session_state_id": session_state_id,
+            "feature_id": "MEP-WR-007",
+            "source_prompt": safe_str(prompt),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "document_path": self._safe_document_path(),
+            "active_view_name": self._safe_active_view_name(),
+            "active_view_type": self._safe_active_view_type(),
+            "report_header": "[SPLIT WORKFLOW SESSION STATE]",
+            "dashboard_result": state.get("dashboard_result"),
+            "reset_requested": preview,
+            "state_cleared": False,
+            "model_modified": False,
+            "transaction_opened": False,
+            "breakcurve_called": False,
+            "report_text": report_text,
+        }
+        return report_text
+
+    def _clear_split_workflow_session_state(self):
+        before = self._collect_split_workflow_session_state()
+        self.latest_split_pipe_dry_run = None
+        self.latest_split_rollback_test_state = None
+        self.latest_split_reviewed_apply_state = None
+        self.latest_split_apply_verification_state = None
+        self.latest_split_apply_consumed_source_state = None
+        self.latest_split_result_visual_review_state = None
+        self.latest_split_workflow_session_state = None
+        self.latest_deterministic_report = None
+        self.latest_chat_output_is_deterministic_report = False
+        after = self._collect_split_workflow_session_state()
+        return before, after
+
+    def _format_split_workflow_reset_report(self, prompt):
+        token_present = _has_clear_split_state_token(prompt)
+        reset_id = "MEP-WR-007-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        if token_present:
+            before, after = self._clear_split_workflow_session_state()
+            state_cleared = True
+            reset_result = "Cleared"
+            reason = ""
+        else:
+            before = self._collect_split_workflow_session_state()
+            after = before
+            state_cleared = False
+            reset_result = "Blocked"
+            reason = "Explicit confirmation token is required to clear split workflow session state."
+        lines = [
+            "[SPLIT WORKFLOW SESSION RESET]",
+            "",
+            "Session Reset ID:",
+            reset_id,
+            "",
+            "Request:",
+            "clear / reset",
+            "",
+            "Scope:",
+            "session-local reviewed split workflow state / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(self._safe_active_view_name(), self._safe_active_view_type()),
+            "",
+            "Confirmation:",
+            "- Reset requested: true",
+            "- Confirmation token present: {0}".format(self._workflow_yes_no(token_present)),
+            "- Confirmation token required: CLEAR-SPLIT-STATE-OK",
+            "",
+            "State before reset:",
+            "- Dry-run state available: {0}".format(self._workflow_yes_no(before.get("dry_available"))),
+            "- Rollback-test state available: {0}".format(self._workflow_yes_no(before.get("rollback_available"))),
+            "- Reviewed apply state available: {0}".format(self._workflow_yes_no(before.get("apply_available"))),
+            "- Verification state available: {0}".format(self._workflow_yes_no(before.get("verification_available"))),
+            "- Consumed-source state available: {0}".format(self._workflow_yes_no(before.get("consumed_available"))),
+            "- Visual review state available: {0}".format(self._workflow_yes_no(before.get("visual_available"))),
+            "",
+            "State cleared:",
+            "- Dry-run state cleared: {0}".format(self._workflow_yes_no(token_present and before.get("dry_available"))),
+            "- Rollback-test state cleared: {0}".format(self._workflow_yes_no(token_present and before.get("rollback_available"))),
+            "- Reviewed apply state cleared: {0}".format(self._workflow_yes_no(token_present and before.get("apply_available"))),
+            "- Verification state cleared: {0}".format(self._workflow_yes_no(token_present and before.get("verification_available"))),
+            "- Consumed-source state cleared: {0}".format(self._workflow_yes_no(token_present and before.get("consumed_available"))),
+            "- Visual review state cleared: {0}".format(self._workflow_yes_no(token_present and before.get("visual_available"))),
+            "",
+            "State after reset:",
+            "- Dry-run state available: {0}".format(self._workflow_yes_no(after.get("dry_available"))),
+            "- Rollback-test state available: {0}".format(self._workflow_yes_no(after.get("rollback_available"))),
+            "- Reviewed apply state available: {0}".format(self._workflow_yes_no(after.get("apply_available"))),
+            "- Verification state available: {0}".format(self._workflow_yes_no(after.get("verification_available"))),
+            "- Consumed-source state available: {0}".format(self._workflow_yes_no(after.get("consumed_available"))),
+            "- Visual review state available: {0}".format(self._workflow_yes_no(after.get("visual_available"))),
+            "",
+            "Not cleared:",
+            "- Revit model data",
+            "- Existing model changes",
+            "- Existing split pipe elements",
+            "- Revit UI selection",
+            "- QA export files",
+            "- QA export index files",
+            "- WBSO docs",
+            "- Git files",
+            "",
+            "Execution status:",
+            "- Reset requested: true",
+            "- Reset token present: {0}".format(self._workflow_yes_no(token_present)),
+            "- State cleared: {0}".format(self._workflow_yes_no(state_cleared)),
+            "- Transaction opened: false",
+            "- BreakCurve called: false",
+            "- Model modified: false",
+            "- UI selection modified: false",
+            "",
+            "Reset result:",
+            reset_result,
+        ]
+        if reason:
+            lines.extend(["", "Reason:", reason])
+        lines.extend(
+            [
+                "",
+                "Safety:",
+                "- Session-state reset only.",
+                "- No transaction opened.",
+                "- No pipe was split.",
+                "- No Revit model data was modified.",
+                "- Existing persistent Revit changes were not undone.",
+            ]
+        )
+        report_text = "\n".join(lines)
+        self.latest_split_workflow_session_state = {
+            "session_reset_id": reset_id,
+            "feature_id": "MEP-WR-007",
+            "source_prompt": safe_str(prompt),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "document_path": self._safe_document_path(),
+            "active_view_name": self._safe_active_view_name(),
+            "active_view_type": self._safe_active_view_type(),
+            "report_header": "[SPLIT WORKFLOW SESSION RESET]",
+            "reset_result": reset_result,
+            "reset_requested": True,
+            "reset_token_present": token_present,
+            "state_cleared": state_cleared,
+            "model_modified": False,
+            "transaction_opened": False,
+            "breakcurve_called": False,
+            "report_text": report_text,
+        }
+        return report_text
+
+    def answer_split_workflow_session_state_question(self, prompt):
+        if _is_split_workflow_reset_prompt(prompt):
+            return self._format_split_workflow_reset_report(prompt)
+        if _is_split_workflow_reset_preview_prompt(prompt):
+            return self._format_split_workflow_session_state_report(prompt, "reset preview")
+        if _is_split_workflow_state_prompt(prompt):
+            return self._format_split_workflow_session_state_report(prompt, "status / dashboard")
+        return None
 
     def _run_single_split_persistent_apply(self, validated):
         transaction_opened = False
@@ -17949,89 +18522,94 @@ class OllamaAIChat(forms.WPFWindow):
             if index_reply is not None:
                 reply = index_reply
             else:
-                split_source_state_reply = self.answer_split_apply_source_state_question(prompt)
-                if split_source_state_reply is not None:
-                    reply = split_source_state_reply
+                split_workflow_state_reply = self.answer_split_workflow_session_state_question(prompt)
+                if split_workflow_state_reply is not None:
+                    reply = split_workflow_state_reply
                     remember_report = True
                 else:
-                    split_visual_review_reply = self.answer_split_result_visual_review_question(prompt)
-                    if split_visual_review_reply is not None:
-                        reply = split_visual_review_reply
+                    split_source_state_reply = self.answer_split_apply_source_state_question(prompt)
+                    if split_source_state_reply is not None:
+                        reply = split_source_state_reply
                         remember_report = True
                     else:
-                        split_verification_reply = self.answer_split_apply_verification_question(prompt)
-                        if split_verification_reply is not None:
-                            reply = split_verification_reply
+                        split_visual_review_reply = self.answer_split_result_visual_review_question(prompt)
+                        if split_visual_review_reply is not None:
+                            reply = split_visual_review_reply
                             remember_report = True
                         else:
-                            reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
-                            if reviewed_apply_reply is not None:
-                                reply = reviewed_apply_reply
+                            split_verification_reply = self.answer_split_apply_verification_question(prompt)
+                            if split_verification_reply is not None:
+                                reply = split_verification_reply
                                 remember_report = True
                             else:
-                                rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
-                                if rollback_reply is not None:
-                                    reply = rollback_reply
+                                reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
+                                if reviewed_apply_reply is not None:
+                                    reply = reviewed_apply_reply
                                     remember_report = True
                                 else:
-                                    guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
-                                    if guard_reply is not None:
-                                        reply = guard_reply
+                                    rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
+                                    if rollback_reply is not None:
+                                        reply = rollback_reply
                                         remember_report = True
                                     else:
-                                        split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
-                                        if split_dry_run_reply is not None:
-                                            reply = split_dry_run_reply
+                                        guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
+                                        if guard_reply is not None:
+                                            reply = guard_reply
                                             remember_report = True
                                         else:
-                                            proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
-                                            if proposal_reply is not None:
-                                                reply = proposal_reply
+                                            split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
+                                            if split_dry_run_reply is not None:
+                                                reply = split_dry_run_reply
                                                 remember_report = True
                                             else:
-                                                if self._is_qa_export_request(prompt):
-                                                    reply = self.export_latest_qa_report(prompt)
-                                                    preserve_latest_report_state = True
-                                                elif self._is_codex_brief_request(prompt):
-                                                    brief = self.build_codex_task_brief(prompt)
-                                                    self.latest_codex_brief = brief
-                                                    self.populate_project_context_tree()
-                                                    reply = "```\n{0}\n```".format(brief)
-                                                elif self._is_scan_request(prompt):
-                                                    result = self.run_project_context_scan("standard")
-                                                    reply = result.get("summary", "")
+                                                proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
+                                                if proposal_reply is not None:
+                                                    reply = proposal_reply
                                                     remember_report = True
                                                 else:
-                                                    discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
-                                                    if discipline_qa_reply is not None:
-                                                        reply = discipline_qa_reply
+                                                    if self._is_qa_export_request(prompt):
+                                                        reply = self.export_latest_qa_report(prompt)
+                                                        preserve_latest_report_state = True
+                                                    elif self._is_codex_brief_request(prompt):
+                                                        brief = self.build_codex_task_brief(prompt)
+                                                        self.latest_codex_brief = brief
+                                                        self.populate_project_context_tree()
+                                                        reply = "```\n{0}\n```".format(brief)
+                                                    elif self._is_scan_request(prompt):
+                                                        result = self.run_project_context_scan("standard")
+                                                        reply = result.get("summary", "")
                                                         remember_report = True
                                                     else:
-                                                        system_reply = self.answer_system_assignment_report_question(prompt)
-                                                        if system_reply is not None:
-                                                            reply = system_reply
+                                                        discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                                                        if discipline_qa_reply is not None:
+                                                            reply = discipline_qa_reply
                                                             remember_report = True
                                                         else:
-                                                            active_view_reply = self.answer_active_view_report_question(prompt)
-                                                            if active_view_reply is not None:
-                                                                reply = active_view_reply
+                                                            system_reply = self.answer_system_assignment_report_question(prompt)
+                                                            if system_reply is not None:
+                                                                reply = system_reply
                                                                 remember_report = True
                                                             else:
-                                                                selection_reply = self.answer_selection_report_question(prompt)
-                                                                if selection_reply is not None:
-                                                                    reply = selection_reply
+                                                                active_view_reply = self.answer_active_view_report_question(prompt)
+                                                                if active_view_reply is not None:
+                                                                    reply = active_view_reply
                                                                     remember_report = True
-                                                                elif self._is_project_context_question(prompt):
-                                                                    reply = self.answer_project_context_question(prompt)
-                                                                    remember_report = True
-                                                                elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                                                                    self.append_project_agent_plan()
-                                                                    reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
-                                                                    preserve_latest_report_state = True
                                                                 else:
-                                                                    reply = send_ollama_chat(self.model, prompt)
-                                                                    reply = self._sanitize_ollama_context_error(reply)
-                                                                    self.latest_chat_output_is_deterministic_report = False
+                                                                    selection_reply = self.answer_selection_report_question(prompt)
+                                                                    if selection_reply is not None:
+                                                                        reply = selection_reply
+                                                                        remember_report = True
+                                                                    elif self._is_project_context_question(prompt):
+                                                                        reply = self.answer_project_context_question(prompt)
+                                                                        remember_report = True
+                                                                    elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                                                        self.append_project_agent_plan()
+                                                                        reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                                                        preserve_latest_report_state = True
+                                                                    else:
+                                                                        reply = send_ollama_chat(self.model, prompt)
+                                                                        reply = self._sanitize_ollama_context_error(reply)
+                                                                        self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             if remember_report:
