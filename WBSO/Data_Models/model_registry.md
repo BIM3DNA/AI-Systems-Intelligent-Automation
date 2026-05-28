@@ -167,3 +167,23 @@ MEP-WR-006 is a deterministic UI-only visual review helper for verified split re
 - no BreakCurve
 - no model mutation
 - UI selection only
+
+## 2026-05-28 MEP-WR-007 Model Note
+
+Feature ID: MEP-WR-007
+Feature: Split Workflow Session State Dashboard / Reset Helper
+Status: Runtime validated
+Evidence: EV-AI-133 to EV-AI-142
+
+MEP-WR-007 is a deterministic session-state governance helper for the reviewed pipe split workflow. It displays and clears AI Workbench session-local split workflow state after explicit token confirmation.
+
+- dashboard header: `[SPLIT WORKFLOW SESSION STATE]`
+- reset header: `[SPLIT WORKFLOW SESSION RESET]`
+- reset token: `CLEAR-SPLIT-STATE-OK`
+- primary exports: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260528_112016` and `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260528_112534`
+- clears dry-run, rollback-test, reviewed apply, verification, consumed-source, and visual review session state only
+- explicit post-reset verification proved original pipe `3087152` and returned pipe `3130262` remained in the Revit model
+- no transaction
+- no BreakCurve
+- no model mutation
+- existing persistent Revit split is not undone

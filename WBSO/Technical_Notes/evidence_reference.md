@@ -1276,6 +1276,33 @@ Runtime validated.
 
 MEP-WR-006 provides deterministic UI-only visual review of split results. It resolves latest verified split state or explicit IDs, updates Revit UI selection, optionally calls ShowElements, and performs no model mutation.
 
+## MEP-WR-007 - Split Workflow Session State Dashboard / Reset Helper
+
+Status:
+Runtime validated
+
+Date:
+2026-05-28
+
+Evidence:
+
+- EV-AI-133: Empty dashboard showed no active split workflow source state and recommended dry-run as next action.
+- EV-AI-134: Full workflow state was built through dry-run, rollback-test, persistent apply, verification, visual review, and consumed-source state.
+- EV-AI-135: Populated dashboard reported WR-001 through WR-006 state, consumed source marker, selected result IDs, and correct next action.
+- EV-AI-136: Reset without `CLEAR-SPLIT-STATE-OK` token was blocked and cleared no state.
+- EV-AI-137: Reset preview reported what would be cleared without clearing session state or model data.
+- EV-AI-138: Tokenized reset cleared dry-run, rollback-test, reviewed apply, verification, consumed-source, and visual review session states.
+- EV-AI-139: Post-reset probes confirmed workflow source state was cleared and apply was blocked before transaction.
+- EV-AI-140: `[SPLIT WORKFLOW SESSION STATE]` report exported and indexed at `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260528_112016`.
+- EV-AI-141: Explicit post-reset verification of pipe `3087152` and returned pipe `3130262` proved the persistent Revit split remained in the model.
+- EV-AI-142: Post-reset `[SPLIT APPLY VERIFICATION REPORT]` exported and indexed at `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260528_112534`.
+
+Validation folder:
+`WBSO/Testing_Validation/runs/2026-05-28_mep-wr-007-split-workflow-session-state-reset-validated/`
+
+Technical conclusion:
+MEP-WR-007 provides deterministic session-state visibility and explicit tokenized reset for the reviewed split workflow. It clears AI Workbench in-memory/session-local split workflow state only. It does not modify or undo Revit model data.
+
 ## EV-AI-103 through EV-AI-108 - MEP-WR-002 Split Selected Pipes Rollback Test
 
 ### Feature
