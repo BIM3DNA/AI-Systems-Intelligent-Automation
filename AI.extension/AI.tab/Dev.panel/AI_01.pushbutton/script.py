@@ -15053,6 +15053,14 @@ class OllamaAIChat(forms.WPFWindow):
             "deterministic_route": True,
             "report_text": report_text,
         }
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[SPLIT WORKFLOW ACTIONABILITY STATE]",
+            "report_text": report_text,
+            "report_scope": "session-local reviewed split workflow actionability / active document only",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        self.latest_chat_output_is_deterministic_report = True
         return report_text
 
     def answer_split_workflow_actionability_question(self, prompt):
