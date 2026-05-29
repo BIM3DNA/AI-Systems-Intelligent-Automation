@@ -1303,6 +1303,33 @@ Validation folder:
 Technical conclusion:
 MEP-WR-007 provides deterministic session-state visibility and explicit tokenized reset for the reviewed split workflow. It clears AI Workbench in-memory/session-local split workflow state only. It does not modify or undo Revit model data.
 
+## MEP-WR-008 - Split Workflow Actionability Classifier / Dashboard Refinement
+
+Status:
+Runtime validated
+
+Date:
+2026-05-29
+
+Evidence:
+
+- EV-AI-143: WR-008 implementation and static validation. Added deterministic `[SPLIT WORKFLOW ACTIONABILITY STATE]` classifier routes, prompt catalog entry, export header, and passed static validation.
+- EV-AI-144: Empty/fresh actionability state validation. `show split workflow actionability` reported no actionable source and recommended `run dry run split selected pipes`.
+- EV-AI-145: Dry-run plus rollback-tested actionable source validation. Pipe `3087996` dry-run and rollback-test passed; WR-008 reported actionable dry-run, actionable rollback-tested source, and persistent apply allowed.
+- EV-AI-146: Post-apply consumed/stale source classification. After applying pipe `3087996` and returning new pipe `3130282`, WR-008 reported consumed/stale source and persistent apply allowed false.
+- EV-AI-147: Verification plus visual review actionability classification. WR-004 verified original pipe `3087996` and returned pipe `3130282`; WR-006 selected both; WR-008 reported actionable verification and visual review target.
+- EV-AI-148: WR-007 reset before post-reset diagnostic test. `clear split workflow state CLEAR-SPLIT-STATE-OK` cleared dry-run, rollback-test, reviewed apply, verification, consumed-source, and visual review session state.
+- EV-AI-149: Post-reset Not ready diagnostic report generation. Verification, visual review, and apply probes produced Not ready reports without restoring actionable workflow state.
+- EV-AI-150: Critical diagnostic/not-ready actionability classification. WR-008 reported only diagnostic/not-ready reports available, no actionable source, and recommended `run dry run split selected pipes`.
+- EV-AI-151: QA export registration defect found. Initial `export latest QA report` after WR-008 returned no exportable deterministic report because WR-008 did not populate `latest_deterministic_report`.
+- EV-AI-152: QA export registration patch and final export/index validation. `[SPLIT WORKFLOW ACTIONABILITY STATE]` exported and indexed at `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260529_164849`.
+
+Validation folder:
+`WBSO/Testing_Validation/runs/2026-05-29_mep-wr-008-split-workflow-actionability-classifier-validated/`
+
+Technical conclusion:
+MEP-WR-008 provides deterministic actionability classification for the reviewed split workflow. It separates diagnostic/latest report availability from actionable source availability and is read-only/session-state classification only.
+
 ## EV-AI-103 through EV-AI-108 - MEP-WR-002 Split Selected Pipes Rollback Test
 
 ### Feature

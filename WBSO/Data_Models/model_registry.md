@@ -187,3 +187,26 @@ MEP-WR-007 is a deterministic session-state governance helper for the reviewed p
 - no BreakCurve
 - no model mutation
 - existing persistent Revit split is not undone
+
+## 2026-05-29 MEP-WR-008 Model Note
+
+Feature ID: MEP-WR-008
+Feature: Split Workflow Actionability Classifier / Dashboard Refinement
+Status: Runtime validated
+Evidence: EV-AI-143 to EV-AI-152
+
+MEP-WR-008 is a deterministic session-state actionability classifier for the reviewed pipe split workflow. It distinguishes raw/latest report availability from actionable workflow source availability.
+
+- report header: `[SPLIT WORKFLOW ACTIONABILITY STATE]`
+- primary export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260529_164849`
+- validated source prompt: `show split workflow actionability`
+- validated source header: `[SPLIT WORKFLOW ACTIONABILITY STATE]`
+- validated scope: `session-local reviewed split workflow actionability / active document only`
+- distinguishes Not ready diagnostic reports from ready workflow source state
+- classifies consumed/stale sources separately from fresh rollback-tested source state
+- final export registration patch populates `latest_deterministic_report` for QA export
+- no transaction
+- no BreakCurve
+- no session-state clearing
+- no UI selection modification
+- no model mutation
