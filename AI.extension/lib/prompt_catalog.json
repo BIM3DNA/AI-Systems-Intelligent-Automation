@@ -3268,6 +3268,32 @@
     "mode": "deterministic"
   },
   {
+    "id": "split-workflow-actionability-state",
+    "title": "Split workflow actionability classifier",
+    "category": "BIM QA",
+    "group": "Reviewed Action Governance",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "session_local_workflow_actionability",
+    "canonical_prompt": "show split workflow actionability",
+    "planner_aliases": [
+      "show split workflow actionability",
+      "show split actionability",
+      "split workflow actionability",
+      "show reviewed split actionability",
+      "show split source actionability",
+      "explain split workflow state",
+      "explain split dashboard state"
+    ],
+    "deterministic_handler": "split_workflow_actionability_state_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show split workflow actionability",
+    "mode": "deterministic"
+  },
+  {
     "id": "split-workflow-session-state",
     "title": "Split workflow session state dashboard",
     "category": "BIM QA",

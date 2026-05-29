@@ -83,6 +83,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[SPLIT RESULT VISUAL REVIEW]",
     "[SPLIT WORKFLOW SESSION STATE]",
     "[SPLIT WORKFLOW SESSION RESET]",
+    "[SPLIT WORKFLOW ACTIONABILITY STATE]",
 )
 
 PIPE_SPLIT_DRY_RUN_MAX_SELECTION = 200
@@ -7526,6 +7527,55 @@ def split_workflow_session_state_report(doc, uidoc, context=None):
     )
 
 
+def split_workflow_actionability_state_report(doc, uidoc, context=None):
+    try:
+        active_view_type = safe_str(uidoc.ActiveView.ViewType)
+    except:
+        active_view_type = "(unknown type)"
+    return "\n".join(
+        [
+            "[SPLIT WORKFLOW ACTIONABILITY STATE]",
+            "",
+            "Feature ID:",
+            "MEP-WR-008",
+            "",
+            "Feature name:",
+            "Split Workflow Actionability Classifier / Dashboard Refinement",
+            "",
+            "Actionability ID:",
+            "MEP-WR-008-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "",
+            "Scope:",
+            "session-local reviewed split workflow actionability / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(_active_view_title(doc, uidoc), active_view_type),
+            "",
+            "Actionability classification:",
+            "- actionable dry-run candidates available: false",
+            "- actionable rollback-tested source available: false",
+            "- actionable persistent apply allowed: false",
+            "- actionable verification result available: false",
+            "- actionable visual review target available: false",
+            "- workflow source consumed: false",
+            "- workflow source stale: false",
+            "- only diagnostic/not-ready reports available: true",
+            "",
+            "Recommended next action:",
+            "run dry run split selected pipes",
+            "",
+            "Safety:",
+            "- Read-only actionability classifier only.",
+            "- No transaction opened.",
+            "- No pipe was split.",
+            "- Revit model data was not modified.",
+        ]
+    )
+
+
 def split_selected_pipes(doc, uidoc, context=None):
     prompt_text = _prompt_text_from_context(context)
     selected_elements = _selected_elements(doc, uidoc)
@@ -10868,6 +10918,7 @@ REVIEWED_ACTION_HANDLERS = {
     "split_apply_source_state_report": split_apply_source_state_report,
     "split_result_visual_review": split_result_visual_review,
     "split_workflow_session_state_report": split_workflow_session_state_report,
+    "split_workflow_actionability_state_report": split_workflow_actionability_state_report,
     "create_3d_view_from_selection": create_3d_view_from_selection,
     "split_selected_pipes": split_selected_pipes,
     "report_duplicates": report_duplicates,
@@ -11162,6 +11213,20 @@ def _is_split_workflow_state_prompt(prompt):
     return route_text in routes
 
 
+def _is_split_workflow_actionability_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show split workflow actionability",
+        "show split actionability",
+        "split workflow actionability",
+        "show reviewed split actionability",
+        "show split source actionability",
+        "explain split workflow state",
+        "explain split dashboard state",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -11235,6 +11300,8 @@ def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
 
 def handle_public_command(prompt, doc, uidoc):
     p = prompt.lower()
+    if _is_split_workflow_actionability_prompt(prompt):
+        return split_workflow_actionability_state_report(doc, uidoc, {"prompt": prompt})
     if _is_split_workflow_state_prompt(prompt) or _is_split_workflow_reset_preview_prompt(prompt):
         return split_workflow_session_state_report(doc, uidoc, {"prompt": prompt})
     if _is_split_workflow_reset_prompt(prompt):
@@ -11955,6 +12022,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_split_apply_consumed_source_state = None
         self.latest_split_result_visual_review_state = None
         self.latest_split_workflow_session_state = None
+        self.latest_split_workflow_actionability_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -13133,6 +13201,8 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _detect_report_scope(self, report_text):
         header = self._extract_report_header(report_text)
+        if header == "[SPLIT WORKFLOW ACTIONABILITY STATE]":
+            return "session-local reviewed split workflow actionability / active document only"
         if header == "[SPLIT WORKFLOW SESSION STATE]":
             return "session-local reviewed split workflow state / active document only"
         if header == "[SPLIT WORKFLOW SESSION RESET]":
@@ -14671,6 +14741,324 @@ class OllamaAIChat(forms.WPFWindow):
         if _is_split_workflow_state_prompt(prompt):
             return self._format_split_workflow_session_state_report(prompt, "status / dashboard")
         return None
+
+    def _split_actionability_result(self, feature_id, result_value):
+        result_text = safe_str(result_value or "Unavailable")
+        if feature_id == "MEP-WR-001":
+            return result_text == "Ready for reviewed apply design", "" if result_text == "Ready for reviewed apply design" else "Dry-run result is not ready."
+        if feature_id == "MEP-WR-002":
+            return result_text in ("Passed", "Passed with warnings"), "" if result_text in ("Passed", "Passed with warnings") else "Rollback-test result has not passed."
+        if feature_id == "MEP-WR-003":
+            return result_text == "Applied", "" if result_text == "Applied" else "Reviewed apply result is not Applied."
+        if feature_id == "MEP-WR-004":
+            return result_text in ("Verified", "Verified with warnings"), "" if result_text in ("Verified", "Verified with warnings") else "Verification result is not verified."
+        if feature_id == "MEP-WR-005":
+            return False, "Consumed-source reports are governance diagnostics, not apply sources."
+        if feature_id == "MEP-WR-006":
+            return result_text in ("Selected", "Partially selected"), "" if result_text in ("Selected", "Partially selected") else "Visual review result is not selected."
+        if feature_id == "MEP-WR-007":
+            return False, "Dashboard/reset reports are diagnostics, not workflow sources."
+        return False, "Report type is not an actionable split workflow source."
+
+    def _split_actionability_latest_report_rows(self, state, classification):
+        dry_source = state.get("dry_source") or {}
+        rollback_source = state.get("rollback_source") or {}
+        apply_state = state.get("apply_state") or {}
+        verification_state = state.get("verification_state") or {}
+        consumed_state = state.get("consumed_state") or {}
+        visual_state = state.get("visual_state") or {}
+        workflow_state = self.latest_split_workflow_session_state or {}
+        latest_export = state.get("latest_export") or {}
+        rows = []
+
+        def add_row(label, exists, feature_id, result_value, prompt, pipe_ids, actionable, reason):
+            rows.append(
+                {
+                    "label": label,
+                    "exists": bool(exists),
+                    "feature_id": feature_id or "none",
+                    "result": result_value or "Unavailable",
+                    "prompt": prompt or "none",
+                    "pipe_ids": pipe_ids or "none",
+                    "actionable": bool(actionable),
+                    "reason": reason or ("Actionable." if actionable else "Report/source is unavailable."),
+                }
+            )
+
+        add_row(
+            "dry-run",
+            state.get("dry_available"),
+            dry_source.get("source_feature_id"),
+            dry_source.get("dry_run_result"),
+            dry_source.get("source_prompt"),
+            ", ".join([safe_str(item.get("pipe_id")) for item in dry_source.get("candidates") or [] if item.get("pipe_id")]) or "none",
+            classification.get("actionable_dry_run"),
+            "" if classification.get("actionable_dry_run") else classification.get("dry_reason"),
+        )
+        add_row(
+            "rollback-test",
+            state.get("rollback_available"),
+            rollback_source.get("source_feature_id"),
+            rollback_source.get("rollback_test_result"),
+            rollback_source.get("source_prompt"),
+            ", ".join([safe_str(item) for item in rollback_source.get("successful_pipe_ids") or []]) or "none",
+            classification.get("actionable_rollback"),
+            "" if classification.get("actionable_rollback") else classification.get("rollback_reason"),
+        )
+        add_row(
+            "reviewed apply",
+            state.get("apply_available"),
+            apply_state.get("feature_id"),
+            apply_state.get("apply_result"),
+            apply_state.get("source_prompt"),
+            "original {0}; returned {1}".format(apply_state.get("selected_pipe_id", "none"), apply_state.get("returned_new_pipe_id", "none")),
+            apply_state.get("apply_result") == "Applied" and bool(apply_state.get("persistent_model_changes")),
+            "Reviewed apply result is not Applied." if apply_state and apply_state.get("apply_result") != "Applied" else "",
+        )
+        add_row(
+            "verification",
+            state.get("verification_available"),
+            verification_state.get("feature_id"),
+            verification_state.get("verification_result"),
+            verification_state.get("source_prompt"),
+            "original {0}; returned {1}".format(verification_state.get("original_pipe_id", "none"), verification_state.get("returned_new_pipe_id", "none")),
+            classification.get("actionable_verification"),
+            "" if classification.get("actionable_verification") else classification.get("verification_reason"),
+        )
+        add_row(
+            "consumed-source",
+            state.get("consumed_available"),
+            consumed_state.get("feature_id"),
+            "Consumed" if consumed_state.get("consumed") else "Unavailable",
+            consumed_state.get("source_rollback_prompt") or consumed_state.get("source_dry_run_prompt"),
+            "original {0}; returned {1}".format(consumed_state.get("applied_original_pipe_id", "none"), consumed_state.get("returned_new_pipe_id", "none")),
+            False,
+            "Consumed-source marker is a stale-source guard, not a fresh source.",
+        )
+        add_row(
+            "visual review",
+            state.get("visual_available"),
+            visual_state.get("feature_id"),
+            visual_state.get("visual_review_result"),
+            visual_state.get("source_prompt"),
+            ", ".join([safe_str(item) for item in visual_state.get("selected_element_ids") or []]) or "none",
+            classification.get("actionable_visual"),
+            "" if classification.get("actionable_visual") else classification.get("visual_reason"),
+        )
+        add_row(
+            "workflow dashboard",
+            bool(workflow_state),
+            workflow_state.get("feature_id"),
+            workflow_state.get("dashboard_result") or workflow_state.get("reset_result"),
+            workflow_state.get("source_prompt"),
+            "none",
+            False,
+            "Workflow dashboard/reset reports are diagnostic session-state reports.",
+        )
+        add_row(
+            "latest QA export",
+            latest_export.get("available"),
+            "QA export",
+            latest_export.get("header"),
+            latest_export.get("prompt"),
+            "none",
+            False,
+            "QA exports are evidence artifacts, not actionable workflow sources.",
+        )
+        return rows
+
+    def _classify_split_workflow_actionability(self):
+        state = self._collect_split_workflow_session_state()
+        dry_source = state.get("dry_source") or {}
+        rollback_source = state.get("rollback_source") or {}
+        apply_state = state.get("apply_state") or {}
+        verification_state = state.get("verification_state") or {}
+        visual_state = state.get("visual_state") or {}
+        dry_count = dry_source.get("candidate_count") or len(dry_source.get("candidates") or [])
+        rollback_success_count = len(rollback_source.get("successful_pipe_ids") or [])
+        dry_result_ready = dry_source.get("dry_run_result") == "Ready for reviewed apply design"
+        rollback_passed = rollback_source.get("rollback_test_result") in ("Passed", "Passed with warnings")
+        workflow_source_consumed = bool(state.get("has_consumed_marker"))
+        workflow_source_stale = bool(workflow_source_consumed and not state.get("fresh_source"))
+        actionable_dry_run = bool(dry_source.get("source_status") == "available" and dry_count > 0 and dry_result_ready)
+        actionable_rollback = bool(actionable_dry_run and rollback_source.get("source_status") == "available" and rollback_passed and rollback_success_count > 0 and not workflow_source_stale)
+        actionable_apply = bool(actionable_rollback and state.get("persistent_apply_allowed"))
+        applied = bool(apply_state.get("apply_result") == "Applied" and apply_state.get("persistent_model_changes"))
+        actionable_verification = bool(verification_state.get("verification_result") in ("Verified", "Verified with warnings") and verification_state.get("original_pipe_id") and verification_state.get("returned_new_pipe_id"))
+        visual_selected = visual_state.get("visual_review_result") in ("Selected", "Partially selected")
+        actionable_visual = bool(actionable_verification and (visual_selected or (verification_state.get("original_pipe_id") and verification_state.get("returned_new_pipe_id"))))
+        available_workflow_reports = [
+            state.get("dry_available"),
+            state.get("rollback_available"),
+            state.get("apply_available"),
+            state.get("verification_available"),
+            state.get("consumed_available"),
+            state.get("visual_available"),
+            bool(self.latest_split_workflow_session_state),
+        ]
+        any_actionable = actionable_dry_run or actionable_rollback or actionable_apply or actionable_verification or actionable_visual
+        only_diagnostic = bool(any(available_workflow_reports) and not actionable_dry_run and not actionable_rollback and not actionable_apply and not actionable_verification and not actionable_visual)
+        recommended = "no action available"
+        if not actionable_dry_run:
+            recommended = "run dry run split selected pipes"
+        elif applied and not actionable_verification:
+            recommended = "verify latest split apply"
+        elif actionable_verification and not visual_selected:
+            recommended = "select latest split result"
+        elif workflow_source_consumed and actionable_verification:
+            recommended = "clear split workflow state CLEAR-SPLIT-STATE-OK"
+        elif actionable_dry_run and not actionable_rollback:
+            recommended = "run split rollback test ROLLBACK-TEST-OK"
+        elif actionable_apply:
+            recommended = "apply split candidate 1 PERSISTENT-SPLIT-OK"
+        elif workflow_source_consumed:
+            recommended = "run dry run split selected pipes"
+        classification = {
+            "actionable_dry_run": actionable_dry_run,
+            "actionable_rollback": actionable_rollback,
+            "actionable_apply": actionable_apply,
+            "actionable_verification": actionable_verification,
+            "actionable_visual": actionable_visual,
+            "workflow_source_consumed": workflow_source_consumed,
+            "workflow_source_stale": workflow_source_stale,
+            "only_diagnostic": only_diagnostic,
+            "recommended_next_action": recommended,
+            "dry_reason": "No ready dry-run candidate source exists." if not actionable_dry_run else "",
+            "rollback_reason": "No passed rollback-tested fresh source exists." if not actionable_rollback else "",
+            "verification_reason": "No verified split result with both stored pipe ids exists." if not actionable_verification else "",
+            "visual_reason": "No verified split target is available for visual review." if not actionable_visual else "",
+            "any_actionable": any_actionable,
+        }
+        classification["rows"] = self._split_actionability_latest_report_rows(state, classification)
+        return state, classification
+
+    def _format_split_workflow_actionability_report(self, prompt):
+        state, classification = self._classify_split_workflow_actionability()
+        actionability_id = "MEP-WR-008-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        rows = classification.get("rows") or []
+        lines = [
+            "[SPLIT WORKFLOW ACTIONABILITY STATE]",
+            "",
+            "Feature ID:",
+            "MEP-WR-008",
+            "",
+            "Feature name:",
+            "Split Workflow Actionability Classifier / Dashboard Refinement",
+            "",
+            "Actionability ID:",
+            actionability_id,
+            "",
+            "Created timestamp local:",
+            time.strftime("%Y-%m-%d %H:%M:%S"),
+            "",
+            "Report header:",
+            "[SPLIT WORKFLOW ACTIONABILITY STATE]",
+            "",
+            "Scope:",
+            "session-local reviewed split workflow actionability / active document only",
+            "",
+            "Active document:",
+            _document_title(doc),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(self._safe_active_view_name(), self._safe_active_view_type()),
+            "",
+            "Raw/latest report availability:",
+            "- latest dry-run report exists: {0}".format(self._workflow_yes_no(state.get("dry_available"))),
+            "- latest rollback-test report exists: {0}".format(self._workflow_yes_no(state.get("rollback_available"))),
+            "- latest reviewed apply report exists: {0}".format(self._workflow_yes_no(state.get("apply_available"))),
+            "- latest verification report exists: {0}".format(self._workflow_yes_no(state.get("verification_available"))),
+            "- latest consumed-source report exists: {0}".format(self._workflow_yes_no(state.get("consumed_available"))),
+            "- latest visual review report exists: {0}".format(self._workflow_yes_no(state.get("visual_available"))),
+            "- latest workflow dashboard report exists: {0}".format(self._workflow_yes_no(self.latest_split_workflow_session_state is not None)),
+            "- latest QA export exists: {0}".format(self._workflow_yes_no(state.get("latest_export_available"))),
+            "",
+            "Latest report result summary:",
+        ]
+        for row in rows:
+            lines.extend(
+                [
+                    "- {0}:".format(row.get("label")),
+                    "  source feature id: {0}".format(row.get("feature_id")),
+                    "  source result/status: {0}".format(row.get("result")),
+                    "  source prompt: {0}".format(row.get("prompt")),
+                    "  relevant pipe ids: {0}".format(row.get("pipe_ids")),
+                    "  result is actionable: {0}".format(self._workflow_yes_no(row.get("actionable"))),
+                    "  reason: {0}".format(row.get("reason")),
+                ]
+            )
+        lines.extend(
+            [
+                "",
+                "Actionability classification:",
+                "- actionable dry-run candidates available: {0}".format(self._workflow_yes_no(classification.get("actionable_dry_run"))),
+                "- actionable rollback-tested source available: {0}".format(self._workflow_yes_no(classification.get("actionable_rollback"))),
+                "- actionable persistent apply allowed: {0}".format(self._workflow_yes_no(classification.get("actionable_apply"))),
+                "- actionable verification result available: {0}".format(self._workflow_yes_no(classification.get("actionable_verification"))),
+                "- actionable visual review target available: {0}".format(self._workflow_yes_no(classification.get("actionable_visual"))),
+                "- workflow source consumed: {0}".format(self._workflow_yes_no(classification.get("workflow_source_consumed"))),
+                "- workflow source stale: {0}".format(self._workflow_yes_no(classification.get("workflow_source_stale"))),
+                "- only diagnostic/not-ready reports available: {0}".format(self._workflow_yes_no(classification.get("only_diagnostic"))),
+                "",
+                "Safety explanation:",
+                "- Latest report exists is not the same as actionable source exists.",
+                "- A Not ready report exists only as diagnostic evidence and is not a ready workflow source.",
+                "- A consumed source marker means a prior fresh source was used by a persistent apply; it is not a fresh source.",
+                "- Persistent apply remains unavailable unless a ready dry-run and passed rollback-test source are both current and not consumed.",
+                "",
+                "Recommended next action:",
+                classification.get("recommended_next_action") or "no action available",
+                "",
+                "Execution status:",
+                "- Actionability requested: true",
+                "- State cleared: false",
+                "- Transaction opened: false",
+                "- BreakCurve called: false",
+                "- Model modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Read-only actionability classifier only.",
+                "- No transaction opened.",
+                "- No pipe was split.",
+                "- Revit model data was not modified.",
+                "- Session state was not cleared.",
+                "- Revit UI selection was not modified.",
+            ]
+        )
+        report_text = "\n".join(lines)
+        self.latest_split_workflow_actionability_state = {
+            "actionability_id": actionability_id,
+            "feature_id": "MEP-WR-008",
+            "source_prompt": safe_str(prompt),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "document_path": self._safe_document_path(),
+            "active_view_name": self._safe_active_view_name(),
+            "active_view_type": self._safe_active_view_type(),
+            "report_header": "[SPLIT WORKFLOW ACTIONABILITY STATE]",
+            "actionable_dry_run": classification.get("actionable_dry_run"),
+            "actionable_rollback": classification.get("actionable_rollback"),
+            "actionable_apply": classification.get("actionable_apply"),
+            "actionable_verification": classification.get("actionable_verification"),
+            "actionable_visual": classification.get("actionable_visual"),
+            "workflow_source_consumed": classification.get("workflow_source_consumed"),
+            "workflow_source_stale": classification.get("workflow_source_stale"),
+            "only_diagnostic": classification.get("only_diagnostic"),
+            "recommended_next_action": classification.get("recommended_next_action"),
+            "transaction_opened": False,
+            "breakcurve_called": False,
+            "model_modified": False,
+            "ui_selection_modified": False,
+            "deterministic_route": True,
+            "report_text": report_text,
+        }
+        return report_text
+
+    def answer_split_workflow_actionability_question(self, prompt):
+        if not _is_split_workflow_actionability_prompt(prompt):
+            return None
+        return self._format_split_workflow_actionability_report(prompt)
 
     def _run_single_split_persistent_apply(self, validated):
         transaction_opened = False
@@ -18522,94 +18910,99 @@ class OllamaAIChat(forms.WPFWindow):
             if index_reply is not None:
                 reply = index_reply
             else:
-                split_workflow_state_reply = self.answer_split_workflow_session_state_question(prompt)
-                if split_workflow_state_reply is not None:
-                    reply = split_workflow_state_reply
+                split_actionability_reply = self.answer_split_workflow_actionability_question(prompt)
+                if split_actionability_reply is not None:
+                    reply = split_actionability_reply
                     remember_report = True
                 else:
-                    split_source_state_reply = self.answer_split_apply_source_state_question(prompt)
-                    if split_source_state_reply is not None:
-                        reply = split_source_state_reply
+                    split_workflow_state_reply = self.answer_split_workflow_session_state_question(prompt)
+                    if split_workflow_state_reply is not None:
+                        reply = split_workflow_state_reply
                         remember_report = True
                     else:
-                        split_visual_review_reply = self.answer_split_result_visual_review_question(prompt)
-                        if split_visual_review_reply is not None:
-                            reply = split_visual_review_reply
+                        split_source_state_reply = self.answer_split_apply_source_state_question(prompt)
+                        if split_source_state_reply is not None:
+                            reply = split_source_state_reply
                             remember_report = True
                         else:
-                            split_verification_reply = self.answer_split_apply_verification_question(prompt)
-                            if split_verification_reply is not None:
-                                reply = split_verification_reply
+                            split_visual_review_reply = self.answer_split_result_visual_review_question(prompt)
+                            if split_visual_review_reply is not None:
+                                reply = split_visual_review_reply
                                 remember_report = True
                             else:
-                                reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
-                                if reviewed_apply_reply is not None:
-                                    reply = reviewed_apply_reply
+                                split_verification_reply = self.answer_split_apply_verification_question(prompt)
+                                if split_verification_reply is not None:
+                                    reply = split_verification_reply
                                     remember_report = True
                                 else:
-                                    rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
-                                    if rollback_reply is not None:
-                                        reply = rollback_reply
+                                    reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
+                                    if reviewed_apply_reply is not None:
+                                        reply = reviewed_apply_reply
                                         remember_report = True
                                     else:
-                                        guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
-                                        if guard_reply is not None:
-                                            reply = guard_reply
+                                        rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
+                                        if rollback_reply is not None:
+                                            reply = rollback_reply
                                             remember_report = True
                                         else:
-                                            split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
-                                            if split_dry_run_reply is not None:
-                                                reply = split_dry_run_reply
+                                            guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
+                                            if guard_reply is not None:
+                                                reply = guard_reply
                                                 remember_report = True
                                             else:
-                                                proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
-                                                if proposal_reply is not None:
-                                                    reply = proposal_reply
+                                                split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
+                                                if split_dry_run_reply is not None:
+                                                    reply = split_dry_run_reply
                                                     remember_report = True
                                                 else:
-                                                    if self._is_qa_export_request(prompt):
-                                                        reply = self.export_latest_qa_report(prompt)
-                                                        preserve_latest_report_state = True
-                                                    elif self._is_codex_brief_request(prompt):
-                                                        brief = self.build_codex_task_brief(prompt)
-                                                        self.latest_codex_brief = brief
-                                                        self.populate_project_context_tree()
-                                                        reply = "```\n{0}\n```".format(brief)
-                                                    elif self._is_scan_request(prompt):
-                                                        result = self.run_project_context_scan("standard")
-                                                        reply = result.get("summary", "")
+                                                    proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
+                                                    if proposal_reply is not None:
+                                                        reply = proposal_reply
                                                         remember_report = True
                                                     else:
-                                                        discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
-                                                        if discipline_qa_reply is not None:
-                                                            reply = discipline_qa_reply
+                                                        if self._is_qa_export_request(prompt):
+                                                            reply = self.export_latest_qa_report(prompt)
+                                                            preserve_latest_report_state = True
+                                                        elif self._is_codex_brief_request(prompt):
+                                                            brief = self.build_codex_task_brief(prompt)
+                                                            self.latest_codex_brief = brief
+                                                            self.populate_project_context_tree()
+                                                            reply = "```\n{0}\n```".format(brief)
+                                                        elif self._is_scan_request(prompt):
+                                                            result = self.run_project_context_scan("standard")
+                                                            reply = result.get("summary", "")
                                                             remember_report = True
                                                         else:
-                                                            system_reply = self.answer_system_assignment_report_question(prompt)
-                                                            if system_reply is not None:
-                                                                reply = system_reply
+                                                            discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                                                            if discipline_qa_reply is not None:
+                                                                reply = discipline_qa_reply
                                                                 remember_report = True
                                                             else:
-                                                                active_view_reply = self.answer_active_view_report_question(prompt)
-                                                                if active_view_reply is not None:
-                                                                    reply = active_view_reply
+                                                                system_reply = self.answer_system_assignment_report_question(prompt)
+                                                                if system_reply is not None:
+                                                                    reply = system_reply
                                                                     remember_report = True
                                                                 else:
-                                                                    selection_reply = self.answer_selection_report_question(prompt)
-                                                                    if selection_reply is not None:
-                                                                        reply = selection_reply
+                                                                    active_view_reply = self.answer_active_view_report_question(prompt)
+                                                                    if active_view_reply is not None:
+                                                                        reply = active_view_reply
                                                                         remember_report = True
-                                                                    elif self._is_project_context_question(prompt):
-                                                                        reply = self.answer_project_context_question(prompt)
-                                                                        remember_report = True
-                                                                    elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                                                                        self.append_project_agent_plan()
-                                                                        reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
-                                                                        preserve_latest_report_state = True
                                                                     else:
-                                                                        reply = send_ollama_chat(self.model, prompt)
-                                                                        reply = self._sanitize_ollama_context_error(reply)
-                                                                        self.latest_chat_output_is_deterministic_report = False
+                                                                        selection_reply = self.answer_selection_report_question(prompt)
+                                                                        if selection_reply is not None:
+                                                                            reply = selection_reply
+                                                                            remember_report = True
+                                                                        elif self._is_project_context_question(prompt):
+                                                                            reply = self.answer_project_context_question(prompt)
+                                                                            remember_report = True
+                                                                        elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                                                            self.append_project_agent_plan()
+                                                                            reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                                                            preserve_latest_report_state = True
+                                                                        else:
+                                                                            reply = send_ollama_chat(self.model, prompt)
+                                                                            reply = self._sanitize_ollama_context_error(reply)
+                                                                            self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             if remember_report:
