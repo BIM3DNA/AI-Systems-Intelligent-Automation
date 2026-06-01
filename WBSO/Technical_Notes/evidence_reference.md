@@ -1330,6 +1330,31 @@ Validation folder:
 Technical conclusion:
 MEP-WR-008 provides deterministic actionability classification for the reviewed split workflow. It separates diagnostic/latest report availability from actionable source availability and is read-only/session-state classification only.
 
+## MEP-WR-009 - Split Apply Preflight Source Revalidation / External Edit Staleness Guard
+
+Status:
+Runtime validated and export/index validated
+
+Date:
+2026-06-01
+
+Evidence:
+
+- EV-AI-153: WR-009 implementation and static validation. Added deterministic `[SPLIT APPLY PREFLIGHT REVALIDATION]` route/header, integrated preflight into WR-003 before transaction, and passed static/governance validation.
+- EV-AI-154: No-source / Not ready preflight validation. `check split apply preflight` after session reset returned Not ready, missing dry-run/rollback source, transaction opened false, BreakCurve called false, and model modified false.
+- EV-AI-155: Fresh dry-run plus rollback source preflight passed. Pipe `3087152` with passed rollback-test revalidated current line geometry, source length, candidate projection, segment lengths, and rollback-test success.
+- EV-AI-156: WR-003 apply route used WR-009 before transaction. `apply split candidate 1 PERSISTENT-SPLIT-OK` included preflight Passed and opened transaction/called BreakCurve only after preflight passed.
+- EV-AI-157: Consumed/stale source blocked after persistent apply. Preflight blocked pipe `3087152` source after apply due consumed source, length mismatch, candidate point no longer inside bounded curve, and segment length failure.
+- EV-AI-158: WR-009 QA export/index validation. `[SPLIT APPLY PREFLIGHT REVALIDATION]` exported and indexed at `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260601_104232`.
+- EV-AI-159: External edit setup: valid source before pinning. Pipe `3060449` passed dry-run, rollback-test, and preflight before the manual pinning/external edit.
+- EV-AI-160: External edit after rollback invalidated source and blocked apply safely. After pinning/source invalidation, WR-009 reported Not ready and WR-003 apply stayed blocked before transaction and BreakCurve.
+
+Validation folder:
+`WBSO/Testing_Validation/runs/2026-06-01_mep-wr-009-split-apply-preflight-revalidation-guard-validated/`
+
+Technical conclusion:
+MEP-WR-009 validates pre-apply source revalidation for the reviewed split workflow. Fresh sources pass, consumed or stale sources block, missing sources block, external edit/source invalidation blocks safely, and the persistent apply path only proceeds after preflight passes.
+
 ## EV-AI-103 through EV-AI-108 - MEP-WR-002 Split Selected Pipes Rollback Test
 
 ### Feature

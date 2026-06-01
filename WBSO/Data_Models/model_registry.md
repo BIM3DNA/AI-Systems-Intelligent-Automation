@@ -210,3 +210,29 @@ MEP-WR-008 is a deterministic session-state actionability classifier for the rev
 - no session-state clearing
 - no UI selection modification
 - no model mutation
+
+## 2026-06-01 MEP-WR-009 Model Note
+
+Feature ID: MEP-WR-009
+Feature: Split Apply Preflight Source Revalidation / External Edit Staleness Guard
+Status: Runtime validated and export/index validated
+Evidence: EV-AI-153 to EV-AI-160
+
+MEP-WR-009 is deterministic preflight revalidation for the reviewed pipe split workflow. It runs before MEP-WR-003 persistent apply opens a transaction or calls BreakCurve.
+
+- report header: `[SPLIT APPLY PREFLIGHT REVALIDATION]`
+- primary export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260601_104232`
+- validated source prompt: `check split apply preflight`
+- validated source header: `[SPLIT APPLY PREFLIGHT REVALIDATION]`
+- validated scope: `single split candidate preflight revalidation / active document only`
+- validates dry-run/rollback source availability, selected candidate identity, consumed/stale state, current pipe resolution, pipe category, LocationCurve, line geometry, current length, candidate point projection, bounded-curve placement, and segment length rules
+- WR-003 persistent apply now includes WR-009 preflight and proceeds only after preflight passes
+- consumed/stale source blocks before transaction and BreakCurve
+- external edit/source invalidation blocks safely before transaction and BreakCurve
+- diagnostic route is read-only
+- no connector traversal
+- no geometry extraction beyond current pipe LocationCurve/Line reads required for revalidation
+- no linked-document scan
+- no session-state clearing
+- no UI selection modification
+- no model mutation in diagnostic route
