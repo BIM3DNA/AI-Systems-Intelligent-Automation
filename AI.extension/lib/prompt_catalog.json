@@ -3268,6 +3268,30 @@
     "mode": "deterministic"
   },
   {
+    "id": "split-apply-preflight-revalidation",
+    "title": "Split apply preflight revalidation",
+    "category": "BIM QA",
+    "group": "Reviewed Action Governance",
+    "discipline": "Piping",
+    "role": "read",
+    "risk_level": "medium",
+    "scope_type": "single_split_candidate_preflight",
+    "canonical_prompt": "check split apply preflight",
+    "planner_aliases": [
+      "check split apply preflight",
+      "check split source freshness",
+      "show split apply preflight",
+      "show split source revalidation",
+      "validate split apply source"
+    ],
+    "deterministic_handler": "split_apply_preflight_revalidation_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "check split apply preflight",
+    "mode": "deterministic"
+  },
+  {
     "id": "split-workflow-actionability-state",
     "title": "Split workflow actionability classifier",
     "category": "BIM QA",
