@@ -3268,6 +3268,35 @@
     "mode": "deterministic"
   },
   {
+    "id": "link-transform-audit-report",
+    "title": "Link transform audit report",
+    "category": "BIM QA",
+    "group": "Coordination Audits",
+    "discipline": "Coordination",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_document_revit_links",
+    "canonical_prompt": "audit link transforms",
+    "planner_aliases": [
+      "audit link transforms",
+      "audit revit link transforms",
+      "show link transform audit",
+      "scan link coordinates",
+      "scan revit link coordinates",
+      "show link coordinate drift",
+      "check link origins",
+      "check revit link origins",
+      "report link transforms",
+      "report revit link transforms"
+    ],
+    "deterministic_handler": "link_transform_audit_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "audit link transforms",
+    "mode": "deterministic"
+  },
+  {
     "id": "split-apply-preflight-revalidation",
     "title": "Split apply preflight revalidation",
     "category": "BIM QA",

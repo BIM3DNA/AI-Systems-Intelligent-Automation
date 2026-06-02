@@ -72,6 +72,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[GUIDED PROJECT STARTUP PLAN]",
     "[PROJECT CONTEXT SUMMARY]",
     "[LINK COORDINATE HEALTH]",
+    "[LINK TRANSFORM AUDIT REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -100,6 +101,9 @@ ROLLBACK_TEST_CONFIRMATION_TOKEN = "ROLLBACK-TEST-OK"
 MAX_PERSISTENT_SPLIT_CANDIDATES = 1
 PERSISTENT_SPLIT_CONFIRMATION_TOKEN = "PERSISTENT-SPLIT-OK"
 SPLIT_APPLY_VERIFICATION_LENGTH_TOLERANCE_FT = 0.00328084
+LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT = 1.0 / 304.8
+LINK_TRANSFORM_ROTATION_TOLERANCE_DEG = 0.01
+LINK_TRANSFORM_BASIS_TOLERANCE = 0.0001
 
 THEMES = {
     "light": {
@@ -3086,6 +3090,413 @@ def _basis_appears_orthonormal(transform):
         return all(abs(length - 1.0) <= PROJECT_CONTEXT_VECTOR_TOLERANCE for length in lengths) and all(abs(dot) <= PROJECT_CONTEXT_VECTOR_TOLERANCE for dot in dots)
     except:
         return "unknown"
+
+
+def _format_feet_mm(value_ft):
+    try:
+        value_ft = float(value_ft)
+        return "{0:.3f} ft ({1:.0f} mm)".format(value_ft, value_ft * 304.8)
+    except:
+        return "unreadable"
+
+
+def _format_xyz_feet(vector):
+    try:
+        return "({0:.6f}, {1:.6f}, {2:.6f})".format(float(vector.X), float(vector.Y), float(vector.Z))
+    except:
+        return "(unreadable)"
+
+
+def _format_xyz_mm(vector):
+    try:
+        return "({0:.0f}, {1:.0f}, {2:.0f})".format(float(vector.X) * 304.8, float(vector.Y) * 304.8, float(vector.Z) * 304.8)
+    except:
+        return "(unreadable)"
+
+
+def _transform_basis_vector_text(vector):
+    try:
+        return "({0:.6f}, {1:.6f}, {2:.6f})".format(float(vector.X), float(vector.Y), float(vector.Z))
+    except:
+        return "unreadable"
+
+
+def _transform_basis_determinant(transform):
+    try:
+        bx = transform.BasisX
+        by = transform.BasisY
+        bz = transform.BasisZ
+        return (
+            float(bx.X) * (float(by.Y) * float(bz.Z) - float(by.Z) * float(bz.Y))
+            - float(by.X) * (float(bx.Y) * float(bz.Z) - float(bx.Z) * float(bz.Y))
+            + float(bz.X) * (float(bx.Y) * float(by.Z) - float(bx.Z) * float(by.Y))
+        )
+    except:
+        return None
+
+
+def _link_transform_workset_name(doc, elem):
+    try:
+        workset_id = getattr(elem, "WorksetId", None)
+        if workset_id is None:
+            return "unreadable"
+        table = doc.GetWorksetTable()
+        if table is None:
+            return "unreadable"
+        workset = table.GetWorkset(workset_id)
+        name = getattr(workset, "Name", None)
+        return safe_str(name) if name else "unreadable"
+    except:
+        return "unreadable"
+
+
+def _link_transform_design_option_name(doc, elem):
+    try:
+        option_id = getattr(elem, "DesignOption", None)
+        if option_id is not None:
+            name = get_elem_name(option_id)
+            if name:
+                return name
+        option_id = getattr(elem, "DesignOptionId", None)
+        if option_id is None:
+            return "none"
+        if option_id == DB.ElementId.InvalidElementId:
+            return "none"
+        option = doc.GetElement(option_id)
+        name = get_elem_name(option)
+        return name if name else "none"
+    except:
+        return "unreadable"
+
+
+def _link_transform_grouped(elem):
+    try:
+        group_id = getattr(elem, "GroupId", None)
+        if group_id is None:
+            return False
+        return group_id != DB.ElementId.InvalidElementId
+    except:
+        return False
+
+
+def _link_transform_type_info(doc, instance):
+    link_type = None
+    try:
+        link_type = doc.GetElement(instance.GetTypeId())
+    except:
+        link_type = None
+    type_id = _safe_element_id_value(link_type) if link_type is not None else None
+    type_name = get_elem_name(link_type) if link_type is not None else "unreadable"
+    return link_type, type_id, type_name
+
+
+def _collect_link_transform_audit_data(doc, uidoc=None, prompt="audit link transforms"):
+    selected_link_ids = set()
+    try:
+        for elem in _selected_elements(doc, uidoc):
+            try:
+                if isinstance(elem, DB.RevitLinkInstance):
+                    selected_link_ids.add(int(elem.Id.IntegerValue))
+            except:
+                pass
+    except:
+        pass
+
+    links = []
+    try:
+        instances = list(DB.FilteredElementCollector(doc).OfClass(DB.RevitLinkInstance))
+    except:
+        instances = []
+    try:
+        instances = sorted(instances, key=lambda item: (_safe_element_id_value(item) or 0, safe_str(get_elem_name(item))))
+    except:
+        pass
+
+    for index, instance in enumerate(instances, start=1):
+        instance_id = _safe_element_id_value(instance)
+        instance_name = get_elem_name(instance) or "(unnamed link instance)"
+        link_type, type_id, type_name = _link_transform_type_info(doc, instance)
+        linked_document_title = "unreadable"
+        linked_document_readable = False
+        try:
+            link_doc = instance.GetLinkDocument()
+            if link_doc is not None:
+                linked_document_readable = True
+                linked_document_title = _document_title(link_doc)
+            else:
+                linked_document_title = "unloaded or unresolved"
+        except:
+            linked_document_title = "unreadable"
+
+        pinned = _safe_bool_attr(instance, "Pinned")
+        grouped = _link_transform_grouped(instance)
+        workset_name = _link_transform_workset_name(doc, instance)
+        design_option_name = _link_transform_design_option_name(doc, instance)
+        restricted = design_option_name not in ("none", "unreadable", "")
+        transform = None
+        transform_readable = False
+        origin = None
+        distance = None
+        rotation_z = "unreadable"
+        basis_x = "unreadable"
+        basis_y = "unreadable"
+        basis_z = "unreadable"
+        basis_orthonormal = "unknown"
+        mirrored = "unreadable"
+        try:
+            transform = instance.GetTransform()
+            transform_readable = True
+            origin = transform.Origin
+            distance = math.sqrt(float(origin.X) ** 2 + float(origin.Y) ** 2 + float(origin.Z) ** 2)
+            rotation_z = _transform_rotation_z_degrees(transform)
+            basis_x = _transform_basis_vector_text(transform.BasisX)
+            basis_y = _transform_basis_vector_text(transform.BasisY)
+            basis_z = _transform_basis_vector_text(transform.BasisZ)
+            basis_orthonormal = _basis_appears_orthonormal(transform)
+            determinant = _transform_basis_determinant(transform)
+            if determinant is not None:
+                mirrored = determinant < 0.0
+        except:
+            transform_readable = False
+
+        near_zero = bool(distance is not None and distance <= LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT)
+        rotated = False
+        try:
+            angle = abs(float(rotation_z))
+            angle = min(angle, abs(360.0 - angle))
+            rotated = angle > LINK_TRANSFORM_ROTATION_TOLERANCE_DEG
+        except:
+            rotated = False
+        nonorthogonal = basis_orthonormal not in (True, "unknown")
+        caution_reasons = []
+        if not linked_document_readable or not transform_readable:
+            caution_reasons.append("Linked document or transform is unloaded/unreadable.")
+        if distance is not None and not near_zero:
+            caution_reasons.append("Link origin is outside the zero-origin tolerance.")
+        if rotated or nonorthogonal:
+            caution_reasons.append("Link transform is rotated or basis is non-orthonormal.")
+        if pinned:
+            caution_reasons.append("Link is pinned.")
+        if grouped:
+            caution_reasons.append("Link is grouped.")
+        if restricted:
+            caution_reasons.append("Link is in a design option or restricted context.")
+
+        classifications = []
+        if not linked_document_readable or not transform_readable:
+            classifications.append("UNLOADED_OR_UNREADABLE")
+        elif pinned:
+            classifications.append("PINNED_LINK")
+        elif grouped or restricted:
+            classifications.append("GROUPED_OR_RESTRICTED")
+        elif rotated or nonorthogonal:
+            classifications.append("ROTATED_OR_NONORTHOGONAL")
+        elif not near_zero:
+            classifications.append("OFFSET_FROM_ZERO")
+        else:
+            classifications.append("OK_ZERO_ORIGIN")
+        if caution_reasons and "REVIEW_REQUIRED" not in classifications:
+            classifications.append("REVIEW_REQUIRED")
+
+        future_reset_candidate = bool(
+            linked_document_readable
+            and transform_readable
+            and not pinned
+            and not grouped
+            and not restricted
+            and distance is not None
+            and not near_zero
+        )
+        links.append(
+            {
+                "index": index,
+                "instance_id": instance_id,
+                "instance_name": instance_name,
+                "type_id": type_id,
+                "type_name": type_name,
+                "linked_document_title": linked_document_title,
+                "linked_document_readable": linked_document_readable,
+                "pinned": bool(pinned),
+                "grouped": bool(grouped),
+                "workset_name": workset_name,
+                "design_option_name": design_option_name,
+                "transform_source": "GetTransform",
+                "transform_readable": transform_readable,
+                "origin_feet": _format_xyz_feet(origin),
+                "origin_mm": _format_xyz_mm(origin),
+                "distance_from_zero": distance,
+                "rotation_z_degrees": rotation_z,
+                "basis_x": basis_x,
+                "basis_y": basis_y,
+                "basis_z": basis_z,
+                "mirrored": mirrored,
+                "near_zero_origin": near_zero,
+                "rotated_or_nonorthogonal": bool(rotated or nonorthogonal),
+                "classification": ", ".join(classifications),
+                "future_reset_candidate": future_reset_candidate,
+                "caution_reasons": caution_reasons,
+                "selected": instance_id in selected_link_ids,
+            }
+        )
+
+    loaded_count = len([item for item in links if item.get("linked_document_readable")])
+    unreadable_count = len([item for item in links if not item.get("linked_document_readable") or not item.get("transform_readable")])
+    near_zero_count = len([item for item in links if item.get("near_zero_origin")])
+    offset_count = len([item for item in links if item.get("distance_from_zero") is not None and not item.get("near_zero_origin")])
+    rotated_count = len([item for item in links if item.get("rotated_or_nonorthogonal")])
+    pinned_count = len([item for item in links if item.get("pinned")])
+    reset_candidate_count = len([item for item in links if item.get("future_reset_candidate")])
+    review_count = len([item for item in links if item.get("caution_reasons")])
+    if not links:
+        audit_result = "No links found"
+        recommendation = "load/link models before running link transform audit"
+    elif unreadable_count:
+        audit_result = "Review required"
+        recommendation = "reload/resolve links before reset review"
+    elif pinned_count:
+        audit_result = "Review required"
+        recommendation = "manually review pinned/restricted links before future reset"
+    elif offset_count or rotated_count:
+        audit_result = "Review required"
+        recommendation = "review offset links and run future rollback test/reset feature when implemented"
+    else:
+        audit_result = "OK"
+        recommendation = "no coordinate action required"
+    return {
+        "feature_id": "COORD-WR-001",
+        "feature_name": "Link Transform Audit / Coordinate Drift Report",
+        "audit_id": "COORD-WR-001-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+        "source_prompt": safe_str(prompt),
+        "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "document_title": _document_title(doc),
+        "active_view_name": _active_view_title(doc, uidoc),
+        "active_view_type": safe_str(getattr(getattr(uidoc, "ActiveView", None), "ViewType", "(unknown type)")),
+        "selected_link_ids": sorted(selected_link_ids),
+        "links": links,
+        "loaded_count": loaded_count,
+        "unreadable_count": unreadable_count,
+        "near_zero_count": near_zero_count,
+        "offset_count": offset_count,
+        "rotated_count": rotated_count,
+        "pinned_count": pinned_count,
+        "reset_candidate_count": reset_candidate_count,
+        "review_count": review_count,
+        "audit_result": audit_result,
+        "recommended_next_action": recommendation,
+    }
+
+
+def _format_link_transform_audit_report(data):
+    links = data.get("links") or []
+    selected_links = [item for item in links if item.get("selected")]
+    lines = [
+        "[LINK TRANSFORM AUDIT REPORT]",
+        "",
+        "Feature ID:",
+        "COORD-WR-001",
+        "",
+        "Feature name:",
+        "Link Transform Audit / Coordinate Drift Report",
+        "",
+        "Audit ID:",
+        data.get("audit_id"),
+        "",
+        "Active document:",
+        data.get("document_title"),
+        "",
+        "Active view:",
+        "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")),
+        "",
+        "Scope:",
+        "active document Revit link transform audit / read-only",
+        "",
+        "Summary:",
+        "- Total Revit link instances found: {0}".format(len(links)),
+        "- Loaded link instances: {0}".format(data.get("loaded_count")),
+        "- Unloaded / unresolved link instances: {0}".format(data.get("unreadable_count")),
+        "- Selected Revit link instances: {0}".format(len(selected_links)),
+        "- Links near zero origin: {0}".format(data.get("near_zero_count")),
+        "- Links offset from zero: {0}".format(data.get("offset_count")),
+        "- Links rotated/non-orthogonal: {0}".format(data.get("rotated_count")),
+        "- Links pinned: {0}".format(data.get("pinned_count")),
+        "- Future reset candidates: {0}".format(data.get("reset_candidate_count")),
+        "- Links requiring manual review: {0}".format(data.get("review_count")),
+        "- Zero-origin tolerance: {0}".format(_format_feet_mm(LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT)),
+        "",
+        "Selected links:",
+    ]
+    if selected_links:
+        for item in selected_links:
+            lines.append("- {0} | {1}".format(item.get("instance_id"), item.get("instance_name")))
+    else:
+        lines.append("- none")
+    lines.extend(["", "Link transform audit:"])
+    if not links:
+        lines.append("- No RevitLinkInstance elements found in the active document.")
+    for item in links:
+        lines.extend(
+            [
+                "",
+                "Link instance {0}:".format(item.get("index")),
+                "- Link instance element id: {0}".format(item.get("instance_id")),
+                "- Link instance name: {0}".format(item.get("instance_name")),
+                "- Link type id: {0}".format(item.get("type_id")),
+                "- Link type name: {0}".format(item.get("type_name")),
+                "- Linked document title: {0}".format(item.get("linked_document_title")),
+                "- Is loaded / linked document readable: {0}".format("true" if item.get("linked_document_readable") else "false"),
+                "- Is pinned: {0}".format("true" if item.get("pinned") else "false"),
+                "- Is grouped: {0}".format("true" if item.get("grouped") else "false"),
+                "- Workset name: {0}".format(item.get("workset_name")),
+                "- Design option name: {0}".format(item.get("design_option_name")),
+                "- Transform source used: {0}".format(item.get("transform_source")),
+                "- Origin XYZ internal feet: {0}".format(item.get("origin_feet")),
+                "- Origin XYZ approximate mm: {0}".format(item.get("origin_mm")),
+                "- Distance from zero: {0}".format(_format_feet_mm(item.get("distance_from_zero"))),
+                "- Rotation about Z: {0}".format(
+                    "{0:.4f} degrees".format(float(item.get("rotation_z_degrees")))
+                    if isinstance(item.get("rotation_z_degrees"), (int, float))
+                    else safe_str(item.get("rotation_z_degrees"))
+                ),
+                "- BasisX vector: {0}".format(item.get("basis_x")),
+                "- BasisY vector: {0}".format(item.get("basis_y")),
+                "- BasisZ vector: {0}".format(item.get("basis_z")),
+                "- Is mirrored: {0}".format(safe_str(item.get("mirrored")).lower()),
+                "- Is near zero origin: {0}".format("true" if item.get("near_zero_origin") else "false"),
+                "- Coordinate drift classification: {0}".format(item.get("classification")),
+                "- Candidate for future reviewed reset: {0}".format("true" if item.get("future_reset_candidate") else "false"),
+                "- Blocking / caution reasons for future reset: {0}".format(
+                    "; ".join(item.get("caution_reasons") or ["none"])
+                ),
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "Audit result:",
+            data.get("audit_result"),
+            "",
+            "Recommended next action:",
+            data.get("recommended_next_action"),
+            "",
+            "Execution status:",
+            "- Audit requested: true",
+            "- Transaction opened: false",
+            "- Link transform modified: false",
+            "- Model modified: false",
+            "- UI selection modified: false",
+            "",
+            "Safety:",
+            "- Read-only audit only.",
+            "- No Transaction opened.",
+            "- No link was moved.",
+            "- No link was rotated.",
+            "- No link was pinned/unpinned.",
+            "- No Revit model data was modified.",
+            "- No linked documents were modified.",
+            "- No reload/unload was performed.",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def _project_position_summary(doc):
@@ -7425,6 +7836,13 @@ def split_apply_source_state_report(doc, uidoc, context=None):
     )
 
 
+def link_transform_audit_report(doc, uidoc, context=None):
+    context = context or {}
+    prompt = context.get("prompt") or "audit link transforms"
+    data = _collect_link_transform_audit_data(doc, uidoc, prompt)
+    return _format_link_transform_audit_report(data)
+
+
 def split_result_visual_review(doc, uidoc, context=None):
     try:
         active_view_type = safe_str(uidoc.ActiveView.ViewType)
@@ -10966,6 +11384,7 @@ REVIEWED_ACTION_HANDLERS = {
     "split_workflow_session_state_report": split_workflow_session_state_report,
     "split_workflow_actionability_state_report": split_workflow_actionability_state_report,
     "split_apply_preflight_revalidation_report": split_apply_preflight_revalidation_report,
+    "link_transform_audit_report": link_transform_audit_report,
     "create_3d_view_from_selection": create_3d_view_from_selection,
     "split_selected_pipes": split_selected_pipes,
     "report_duplicates": report_duplicates,
@@ -11286,6 +11705,23 @@ def _is_split_apply_preflight_prompt(prompt):
     return normalized in routes
 
 
+def _is_link_transform_audit_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "audit link transforms",
+        "audit revit link transforms",
+        "show link transform audit",
+        "scan link coordinates",
+        "scan revit link coordinates",
+        "show link coordinate drift",
+        "check link origins",
+        "check revit link origins",
+        "report link transforms",
+        "report revit link transforms",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -11359,6 +11795,8 @@ def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
 
 def handle_public_command(prompt, doc, uidoc):
     p = prompt.lower()
+    if _is_link_transform_audit_prompt(prompt):
+        return link_transform_audit_report(doc, uidoc, {"prompt": prompt})
     if _is_split_apply_preflight_prompt(prompt):
         return split_apply_preflight_revalidation_report(doc, uidoc, {"prompt": prompt})
     if _is_split_workflow_actionability_prompt(prompt):
@@ -12085,6 +12523,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_split_workflow_session_state = None
         self.latest_split_workflow_actionability_state = None
         self.latest_split_apply_preflight_state = None
+        self.latest_link_transform_audit_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -13263,6 +13702,8 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _detect_report_scope(self, report_text):
         header = self._extract_report_header(report_text)
+        if header == "[LINK TRANSFORM AUDIT REPORT]":
+            return "active document Revit link transform audit / read-only"
         if header == "[SPLIT WORKFLOW ACTIONABILITY STATE]":
             return "session-local reviewed split workflow actionability / active document only"
         if header == "[SPLIT APPLY PREFLIGHT REVALIDATION]":
@@ -14542,6 +14983,24 @@ class OllamaAIChat(forms.WPFWindow):
             "report_header": "[SPLIT APPLY PREFLIGHT REVALIDATION]",
             "report_text": report_text,
             "report_scope": "single split candidate preflight revalidation / active document only",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def answer_link_transform_audit_question(self, prompt):
+        if not _is_link_transform_audit_prompt(prompt):
+            return None
+        audit_data = _collect_link_transform_audit_data(doc, uidoc, prompt)
+        report_text = _format_link_transform_audit_report(audit_data)
+        audit_data["report_header"] = "[LINK TRANSFORM AUDIT REPORT]"
+        audit_data["report_text"] = report_text
+        self.latest_link_transform_audit_state = dict(audit_data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[LINK TRANSFORM AUDIT REPORT]",
+            "report_text": report_text,
+            "report_scope": "active document Revit link transform audit / read-only",
             "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
         self.latest_chat_output_is_deterministic_report = True
@@ -19344,104 +19803,109 @@ class OllamaAIChat(forms.WPFWindow):
             if index_reply is not None:
                 reply = index_reply
             else:
-                split_preflight_reply = self.answer_split_apply_preflight_question(prompt)
-                if split_preflight_reply is not None:
-                    reply = split_preflight_reply
+                link_transform_reply = self.answer_link_transform_audit_question(prompt)
+                if link_transform_reply is not None:
+                    reply = link_transform_reply
                     remember_report = True
                 else:
-                    split_actionability_reply = self.answer_split_workflow_actionability_question(prompt)
-                    if split_actionability_reply is not None:
-                        reply = split_actionability_reply
+                    split_preflight_reply = self.answer_split_apply_preflight_question(prompt)
+                    if split_preflight_reply is not None:
+                        reply = split_preflight_reply
                         remember_report = True
                     else:
-                        split_workflow_state_reply = self.answer_split_workflow_session_state_question(prompt)
-                        if split_workflow_state_reply is not None:
-                            reply = split_workflow_state_reply
+                        split_actionability_reply = self.answer_split_workflow_actionability_question(prompt)
+                        if split_actionability_reply is not None:
+                            reply = split_actionability_reply
                             remember_report = True
                         else:
-                            split_source_state_reply = self.answer_split_apply_source_state_question(prompt)
-                            if split_source_state_reply is not None:
-                                reply = split_source_state_reply
+                            split_workflow_state_reply = self.answer_split_workflow_session_state_question(prompt)
+                            if split_workflow_state_reply is not None:
+                                reply = split_workflow_state_reply
                                 remember_report = True
                             else:
-                                split_visual_review_reply = self.answer_split_result_visual_review_question(prompt)
-                                if split_visual_review_reply is not None:
-                                    reply = split_visual_review_reply
+                                split_source_state_reply = self.answer_split_apply_source_state_question(prompt)
+                                if split_source_state_reply is not None:
+                                    reply = split_source_state_reply
                                     remember_report = True
                                 else:
-                                    split_verification_reply = self.answer_split_apply_verification_question(prompt)
-                                    if split_verification_reply is not None:
-                                        reply = split_verification_reply
+                                    split_visual_review_reply = self.answer_split_result_visual_review_question(prompt)
+                                    if split_visual_review_reply is not None:
+                                        reply = split_visual_review_reply
                                         remember_report = True
                                     else:
-                                        reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
-                                        if reviewed_apply_reply is not None:
-                                            reply = reviewed_apply_reply
+                                        split_verification_reply = self.answer_split_apply_verification_question(prompt)
+                                        if split_verification_reply is not None:
+                                            reply = split_verification_reply
                                             remember_report = True
                                         else:
-                                            rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
-                                            if rollback_reply is not None:
-                                                reply = rollback_reply
+                                            reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
+                                            if reviewed_apply_reply is not None:
+                                                reply = reviewed_apply_reply
                                                 remember_report = True
                                             else:
-                                                guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
-                                                if guard_reply is not None:
-                                                    reply = guard_reply
+                                                rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
+                                                if rollback_reply is not None:
+                                                    reply = rollback_reply
                                                     remember_report = True
                                                 else:
-                                                    split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
-                                                    if split_dry_run_reply is not None:
-                                                        reply = split_dry_run_reply
+                                                    guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
+                                                    if guard_reply is not None:
+                                                        reply = guard_reply
                                                         remember_report = True
                                                     else:
-                                                        proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
-                                                        if proposal_reply is not None:
-                                                            reply = proposal_reply
+                                                        split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
+                                                        if split_dry_run_reply is not None:
+                                                            reply = split_dry_run_reply
                                                             remember_report = True
                                                         else:
-                                                            if self._is_qa_export_request(prompt):
-                                                                reply = self.export_latest_qa_report(prompt)
-                                                                preserve_latest_report_state = True
-                                                            elif self._is_codex_brief_request(prompt):
-                                                                brief = self.build_codex_task_brief(prompt)
-                                                                self.latest_codex_brief = brief
-                                                                self.populate_project_context_tree()
-                                                                reply = "```\n{0}\n```".format(brief)
-                                                            elif self._is_scan_request(prompt):
-                                                                result = self.run_project_context_scan("standard")
-                                                                reply = result.get("summary", "")
+                                                            proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
+                                                            if proposal_reply is not None:
+                                                                reply = proposal_reply
                                                                 remember_report = True
                                                             else:
-                                                                discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
-                                                                if discipline_qa_reply is not None:
-                                                                    reply = discipline_qa_reply
+                                                                if self._is_qa_export_request(prompt):
+                                                                    reply = self.export_latest_qa_report(prompt)
+                                                                    preserve_latest_report_state = True
+                                                                elif self._is_codex_brief_request(prompt):
+                                                                    brief = self.build_codex_task_brief(prompt)
+                                                                    self.latest_codex_brief = brief
+                                                                    self.populate_project_context_tree()
+                                                                    reply = "```\n{0}\n```".format(brief)
+                                                                elif self._is_scan_request(prompt):
+                                                                    result = self.run_project_context_scan("standard")
+                                                                    reply = result.get("summary", "")
                                                                     remember_report = True
                                                                 else:
-                                                                    system_reply = self.answer_system_assignment_report_question(prompt)
-                                                                    if system_reply is not None:
-                                                                        reply = system_reply
+                                                                    discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                                                                    if discipline_qa_reply is not None:
+                                                                        reply = discipline_qa_reply
                                                                         remember_report = True
                                                                     else:
-                                                                        active_view_reply = self.answer_active_view_report_question(prompt)
-                                                                        if active_view_reply is not None:
-                                                                            reply = active_view_reply
+                                                                        system_reply = self.answer_system_assignment_report_question(prompt)
+                                                                        if system_reply is not None:
+                                                                            reply = system_reply
                                                                             remember_report = True
                                                                         else:
-                                                                            selection_reply = self.answer_selection_report_question(prompt)
-                                                                            if selection_reply is not None:
-                                                                                reply = selection_reply
+                                                                            active_view_reply = self.answer_active_view_report_question(prompt)
+                                                                            if active_view_reply is not None:
+                                                                                reply = active_view_reply
                                                                                 remember_report = True
-                                                                            elif self._is_project_context_question(prompt):
-                                                                                reply = self.answer_project_context_question(prompt)
-                                                                                remember_report = True
-                                                                            elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                                                                                self.append_project_agent_plan()
-                                                                                reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
-                                                                                preserve_latest_report_state = True
                                                                             else:
-                                                                                reply = send_ollama_chat(self.model, prompt)
-                                                                                reply = self._sanitize_ollama_context_error(reply)
-                                                                                self.latest_chat_output_is_deterministic_report = False
+                                                                                selection_reply = self.answer_selection_report_question(prompt)
+                                                                                if selection_reply is not None:
+                                                                                    reply = selection_reply
+                                                                                    remember_report = True
+                                                                                elif self._is_project_context_question(prompt):
+                                                                                    reply = self.answer_project_context_question(prompt)
+                                                                                    remember_report = True
+                                                                                elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                                                                    self.append_project_agent_plan()
+                                                                                    reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                                                                    preserve_latest_report_state = True
+                                                                                else:
+                                                                                    reply = send_ollama_chat(self.model, prompt)
+                                                                                    reply = self._sanitize_ollama_context_error(reply)
+                                                                                    self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             if remember_report:
