@@ -73,6 +73,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[PROJECT CONTEXT SUMMARY]",
     "[LINK COORDINATE HEALTH]",
     "[LINK TRANSFORM AUDIT REPORT]",
+    "[LINK ORIGIN RESET ROLLBACK TEST]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -104,6 +105,7 @@ SPLIT_APPLY_VERIFICATION_LENGTH_TOLERANCE_FT = 0.00328084
 LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT = 1.0 / 304.8
 LINK_TRANSFORM_ROTATION_TOLERANCE_DEG = 0.01
 LINK_TRANSFORM_BASIS_TOLERANCE = 0.0001
+LINK_ORIGIN_RESET_ROLLBACK_TOKEN = "ROLLBACK-LINK-RESET-OK"
 
 THEMES = {
     "light": {
@@ -3497,6 +3499,440 @@ def _format_link_transform_audit_report(data):
         ]
     )
     return "\n".join(lines)
+
+
+def _xyz_distance(a, b):
+    try:
+        dx = float(a.X) - float(b.X)
+        dy = float(a.Y) - float(b.Y)
+        dz = float(a.Z) - float(b.Z)
+        return math.sqrt(dx * dx + dy * dy + dz * dz)
+    except:
+        return None
+
+
+def _transform_basis_matches(a, b):
+    try:
+        pairs = [(a.BasisX, b.BasisX), (a.BasisY, b.BasisY), (a.BasisZ, b.BasisZ)]
+        for left, right in pairs:
+            distance = _xyz_distance(left, right)
+            if distance is None or distance > LINK_TRANSFORM_BASIS_TOLERANCE:
+                return False
+        return True
+    except:
+        return "unknown"
+
+
+def _link_origin_rotation_blocked(rotation_z):
+    try:
+        angle = abs(float(rotation_z))
+        angle = min(angle, abs(360.0 - angle))
+        return angle > LINK_TRANSFORM_ROTATION_TOLERANCE_DEG
+    except:
+        return True
+
+
+def _coord_link_selected_context(doc, uidoc, prompt, token_present, rollback_requested):
+    selected_elements = []
+    selected_links = []
+    try:
+        selected_elements = _selected_elements(doc, uidoc)
+    except:
+        selected_elements = []
+    for elem in selected_elements:
+        try:
+            if isinstance(elem, DB.RevitLinkInstance):
+                selected_links.append(elem)
+        except:
+            pass
+
+    data = {
+        "feature_id": "COORD-WR-002",
+        "feature_name": "Link Origin Reset Rollback Test",
+        "rollback_test_id": "COORD-WR-002-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+        "source_prompt": safe_str(prompt),
+        "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "document_title": _document_title(doc),
+        "active_view_name": _active_view_title(doc, uidoc),
+        "active_view_type": safe_str(getattr(getattr(uidoc, "ActiveView", None), "ViewType", "(unknown type)")),
+        "selected_element_count": len(selected_elements),
+        "selected_link_count": len(selected_links),
+        "confirmation_token_provided": bool(token_present),
+        "rollback_test_requested": bool(rollback_requested),
+        "confirmation_token_accepted": bool(token_present and rollback_requested),
+        "blocking_reasons": [],
+        "caution_reasons": [],
+        "transaction_group_opened": False,
+        "transaction_opened": False,
+        "moveelement_called": False,
+        "transaction_committed_inside_group": False,
+        "transaction_group_rolled_back": False,
+        "transaction_group_assimilated": False,
+        "persistent_model_changes": False,
+        "link_transform_modified_persistently": False,
+        "ui_selection_modified": False,
+        "linked_document_modified": False,
+        "temporary_verification_passed": False,
+        "final_origin_matches_original": False,
+        "final_transform_basis_matches_original": "unknown",
+        "rollback_test_result": "Not ready",
+    }
+    if len(selected_links) == 0:
+        data["blocking_reasons"].append("Select exactly one Revit link instance.")
+    elif len(selected_links) > 1:
+        data["blocking_reasons"].append("Multiple Revit link instances are selected. Select only one Revit link instance.")
+    selected_link = selected_links[0] if len(selected_links) == 1 else None
+    if selected_link is None:
+        return data
+
+    link_type, type_id, type_name = _link_transform_type_info(doc, selected_link)
+    linked_document_title = "unreadable"
+    linked_document_readable = False
+    try:
+        link_doc = selected_link.GetLinkDocument()
+        if link_doc is not None:
+            linked_document_readable = True
+            linked_document_title = _document_title(link_doc)
+        else:
+            linked_document_title = "unloaded or unresolved"
+    except:
+        linked_document_title = "unreadable"
+    transform = None
+    origin = None
+    original_distance = None
+    rotation_z = "unreadable"
+    basis_x = "unreadable"
+    basis_y = "unreadable"
+    basis_z = "unreadable"
+    mirrored = "unreadable"
+    basis_orthonormal = "unknown"
+    try:
+        transform = selected_link.GetTransform()
+        origin = transform.Origin
+        original_distance = math.sqrt(float(origin.X) ** 2 + float(origin.Y) ** 2 + float(origin.Z) ** 2)
+        rotation_z = _transform_rotation_z_degrees(transform)
+        basis_x = _transform_basis_vector_text(transform.BasisX)
+        basis_y = _transform_basis_vector_text(transform.BasisY)
+        basis_z = _transform_basis_vector_text(transform.BasisZ)
+        basis_orthonormal = _basis_appears_orthonormal(transform)
+        determinant = _transform_basis_determinant(transform)
+        if determinant is not None:
+            mirrored = determinant < 0.0
+    except:
+        data["blocking_reasons"].append("Selected link transform is unreadable.")
+
+    pinned = _safe_bool_attr(selected_link, "Pinned")
+    grouped = _link_transform_grouped(selected_link)
+    design_option_name = _link_transform_design_option_name(doc, selected_link)
+    restricted = design_option_name not in ("none", "unreadable", "")
+    near_zero = bool(original_distance is not None and original_distance <= LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT)
+    rotated = _link_origin_rotation_blocked(rotation_z)
+    nonorthogonal = basis_orthonormal not in (True, "unknown")
+    data.update(
+        {
+            "selected_link_element_id": _safe_element_id_value(selected_link),
+            "selected_link_name": get_elem_name(selected_link) or "(unnamed link instance)",
+            "link_type_id": type_id,
+            "link_type_name": type_name,
+            "linked_document_title": linked_document_title,
+            "linked_document_readable": bool(linked_document_readable),
+            "is_pinned": bool(pinned),
+            "is_grouped": bool(grouped),
+            "workset_name": _link_transform_workset_name(doc, selected_link),
+            "design_option_name": design_option_name,
+            "transform_source": "GetTransform",
+            "original_transform": transform,
+            "original_origin": origin,
+            "original_origin_feet": _format_xyz_feet(origin),
+            "original_origin_mm": _format_xyz_mm(origin),
+            "original_distance_from_zero": original_distance,
+            "original_rotation_z_degrees": rotation_z,
+            "original_basis_x": basis_x,
+            "original_basis_y": basis_y,
+            "original_basis_z": basis_z,
+            "original_mirrored": mirrored,
+            "near_zero_before_test": near_zero,
+            "coordinate_drift_classification_before_test": "OK_ZERO_ORIGIN" if near_zero else "OFFSET_FROM_ZERO",
+            "translation_delta": DB.XYZ(-float(origin.X), -float(origin.Y), -float(origin.Z)) if origin is not None else None,
+        }
+    )
+    if not linked_document_readable:
+        data["blocking_reasons"].append("Linked document is unloaded or unreadable.")
+    if pinned is True:
+        data["blocking_reasons"].append("Selected link is pinned.")
+    if grouped:
+        data["blocking_reasons"].append("Selected link is grouped.")
+    if restricted:
+        data["blocking_reasons"].append("Selected link is in a design option or restricted context.")
+    if rotated or nonorthogonal:
+        data["blocking_reasons"].append("Selected link is rotated, mirrored, or non-orthonormal; COORD-WR-002 tests translation only.")
+    if mirrored is True:
+        data["blocking_reasons"].append("Selected link appears mirrored; COORD-WR-002 tests translation only.")
+    if not rollback_requested:
+        data["caution_reasons"].append("Status/readiness route only; rollback mutation test was not requested.")
+    elif not token_present:
+        data["blocking_reasons"].append("Missing confirmation token ROLLBACK-LINK-RESET-OK.")
+    return data
+
+
+def _coord_link_rollback_recommendation(data):
+    reasons = " ".join(data.get("blocking_reasons") or []).lower()
+    if data.get("rollback_test_result") == "Already at zero":
+        return "no coordinate reset required"
+    if data.get("rollback_test_result") == "Passed":
+        return "future persistent reviewed reset may be implemented as COORD-WR-003"
+    if data.get("rollback_test_result") == "Failed":
+        return "do not implement persistent reset until failure is analyzed"
+    if "missing confirmation token" in reasons:
+        return "rerun with ROLLBACK-LINK-RESET-OK confirmation token"
+    if "multiple" in reasons:
+        return "select only one Revit link instance"
+    if "pinned" in reasons:
+        return "unpin manually only if approved by coordinator, then rerun rollback test"
+    if "group" in reasons or "restricted" in reasons or "design option" in reasons:
+        return "review group/restriction manually before reset"
+    return "select exactly one Revit link instance"
+
+
+def _run_link_origin_reset_rollback_test(doc, uidoc, prompt, rollback_requested=True, token_present=False):
+    data = _coord_link_selected_context(doc, uidoc, prompt, token_present, rollback_requested)
+    if data.get("blocking_reasons"):
+        data["rollback_test_result"] = "Not ready"
+        data["recommended_next_action"] = _coord_link_rollback_recommendation(data)
+        return data
+    if data.get("near_zero_before_test"):
+        data["rollback_test_result"] = "Already at zero"
+        data["recommended_next_action"] = _coord_link_rollback_recommendation(data)
+        return data
+    if not rollback_requested:
+        data["rollback_test_result"] = "Not ready"
+        data["recommended_next_action"] = _coord_link_rollback_recommendation(data)
+        return data
+
+    origin = data.get("original_origin")
+    delta = data.get("translation_delta")
+    link_id = None
+    try:
+        link_id = DB.ElementId(int(data.get("selected_link_element_id")))
+    except:
+        link_id = None
+    if origin is None or delta is None or link_id is None:
+        data["rollback_test_result"] = "Not ready"
+        data["blocking_reasons"].append("Selected link origin or element id is unavailable.")
+        data["recommended_next_action"] = _coord_link_rollback_recommendation(data)
+        return data
+
+    group = None
+    transaction = None
+    rollback_attempted = False
+    try:
+        group = DB.TransactionGroup(doc, "COORD-WR-002 Link Origin Reset Rollback Test")
+        group.Start()
+        data["transaction_group_opened"] = True
+        transaction = DB.Transaction(doc, "Temporary link origin reset to zero")
+        transaction.Start()
+        data["transaction_opened"] = True
+        DB.ElementTransformUtils.MoveElement(doc, link_id, delta)
+        data["moveelement_called"] = True
+        try:
+            doc.Regenerate()
+        except:
+            pass
+        link_after_move = doc.GetElement(link_id)
+        temporary_transform = link_after_move.GetTransform()
+        temporary_origin = temporary_transform.Origin
+        temporary_distance = math.sqrt(float(temporary_origin.X) ** 2 + float(temporary_origin.Y) ** 2 + float(temporary_origin.Z) ** 2)
+        data["temporary_origin"] = temporary_origin
+        data["temporary_origin_feet"] = _format_xyz_feet(temporary_origin)
+        data["temporary_origin_mm"] = _format_xyz_mm(temporary_origin)
+        data["temporary_distance_from_zero"] = temporary_distance
+        data["temporary_origin_near_zero"] = temporary_distance <= LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT
+        data["temporary_verification_passed"] = bool(data.get("temporary_origin_near_zero"))
+        transaction.Commit()
+        data["transaction_committed_inside_group"] = True
+    except Exception as exc:
+        data["rollback_test_result"] = "Failed"
+        data["blocking_reasons"].append("Rollback move test failed: {0}".format(safe_str(exc)))
+        try:
+            if transaction is not None and data.get("transaction_opened") and not data.get("transaction_committed_inside_group"):
+                transaction.RollBack()
+        except:
+            pass
+    finally:
+        if group is not None and data.get("transaction_group_opened"):
+            try:
+                rollback_attempted = True
+                group.RollBack()
+                data["transaction_group_rolled_back"] = True
+            except Exception as rollback_exc:
+                data["transaction_group_rolled_back"] = False
+                data["blocking_reasons"].append("TransactionGroup rollback failed: {0}".format(safe_str(rollback_exc)))
+    data["rollback_attempted"] = rollback_attempted
+
+    try:
+        final_link = doc.GetElement(link_id)
+        final_transform = final_link.GetTransform()
+        final_origin = final_transform.Origin
+        distance_from_original = _xyz_distance(final_origin, origin)
+        data["final_origin"] = final_origin
+        data["final_origin_feet"] = _format_xyz_feet(final_origin)
+        data["final_origin_mm"] = _format_xyz_mm(final_origin)
+        data["final_distance_from_original"] = distance_from_original
+        data["final_origin_matches_original"] = bool(distance_from_original is not None and distance_from_original <= LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT)
+        data["final_transform_basis_matches_original"] = _transform_basis_matches(final_transform, data.get("original_transform"))
+    except Exception as final_exc:
+        data["blocking_reasons"].append("Post-rollback verification failed: {0}".format(safe_str(final_exc)))
+    final_distance = data.get("final_distance_from_original")
+    data["persistent_model_changes"] = bool(final_distance is not None and final_distance > LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT)
+    data["link_transform_modified_persistently"] = bool(data.get("persistent_model_changes"))
+    if data.get("rollback_test_result") != "Failed":
+        if data.get("temporary_verification_passed") and data.get("transaction_group_rolled_back") and data.get("final_origin_matches_original"):
+            data["rollback_test_result"] = "Passed"
+        else:
+            data["rollback_test_result"] = "Failed"
+            if not data.get("temporary_verification_passed"):
+                data["blocking_reasons"].append("Temporary origin was not zero within tolerance.")
+            if not data.get("transaction_group_rolled_back"):
+                data["blocking_reasons"].append("TransactionGroup was not rolled back successfully.")
+            if not data.get("final_origin_matches_original"):
+                data["blocking_reasons"].append("Final origin did not match original after rollback.")
+    data["recommended_next_action"] = _coord_link_rollback_recommendation(data)
+    return data
+
+
+def _format_link_origin_reset_rollback_report(data):
+    reasons = data.get("blocking_reasons") or []
+    cautions = data.get("caution_reasons") or []
+    lines = [
+        "[LINK ORIGIN RESET ROLLBACK TEST]",
+        "",
+        "Feature ID:",
+        "COORD-WR-002",
+        "",
+        "Feature name:",
+        "Link Origin Reset Rollback Test",
+        "",
+        "Rollback Test ID:",
+        data.get("rollback_test_id"),
+        "",
+        "Active document:",
+        data.get("document_title"),
+        "",
+        "Active view:",
+        "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")),
+        "",
+        "Scope:",
+        "selected Revit link origin reset rollback test / rollback-only",
+        "",
+        "Selection and confirmation:",
+        "- Selected element count: {0}".format(data.get("selected_element_count")),
+        "- Selected RevitLinkInstance count: {0}".format(data.get("selected_link_count")),
+        "- Confirmation token provided: {0}".format("true" if data.get("confirmation_token_provided") else "false"),
+        "- Rollback test requested: {0}".format("true" if data.get("rollback_test_requested") else "false"),
+        "",
+        "Selected link data:",
+        "- Link instance element id: {0}".format(data.get("selected_link_element_id", "none")),
+        "- Link instance name: {0}".format(data.get("selected_link_name", "none")),
+        "- Link type id: {0}".format(data.get("link_type_id", "none")),
+        "- Link type name: {0}".format(data.get("link_type_name", "none")),
+        "- Linked document title: {0}".format(data.get("linked_document_title", "none")),
+        "- Is loaded / linked document readable: {0}".format("true" if data.get("linked_document_readable") else "false"),
+        "- Is pinned: {0}".format("true" if data.get("is_pinned") else "false"),
+        "- Is grouped: {0}".format("true" if data.get("is_grouped") else "false"),
+        "- Workset name: {0}".format(data.get("workset_name", "unreadable")),
+        "- Design option name: {0}".format(data.get("design_option_name", "unreadable")),
+        "- Transform source used: GetTransform",
+        "- Original origin XYZ internal feet: {0}".format(data.get("original_origin_feet", "(unreadable)")),
+        "- Original origin XYZ approximate mm: {0}".format(data.get("original_origin_mm", "(unreadable)")),
+        "- Original distance from zero: {0}".format(_format_feet_mm(data.get("original_distance_from_zero"))),
+        "- Original rotation about Z: {0}".format(
+            "{0:.4f} degrees".format(float(data.get("original_rotation_z_degrees")))
+            if isinstance(data.get("original_rotation_z_degrees"), (int, float))
+            else safe_str(data.get("original_rotation_z_degrees", "unreadable"))
+        ),
+        "- Original BasisX: {0}".format(data.get("original_basis_x", "unreadable")),
+        "- Original BasisY: {0}".format(data.get("original_basis_y", "unreadable")),
+        "- Original BasisZ: {0}".format(data.get("original_basis_z", "unreadable")),
+        "- Original mirrored flag: {0}".format(safe_str(data.get("original_mirrored", "unreadable")).lower()),
+        "- Is near zero origin before test: {0}".format("true" if data.get("near_zero_before_test") else "false"),
+        "- Coordinate drift classification before test: {0}".format(data.get("coordinate_drift_classification_before_test", "unavailable")),
+        "- Translation delta to zero internal feet: {0}".format(_format_xyz_feet(data.get("translation_delta"))),
+        "- Translation delta to zero approximate mm: {0}".format(_format_xyz_mm(data.get("translation_delta"))),
+        "- Zero-origin tolerance: {0}".format(_format_feet_mm(LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT)),
+        "",
+        "Temporary rollback-test result:",
+        "- TransactionGroup opened: {0}".format("true" if data.get("transaction_group_opened") else "false"),
+        "- Transaction opened: {0}".format("true" if data.get("transaction_opened") else "false"),
+        "- MoveElement called: {0}".format("true" if data.get("moveelement_called") else "false"),
+        "- Temporary origin XYZ internal feet: {0}".format(data.get("temporary_origin_feet", "(unreadable)")),
+        "- Temporary origin XYZ approximate mm: {0}".format(data.get("temporary_origin_mm", "(unreadable)")),
+        "- Temporary distance from zero: {0}".format(_format_feet_mm(data.get("temporary_distance_from_zero"))),
+        "- Temporary origin near zero: {0}".format("true" if data.get("temporary_origin_near_zero") else "false"),
+        "- Temporary verification passed: {0}".format("true" if data.get("temporary_verification_passed") else "false"),
+        "- Transaction committed inside rollback group: {0}".format("true" if data.get("transaction_committed_inside_group") else "false"),
+        "- TransactionGroup rolled back: {0}".format("true" if data.get("transaction_group_rolled_back") else "false"),
+        "- TransactionGroup assimilated: false",
+        "",
+        "Post-rollback verification:",
+        "- Final origin XYZ internal feet: {0}".format(data.get("final_origin_feet", "(unreadable)")),
+        "- Final origin XYZ approximate mm: {0}".format(data.get("final_origin_mm", "(unreadable)")),
+        "- Final distance from original: {0}".format(_format_feet_mm(data.get("final_distance_from_original"))),
+        "- Final origin matches original: {0}".format("true" if data.get("final_origin_matches_original") else "false"),
+        "- Final transform basis matches original: {0}".format(safe_str(data.get("final_transform_basis_matches_original")).lower()),
+        "- Persistent model changes: {0}".format("true" if data.get("persistent_model_changes") else "false"),
+        "",
+        "Rollback test result:",
+        data.get("rollback_test_result"),
+        "",
+        "Blocking / caution reasons:",
+    ]
+    if reasons or cautions:
+        for reason in reasons:
+            lines.append("- {0}".format(reason))
+        for caution in cautions:
+            lines.append("- {0}".format(caution))
+    else:
+        lines.append("- none")
+    lines.extend(
+        [
+            "",
+            "Recommended next action:",
+            data.get("recommended_next_action"),
+            "",
+            "Execution status:",
+            "- Rollback test requested: {0}".format("true" if data.get("rollback_test_requested") else "false"),
+            "- Confirmation token accepted: {0}".format("true" if data.get("confirmation_token_accepted") else "false"),
+            "- TransactionGroup opened: {0}".format("true" if data.get("transaction_group_opened") else "false"),
+            "- Transaction opened: {0}".format("true" if data.get("transaction_opened") else "false"),
+            "- MoveElement called: {0}".format("true" if data.get("moveelement_called") else "false"),
+            "- TransactionGroup rolled back: {0}".format("true" if data.get("transaction_group_rolled_back") else "false"),
+            "- TransactionGroup assimilated: false",
+            "- Persistent model changes: {0}".format("true" if data.get("persistent_model_changes") else "false"),
+            "- Link transform modified persistently: {0}".format("true" if data.get("link_transform_modified_persistently") else "false"),
+            "- UI selection modified: false",
+            "- Linked document modified: false",
+            "",
+            "Safety:",
+            "- Rollback test only.",
+            "- No persistent coordinate reset was applied.",
+            "- TransactionGroup was rolled back when opened.",
+            "- TransactionGroup was not assimilated.",
+            "- No linked document was modified.",
+            "- No reload/unload was performed.",
+            "- UI selection was not modified.",
+            "- Persistent model changes: {0}.".format("true" if data.get("persistent_model_changes") else "false"),
+        ]
+    )
+    return "\n".join(lines)
+
+
+def link_origin_reset_rollback_test_report(doc, uidoc, context=None):
+    context = context or {}
+    prompt = context.get("prompt") or "show link origin rollback status"
+    rollback_requested = bool(context.get("rollback_requested"))
+    token_present = bool(context.get("token_present"))
+    data = _run_link_origin_reset_rollback_test(doc, uidoc, prompt, rollback_requested, token_present)
+    return _format_link_origin_reset_rollback_report(data)
 
 
 def _project_position_summary(doc):
@@ -11385,6 +11821,7 @@ REVIEWED_ACTION_HANDLERS = {
     "split_workflow_actionability_state_report": split_workflow_actionability_state_report,
     "split_apply_preflight_revalidation_report": split_apply_preflight_revalidation_report,
     "link_transform_audit_report": link_transform_audit_report,
+    "link_origin_reset_rollback_test_report": link_origin_reset_rollback_test_report,
     "create_3d_view_from_selection": create_3d_view_from_selection,
     "split_selected_pipes": split_selected_pipes,
     "report_duplicates": report_duplicates,
@@ -11722,6 +12159,41 @@ def _is_link_transform_audit_prompt(prompt):
     return normalized in routes
 
 
+def _has_link_origin_rollback_token(prompt):
+    raw_prompt = safe_str(prompt)
+    normalized = _normalize_deterministic_route_text(raw_prompt)
+    return "rollback link reset ok" in normalized or LINK_ORIGIN_RESET_ROLLBACK_TOKEN.lower() in raw_prompt.lower()
+
+
+def _link_origin_rollback_route_text(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    route_text = normalized.replace("rollback link reset ok", " ")
+    route_text = re.sub(r"\s+", " ", route_text).strip()
+    return route_text
+
+
+def _link_origin_reset_rollback_request_kind(prompt):
+    route_text = _link_origin_rollback_route_text(prompt)
+    status_routes = [
+        "show link origin rollback status",
+        "show latest link reset rollback test",
+        "check link reset rollback readiness",
+        "check selected link reset readiness",
+    ]
+    rollback_routes = [
+        "run link origin reset rollback test",
+        "test link origin reset rollback",
+        "rollback test selected link origin reset",
+        "test selected link reset to zero",
+        "run selected link coordinate reset rollback test",
+    ]
+    if route_text in status_routes:
+        return "status"
+    if route_text in rollback_routes:
+        return "rollback_test"
+    return None
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -11795,6 +12267,17 @@ def execute_reviewed_action_handler(handler_name, doc, uidoc, context=None):
 
 def handle_public_command(prompt, doc, uidoc):
     p = prompt.lower()
+    link_rollback_kind = _link_origin_reset_rollback_request_kind(prompt)
+    if link_rollback_kind:
+        return link_origin_reset_rollback_test_report(
+            doc,
+            uidoc,
+            {
+                "prompt": prompt,
+                "rollback_requested": link_rollback_kind == "rollback_test",
+                "token_present": _has_link_origin_rollback_token(prompt),
+            },
+        )
     if _is_link_transform_audit_prompt(prompt):
         return link_transform_audit_report(doc, uidoc, {"prompt": prompt})
     if _is_split_apply_preflight_prompt(prompt):
@@ -12524,6 +13007,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_split_workflow_actionability_state = None
         self.latest_split_apply_preflight_state = None
         self.latest_link_transform_audit_state = None
+        self.latest_link_origin_reset_rollback_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -13702,6 +14186,8 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _detect_report_scope(self, report_text):
         header = self._extract_report_header(report_text)
+        if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
+            return "selected Revit link origin reset rollback test / rollback-only"
         if header == "[LINK TRANSFORM AUDIT REPORT]":
             return "active document Revit link transform audit / read-only"
         if header == "[SPLIT WORKFLOW ACTIONABILITY STATE]":
@@ -15002,6 +15488,34 @@ class OllamaAIChat(forms.WPFWindow):
             "report_text": report_text,
             "report_scope": "active document Revit link transform audit / read-only",
             "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def answer_link_origin_reset_rollback_question(self, prompt):
+        request_kind = _link_origin_reset_rollback_request_kind(prompt)
+        if not request_kind:
+            return None
+        route_text = _link_origin_rollback_route_text(prompt)
+        if request_kind == "status" and route_text == "show latest link reset rollback test":
+            latest_state = self.latest_link_origin_reset_rollback_state or {}
+            latest_report = latest_state.get("report_text")
+            if latest_report:
+                return latest_report
+        token_present = _has_link_origin_rollback_token(prompt)
+        rollback_requested = request_kind == "rollback_test"
+        rollback_data = _run_link_origin_reset_rollback_test(doc, uidoc, prompt, rollback_requested, token_present)
+        report_text = _format_link_origin_reset_rollback_report(rollback_data)
+        rollback_data["report_header"] = "[LINK ORIGIN RESET ROLLBACK TEST]"
+        rollback_data["report_text"] = report_text
+        self.latest_link_origin_reset_rollback_state = dict(rollback_data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[LINK ORIGIN RESET ROLLBACK TEST]",
+            "report_text": report_text,
+            "report_scope": "selected Revit link origin reset rollback test / rollback-only",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-002",
         }
         self.latest_chat_output_is_deterministic_report = True
         return report_text
@@ -19803,109 +20317,114 @@ class OllamaAIChat(forms.WPFWindow):
             if index_reply is not None:
                 reply = index_reply
             else:
-                link_transform_reply = self.answer_link_transform_audit_question(prompt)
-                if link_transform_reply is not None:
-                    reply = link_transform_reply
+                link_rollback_reply = self.answer_link_origin_reset_rollback_question(prompt)
+                if link_rollback_reply is not None:
+                    reply = link_rollback_reply
                     remember_report = True
                 else:
-                    split_preflight_reply = self.answer_split_apply_preflight_question(prompt)
-                    if split_preflight_reply is not None:
-                        reply = split_preflight_reply
+                    link_transform_reply = self.answer_link_transform_audit_question(prompt)
+                    if link_transform_reply is not None:
+                        reply = link_transform_reply
                         remember_report = True
                     else:
-                        split_actionability_reply = self.answer_split_workflow_actionability_question(prompt)
-                        if split_actionability_reply is not None:
-                            reply = split_actionability_reply
+                        split_preflight_reply = self.answer_split_apply_preflight_question(prompt)
+                        if split_preflight_reply is not None:
+                            reply = split_preflight_reply
                             remember_report = True
                         else:
-                            split_workflow_state_reply = self.answer_split_workflow_session_state_question(prompt)
-                            if split_workflow_state_reply is not None:
-                                reply = split_workflow_state_reply
+                            split_actionability_reply = self.answer_split_workflow_actionability_question(prompt)
+                            if split_actionability_reply is not None:
+                                reply = split_actionability_reply
                                 remember_report = True
                             else:
-                                split_source_state_reply = self.answer_split_apply_source_state_question(prompt)
-                                if split_source_state_reply is not None:
-                                    reply = split_source_state_reply
+                                split_workflow_state_reply = self.answer_split_workflow_session_state_question(prompt)
+                                if split_workflow_state_reply is not None:
+                                    reply = split_workflow_state_reply
                                     remember_report = True
                                 else:
-                                    split_visual_review_reply = self.answer_split_result_visual_review_question(prompt)
-                                    if split_visual_review_reply is not None:
-                                        reply = split_visual_review_reply
+                                    split_source_state_reply = self.answer_split_apply_source_state_question(prompt)
+                                    if split_source_state_reply is not None:
+                                        reply = split_source_state_reply
                                         remember_report = True
                                     else:
-                                        split_verification_reply = self.answer_split_apply_verification_question(prompt)
-                                        if split_verification_reply is not None:
-                                            reply = split_verification_reply
+                                        split_visual_review_reply = self.answer_split_result_visual_review_question(prompt)
+                                        if split_visual_review_reply is not None:
+                                            reply = split_visual_review_reply
                                             remember_report = True
                                         else:
-                                            reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
-                                            if reviewed_apply_reply is not None:
-                                                reply = reviewed_apply_reply
+                                            split_verification_reply = self.answer_split_apply_verification_question(prompt)
+                                            if split_verification_reply is not None:
+                                                reply = split_verification_reply
                                                 remember_report = True
                                             else:
-                                                rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
-                                                if rollback_reply is not None:
-                                                    reply = rollback_reply
+                                                reviewed_apply_reply = self.answer_split_reviewed_apply_question(prompt)
+                                                if reviewed_apply_reply is not None:
+                                                    reply = reviewed_apply_reply
                                                     remember_report = True
                                                 else:
-                                                    guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
-                                                    if guard_reply is not None:
-                                                        reply = guard_reply
+                                                    rollback_reply = self.answer_split_selected_pipes_rollback_test_question(prompt)
+                                                    if rollback_reply is not None:
+                                                        reply = rollback_reply
                                                         remember_report = True
                                                     else:
-                                                        split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
-                                                        if split_dry_run_reply is not None:
-                                                            reply = split_dry_run_reply
+                                                        guard_reply = self.answer_reviewed_action_confirmation_guard_question(prompt)
+                                                        if guard_reply is not None:
+                                                            reply = guard_reply
                                                             remember_report = True
                                                         else:
-                                                            proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
-                                                            if proposal_reply is not None:
-                                                                reply = proposal_reply
+                                                            split_dry_run_reply = self.answer_split_selected_pipes_dry_run_question(prompt)
+                                                            if split_dry_run_reply is not None:
+                                                                reply = split_dry_run_reply
                                                                 remember_report = True
                                                             else:
-                                                                if self._is_qa_export_request(prompt):
-                                                                    reply = self.export_latest_qa_report(prompt)
-                                                                    preserve_latest_report_state = True
-                                                                elif self._is_codex_brief_request(prompt):
-                                                                    brief = self.build_codex_task_brief(prompt)
-                                                                    self.latest_codex_brief = brief
-                                                                    self.populate_project_context_tree()
-                                                                    reply = "```\n{0}\n```".format(brief)
-                                                                elif self._is_scan_request(prompt):
-                                                                    result = self.run_project_context_scan("standard")
-                                                                    reply = result.get("summary", "")
+                                                                proposal_reply = self.answer_reviewed_action_proposal_question(prompt)
+                                                                if proposal_reply is not None:
+                                                                    reply = proposal_reply
                                                                     remember_report = True
                                                                 else:
-                                                                    discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
-                                                                    if discipline_qa_reply is not None:
-                                                                        reply = discipline_qa_reply
+                                                                    if self._is_qa_export_request(prompt):
+                                                                        reply = self.export_latest_qa_report(prompt)
+                                                                        preserve_latest_report_state = True
+                                                                    elif self._is_codex_brief_request(prompt):
+                                                                        brief = self.build_codex_task_brief(prompt)
+                                                                        self.latest_codex_brief = brief
+                                                                        self.populate_project_context_tree()
+                                                                        reply = "```\n{0}\n```".format(brief)
+                                                                    elif self._is_scan_request(prompt):
+                                                                        result = self.run_project_context_scan("standard")
+                                                                        reply = result.get("summary", "")
                                                                         remember_report = True
                                                                     else:
-                                                                        system_reply = self.answer_system_assignment_report_question(prompt)
-                                                                        if system_reply is not None:
-                                                                            reply = system_reply
+                                                                        discipline_qa_reply = self.answer_discipline_qa_report_question(prompt)
+                                                                        if discipline_qa_reply is not None:
+                                                                            reply = discipline_qa_reply
                                                                             remember_report = True
                                                                         else:
-                                                                            active_view_reply = self.answer_active_view_report_question(prompt)
-                                                                            if active_view_reply is not None:
-                                                                                reply = active_view_reply
+                                                                            system_reply = self.answer_system_assignment_report_question(prompt)
+                                                                            if system_reply is not None:
+                                                                                reply = system_reply
                                                                                 remember_report = True
                                                                             else:
-                                                                                selection_reply = self.answer_selection_report_question(prompt)
-                                                                                if selection_reply is not None:
-                                                                                    reply = selection_reply
+                                                                                active_view_reply = self.answer_active_view_report_question(prompt)
+                                                                                if active_view_reply is not None:
+                                                                                    reply = active_view_reply
                                                                                     remember_report = True
-                                                                                elif self._is_project_context_question(prompt):
-                                                                                    reply = self.answer_project_context_question(prompt)
-                                                                                    remember_report = True
-                                                                                elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
-                                                                                    self.append_project_agent_plan()
-                                                                                    reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
-                                                                                    preserve_latest_report_state = True
                                                                                 else:
-                                                                                    reply = send_ollama_chat(self.model, prompt)
-                                                                                    reply = self._sanitize_ollama_context_error(reply)
-                                                                                    self.latest_chat_output_is_deterministic_report = False
+                                                                                    selection_reply = self.answer_selection_report_question(prompt)
+                                                                                    if selection_reply is not None:
+                                                                                        reply = selection_reply
+                                                                                        remember_report = True
+                                                                                    elif self._is_project_context_question(prompt):
+                                                                                        reply = self.answer_project_context_question(prompt)
+                                                                                        remember_report = True
+                                                                                    elif "ask ai agent for a plan" in prompt.lower() or "agent plan" in prompt.lower():
+                                                                                        self.append_project_agent_plan()
+                                                                                        reply = "AI Agent project-context plan created. Review it in the AI Agent tab; no actions have been executed."
+                                                                                        preserve_latest_report_state = True
+                                                                                    else:
+                                                                                        reply = send_ollama_chat(self.model, prompt)
+                                                                                        reply = self._sanitize_ollama_context_error(reply)
+                                                                                        self.latest_chat_output_is_deterministic_report = False
             if reply.startswith("Error:") and self.model != DEFAULT_MODEL:
                 reply += " Runtime note: this may reflect local model/runtime instability rather than a broken feature. Switching back to phi3:mini is recommended."
             if remember_report:

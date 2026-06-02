@@ -3268,6 +3268,35 @@
     "mode": "deterministic"
   },
   {
+    "id": "link-origin-reset-rollback-test",
+    "title": "Link origin reset rollback test",
+    "category": "BIM QA",
+    "group": "Coordination Write Research",
+    "discipline": "Coordination",
+    "role": "reviewed_rollback_test",
+    "risk_level": "medium",
+    "scope_type": "selected_revit_link_origin_reset_rollback",
+    "canonical_prompt": "run link origin reset rollback test ROLLBACK-LINK-RESET-OK",
+    "planner_aliases": [
+      "run link origin reset rollback test ROLLBACK-LINK-RESET-OK",
+      "test link origin reset rollback ROLLBACK-LINK-RESET-OK",
+      "rollback test selected link origin reset ROLLBACK-LINK-RESET-OK",
+      "test selected link reset to zero ROLLBACK-LINK-RESET-OK",
+      "run selected link coordinate reset rollback test ROLLBACK-LINK-RESET-OK",
+      "show link origin rollback status",
+      "show latest link reset rollback test",
+      "check link reset rollback readiness",
+      "check selected link reset readiness"
+    ],
+    "deterministic_handler": "link_origin_reset_rollback_test_report",
+    "requires_confirmation": true,
+    "confirmation_token": "ROLLBACK-LINK-RESET-OK",
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "run link origin reset rollback test ROLLBACK-LINK-RESET-OK",
+    "mode": "deterministic"
+  },
+  {
     "id": "link-transform-audit-report",
     "title": "Link transform audit report",
     "category": "BIM QA",
