@@ -398,6 +398,41 @@ MEP-WR-002 validates selected pipe split dry-run candidates against Revit's pipe
 - no parameter write
 - no tag/schedule/view/sheet/system/circuit edit
 
+## 2026-06-03 - COORD-WR-001 to COORD-WR-003 Link Transform Audit and Reviewed Reset Runtime Validation
+
+### Status
+
+COORD-WR-001, COORD-WR-002, and COORD-WR-003: runtime validated.
+
+### Summary
+
+The coordination workflow was runtime validated in `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, active view `{3D - e.avdovicQREF7} [ThreeD]`. The selected test link was `2972572`, `3D-01B-AR-01.ifc : 48`, with original offset `(0.000000, -6.233596, 0.000000) ft`, approximately `(0, -1900, 0) mm`.
+
+### Main finding
+
+The workflow safely detected a non-zero link origin, rollback-tested a selected link origin reset, preserved the latest passed rollback source across prompt routes, and persistently reset exactly one reviewed selected link to project origin after explicit token confirmation.
+
+### Critical safety validation
+
+- COORD-WR-001 audit opened no transaction and modified no model data.
+- COORD-WR-002 rollback test `COORD-WR-002-20260603_144729` opened a `TransactionGroup`, called `MoveElement`, verified temporary zero origin, rolled back, and left persistent model changes false.
+- Latest passed rollback source was stored and read back through `AI_WORKBENCH_COORD_SHARED_STATE`.
+- COORD-WR-003 readiness `COORD-WR-003-20260603_145224` passed without transaction or `MoveElement`.
+- COORD-WR-003 apply `COORD-WR-003-20260603_145444` accepted `PERSISTENT-LINK-RESET-OK`, committed one transaction, and reset link `2972572` to `(0.000000, 0.000000, 0.000000)`.
+- Post-apply audit `COORD-WR-001-20260603_145614` reported 8 loaded links, 8 near zero origin, 0 offset links, and audit result `OK`.
+- QA export/index validation passed at `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260603_150023`.
+
+### Safety
+
+- no batch/all-link reset
+- no apply by stored element id alone
+- no linked document mutation
+- no reload/unload
+- no pin/unpin
+- no parameter writes
+- no rotation/transform API beyond guarded `MoveElement`
+- no UI selection modification
+
 ## 2026-05-19 - MEP-WR-003 Split Selected Pipe Single-Candidate Persistent Reviewed Apply Core Runtime Validation
 
 ### Status

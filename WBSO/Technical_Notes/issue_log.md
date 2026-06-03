@@ -1106,7 +1106,7 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 
 ## 2026-05-14 MEP-RO-005 Exportable QA Evidence Snapshot Validation
 
-**Status:** Resolved / runtime validated  
+**Status:** Resolved / runtime validated
 **Type:** deterministic filesystem evidence export validation
 
 ### Completed
@@ -1141,7 +1141,7 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 
 ## 2026-05-17 MEP-RO-006 and MEP-ACT-001 Runtime Validation
 
-**Status:** Resolved / runtime validated  
+**Status:** Resolved / runtime validated
 **Type:** deterministic export-index and reviewed-action proposal validation
 
 ### MEP-RO-006 validated items
@@ -1302,3 +1302,33 @@ MEP-WR-005 adds session-local `latest_split_apply_consumed_source_state`. After 
 - `[SPLIT APPLY SOURCE STATE]` export/index passed.
 
 No new transaction, `BreakCurve`, model mutation API, connector traversal, geometry extraction, linked-document scan, or parameter write was introduced by WR-005.
+
+---
+
+## 2026-06-03 COORD-WR-002 to COORD-WR-003 Passed Rollback Source Persistence
+
+**Status:** Resolved / runtime validated
+**Type:** reviewed coordination apply state-governance issue
+
+### Issue
+
+Initial COORD-WR-003 reviewed apply could not reliably access the COORD-WR-002 rollback source after later prompt routes. A later Not Ready rollback report could overwrite or hide the latest valid passed rollback source.
+
+### Risk
+
+Without a stable latest-passed rollback source, persistent link origin reset could be incorrectly blocked even after a valid rollback test, or future routes could accidentally rely on stale/invalid state.
+
+### Resolution
+
+Shared coordination session helpers were added around pyRevit script envvar `AI_WORKBENCH_COORD_SHARED_STATE`, using key `latest_passed_link_origin_reset_rollback_state`. The state is written only after a `Passed` COORD-WR-002 result and stores serializable source data only.
+
+### Runtime result
+
+- COORD-WR-002 rollback test `COORD-WR-002-20260603_144729` passed and stored latest passed rollback source.
+- Read-back of the shared state succeeded.
+- COORD-WR-003 readiness `COORD-WR-003-20260603_145224` consumed the passed source without transaction.
+- COORD-WR-003 apply `COORD-WR-003-20260603_145444` persistently reset exactly one selected link after token confirmation.
+
+### Governance result
+
+Invalid rollback reports do not overwrite the latest passed source. COORD-WR-003 still requires explicit selection, id/name match, origin/basis match, non-zero origin, and `PERSISTENT-LINK-RESET-OK`.

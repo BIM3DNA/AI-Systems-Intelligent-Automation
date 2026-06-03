@@ -525,3 +525,27 @@ Still out of scope:
 - production model use
 - persistent apply without new rollback source
 - automatic undo/reversal helper
+
+### 2026-06-03 COORD-WR-001 to COORD-WR-003 scope alignment
+
+COORD-WR-001 through COORD-WR-003 extend the deterministic reviewed-write research pattern from pipe splitting into Revit link coordination. The validated workflow audits link transforms, rollback-tests a selected link origin reset, and persistently applies exactly one selected-link origin reset after explicit token confirmation and source revalidation.
+
+Validated scope:
+
+- read-only active-document Revit link transform audit
+- rollback-only selected-link origin reset proof using `TransactionGroup`
+- latest-passed rollback source persistence across prompt routes
+- single selected `RevitLinkInstance` reviewed apply
+- QA export/index for `[LINK TRANSFORM AUDIT REPORT]`
+
+Still out of scope:
+
+- batch/all-link origin reset
+- apply by stored element id alone
+- linked document mutation
+- reload/unload
+- pin/unpin
+- parameter writes
+- rotation or non-translation transform correction
+- UI selection modification
+- production model use without reviewed validation

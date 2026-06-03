@@ -236,3 +236,35 @@ MEP-WR-009 is deterministic preflight revalidation for the reviewed pipe split w
 - no session-state clearing
 - no UI selection modification
 - no model mutation in diagnostic route
+
+## 2026-06-03 COORD-WR-001 to COORD-WR-003 Model Note
+
+Feature IDs: COORD-WR-001, COORD-WR-002, COORD-WR-003
+
+Feature:
+Link Transform Audit / Rollback-Tested Reviewed Origin Reset
+
+Status:
+Runtime validated
+
+Evidence:
+EV-AI-161 to EV-AI-167
+
+COORD-WR-001 is deterministic read-only `RevitLinkInstance` transform audit logic. COORD-WR-002 is deterministic rollback-test logic for a selected link origin reset. COORD-WR-003 is deterministic reviewed apply logic for a single selected link origin reset.
+
+- audit header: `[LINK TRANSFORM AUDIT REPORT]`
+- rollback header: `[LINK ORIGIN RESET ROLLBACK TEST]`
+- reviewed apply header: `[LINK ORIGIN RESET REVIEWED APPLY]`
+- rollback token: `ROLLBACK-LINK-RESET-OK`
+- persistent apply token: `PERSISTENT-LINK-RESET-OK`
+- shared state object: `latest_passed_link_origin_reset_rollback_state`
+- shared state source: `pyrevit script envvar AI_WORKBENCH_COORD_SHARED_STATE`
+- validated link id: `2972572`
+- validated final origin: `(0.000000, 0.000000, 0.000000)`
+- primary export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260603_150023`
+- no batch/all-link reset
+- no linked document mutation
+- no reload/unload
+- no pin/unpin
+- no parameter writes
+- no UI selection modification

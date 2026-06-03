@@ -1684,3 +1684,45 @@ MEP-RO-003 - MEP System Assignment / Classification Read-Only QA Pack
 ### Status
 
 Runtime validated.
+
+## EV-AI-161 through EV-AI-167 - COORD-WR-001 to COORD-WR-003 Link Transform Audit and Reviewed Reset
+
+### Feature
+
+COORD-WR-001 - Link Transform Audit / Coordinate Drift Report
+COORD-WR-002 - Link Origin Reset Rollback Test
+COORD-WR-003 - Single Selected Link Reviewed Origin Reset Apply
+
+### Evidence IDs
+
+- EV-AI-161: COORD-WR-001 link transform audit report validation. `[LINK TRANSFORM AUDIT REPORT]` audited active-document `RevitLinkInstance` transforms read-only and later confirmed 8 loaded links near zero origin.
+- EV-AI-162: COORD-WR-002 rollback reset validation. Rollback Test ID `COORD-WR-002-20260603_144729` temporarily moved link `2972572` to zero origin, verified it, rolled back the `TransactionGroup`, and restored original origin with persistent model changes false.
+- EV-AI-163: COORD-WR-002 latest-passed rollback source persistence validation. The passed rollback source was stored and read back through `pyrevit script envvar AI_WORKBENCH_COORD_SHARED_STATE` using key `latest_passed_link_origin_reset_rollback_state`.
+- EV-AI-164: COORD-WR-003 readiness validation. Apply ID `COORD-WR-003-20260603_145224` confirmed latest passed source, selected link match, origin/basis match, non-zero origin, and delta match without transaction or model mutation.
+- EV-AI-165: COORD-WR-003 persistent reviewed apply validation. Apply ID `COORD-WR-003-20260603_145444` accepted `PERSISTENT-LINK-RESET-OK`, opened one transaction, called `MoveElement`, committed, and reset link `2972572` to zero origin.
+- EV-AI-166: COORD-WR-001 post-apply audit validation. Audit ID `COORD-WR-001-20260603_145614` reported 8 loaded links, 8 near zero origin, 0 offset links, 0 future reset candidates, and link `2972572` classified `OK_ZERO_ORIGIN`.
+- EV-AI-167: COORD workflow QA export/index validation. `[LINK TRANSFORM AUDIT REPORT]` exported to `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260603_150023` with `report.md`, `report.txt`, `metadata.json`, `artifact_manifest.txt`, and updated export indexes.
+
+### Validation Summary
+
+- deterministic coordination routes validated for audit, rollback proof, and reviewed apply
+- rollback apply path requires `ROLLBACK-LINK-RESET-OK`
+- persistent apply path requires `PERSISTENT-LINK-RESET-OK`
+- latest passed rollback source remains available across prompt routes and is not overwritten by invalid/Not Ready reports
+- exactly one selected `RevitLinkInstance` was persistently reset
+- no batch/all-link reset, linked document mutation, reload/unload, pin/unpin, parameter write, rotation, or UI selection modification
+- QA export/index integration validated for `[LINK TRANSFORM AUDIT REPORT]`
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-06-03_coord-wr-001-to-003-link-transform-audit-and-reset-validated/`
+
+### Commit Reference
+
+- `38ab72c8f0fd0da897b50963947104744807b5f2`
+- `Add reviewed link origin reset apply`
+- changed implementation files: `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`, `AI.extension/lib/prompt_catalog.json`
+
+### Status
+
+Runtime validated.

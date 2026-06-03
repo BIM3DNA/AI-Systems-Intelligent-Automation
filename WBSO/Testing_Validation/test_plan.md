@@ -653,6 +653,53 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-06-03 COORD-WR-001 to COORD-WR-003 Runtime Validation Plan
+
+### A. Link transform audit
+
+- Run `audit link transforms`.
+- Confirm `[LINK TRANSFORM AUDIT REPORT]`.
+- Confirm active-document `RevitLinkInstance` transform data is reported.
+- Confirm no transaction and no model mutation.
+
+### B. Link origin reset rollback test
+
+- Select exactly one offset `RevitLinkInstance`.
+- Run rollback prompt with `ROLLBACK-LINK-RESET-OK`.
+- Confirm `[LINK ORIGIN RESET ROLLBACK TEST]`.
+- Confirm `TransactionGroup` opened, inner transaction opened, `MoveElement` called, temporary origin reached zero, `TransactionGroup` rolled back, final origin restored, and persistent model changes false.
+
+### C. Latest passed rollback source persistence
+
+- Confirm latest passed rollback source is stored only after `Passed`.
+- Confirm read-back succeeds through `AI_WORKBENCH_COORD_SHARED_STATE`.
+- Confirm invalid/Not Ready reports do not overwrite the passed source.
+
+### D. Reviewed apply readiness
+
+- Run readiness/apply prompt without persistent token.
+- Confirm `[LINK ORIGIN RESET REVIEWED APPLY]`.
+- Confirm selected link matches rollback-tested link, current origin/basis match source, origin is not already zero, and transaction remains closed.
+
+### E. Persistent reviewed apply
+
+- Run apply prompt with `PERSISTENT-LINK-RESET-OK`.
+- Confirm exactly one selected link is reset.
+- Confirm one transaction opens, `MoveElement` is called, transaction commits, final origin is near zero, basis is preserved, and persistent model changes true.
+
+### F. Post-apply audit and export
+
+- Run `audit link transforms`.
+- Confirm selected link classification is `OK_ZERO_ORIGIN`.
+- Export latest QA report and confirm `[LINK TRANSFORM AUDIT REPORT]` is indexed.
+
+### Pass criteria
+
+- COORD-WR-001 remains read-only.
+- COORD-WR-002 leaves no persistent mutation.
+- COORD-WR-003 applies exactly one selected-link persistent reset only after passed rollback source and explicit token.
+- No batch/all-link reset, linked document mutation, reload/unload, pin/unpin, parameter write, rotation, or UI selection modification occurs.
+
 ## 2026-05-25 MEP-WR-005 Split Apply Source Consumption / Staleness Guard Validation
 
 ### Context

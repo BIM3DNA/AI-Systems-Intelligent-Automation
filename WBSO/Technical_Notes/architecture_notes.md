@@ -1286,6 +1286,30 @@ MEP-WR-005 adds no new write API, transaction, connector traversal, geometry ext
 
 Status: runtime validated.
 
+## 2026-06-03 COORD-WR-001 to COORD-WR-003 Link Transform Audit and Reviewed Reset
+
+COORD-WR-001 through COORD-WR-003 introduce a deterministic coordination automation chain for Revit link transform review and single-link reviewed origin reset.
+
+### Architectural role
+
+- COORD-WR-001 emits `[LINK TRANSFORM AUDIT REPORT]` as a read-only active-document `RevitLinkInstance` transform audit.
+- COORD-WR-002 emits `[LINK ORIGIN RESET ROLLBACK TEST]` and requires `ROLLBACK-LINK-RESET-OK` before opening a rollback-only `TransactionGroup`.
+- COORD-WR-002 uses `ElementTransformUtils.MoveElement` only inside rollback test scope, verifies temporary zero origin, rolls back, and verifies final origin restored.
+- COORD-WR-003 emits `[LINK ORIGIN RESET REVIEWED APPLY]` and requires `PERSISTENT-LINK-RESET-OK`.
+- COORD-WR-003 requires the latest passed COORD-WR-002 source, selected link id/name match, current origin/basis match, and current origin not already zero before persistent apply.
+- Shared coordination state is stored through pyRevit script envvar `AI_WORKBENCH_COORD_SHARED_STATE` under `latest_passed_link_origin_reset_rollback_state`.
+- The passed rollback source is written only on `Passed` rollback-test results and is not overwritten by Not Ready, Already at zero, Failed, missing-token, no-selection, multiple-selection, or unreadable-source reports.
+
+### Runtime validation
+
+Runtime validation reset selected link `2972572`, `3D-01B-AR-01.ifc : 48`, from `(0.000000, -6.233596, 0.000000) ft` to `(0.000000, 0.000000, 0.000000) ft`. COORD-WR-002 rollback validation passed, COORD-WR-003 readiness passed without transaction, COORD-WR-003 persistent apply committed one transaction, and post-apply COORD-WR-001 audit reported 8 loaded links near zero origin with audit result `OK`.
+
+### Safety boundary
+
+The chain supports a controlled progression from read-only audit to rollback proof to single selected reviewed apply. It does not implement batch/all-link reset, apply by stored element id alone, linked document mutation, reload/unload, pin/unpin, parameter writes, rotation, UI selection modification, or linked-document scanning.
+
+Status: runtime validated.
+
 ## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry
 
 MEP-RO-006 builds on MEP-RO-005 by registering every successful QA evidence export in a persistent local filesystem index.

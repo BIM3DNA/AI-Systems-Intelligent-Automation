@@ -180,3 +180,13 @@ MEP-WR-005 source-consumption prompts route deterministically before Ollama/Open
 - MEP-WR-003 apply routes consult MEP-WR-005 session state before any transaction path
 - generic LLM output remains rejected by export as deterministic evidence
 - no provider configuration was changed
+
+## 2026-06-03 COORD-WR-001 to COORD-WR-003 Provider Boundary Note
+
+COORD-WR-001, COORD-WR-002, and COORD-WR-003 prompts route deterministically before Ollama/OpenAI fallback.
+
+- LLM providers are not used to audit link transforms, decide rollback eligibility, store passed rollback source, or execute reviewed origin reset.
+- COORD-WR-002 requires explicit `ROLLBACK-LINK-RESET-OK` before rollback transaction logic.
+- COORD-WR-003 requires explicit `PERSISTENT-LINK-RESET-OK` before persistent apply logic.
+- Generic LLM output remains rejected by export as deterministic evidence.
+- No provider configuration was changed.
