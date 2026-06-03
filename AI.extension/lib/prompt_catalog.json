@@ -3268,6 +3268,35 @@
     "mode": "deterministic"
   },
   {
+    "id": "link-origin-reset-reviewed-apply",
+    "title": "Link origin reset reviewed apply",
+    "category": "BIM QA",
+    "group": "Coordination Write Research",
+    "discipline": "Coordination",
+    "role": "reviewed_apply",
+    "risk_level": "high",
+    "scope_type": "selected_revit_link_origin_reset_apply",
+    "canonical_prompt": "apply selected link origin reset PERSISTENT-LINK-RESET-OK",
+    "planner_aliases": [
+      "apply selected link origin reset PERSISTENT-LINK-RESET-OK",
+      "reset selected link origin to zero PERSISTENT-LINK-RESET-OK",
+      "apply link origin reset PERSISTENT-LINK-RESET-OK",
+      "apply reviewed link origin reset PERSISTENT-LINK-RESET-OK",
+      "apply selected link coordinate reset PERSISTENT-LINK-RESET-OK",
+      "show latest link origin reset apply",
+      "show link reset apply status",
+      "check link reset apply readiness",
+      "check selected link apply readiness"
+    ],
+    "deterministic_handler": "link_origin_reset_reviewed_apply_report",
+    "requires_confirmation": true,
+    "confirmation_token": "PERSISTENT-LINK-RESET-OK",
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "apply selected link origin reset PERSISTENT-LINK-RESET-OK",
+    "mode": "deterministic"
+  },
+  {
     "id": "link-origin-reset-rollback-test",
     "title": "Link origin reset rollback test",
     "category": "BIM QA",
