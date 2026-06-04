@@ -190,3 +190,13 @@ COORD-WR-001, COORD-WR-002, and COORD-WR-003 prompts route deterministically bef
 - COORD-WR-003 requires explicit `PERSISTENT-LINK-RESET-OK` before persistent apply logic.
 - Generic LLM output remains rejected by export as deterministic evidence.
 - No provider configuration was changed.
+
+## 2026-06-04 COORD-WR-004 Provider Boundary Note
+
+COORD-WR-004 prompts route deterministically before Ollama/OpenAI fallback.
+
+- LLM providers are not used to choose verification targets, interpret link transforms, or decide verification result.
+- COORD-WR-004 reads the stored latest applied state and/or current selected link deterministically.
+- Stored element id use is read-only verification only.
+- Generic LLM output remains rejected by export as deterministic evidence.
+- No provider configuration was changed.

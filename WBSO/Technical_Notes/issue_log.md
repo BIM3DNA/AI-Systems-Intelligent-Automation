@@ -1332,3 +1332,32 @@ Shared coordination session helpers were added around pyRevit script envvar `AI_
 ### Governance result
 
 Invalid rollback reports do not overwrite the latest passed source. COORD-WR-003 still requires explicit selection, id/name match, origin/basis match, non-zero origin, and `PERSISTENT-LINK-RESET-OK`.
+
+---
+
+## 2026-06-04 COORD-WR-003 / COORD-WR-004 Latest Apply State Boundary
+
+**Status:** Resolved / runtime validated
+**Type:** reviewed coordination apply-state and post-apply verification governance
+
+### Issue
+
+COORD-WR-003 readiness or Not ready reports could be confused with latest applied state if they populated the same session state used by COORD-WR-004.
+
+### Risk
+
+A Not ready report could make COORD-WR-004 appear to have a latest applied link id or final origin even though COORD-WR-003 had not actually performed a persistent apply.
+
+### Resolution
+
+COORD-WR-003 stores `latest_link_origin_reset_apply_state` only after a real `Applied` result with committed transaction, `MoveElement` called, persistent model changes true, final origin near zero, readable final basis, and post-apply verification passed. COORD-WR-004 reads that state for read-only verification only.
+
+### Runtime result
+
+- COORD-WR-003 readiness `COORD-WR-003-20260604_151952` remained readiness-only with transaction false and model modified false.
+- COORD-WR-003 apply `COORD-WR-003-20260604_152029` stored valid latest apply state after `Applied`.
+- COORD-WR-004 latest-state verification `COORD-WR-004-20260604_152052` returned `Verified`.
+- COORD-WR-004 selected-link verification `COORD-WR-004-20260604_152647` returned `Verified`.
+- COORD-WR-004 no-selection latest-state verification `COORD-WR-004-20260604_152936` returned `Verified`.
+
+No apply-by-stored-id behavior, model mutation, UI selection modification, linked document mutation, reload/unload, pin/unpin, or parameter write was introduced.

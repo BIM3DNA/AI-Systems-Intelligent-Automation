@@ -1726,3 +1726,47 @@ COORD-WR-003 - Single Selected Link Reviewed Origin Reset Apply
 ### Status
 
 Runtime validated.
+
+## EV-AI-173 through EV-AI-180 - COORD-WR-004 Link Origin Reset Post-Apply Verification Helper
+
+### Feature
+
+COORD-WR-004 - Link Origin Reset Post-Apply Verification Helper
+
+### Evidence IDs
+
+- EV-AI-173: COORD-WR-004 implementation and latest apply state persistence fix. COORD-WR-003 stores `latest_link_origin_reset_apply_state` only after a real `Applied` result; COORD-WR-004 reads it for read-only verification only.
+- EV-AI-174: COORD-WR-002 rollback validation for current offset link. Rollback Test ID `COORD-WR-002-20260604_151647` passed for link `2972572`, original offset `(0, -2000, 0)` mm, with TransactionGroup rolled back and persistent model changes false.
+- EV-AI-175: COORD-WR-003 reviewed persistent apply validation. Apply ID `COORD-WR-003-20260604_152029` reset link `2972572` to zero origin, committed one transaction, and stored valid latest apply state.
+- EV-AI-176: COORD-WR-004 selected-link verification. Verification ID `COORD-WR-004-20260604_152647` verified selected link `2972572` matched the latest applied link and remained at zero origin.
+- EV-AI-177: COORD-WR-004 no-selection latest-state verification. Verification ID `COORD-WR-004-20260604_152936` verified link `2972572` from latest apply state with no selected `RevitLinkInstance`.
+- EV-AI-178: COORD-WR-004 QA export/index validation. `[LINK ORIGIN RESET POST-APPLY VERIFICATION]` exported to `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260604_153013`.
+- EV-AI-179: Final COORD-WR-001 full audit and QA export. Audit ID `COORD-WR-001-20260604_153245` reported 8 loaded links, all near zero origin, and exported to `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260604_153603`.
+- EV-AI-180: Commit evidence for COORD-WR-004. Latest commit `fefa253 Add link reset post-apply verification` records the implementation in `script.py` and `prompt_catalog.json`.
+
+### Validation Summary
+
+- read-only post-apply verification report validated
+- selected-link verification validated
+- no-selection latest-state verification validated
+- `latest_link_origin_reset_apply_state` persistence validated after `Applied`
+- stored element id use remains verification-only
+- no apply-by-stored-id behavior introduced
+- QA export/index validated for `[LINK ORIGIN RESET POST-APPLY VERIFICATION]`
+- final full link transform audit validated all 8 links near zero origin
+
+### Artifacts Path
+
+`WBSO/Testing_Validation/runs/2026-06-04_coord-wr-004-link-origin-reset-post-apply-verification-validated/`
+
+### Daily Log
+
+`DL-2026-06-04-08`
+
+### Week
+
+`2026-W11`
+
+### Status
+
+Runtime validated and export/index validated.

@@ -398,6 +398,43 @@ MEP-WR-002 validates selected pipe split dry-run candidates against Revit's pipe
 - no parameter write
 - no tag/schedule/view/sheet/system/circuit edit
 
+## 2026-06-04 - COORD-WR-004 Link Origin Reset Post-Apply Verification Runtime Validation
+
+### Status
+
+COORD-WR-004: runtime validated and export/index validated.
+
+### Summary
+
+COORD-WR-004 was validated in `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, active view `{3D - e.avdovicQREF7} [ThreeD]`. It verifies the latest COORD-WR-003 applied Revit link origin reset without opening a transaction or modifying model data.
+
+### Main finding
+
+COORD-WR-004 correctly verified link `2972572` after COORD-WR-003 reset it to zero origin. Both selected-link verification and no-selection latest-state verification returned `Verified`.
+
+### Validation coverage
+
+- COORD-WR-002 rollback `COORD-WR-002-20260604_151647` passed for link `2972572`.
+- COORD-WR-003 readiness `COORD-WR-003-20260604_151952` passed as readiness-only; `Reviewed apply result: Not ready` means persistent apply was not requested.
+- COORD-WR-003 apply `COORD-WR-003-20260604_152029` committed one transaction, called `MoveElement`, reset the link to `(0.000000, 0.000000, 0.000000)`, and stored `latest_link_origin_reset_apply_state`.
+- COORD-WR-004 latest apply verification `COORD-WR-004-20260604_152052` returned `Verified`.
+- COORD-WR-004 selected-link verification `COORD-WR-004-20260604_152647` returned `Verified`.
+- COORD-WR-004 no-selection latest-state verification `COORD-WR-004-20260604_152936` returned `Verified`.
+- `[LINK ORIGIN RESET POST-APPLY VERIFICATION]` exported and indexed at `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260604_153013`.
+- Final `[LINK TRANSFORM AUDIT REPORT]` exported and indexed at `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260604_153603`.
+
+### Safety
+
+- COORD-WR-004 is read-only.
+- Transaction opened: false.
+- TransactionGroup opened: false.
+- MoveElement called: false.
+- Model modified: false.
+- UI selection modified: false.
+- Linked document modified: false.
+- Stored element id use is verification-only.
+- No apply-by-stored-id behavior was introduced.
+
 ## 2026-06-03 - COORD-WR-001 to COORD-WR-003 Link Transform Audit and Reviewed Reset Runtime Validation
 
 ### Status

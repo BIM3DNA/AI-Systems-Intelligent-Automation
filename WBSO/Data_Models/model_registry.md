@@ -268,3 +268,34 @@ COORD-WR-001 is deterministic read-only `RevitLinkInstance` transform audit logi
 - no pin/unpin
 - no parameter writes
 - no UI selection modification
+
+## 2026-06-04 COORD-WR-004 Model Note
+
+Feature ID: COORD-WR-004
+
+Feature:
+Link Origin Reset Post-Apply Verification Helper
+
+Status:
+Runtime validated and export/index validated
+
+Evidence:
+EV-AI-173 to EV-AI-180
+
+COORD-WR-004 is deterministic read-only verification logic for the reviewed link origin reset workflow. It verifies the latest COORD-WR-003 applied state or exactly one selected `RevitLinkInstance` without opening a transaction or changing model data.
+
+- report header: `[LINK ORIGIN RESET POST-APPLY VERIFICATION]`
+- source state key: `latest_link_origin_reset_apply_state`
+- shared state source: `pyrevit script envvar AI_WORKBENCH_COORD_SHARED_STATE`
+- validated link id: `2972572`
+- selected-link verification: `COORD-WR-004-20260604_152647`
+- no-selection latest-state verification: `COORD-WR-004-20260604_152936`
+- primary verification export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260604_153013`
+- final audit export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260604_153603`
+- stored element id use is verification-only
+- no apply-by-stored-id behavior
+- no transaction
+- no TransactionGroup
+- no MoveElement
+- no model mutation
+- no UI selection modification

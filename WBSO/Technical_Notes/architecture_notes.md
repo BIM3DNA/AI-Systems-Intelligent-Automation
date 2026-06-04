@@ -1310,6 +1310,34 @@ The chain supports a controlled progression from read-only audit to rollback pro
 
 Status: runtime validated.
 
+## 2026-06-04 COORD-WR-004 Link Origin Reset Post-Apply Verification
+
+COORD-WR-004 adds the read-only verification layer after COORD-WR-003 persistent reviewed apply. It verifies that the latest applied `RevitLinkInstance` remains at zero origin and that current transform basis/origin still match the stored applied final state.
+
+### Architectural role
+
+- emits `[LINK ORIGIN RESET POST-APPLY VERIFICATION]`
+- reads `latest_link_origin_reset_apply_state`
+- verifies latest applied target by stored element id in read-only mode
+- supports selected-link verification when exactly one `RevitLinkInstance` is selected
+- reports whether selected link and latest applied link match
+- stores no write target for apply-by-stored-id behavior
+- exports through the deterministic QA export/index path
+
+### State boundary
+
+COORD-WR-003 now stores `latest_link_origin_reset_apply_state` only after a real `Applied` result. Readiness-only reports such as `Reviewed apply result: Not ready` do not overwrite the latest valid applied state. COORD-WR-004 treats stored element id use as verification-only.
+
+### Runtime validation
+
+Runtime validation used link `2972572`, `3D-01B-AR-01.ifc : 48`. COORD-WR-003 apply `COORD-WR-003-20260604_152029` reset the link from approximately `(0, -2000, 0)` mm to `(0, 0, 0)` mm and stored the latest apply state. COORD-WR-004 verified the latest applied target, selected-link mode, and no-selection latest-state mode.
+
+### Safety boundary
+
+COORD-WR-004 opens no `Transaction`, opens no `TransactionGroup`, calls no `MoveElement`, performs no linked-document mutation, reload/unload, pin/unpin, parameter write, UI selection modification, or model mutation.
+
+Status: runtime validated and export/index validated.
+
 ## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry
 
 MEP-RO-006 builds on MEP-RO-005 by registering every successful QA evidence export in a persistent local filesystem index.

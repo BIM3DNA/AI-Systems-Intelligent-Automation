@@ -700,6 +700,51 @@ The refactor should only be considered runtime-proven after the scenario set abo
 - COORD-WR-003 applies exactly one selected-link persistent reset only after passed rollback source and explicit token.
 - No batch/all-link reset, linked document mutation, reload/unload, pin/unpin, parameter write, rotation, or UI selection modification occurs.
 
+## 2026-06-04 COORD-WR-004 Runtime Validation Plan
+
+### A. Build validated apply source
+
+- Run COORD-WR-002 rollback test for one selected offset `RevitLinkInstance`.
+- Run COORD-WR-003 readiness and document readiness-only `Not ready` result when persistent apply is not requested.
+- Run COORD-WR-003 persistent apply with `PERSISTENT-LINK-RESET-OK`.
+- Confirm `latest_link_origin_reset_apply_state` is stored only after `Applied`.
+
+### B. Latest apply verification
+
+- Run `verify latest link origin reset apply`.
+- Confirm `[LINK ORIGIN RESET POST-APPLY VERIFICATION]`.
+- Confirm latest applied link id resolves, current origin is near zero, origin/basis match stored final state, and result is `Verified`.
+
+### C. Selected-link verification
+
+- Select the applied link.
+- Run `verify selected link reset result`.
+- Confirm selected link matches latest applied link and result is `Verified`.
+
+### D. No-selection latest-state verification
+
+- Clear selection.
+- Run `check latest link reset result`.
+- Confirm target source is latest apply, link resolves, and result is `Verified`.
+
+### E. Export and final audit
+
+- Export latest QA report for `[LINK ORIGIN RESET POST-APPLY VERIFICATION]`.
+- Run `audit link transforms`.
+- Confirm all links are near zero origin.
+- Export final `[LINK TRANSFORM AUDIT REPORT]`.
+
+### Pass criteria
+
+- COORD-WR-004 remains read-only.
+- Transaction opened false.
+- TransactionGroup opened false.
+- MoveElement called false.
+- Model modified false.
+- Linked document modified false.
+- UI selection modified false.
+- Stored element id use remains verification-only.
+
 ## 2026-05-25 MEP-WR-005 Split Apply Source Consumption / Staleness Guard Validation
 
 ### Context

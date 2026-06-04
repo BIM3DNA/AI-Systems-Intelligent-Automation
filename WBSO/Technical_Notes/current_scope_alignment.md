@@ -549,3 +549,27 @@ Still out of scope:
 - rotation or non-translation transform correction
 - UI selection modification
 - production model use without reviewed validation
+
+### 2026-06-04 COORD-WR-004 scope alignment
+
+COORD-WR-004 completes the first post-apply verification layer for the reviewed link origin reset workflow. It verifies the latest applied link state after COORD-WR-003 and supports both selected-link and no-selection latest-state verification.
+
+Validated scope:
+
+- read-only latest applied link verification
+- selected-link verification mode
+- no-selection latest-state verification mode
+- deterministic QA export/index for `[LINK ORIGIN RESET POST-APPLY VERIFICATION]`
+- final full COORD-WR-001 audit after verification
+- `latest_link_origin_reset_apply_state` is written only after real `Applied` result
+
+Still out of scope:
+
+- COORD-WR-004 applying or moving links
+- apply by stored element id
+- batch/all-link reset
+- linked document mutation
+- reload/unload
+- pin/unpin
+- parameter writes
+- UI selection modification
