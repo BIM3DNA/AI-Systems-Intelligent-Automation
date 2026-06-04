@@ -3268,6 +3268,33 @@
     "mode": "deterministic"
   },
   {
+    "id": "link-origin-reset-post-apply-verification",
+    "title": "Link origin reset post-apply verification",
+    "category": "BIM QA",
+    "group": "Coordination Write Research",
+    "discipline": "Coordination",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "selected_latest_revit_link_origin_reset_post_apply_verification",
+    "canonical_prompt": "verify latest link origin reset apply",
+    "planner_aliases": [
+      "verify latest link origin reset apply",
+      "verify link reset apply",
+      "check latest link reset result",
+      "check link reset post apply",
+      "show link reset verification",
+      "show latest link reset verification",
+      "verify selected link reset result",
+      "verify selected link origin reset"
+    ],
+    "deterministic_handler": "link_origin_reset_post_apply_verification_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "verify latest link origin reset apply",
+    "mode": "deterministic"
+  },
+  {
     "id": "link-origin-reset-reviewed-apply",
     "title": "Link origin reset reviewed apply",
     "category": "BIM QA",
