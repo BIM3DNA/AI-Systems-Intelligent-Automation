@@ -76,6 +76,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[LINK ORIGIN RESET ROLLBACK TEST]",
     "[LINK ORIGIN RESET REVIEWED APPLY]",
     "[LINK ORIGIN RESET POST-APPLY VERIFICATION]",
+    "[LINK RESET WORKFLOW STATUS]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -3184,6 +3185,43 @@ def get_latest_link_origin_reset_apply_state():
     return None
 
 
+def set_latest_link_transform_audit_state(state_dict):
+    state = get_coord_shared_state()
+    state["latest_link_transform_audit_state"] = dict(state_dict or {})
+    ok, error = _set_coord_shared_state(state)
+    return ok, error
+
+
+def get_latest_link_transform_audit_state():
+    state = get_coord_shared_state()
+    value = state.get("latest_link_transform_audit_state")
+    if isinstance(value, dict):
+        return value
+    return None
+
+
+def set_latest_link_origin_reset_post_apply_verification_state(state_dict):
+    state = get_coord_shared_state()
+    state["latest_link_origin_reset_post_apply_verification_state"] = dict(state_dict or {})
+    ok, error = _set_coord_shared_state(state)
+    return ok, error
+
+
+def get_latest_link_origin_reset_post_apply_verification_state():
+    state = get_coord_shared_state()
+    value = state.get("latest_link_origin_reset_post_apply_verification_state")
+    if isinstance(value, dict):
+        return value
+    return None
+
+
+def set_latest_link_reset_workflow_status_state(state_dict):
+    state = get_coord_shared_state()
+    state["latest_link_reset_workflow_status_state"] = dict(state_dict or {})
+    ok, error = _set_coord_shared_state(state)
+    return ok, error
+
+
 def _format_feet_mm(value_ft):
     try:
         value_ft = float(value_ft)
@@ -3206,6 +3244,16 @@ def _format_xyz_mm(vector):
         return "({0:.0f}, {1:.0f}, {2:.0f})".format(float(x) * 304.8, float(y) * 304.8, float(z) * 304.8)
     except:
         return "(unreadable)"
+
+
+def _xyz_mm_plain(vector):
+    plain = _xyz_plain(vector)
+    if not plain:
+        return None
+    try:
+        return [float(plain[0]) * 304.8, float(plain[1]) * 304.8, float(plain[2]) * 304.8]
+    except:
+        return None
 
 
 def _transform_basis_vector_text(vector):
@@ -3477,6 +3525,33 @@ def _collect_link_transform_audit_data(doc, uidoc=None, prompt="audit link trans
         "review_count": review_count,
         "audit_result": audit_result,
         "recommended_next_action": recommendation,
+    }
+
+
+def _build_link_transform_audit_shared_state(data):
+    links = data.get("links") or []
+    selected_count = len([item for item in links if item.get("selected")])
+    return {
+        "feature_id": "COORD-WR-001",
+        "audit_id": safe_str(data.get("audit_id")),
+        "timestamp": safe_str(data.get("created_timestamp_local")),
+        "created_timestamp_local": safe_str(data.get("created_timestamp_local")),
+        "document_title": safe_str(data.get("document_title")),
+        "active_view_name": safe_str(data.get("active_view_name")),
+        "audit_result": safe_str(data.get("audit_result")),
+        "total_link_count": len(links),
+        "loaded_link_count": _safe_int(data.get("loaded_count"), 0),
+        "unloaded_link_count": _safe_int(data.get("unreadable_count"), 0),
+        "selected_revit_link_count": selected_count,
+        "near_zero_count": _safe_int(data.get("near_zero_count"), 0),
+        "offset_count": _safe_int(data.get("offset_count"), 0),
+        "rotated_nonorthogonal_count": _safe_int(data.get("rotated_count"), 0),
+        "pinned_count": _safe_int(data.get("pinned_count"), 0),
+        "future_reset_candidate_count": _safe_int(data.get("reset_candidate_count"), 0),
+        "manual_review_count": _safe_int(data.get("review_count"), 0),
+        "zero_origin_tolerance_ft": float(LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT),
+        "model_modified": False,
+        "transaction_opened": False,
     }
 
 
@@ -4834,6 +4909,9 @@ def _collect_link_origin_reset_post_apply_verification_data(doc, uidoc, prompt, 
     basis_x = "unreadable"
     basis_y = "unreadable"
     basis_z = "unreadable"
+    basis_x_xyz = None
+    basis_y_xyz = None
+    basis_z_xyz = None
     basis_orthonormal = "unknown"
     mirrored = "unreadable"
     current_origin_near_zero = False
@@ -4863,6 +4941,9 @@ def _collect_link_origin_reset_post_apply_verification_data(doc, uidoc, prompt, 
             basis_x = _transform_basis_vector_text(current_transform.BasisX)
             basis_y = _transform_basis_vector_text(current_transform.BasisY)
             basis_z = _transform_basis_vector_text(current_transform.BasisZ)
+            basis_x_xyz = _xyz_plain(current_transform.BasisX)
+            basis_y_xyz = _xyz_plain(current_transform.BasisY)
+            basis_z_xyz = _xyz_plain(current_transform.BasisZ)
             basis_orthonormal = _basis_appears_orthonormal(current_transform)
             determinant = _transform_basis_determinant(current_transform)
             if determinant is not None:
@@ -4983,6 +5064,8 @@ def _collect_link_origin_reset_post_apply_verification_data(doc, uidoc, prompt, 
         "design_option_name": design_option_name,
         "transform_readable": bool(transform_readable),
         "current_origin": current_origin,
+        "current_origin_xyz": _xyz_plain(current_origin),
+        "current_origin_approx_mm": _xyz_mm_plain(current_origin),
         "current_origin_feet": _format_xyz_feet(current_origin),
         "current_origin_mm": _format_xyz_mm(current_origin),
         "current_distance_from_zero": current_distance,
@@ -4991,6 +5074,9 @@ def _collect_link_origin_reset_post_apply_verification_data(doc, uidoc, prompt, 
         "current_basis_x": basis_x,
         "current_basis_y": basis_y,
         "current_basis_z": basis_z,
+        "current_basis_x_xyz": basis_x_xyz,
+        "current_basis_y_xyz": basis_y_xyz,
+        "current_basis_z_xyz": basis_z_xyz,
         "current_basis_orthonormal": basis_orthonormal,
         "current_mirrored": mirrored,
         "current_basis_matches_latest_apply_final_basis": current_basis_matches_latest,
@@ -5007,6 +5093,125 @@ def _collect_link_origin_reset_post_apply_verification_data(doc, uidoc, prompt, 
     }
     data["recommended_next_action"] = _coord_link_post_apply_verification_recommendation(data)
     return data
+
+
+def _build_link_origin_reset_post_apply_verification_shared_state(data):
+    target_link_id = data.get("target_link_id")
+    try:
+        target_link_id = int(target_link_id)
+    except:
+        target_link_id = safe_str(target_link_id)
+    latest_applied_link_id = data.get("latest_applied_link_id")
+    try:
+        latest_applied_link_id = int(latest_applied_link_id)
+    except:
+        latest_applied_link_id = safe_str(latest_applied_link_id)
+    return {
+        "feature_id": "COORD-WR-004",
+        "verification_id": safe_str(data.get("verification_id")),
+        "timestamp": safe_str(data.get("created_timestamp_local")),
+        "created_timestamp_local": safe_str(data.get("created_timestamp_local")),
+        "document_title": safe_str(data.get("document_title")),
+        "active_view_name": safe_str(data.get("active_view_name")),
+        "verification_result": safe_str(data.get("verification_result")),
+        "verification_target_source": safe_str(data.get("verification_target_source")),
+        "target_link_id": target_link_id,
+        "target_link_name": safe_str(data.get("target_link_name")),
+        "latest_apply_id": safe_str(data.get("latest_apply_id")),
+        "latest_apply_timestamp": safe_str(data.get("latest_apply_timestamp")),
+        "latest_apply_result": safe_str(data.get("latest_apply_result")),
+        "latest_applied_link_id": latest_applied_link_id,
+        "latest_applied_link_name": safe_str(data.get("latest_applied_link_name")),
+        "link_resolves": bool(data.get("link_resolves")),
+        "element_is_revit_link_instance": bool(data.get("element_is_revit_link_instance")),
+        "linked_document_readable": bool(data.get("linked_document_readable")),
+        "transform_readable": bool(data.get("transform_readable")),
+        "current_origin_xyz": _xyz_plain(data.get("current_origin_xyz")),
+        "current_origin_approx_mm": _xyz_plain(data.get("current_origin_approx_mm")),
+        "current_origin_near_zero": bool(data.get("current_origin_near_zero")),
+        "current_basis_x": _xyz_plain(data.get("current_basis_x_xyz")),
+        "current_basis_y": _xyz_plain(data.get("current_basis_y_xyz")),
+        "current_basis_z": _xyz_plain(data.get("current_basis_z_xyz")),
+        "current_basis_orthonormal_safe": data.get("current_basis_orthonormal"),
+        "current_mirrored_flag": data.get("current_mirrored"),
+        "current_origin_matches_latest_apply_final_origin": data.get("current_origin_matches_latest_apply_final_origin"),
+        "current_basis_matches_latest_apply_final_basis": data.get("current_basis_matches_latest_apply_final_basis"),
+        "transaction_opened": bool(data.get("transaction_opened")),
+        "model_modified": bool(data.get("model_modified")),
+        "linked_document_modified": bool(data.get("linked_document_modified")),
+        "ui_selection_modified": bool(data.get("ui_selection_modified")),
+    }
+
+
+def _link_origin_reset_post_apply_verification_state_validation_errors(state):
+    errors = []
+    if not state:
+        return ["state is unavailable"]
+    if state.get("verification_result") not in ("Verified", "Review required"):
+        errors.append("verification_result is not Verified or Review required")
+    if state.get("target_link_id") in (None, "", "none"):
+        errors.append("target link id is unavailable")
+    if not state.get("link_resolves"):
+        errors.append("target link does not resolve")
+    if not state.get("element_is_revit_link_instance"):
+        errors.append("target element is not a RevitLinkInstance")
+    if not safe_str(state.get("document_title")).strip():
+        errors.append("document title is unavailable")
+    if not safe_str(state.get("verification_id")).strip():
+        errors.append("verification id is unavailable")
+    if state.get("verification_result") == "Verified":
+        if not state.get("transform_readable"):
+            errors.append("transform is unreadable")
+        if not _xyz_plain(state.get("current_origin_xyz")):
+            errors.append("current origin is unreadable")
+        if not _xyz_plain(state.get("current_basis_x")):
+            errors.append("current basis X is unreadable")
+        if not _xyz_plain(state.get("current_basis_y")):
+            errors.append("current basis Y is unreadable")
+        if not _xyz_plain(state.get("current_basis_z")):
+            errors.append("current basis Z is unreadable")
+    if state.get("transaction_opened"):
+        errors.append("transaction_opened is true")
+    if state.get("model_modified"):
+        errors.append("model_modified is true")
+    if state.get("linked_document_modified"):
+        errors.append("linked_document_modified is true")
+    if state.get("ui_selection_modified"):
+        errors.append("ui_selection_modified is true")
+    return errors
+
+
+def _link_origin_reset_post_apply_verification_storage_eligibility_errors(data):
+    errors = []
+    result = data.get("verification_result")
+    if result not in ("Verified", "Review required"):
+        errors.append("verification result is not eligible for shared-state persistence")
+    if data.get("target_link_id") in (None, "", "none"):
+        errors.append("verification target link id is unavailable")
+    if not data.get("link_resolves"):
+        errors.append("verification target link does not resolve")
+    if not data.get("element_is_revit_link_instance"):
+        errors.append("verification target is not a RevitLinkInstance")
+    if not data.get("transform_readable"):
+        errors.append("verification target transform is unreadable")
+    if data.get("transaction_opened"):
+        errors.append("transaction_opened is true")
+    if data.get("model_modified"):
+        errors.append("model_modified is true")
+    if data.get("linked_document_modified"):
+        errors.append("linked_document_modified is true")
+    if data.get("ui_selection_modified"):
+        errors.append("ui_selection_modified is true")
+    if result == "Verified":
+        if not data.get("latest_apply_state_valid"):
+            errors.append("latest apply state is not a valid Applied source")
+        if not data.get("current_origin_near_zero"):
+            errors.append("current origin is not near zero")
+        if data.get("current_origin_matches_latest_apply_final_origin") is not True:
+            errors.append("current origin does not match latest apply final origin")
+        if data.get("current_basis_matches_latest_apply_final_basis") is not True:
+            errors.append("current basis does not match latest apply final basis")
+    return errors
 
 
 def _format_link_origin_reset_post_apply_verification_report(data):
@@ -5089,6 +5294,16 @@ def _format_link_origin_reset_post_apply_verification_report(data):
         "- Current basis matches latest apply final basis: {0}".format(_coord_bool_text(data.get("current_basis_matches_latest_apply_final_basis"))),
         "- Current origin matches latest apply final origin: {0}".format(_coord_bool_text(data.get("current_origin_matches_latest_apply_final_origin"))),
         "- Zero-origin tolerance: {0}".format(_format_feet_mm(LINK_TRANSFORM_ZERO_ORIGIN_TOLERANCE_FT)),
+        "",
+        "Latest post-apply verification shared state:",
+        "- Latest post-apply verification state update attempted: {0}".format(_coord_bool_text(data.get("latest_verification_state_update_attempted"))),
+        "- Latest post-apply verification state write succeeded: {0}".format(_coord_bool_text(data.get("latest_verification_state_write_succeeded"))),
+        "- Latest post-apply verification state read-back succeeded: {0}".format(_coord_bool_text(data.get("latest_verification_state_readback_succeeded"))),
+        "- Latest post-apply verification state stored: {0}".format(_coord_bool_text(data.get("latest_verification_state_stored"))),
+        "- Latest post-apply verification state preserved: {0}".format(_coord_bool_text(data.get("latest_verification_state_preserved"))),
+        "- Latest post-apply verification state key: {0}".format(data.get("latest_verification_state_key", "latest_link_origin_reset_post_apply_verification_state")),
+        "- Shared state object/source name used: {0}".format(data.get("latest_verification_state_shared_state", coord_shared_state_source_name())),
+        "- Latest post-apply verification state storage error: {0}".format(data.get("latest_verification_state_storage_error", "none")),
         "",
         "Review / blocking reasons:",
     ]
@@ -13464,6 +13679,22 @@ def _is_link_origin_reset_post_apply_verification_prompt(prompt):
     return normalized in routes
 
 
+def _is_link_reset_workflow_status_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show link reset workflow status",
+        "link reset workflow status",
+        "show coordinate reset status",
+        "coord reset status",
+        "show coord workflow status",
+        "show link reset dashboard",
+        "show latest link reset workflow",
+        "coordinate workflow checkpoint",
+        "link reset checkpoint",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -14292,6 +14523,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_link_origin_reset_rollback_state = None
         self.latest_link_origin_reset_apply_state = None
         self.latest_link_origin_reset_post_apply_verification_state = None
+        self.latest_link_reset_workflow_status_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -15472,6 +15704,8 @@ class OllamaAIChat(forms.WPFWindow):
         header = self._extract_report_header(report_text)
         if header == "[LINK ORIGIN RESET POST-APPLY VERIFICATION]":
             return "selected/latest Revit link origin reset post-apply verification / read-only"
+        if header == "[LINK RESET WORKFLOW STATUS]":
+            return "Revit link reset workflow status / read-only dashboard"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -16766,6 +17000,10 @@ class OllamaAIChat(forms.WPFWindow):
         if not _is_link_transform_audit_prompt(prompt):
             return None
         audit_data = _collect_link_transform_audit_data(doc, uidoc, prompt)
+        audit_shared_state = _build_link_transform_audit_shared_state(audit_data)
+        audit_storage_ok, audit_storage_error = set_latest_link_transform_audit_state(audit_shared_state)
+        audit_data["latest_audit_state_write_succeeded"] = bool(audit_storage_ok)
+        audit_data["latest_audit_state_storage_error"] = audit_storage_error
         report_text = _format_link_transform_audit_report(audit_data)
         audit_data["report_header"] = "[LINK TRANSFORM AUDIT REPORT]"
         audit_data["report_text"] = report_text
@@ -16780,6 +17018,444 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _coord_status_document_match(self, state):
+        if not state or not isinstance(state, dict):
+            return "unknown"
+        source_title = safe_str(state.get("document_title")).strip()
+        if not source_title:
+            return "unknown"
+        return source_title == safe_str(_document_title(doc)).strip()
+
+    def _coord_status_verification_validation_errors(self, state):
+        errors = []
+        if not state:
+            return ["state is unavailable"]
+        if state.get("verification_result") != "Verified":
+            errors.append("verification_result is not Verified")
+        if state.get("target_link_id") in (None, "", "none"):
+            errors.append("target link id is unavailable")
+        if not state.get("link_resolves"):
+            errors.append("target link does not resolve")
+        if not state.get("element_is_revit_link_instance"):
+            errors.append("target element is not a RevitLinkInstance")
+        if not state.get("transform_readable"):
+            errors.append("target transform is unreadable")
+        if not state.get("current_origin_near_zero"):
+            errors.append("current origin is not near zero")
+        if state.get("current_origin_matches_latest_apply_final_origin") is not True:
+            errors.append("current origin does not match latest apply final origin")
+        if state.get("current_basis_matches_latest_apply_final_basis") is not True:
+            errors.append("current basis does not match latest apply final basis")
+        if state.get("transaction_opened"):
+            errors.append("verification state reports transaction opened")
+        if state.get("model_modified"):
+            errors.append("verification state reports model modified")
+        if state.get("linked_document_modified"):
+            errors.append("verification state reports linked document modified")
+        if state.get("ui_selection_modified"):
+            errors.append("verification state reports UI selection modified")
+        return errors
+
+    def _collect_link_reset_workflow_status(self, prompt):
+        selected_elements = []
+        selected_links = []
+        try:
+            selected_elements = _selected_elements(doc, uidoc)
+        except:
+            selected_elements = []
+        for elem in selected_elements:
+            try:
+                if isinstance(elem, DB.RevitLinkInstance):
+                    selected_links.append(elem)
+            except:
+                pass
+
+        selected_link_rows = []
+        for link in selected_links:
+            selected_link_rows.append(
+                {
+                    "id": _safe_element_id_value(link),
+                    "name": get_elem_name(link) or "(unnamed link instance)",
+                }
+            )
+
+        audit_state = get_latest_link_transform_audit_state() or self.latest_link_transform_audit_state or {}
+        rollback_state = get_latest_passed_link_origin_reset_rollback_state() or {}
+        apply_state = get_latest_link_origin_reset_apply_state() or {}
+        verification_state = (
+            get_latest_link_origin_reset_post_apply_verification_state()
+            or self.latest_link_origin_reset_post_apply_verification_state
+            or {}
+        )
+        rollback_errors = _passed_link_origin_reset_rollback_source_validation_errors(rollback_state)
+        apply_errors = _link_origin_reset_apply_state_validation_errors(apply_state)
+        verification_errors = self._coord_status_verification_validation_errors(verification_state)
+        rollback_valid = bool(rollback_state and not rollback_errors)
+        apply_valid = bool(apply_state and not apply_errors)
+        verification_valid = bool(verification_state and not verification_errors)
+
+        latest_export = {}
+        latest_export_error = None
+        latest_export_index_dir = "none"
+        try:
+            latest_export, latest_export_index_dir, latest_export_error = self._read_latest_qa_export()
+            latest_export = latest_export or {}
+        except Exception as exc:
+            latest_export = {}
+            latest_export_error = safe_str(exc)
+
+        current_doc_title = _document_title(doc)
+        rollback_doc_match = self._coord_status_document_match(rollback_state)
+        apply_doc_match = self._coord_status_document_match(apply_state)
+        verification_doc_match = self._coord_status_document_match(verification_state)
+        applied_link_id = apply_state.get("applied_link_id", apply_state.get("selected_link_element_id"))
+        verification_link_id = verification_state.get("target_link_id")
+        verification_matches_apply = False
+        if applied_link_id not in (None, "", "none") and verification_link_id not in (None, "", "none"):
+            try:
+                verification_matches_apply = int(applied_link_id) == int(verification_link_id)
+            except:
+                verification_matches_apply = safe_str(applied_link_id) == safe_str(verification_link_id)
+
+        selected_differs_from_apply = False
+        if len(selected_link_rows) == 1 and applied_link_id not in (None, "", "none"):
+            try:
+                selected_differs_from_apply = int(selected_link_rows[0].get("id")) != int(applied_link_id)
+            except:
+                selected_differs_from_apply = safe_str(selected_link_rows[0].get("id")) != safe_str(applied_link_id)
+
+        audit_exists = bool(audit_state)
+        audit_result = audit_state.get("audit_result", "Unavailable")
+        audit_offset_count = audit_state.get("offset_count")
+        audit_review_count = audit_state.get("manual_review_count", audit_state.get("review_count"))
+        audit_offset_value = _safe_int(audit_offset_count, 0)
+        audit_review_value = _safe_int(audit_review_count, 0)
+        useful_state_exists = bool(audit_state or rollback_state or apply_state or verification_state)
+        document_mismatch = any(
+            value is False
+            for value in [rollback_doc_match, apply_doc_match, verification_doc_match]
+        )
+        review_required = bool(
+            verification_state.get("verification_result") == "Review required"
+            or (audit_offset_count is not None and audit_offset_value > 0)
+            or (audit_review_count is not None and audit_review_value > 0)
+            or (bool(apply_state) and not apply_valid)
+            or selected_differs_from_apply
+        )
+        audit_clean = bool(
+            not audit_exists
+            or audit_result == "OK"
+            or (audit_offset_count is not None and audit_offset_value == 0)
+        )
+
+        if not useful_state_exists or document_mismatch:
+            workflow_status = "Not ready"
+        elif review_required:
+            workflow_status = "Review required"
+        elif apply_valid and verification_valid and verification_matches_apply and audit_clean:
+            workflow_status = "Ready / clean"
+        elif apply_valid:
+            workflow_status = "Apply completed; verification missing"
+        elif rollback_valid:
+            workflow_status = "Rollback passed; apply pending"
+        elif audit_exists:
+            workflow_status = "Audit only / reset not started"
+        else:
+            workflow_status = "Not ready"
+
+        recommendations = {
+            "Ready / clean": "export latest QA report or continue coordination workflow",
+            "Apply completed; verification missing": "run verify latest link origin reset apply",
+            "Rollback passed; apply pending": "select the rollback-tested link and run check selected link apply readiness",
+            "Audit only / reset not started": "select one offset Revit link and run rollback test",
+            "Review required": "run audit link transforms and inspect reported coordinate state",
+            "Not ready": "run audit link transforms to initialize workflow state",
+        }
+        status_data = {
+            "feature_id": "COORD-WR-005",
+            "feature_name": "Link Reset Workflow Status Dashboard",
+            "status_id": "COORD-WR-005-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "source_prompt": safe_str(prompt),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": current_doc_title,
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": safe_str(getattr(getattr(uidoc, "ActiveView", None), "ViewType", "(unknown type)")),
+            "shared_state_source": coord_shared_state_source_name(),
+            "selected_element_count": len(selected_elements),
+            "selected_link_count": len(selected_link_rows),
+            "selected_links": selected_link_rows,
+            "rollback_document_matches": rollback_doc_match,
+            "apply_document_matches": apply_doc_match,
+            "verification_document_matches": verification_doc_match,
+            "audit_state_exists": audit_exists,
+            "audit_id": audit_state.get("audit_id", "unavailable"),
+            "audit_timestamp": audit_state.get("timestamp", audit_state.get("created_timestamp_local", "unavailable")),
+            "audit_result": audit_result,
+            "audit_total_links": audit_state.get("total_link_count", len(audit_state.get("links") or [])) if audit_exists else "unavailable",
+            "audit_near_zero_count": audit_state.get("near_zero_count", "unavailable"),
+            "audit_offset_count": audit_state.get("offset_count", "unavailable"),
+            "audit_reset_candidate_count": audit_state.get("future_reset_candidate_count", audit_state.get("reset_candidate_count", "unavailable")),
+            "audit_review_count": audit_state.get("manual_review_count", audit_state.get("review_count", "unavailable")),
+            "rollback_state_exists": bool(rollback_state),
+            "rollback_state_valid": rollback_valid,
+            "rollback_validation_errors": rollback_errors,
+            "rollback_test_id": rollback_state.get("rollback_test_id", "unavailable"),
+            "rollback_timestamp": rollback_state.get("created_timestamp_local", "unavailable"),
+            "rollback_result": rollback_state.get("rollback_test_result", "Unavailable"),
+            "rollback_link_id": rollback_state.get("selected_link_element_id", "unavailable"),
+            "rollback_link_name": rollback_state.get("selected_link_name", "unavailable"),
+            "rollback_original_origin": rollback_state.get("original_origin"),
+            "rollback_target_origin": rollback_state.get("target_origin"),
+            "rollback_temporary_verification_passed": bool(rollback_state.get("temporary_verification_passed")),
+            "rollback_verification_passed": bool(rollback_state.get("rollback_verification_passed") or rollback_state.get("final_origin_matches_original")),
+            "rollback_persistent_model_changes": bool(rollback_state.get("persistent_model_changes")),
+            "apply_state_exists": bool(apply_state),
+            "apply_raw_state_exists": bool(apply_state),
+            "apply_state_valid": apply_valid,
+            "apply_validation_errors": apply_errors,
+            "apply_id": apply_state.get("apply_id", "unavailable"),
+            "apply_timestamp": apply_state.get("timestamp", apply_state.get("created_timestamp_local", "unavailable")),
+            "apply_result": apply_state.get("apply_result", apply_state.get("reviewed_apply_result", "Unavailable")),
+            "applied_link_id": applied_link_id if applied_link_id not in (None, "") else "unavailable",
+            "applied_link_name": apply_state.get("applied_link_name", apply_state.get("selected_link_name", "unavailable")),
+            "apply_final_origin": apply_state.get("final_origin_xyz", apply_state.get("final_origin")),
+            "apply_final_basis_x": apply_state.get("final_basis_x"),
+            "apply_final_basis_y": apply_state.get("final_basis_y"),
+            "apply_final_basis_z": apply_state.get("final_basis_z"),
+            "apply_transaction_committed": bool(apply_state.get("transaction_committed")),
+            "apply_persistent_model_changes": bool(apply_state.get("persistent_model_changes")),
+            "apply_link_transform_modified": bool(apply_state.get("link_transform_modified_persistently")),
+            "apply_post_verification_passed": bool(apply_state.get("post_apply_verification_passed")),
+            "verification_state_exists": bool(verification_state),
+            "verification_state_valid": verification_valid,
+            "verification_validation_errors": verification_errors,
+            "verification_id": verification_state.get("verification_id", "unavailable"),
+            "verification_timestamp": verification_state.get("created_timestamp_local", "unavailable"),
+            "verification_result": verification_state.get("verification_result", "Unavailable"),
+            "verification_target_source": verification_state.get("verification_target_source", "unavailable"),
+            "verification_link_id": verification_link_id if verification_link_id not in (None, "") else "unavailable",
+            "verification_link_name": verification_state.get("target_link_name", "unavailable"),
+            "verification_link_resolves": bool(verification_state.get("link_resolves")),
+            "verification_origin_near_zero": bool(verification_state.get("current_origin_near_zero")),
+            "verification_origin_matches_apply": verification_state.get("current_origin_matches_latest_apply_final_origin"),
+            "verification_basis_matches_apply": verification_state.get("current_basis_matches_latest_apply_final_basis"),
+            "verification_transaction_opened": bool(verification_state.get("transaction_opened")),
+            "verification_model_modified": bool(verification_state.get("model_modified")),
+            "verification_linked_document_modified": bool(verification_state.get("linked_document_modified")),
+            "verification_ui_selection_modified": bool(verification_state.get("ui_selection_modified")),
+            "latest_qa_export_exists": bool(latest_export),
+            "latest_qa_export_timestamp": latest_export.get("export_timestamp_local", "unavailable"),
+            "latest_qa_export_folder": latest_export.get("export_folder", "unavailable"),
+            "latest_qa_export_prompt": latest_export.get("source_prompt", "unavailable"),
+            "latest_qa_export_header": latest_export.get("source_report_header", "unavailable"),
+            "latest_qa_export_scope": latest_export.get("report_scope", "unavailable"),
+            "latest_qa_export_files": latest_export.get("generated_files") or [],
+            "latest_qa_export_index_dir": latest_export_index_dir,
+            "latest_qa_export_index_read_only": True,
+            "latest_qa_export_error": latest_export_error or "none",
+            "workflow_status": workflow_status,
+            "recommended_next_action": recommendations.get(workflow_status),
+            "status_dashboard_requested": True,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "moveelement_called": False,
+            "link_transform_modified": False,
+            "model_modified": False,
+            "ui_selection_modified": False,
+            "linked_document_modified": False,
+        }
+        return status_data
+
+    def _format_link_reset_workflow_status_report(self, data):
+        selected_links = data.get("selected_links") or []
+        lines = [
+            "[LINK RESET WORKFLOW STATUS]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Status ID:",
+            data.get("status_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Active document:",
+            data.get("document_title"),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")),
+            "",
+            "Scope:",
+            "Revit link reset workflow status / read-only dashboard",
+            "",
+            "Shared state source:",
+            data.get("shared_state_source"),
+            "",
+            "Current document context:",
+            "- Active document title: {0}".format(data.get("document_title")),
+            "- Active view name: {0}".format(data.get("active_view_name")),
+            "- Selected element count: {0}".format(data.get("selected_element_count")),
+            "- Selected RevitLinkInstance count: {0}".format(data.get("selected_link_count")),
+        ]
+        if selected_links:
+            for item in selected_links:
+                lines.append("- Selected link: {0} | {1}".format(item.get("id"), item.get("name")))
+        else:
+            lines.append("- Selected link ids/names: none")
+        lines.extend(
+            [
+                "- Current document matches latest rollback state document: {0}".format(_coord_bool_text(data.get("rollback_document_matches"))),
+                "- Current document matches latest apply state document: {0}".format(_coord_bool_text(data.get("apply_document_matches"))),
+                "- Current document matches latest verification state document: {0}".format(_coord_bool_text(data.get("verification_document_matches"))),
+                "",
+                "COORD-WR-001 audit status:",
+                "- Latest audit state exists: {0}".format(_coord_bool_text(data.get("audit_state_exists"))),
+                "- Latest audit id: {0}".format(data.get("audit_id")),
+                "- Latest audit result: {0}".format(data.get("audit_result")),
+                "- Latest audit timestamp: {0}".format(data.get("audit_timestamp")),
+                "- Latest audit total links: {0}".format(data.get("audit_total_links")),
+                "- Latest audit near-zero count: {0}".format(data.get("audit_near_zero_count")),
+                "- Latest audit offset count: {0}".format(data.get("audit_offset_count")),
+                "- Latest audit reset candidate count: {0}".format(data.get("audit_reset_candidate_count")),
+                "- Latest audit manual-review count: {0}".format(data.get("audit_review_count")),
+            ]
+        )
+        if not data.get("audit_state_exists"):
+            lines.append("- Latest audit state unavailable; run audit link transforms to refresh.")
+        lines.extend(
+            [
+                "",
+                "COORD-WR-002 rollback status:",
+                "- Latest passed rollback source exists: {0}".format(_coord_bool_text(data.get("rollback_state_exists"))),
+                "- Latest rollback test id: {0}".format(data.get("rollback_test_id")),
+                "- Latest rollback timestamp: {0}".format(data.get("rollback_timestamp")),
+                "- Latest rollback result: {0}".format(data.get("rollback_result")),
+                "- Rollback-tested link id: {0}".format(data.get("rollback_link_id")),
+                "- Rollback-tested link name: {0}".format(data.get("rollback_link_name")),
+                "- Rollback original origin: {0}".format(_format_xyz_feet(data.get("rollback_original_origin"))),
+                "- Rollback original origin approximate mm: {0}".format(_format_xyz_mm(data.get("rollback_original_origin"))),
+                "- Rollback target origin: {0}".format(_format_xyz_feet(data.get("rollback_target_origin"))),
+                "- Rollback target origin approximate mm: {0}".format(_format_xyz_mm(data.get("rollback_target_origin"))),
+                "- Temporary verification passed: {0}".format(_coord_bool_text(data.get("rollback_temporary_verification_passed"))),
+                "- Rollback verification passed: {0}".format(_coord_bool_text(data.get("rollback_verification_passed"))),
+                "- Persistent model changes: {0}".format(_coord_bool_text(data.get("rollback_persistent_model_changes"))),
+                "- Shared state valid: {0}".format(_coord_bool_text(data.get("rollback_state_valid"))),
+                "- Validation errors: {0}".format("; ".join(data.get("rollback_validation_errors") or ["none"])),
+                "",
+                "COORD-WR-003 apply status:",
+                "- Latest apply state exists: {0}".format(_coord_bool_text(data.get("apply_state_exists"))),
+                "- Latest apply raw state exists: {0}".format(_coord_bool_text(data.get("apply_raw_state_exists"))),
+                "- Latest apply state valid Applied source: {0}".format(_coord_bool_text(data.get("apply_state_valid"))),
+                "- Latest apply id: {0}".format(data.get("apply_id")),
+                "- Latest apply timestamp: {0}".format(data.get("apply_timestamp")),
+                "- Latest apply result: {0}".format(data.get("apply_result")),
+                "- Applied link id: {0}".format(data.get("applied_link_id")),
+                "- Applied link name: {0}".format(data.get("applied_link_name")),
+                "- Final origin: {0}".format(_format_xyz_feet(data.get("apply_final_origin"))),
+                "- Final origin approximate mm: {0}".format(_format_xyz_mm(data.get("apply_final_origin"))),
+                "- Final BasisX: {0}".format(_format_xyz_feet(data.get("apply_final_basis_x"))),
+                "- Final BasisY: {0}".format(_format_xyz_feet(data.get("apply_final_basis_y"))),
+                "- Final BasisZ: {0}".format(_format_xyz_feet(data.get("apply_final_basis_z"))),
+                "- Transaction committed: {0}".format(_coord_bool_text(data.get("apply_transaction_committed"))),
+                "- Persistent model changes: {0}".format(_coord_bool_text(data.get("apply_persistent_model_changes"))),
+                "- Link transform modified persistently: {0}".format(_coord_bool_text(data.get("apply_link_transform_modified"))),
+                "- Post-apply verification passed: {0}".format(_coord_bool_text(data.get("apply_post_verification_passed"))),
+                "- Shared state valid: {0}".format(_coord_bool_text(data.get("apply_state_valid"))),
+                "- Validation errors: {0}".format("; ".join(data.get("apply_validation_errors") or ["none"])),
+                "",
+                "COORD-WR-004 post-apply verification status:",
+                "- Latest COORD-WR-004 verification state exists: {0}".format(_coord_bool_text(data.get("verification_state_exists"))),
+                "- Latest verification id: {0}".format(data.get("verification_id")),
+                "- Latest verification timestamp: {0}".format(data.get("verification_timestamp")),
+                "- Latest verification result: {0}".format(data.get("verification_result")),
+                "- Verification target source: {0}".format(data.get("verification_target_source")),
+                "- Target link id: {0}".format(data.get("verification_link_id")),
+                "- Target link name: {0}".format(data.get("verification_link_name")),
+                "- Link resolved: {0}".format(_coord_bool_text(data.get("verification_link_resolves"))),
+                "- Current origin near zero: {0}".format(_coord_bool_text(data.get("verification_origin_near_zero"))),
+                "- Current origin matched latest apply final origin: {0}".format(_coord_bool_text(data.get("verification_origin_matches_apply"))),
+                "- Current basis matched latest apply final basis: {0}".format(_coord_bool_text(data.get("verification_basis_matches_apply"))),
+                "- Transaction opened: {0}".format(_coord_bool_text(data.get("verification_transaction_opened"))),
+                "- Model modified: {0}".format(_coord_bool_text(data.get("verification_model_modified"))),
+                "- Linked document modified: {0}".format(_coord_bool_text(data.get("verification_linked_document_modified"))),
+                "- UI selection modified: {0}".format(_coord_bool_text(data.get("verification_ui_selection_modified"))),
+                "- Shared state valid: {0}".format(_coord_bool_text(data.get("verification_state_valid"))),
+                "- Validation errors: {0}".format("; ".join(data.get("verification_validation_errors") or ["none"])),
+                "",
+                "Latest QA export status:",
+                "- Latest QA export exists: {0}".format(_coord_bool_text(data.get("latest_qa_export_exists"))),
+                "- Latest QA export timestamp: {0}".format(data.get("latest_qa_export_timestamp")),
+                "- Latest QA export folder: {0}".format(data.get("latest_qa_export_folder")),
+                "- Latest QA export source prompt: {0}".format(data.get("latest_qa_export_prompt")),
+                "- Latest QA export source header: {0}".format(data.get("latest_qa_export_header")),
+                "- Latest QA export scope: {0}".format(data.get("latest_qa_export_scope")),
+                "- Generated files: {0}".format(", ".join(data.get("latest_qa_export_files") or ["none"])),
+                "- Index read-only: {0}".format(_coord_bool_text(data.get("latest_qa_export_index_read_only"))),
+                "- Index read error: {0}".format(data.get("latest_qa_export_error")),
+            ]
+        )
+        if not data.get("latest_qa_export_exists"):
+            lines.append("- Latest QA export state unavailable; run show latest QA export.")
+        lines.extend(
+            [
+                "",
+                "Workflow readiness summary:",
+                "- Workflow status: {0}".format(data.get("workflow_status")),
+                "",
+                "Recommended next action:",
+                data.get("recommended_next_action"),
+                "",
+                "Execution status:",
+                "- Status dashboard requested: true",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Link transform modified: false",
+                "- Model modified: false",
+                "- UI selection modified: false",
+                "- Linked document modified: false",
+                "",
+                "Safety:",
+                "- Read-only workflow status dashboard only.",
+                "- No Transaction opened.",
+                "- No TransactionGroup opened.",
+                "- No MoveElement call was made.",
+                "- No link was moved, rotated, pinned, unpinned, reloaded, unloaded, selected, or auto-corrected.",
+                "- No linked document was modified.",
+                "- No Revit model data was modified.",
+                "- No audit, rollback test, reviewed apply, or post-apply verification action was run.",
+                "- Stored element ids were used for status comparison only; no apply-by-stored-id behavior was provided.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_link_reset_workflow_status_question(self, prompt):
+        if not _is_link_reset_workflow_status_prompt(prompt):
+            return None
+        status_data = self._collect_link_reset_workflow_status(prompt)
+        report_text = self._format_link_reset_workflow_status_report(status_data)
+        status_data["report_header"] = "[LINK RESET WORKFLOW STATUS]"
+        status_data["report_scope"] = "Revit link reset workflow status / read-only dashboard"
+        status_data["report_text"] = report_text
+        storage_ok, storage_error = set_latest_link_reset_workflow_status_state(status_data)
+        status_data["shared_state_write_succeeded"] = bool(storage_ok)
+        status_data["shared_state_write_error"] = storage_error
+        self.latest_link_reset_workflow_status_state = dict(status_data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[LINK RESET WORKFLOW STATUS]",
+            "report_text": report_text,
+            "report_scope": "Revit link reset workflow status / read-only dashboard",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-005",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def answer_link_origin_reset_post_apply_verification_question(self, prompt):
         if not _is_link_origin_reset_post_apply_verification_prompt(prompt):
             return None
@@ -16789,10 +17465,51 @@ class OllamaAIChat(forms.WPFWindow):
             prompt,
             get_latest_link_origin_reset_apply_state() or {},
         )
+        previous_state = get_latest_link_origin_reset_post_apply_verification_state()
+        eligibility_errors = _link_origin_reset_post_apply_verification_storage_eligibility_errors(verification_data)
+        storage_attempted = len(eligibility_errors) == 0
+        storage_write_succeeded = False
+        storage_readback_succeeded = False
+        storage_stored = False
+        storage_error = "none" if storage_attempted else "; ".join(eligibility_errors or ["not eligible"])
+        if storage_attempted:
+            shared_verification = _build_link_origin_reset_post_apply_verification_shared_state(verification_data)
+            validation_errors = _link_origin_reset_post_apply_verification_state_validation_errors(shared_verification)
+            if validation_errors:
+                storage_error = "; ".join(validation_errors)
+            else:
+                storage_write_succeeded, storage_error = set_latest_link_origin_reset_post_apply_verification_state(shared_verification)
+                read_back = get_latest_link_origin_reset_post_apply_verification_state()
+                readback_errors = _link_origin_reset_post_apply_verification_state_validation_errors(read_back)
+                storage_readback_succeeded = bool(storage_write_succeeded and not readback_errors)
+                if readback_errors:
+                    storage_error = "; ".join(readback_errors)
+                storage_stored = bool(storage_readback_succeeded)
+        latest_state = get_latest_link_origin_reset_post_apply_verification_state()
+        previous_verified = bool(
+            previous_state
+            and previous_state.get("verification_result") == "Verified"
+            and not _link_origin_reset_post_apply_verification_state_validation_errors(previous_state)
+        )
+        verification_data["latest_verification_state_update_attempted"] = bool(storage_attempted)
+        verification_data["latest_verification_state_write_succeeded"] = bool(storage_write_succeeded)
+        verification_data["latest_verification_state_readback_succeeded"] = bool(storage_readback_succeeded)
+        verification_data["latest_verification_state_stored"] = bool(storage_stored)
+        verification_data["latest_verification_state_preserved"] = bool(
+            not storage_stored and previous_verified and latest_state
+        )
+        verification_data["latest_verification_state_key"] = "latest_link_origin_reset_post_apply_verification_state"
+        verification_data["latest_verification_state_shared_state"] = coord_shared_state_source_name()
+        verification_data["latest_verification_state_storage_error"] = storage_error
         report_text = _format_link_origin_reset_post_apply_verification_report(verification_data)
         verification_data["report_header"] = "[LINK ORIGIN RESET POST-APPLY VERIFICATION]"
         verification_data["report_text"] = report_text
-        self.latest_link_origin_reset_post_apply_verification_state = dict(verification_data)
+        if storage_stored:
+            self.latest_link_origin_reset_post_apply_verification_state = dict(latest_state or {})
+        elif latest_state:
+            self.latest_link_origin_reset_post_apply_verification_state = dict(latest_state)
+        else:
+            self.latest_link_origin_reset_post_apply_verification_state = dict(verification_data)
         self.latest_deterministic_report = {
             "source_prompt": safe_str(prompt),
             "report_header": "[LINK ORIGIN RESET POST-APPLY VERIFICATION]",
@@ -21728,8 +22445,12 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if index_reply is not None:
+            if link_workflow_status_reply is not None:
+                reply = link_workflow_status_reply
+                remember_report = True
+            elif index_reply is not None:
                 reply = index_reply
             else:
                 link_post_apply_verification_reply = self.answer_link_origin_reset_post_apply_verification_question(prompt)

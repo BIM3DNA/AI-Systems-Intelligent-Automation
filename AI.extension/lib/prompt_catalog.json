@@ -3268,6 +3268,34 @@
     "mode": "deterministic"
   },
   {
+    "id": "link-reset-workflow-status",
+    "title": "Link reset workflow status dashboard",
+    "category": "BIM QA",
+    "group": "Coordination Write Research",
+    "discipline": "Coordination",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "revit_link_reset_workflow_status",
+    "canonical_prompt": "show link reset workflow status",
+    "planner_aliases": [
+      "show link reset workflow status",
+      "link reset workflow status",
+      "show coordinate reset status",
+      "coord reset status",
+      "show coord workflow status",
+      "show link reset dashboard",
+      "show latest link reset workflow",
+      "coordinate workflow checkpoint",
+      "link reset checkpoint"
+    ],
+    "deterministic_handler": "link_reset_workflow_status_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show link reset workflow status",
+    "mode": "deterministic"
+  },
+  {
     "id": "link-origin-reset-post-apply-verification",
     "title": "Link origin reset post-apply verification",
     "category": "BIM QA",
