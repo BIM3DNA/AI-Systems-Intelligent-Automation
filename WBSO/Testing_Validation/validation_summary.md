@@ -398,6 +398,36 @@ MEP-WR-002 validates selected pipe split dry-run candidates against Revit's pipe
 - no parameter write
 - no tag/schedule/view/sheet/system/circuit edit
 
+## 2026-06-05 - COORD-WR-005 Link Reset Workflow Status Dashboard
+
+### Status
+
+Runtime validated and export/index validated.
+
+### Summary
+
+COORD-WR-005 was validated in `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, view `{3D - e.avdovicQREF7} [ThreeD]`, using link `2972572 | 3D-01B-AR-01.ifc : 48`.
+
+The dashboard aggregates shared COORD-WR-001 audit, COORD-WR-002 rollback, COORD-WR-003 applied, COORD-WR-004 verified, and latest QA export state. Shared audit and verification persistence corrected the initial loss of status after selection was cleared.
+
+### Critical Result
+
+- final audit: `OK`
+- 8 links near zero
+- 0 offset links
+- rollback: `Passed`
+- apply: `Applied`
+- verification: `Verified`
+- selected RevitLinkInstance count: 0
+- workflow status: `Ready / clean`
+- transaction/model/selection/linked-document modification: false
+
+Final export:
+`C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260605_163936`
+
+Commit:
+`7e02f91 Add link reset workflow status dashboard`
+
 ## 2026-06-04 - COORD-WR-004 Link Origin Reset Post-Apply Verification Runtime Validation
 
 ### Status

@@ -548,6 +548,30 @@ Still out of scope:
 - parameter writes
 - rotation or non-translation transform correction
 - UI selection modification
+
+### 2026-06-05 COORD-WR-005 scope alignment
+
+COORD-WR-005 adds a deterministic read-only status layer over the reviewed Revit link reset workflow.
+
+Validated scope:
+
+- shared-state audit, rollback, apply, and verification aggregation
+- selected and no-selection workflow dashboards
+- deterministic readiness classification
+- persisted valid verification state independent of current selection
+- persisted latest audit state without rerunning audit
+- `[LINK RESET WORKFLOW STATUS]` QA export/index
+
+Still out of scope:
+
+- running audit, rollback, apply, or verification from the dashboard
+- coordinate correction or auto-fix
+- batch/all-link reset
+- apply by stored element id
+- linked-document mutation
+- reload/unload or pin/unpin
+- parameter writes
+- UI selection modification
 - production model use without reviewed validation
 
 ### 2026-06-04 COORD-WR-004 scope alignment

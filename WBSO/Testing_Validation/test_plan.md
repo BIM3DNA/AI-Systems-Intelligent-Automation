@@ -653,6 +653,47 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-06-05 COORD-WR-005 Runtime Validation Plan
+
+### A. Initial audit
+
+Pass: one offset link detected before reset; audit state persisted.
+
+### B. Rollback source
+
+Pass: rollback test `COORD-WR-002-20260605_145813` passed and persisted with no model change.
+
+### C. Reviewed apply
+
+Pass: readiness remained read-only; apply `COORD-WR-003-20260605_150040` reset exactly one link and stored valid applied state.
+
+### D. Verification persistence
+
+Pass: verification `COORD-WR-004-20260605_163104` returned `Verified` and stored shared serializable state.
+
+### E. Selected dashboard
+
+Pass: latest audit/rollback/apply/verification states were visible and workflow status was `Ready / clean`.
+
+### F. No-selection dashboard
+
+Pass: after clearing selection, verification remained visible and workflow status remained `Ready / clean`.
+
+### G. Final audit
+
+Pass: 8 near-zero links, 0 offsets, 0 reset candidates, 0 manual-review links.
+
+### H. Export/index
+
+Pass: `[LINK RESET WORKFLOW STATUS]` exported to `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260605_163936` and indexes updated.
+
+### Safety pass criteria
+
+- COORD-WR-005 opens no transaction or TransactionGroup
+- no MoveElement/RotateElement/TransformElement/Location.Move
+- no model, linked-document, or UI selection mutation
+- no batch/all-link reset or apply-by-stored-id
+
 ## 2026-06-03 COORD-WR-001 to COORD-WR-003 Runtime Validation Plan
 
 ### A. Link transform audit

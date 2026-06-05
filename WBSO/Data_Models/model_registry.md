@@ -209,6 +209,28 @@ MEP-WR-008 is a deterministic session-state actionability classifier for the rev
 - no BreakCurve
 - no session-state clearing
 - no UI selection modification
+
+## 2026-06-05 COORD-WR-005 Model Note
+
+Feature ID: COORD-WR-005
+
+Feature: Link Reset Workflow Status Dashboard
+
+Status: Runtime validated and export/index validated
+
+Evidence: EV-AI-181 to EV-AI-188
+
+COORD-WR-005 is deterministic read-only workflow-state aggregation and classification logic. It reads compact serializable coordination state and the QA export index without rerunning audit, rollback, apply, or verification actions.
+
+- report header: `[LINK RESET WORKFLOW STATUS]`
+- shared state source: `pyrevit script envvar AI_WORKBENCH_COORD_SHARED_STATE`
+- state keys: `latest_link_transform_audit_state`, `latest_passed_link_origin_reset_rollback_state`, `latest_link_origin_reset_apply_state`, `latest_link_origin_reset_post_apply_verification_state`, `latest_link_reset_workflow_status_state`
+- validated link: `2972572 | 3D-01B-AR-01.ifc : 48`
+- selected and no-selection dashboard status: `Ready / clean`
+- final export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260605_163936`
+- commit: `7e02f91 Add link reset workflow status dashboard`
+- no raw Revit API objects stored in shared audit/verification snapshots
+- no transaction, movement API, model mutation, linked-document mutation, or UI selection modification
 - no model mutation
 
 ## 2026-06-01 MEP-WR-009 Model Note

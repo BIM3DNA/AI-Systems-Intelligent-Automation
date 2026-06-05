@@ -191,6 +191,16 @@ COORD-WR-001, COORD-WR-002, and COORD-WR-003 prompts route deterministically bef
 - Generic LLM output remains rejected by export as deterministic evidence.
 - No provider configuration was changed.
 
+## 2026-06-05 COORD-WR-005 Provider Boundary Note
+
+COORD-WR-005 prompts route deterministically before Ollama/OpenAI fallback.
+
+- LLM providers are not used to aggregate coordination state or classify workflow readiness.
+- The dashboard reads serializable shared/session state and the deterministic QA export index.
+- COORD-WR-005 does not invoke audit, rollback, apply, or verification behavior.
+- Generic LLM output remains rejected as deterministic QA evidence.
+- No provider configuration was changed.
+
 ## 2026-06-04 COORD-WR-004 Provider Boundary Note
 
 COORD-WR-004 prompts route deterministically before Ollama/OpenAI fallback.

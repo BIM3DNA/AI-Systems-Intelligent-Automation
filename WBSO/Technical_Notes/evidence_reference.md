@@ -1770,3 +1770,36 @@ COORD-WR-004 - Link Origin Reset Post-Apply Verification Helper
 ### Status
 
 Runtime validated and export/index validated.
+
+## EV-AI-181 through EV-AI-188 - COORD-WR-005 Link Reset Workflow Status Dashboard
+
+### Feature
+
+COORD-WR-005 - Link Reset Workflow Status Dashboard
+
+### Evidence IDs
+
+- EV-AI-181: Dashboard implementation. Deterministic routes, shared-state aggregation, readiness classification, `[LINK RESET WORKFLOW STATUS]`, and QA export support were implemented.
+- EV-AI-182: Shared verification-state correction. COORD-WR-004 now preserves the latest valid verification under `latest_link_origin_reset_post_apply_verification_state` after selection is cleared.
+- EV-AI-183: Audit-state persistence. COORD-WR-001 stores `latest_link_transform_audit_state`, allowing COORD-WR-005 to report audit status without running a new audit.
+- EV-AI-184: Full workflow validation. Link `2972572` passed initial audit, rollback test `COORD-WR-002-20260605_145813`, readiness, persistent apply `COORD-WR-003-20260605_150040`, and verification `COORD-WR-004-20260605_163104`.
+- EV-AI-185: Selected dashboard validation. COORD-WR-005 reported the valid verification state and `Ready / clean`.
+- EV-AI-186: No-selection dashboard validation. After clearing selection, the persisted verification remained available and workflow status remained `Ready / clean`.
+- EV-AI-187: Final dashboard QA export. `[LINK RESET WORKFLOW STATUS]` exported to `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260605_163936`.
+- EV-AI-188: Commit evidence. Commit `7e02f91 Add link reset workflow status dashboard` on `main`.
+
+### Validation Folder
+
+`WBSO/Testing_Validation/runs/2026-06-05_coord-wr-005-link-reset-workflow-status-dashboard-validated/`
+
+### Daily Log
+
+`DL-2026-06-05-08`
+
+### Week
+
+`2026-W11`
+
+### Technical Conclusion
+
+COORD-WR-005 provides selection-independent read-only workflow status reporting from serializable coordination state. Final runtime status was `Ready / clean`, and the dashboard introduced no model mutation behavior.

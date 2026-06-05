@@ -1361,3 +1361,31 @@ COORD-WR-003 stores `latest_link_origin_reset_apply_state` only after a real `Ap
 - COORD-WR-004 no-selection latest-state verification `COORD-WR-004-20260604_152936` returned `Verified`.
 
 No apply-by-stored-id behavior, model mutation, UI selection modification, linked document mutation, reload/unload, pin/unpin, or parameter write was introduced.
+
+---
+
+## 2026-06-05 COORD-WR-005 Shared Workflow State Visibility
+
+**Status:** Resolved / runtime validated
+**Type:** coordination workflow state-governance issue
+
+### Issue
+
+The COORD-WR-005 dashboard initially lost the latest COORD-WR-004 verification result after Revit selection was cleared. COORD-WR-001 audit state was also unavailable to later dashboard calls.
+
+### Risk
+
+A completed and verified workflow could be misclassified as `Apply completed; verification missing`, while a recent audit could appear unavailable. This made report availability dependent on transient UI/session state.
+
+### Resolution
+
+COORD-WR-004 now persists a compact valid verification snapshot under `latest_link_origin_reset_post_apply_verification_state`; invalid or unresolved runs preserve a previous valid `Verified` state. COORD-WR-001 persists compact audit state under `latest_link_transform_audit_state`. COORD-WR-005 reads both keys directly from `AI_WORKBENCH_COORD_SHARED_STATE`.
+
+### Runtime Result
+
+- selected dashboard: `Ready / clean`
+- no-selection dashboard: `Ready / clean`
+- final audit: 8 near-zero links, 0 offsets, 0 reset candidates, 0 manual-review links
+- final dashboard export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260605_163936`
+
+No model mutation API was added to COORD-WR-005.

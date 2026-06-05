@@ -1338,6 +1338,18 @@ COORD-WR-004 opens no `Transaction`, opens no `TransactionGroup`, calls no `Move
 
 Status: runtime validated and export/index validated.
 
+## 2026-06-05 COORD-WR-005 Link Reset Workflow Status Dashboard
+
+COORD-WR-005 adds a read-only coordination workflow checkpoint over COORD-WR-001 through COORD-WR-004. It emits `[LINK RESET WORKFLOW STATUS]`, reads persisted audit/rollback/apply/verification state, reads the latest QA export index, and deterministically classifies workflow readiness.
+
+The primary architecture issue was state continuity across independent prompt routes. COORD-WR-004 verification initially disappeared from the dashboard after selection was cleared, and COORD-WR-001 audit state was not available outside the immediate audit route. Compact serializable snapshots were added under `latest_link_origin_reset_post_apply_verification_state` and `latest_link_transform_audit_state`.
+
+The shared state source is `pyrevit script envvar AI_WORKBENCH_COORD_SHARED_STATE`. Invalid or unresolved verification runs do not replace the previous valid `Verified` state. This allows a no-selection dashboard to remain `Ready / clean` when the active document, applied link id, and verification state still match.
+
+Runtime validation completed the full chain for link `2972572`, from approximately `(0, -2300, 0)` mm to zero origin. Final audit `COORD-WR-001-20260605_163837` reported 8 near-zero links and no offsets or review candidates. Dashboard `COORD-WR-005-20260605_163912` remained `Ready / clean` with zero selected links.
+
+COORD-WR-005 adds no transaction, TransactionGroup, movement API, correction, linked-document mutation, selection modification, reload/unload, pin/unpin, batch reset, or apply-by-stored-id behavior.
+
 ## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry
 
 MEP-RO-006 builds on MEP-RO-005 by registering every successful QA evidence export in a persistent local filesystem index.
