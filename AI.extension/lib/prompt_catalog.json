@@ -3268,6 +3268,33 @@
     "mode": "deterministic"
   },
   {
+    "id": "link-reset-workflow-history",
+    "title": "Link reset workflow history / run register",
+    "category": "BIM QA",
+    "group": "Coordination Write Research",
+    "discipline": "Coordination",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "revit_link_reset_workflow_history",
+    "canonical_prompt": "show link reset workflow history",
+    "planner_aliases": [
+      "show link reset workflow history",
+      "link reset workflow history",
+      "show coord workflow history",
+      "coord workflow history",
+      "show coordinate reset history",
+      "link reset run register",
+      "show link reset run register",
+      "export link reset workflow history"
+    ],
+    "deterministic_handler": "link_reset_workflow_history_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show link reset workflow history",
+    "mode": "deterministic"
+  },
+  {
     "id": "link-reset-workflow-status",
     "title": "Link reset workflow status dashboard",
     "category": "BIM QA",

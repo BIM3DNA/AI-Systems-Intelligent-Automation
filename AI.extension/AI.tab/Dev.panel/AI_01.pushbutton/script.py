@@ -77,6 +77,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[LINK ORIGIN RESET REVIEWED APPLY]",
     "[LINK ORIGIN RESET POST-APPLY VERIFICATION]",
     "[LINK RESET WORKFLOW STATUS]",
+    "[LINK RESET WORKFLOW HISTORY]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -3220,6 +3221,14 @@ def set_latest_link_reset_workflow_status_state(state_dict):
     state["latest_link_reset_workflow_status_state"] = dict(state_dict or {})
     ok, error = _set_coord_shared_state(state)
     return ok, error
+
+
+def get_latest_link_reset_workflow_status_state():
+    state = get_coord_shared_state()
+    value = state.get("latest_link_reset_workflow_status_state")
+    if isinstance(value, dict):
+        return value
+    return None
 
 
 def _format_feet_mm(value_ft):
@@ -13695,6 +13704,21 @@ def _is_link_reset_workflow_status_prompt(prompt):
     return normalized in routes
 
 
+def _is_link_reset_workflow_history_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show link reset workflow history",
+        "link reset workflow history",
+        "show coord workflow history",
+        "coord workflow history",
+        "show coordinate reset history",
+        "link reset run register",
+        "show link reset run register",
+        "export link reset workflow history",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -14524,6 +14548,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_link_origin_reset_apply_state = None
         self.latest_link_origin_reset_post_apply_verification_state = None
         self.latest_link_reset_workflow_status_state = None
+        self.latest_link_reset_workflow_history_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -15706,6 +15731,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "selected/latest Revit link origin reset post-apply verification / read-only"
         if header == "[LINK RESET WORKFLOW STATUS]":
             return "Revit link reset workflow status / read-only dashboard"
+        if header == "[LINK RESET WORKFLOW HISTORY]":
+            return "Revit link reset workflow history / local read-only register"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -17452,6 +17479,729 @@ class OllamaAIChat(forms.WPFWindow):
             "report_scope": "Revit link reset workflow status / read-only dashboard",
             "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
             "feature_id": "COORD-WR-005",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _link_reset_history_root(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+        return os.path.join(
+            user_profile,
+            "Desktop",
+            "Results",
+            "AI_Workbench",
+            "Workflow_History",
+        )
+
+    def _link_reset_history_paths(self):
+        root = self._link_reset_history_root()
+        return {
+            "folder": root,
+            "jsonl": os.path.join(root, "link_reset_workflow_history.jsonl"),
+            "csv": os.path.join(root, "link_reset_workflow_history.csv"),
+        }
+
+    def _link_reset_history_fields(self):
+        return [
+            "history_record_id",
+            "timestamp",
+            "document_title",
+            "active_view_name",
+            "workflow_status",
+            "status_id",
+            "audit_id",
+            "audit_result",
+            "audit_total_links",
+            "audit_near_zero_count",
+            "audit_offset_count",
+            "audit_reset_candidate_count",
+            "audit_manual_review_count",
+            "rollback_test_id",
+            "rollback_result",
+            "apply_id",
+            "apply_result",
+            "verification_id",
+            "verification_result",
+            "target_link_id",
+            "target_link_name",
+            "initial_origin_xyz",
+            "initial_origin_approx_mm",
+            "final_origin_xyz",
+            "final_origin_approx_mm",
+            "latest_qa_export_folder",
+            "checkpoint_source",
+            "source_export_folder",
+            "source_export_timestamp",
+            "source_prompt",
+            "source_header",
+            "transaction_opened",
+            "transaction_group_opened",
+            "move_element_called",
+            "model_modified",
+            "linked_document_modified",
+            "ui_selection_modified",
+            "notes",
+        ]
+
+    def _link_reset_history_csv_value(self, value):
+        if isinstance(value, (dict, list, tuple)):
+            try:
+                return json.dumps(value, sort_keys=True)
+            except:
+                return safe_str(value)
+        return value
+
+    def _read_link_reset_history_records(self, jsonl_path):
+        records = []
+        warnings = []
+        if not os.path.exists(jsonl_path):
+            return records, warnings
+        try:
+            stream = codecs.open(jsonl_path, "r", "utf-8")
+            try:
+                for line_number, line in enumerate(stream, 1):
+                    text = line.strip()
+                    if not text:
+                        continue
+                    try:
+                        row = json.loads(text)
+                        if isinstance(row, dict):
+                            records.append(row)
+                        else:
+                            warnings.append("JSONL line {0} is not an object.".format(line_number))
+                    except Exception as exc:
+                        warnings.append(
+                            "JSONL line {0} could not be parsed: {1}".format(
+                                line_number,
+                                safe_str(exc),
+                            )
+                        )
+            finally:
+                stream.close()
+        except Exception as exc:
+            warnings.append("History JSONL could not be read: {0}".format(safe_str(exc)))
+        return records, warnings
+
+    def _link_reset_history_record_is_meaningful(self, status_state):
+        if not status_state or not isinstance(status_state, dict):
+            return False
+        workflow_status = safe_str(status_state.get("workflow_status")).strip()
+        meaningful_statuses = [
+            "Ready / clean",
+            "Review required",
+            "Apply completed; verification missing",
+            "Rollback passed; apply pending",
+            "Audit only / reset not started",
+        ]
+        if workflow_status in meaningful_statuses:
+            return True
+        if workflow_status != "Not ready":
+            return False
+        return bool(
+            status_state.get("audit_state_exists")
+            or status_state.get("rollback_state_exists")
+            or status_state.get("apply_state_exists")
+            or status_state.get("verification_state_exists")
+        )
+
+    def _link_reset_history_qa_index_paths(self):
+        root = self._qa_export_primary_root()
+        candidates = []
+        for folder in [root, os.path.join(root, "_index")]:
+            for filename in ["qa_export_index.jsonl", "qa_export_index.csv"]:
+                path = os.path.join(folder, filename)
+                if path not in candidates:
+                    candidates.append(path)
+        return candidates
+
+    def _read_link_reset_history_qa_index(self):
+        entries = []
+        warnings = []
+        for path in self._link_reset_history_qa_index_paths():
+            if not os.path.exists(path):
+                continue
+            try:
+                stream = codecs.open(path, "r", "utf-8")
+                try:
+                    if path.lower().endswith(".jsonl"):
+                        for line_number, line in enumerate(stream, 1):
+                            text = line.strip()
+                            if not text:
+                                continue
+                            try:
+                                loaded = json.loads(text)
+                                if isinstance(loaded, dict):
+                                    entries.append(loaded)
+                            except Exception as exc:
+                                warnings.append(
+                                    "QA index JSONL line {0} could not be parsed: {1}".format(
+                                        line_number,
+                                        safe_str(exc),
+                                    )
+                                )
+                    else:
+                        reader = csv.DictReader(stream)
+                        for row in reader:
+                            if isinstance(row, dict):
+                                entries.append(row)
+                finally:
+                    stream.close()
+            except Exception as exc:
+                warnings.append(
+                    "QA export index could not be read at {0}: {1}".format(
+                        path,
+                        safe_str(exc),
+                    )
+                )
+        return entries, warnings
+
+    def _latest_link_reset_status_export(self):
+        entries, warnings = self._read_link_reset_history_qa_index()
+        matches = []
+        seen_folders = set()
+        for entry in entries:
+            header = entry.get("source_report_header", entry.get("source_header"))
+            if safe_str(header).strip() != "[LINK RESET WORKFLOW STATUS]":
+                continue
+            folder = safe_str(entry.get("export_folder")).strip()
+            if not folder or folder in seen_folders:
+                continue
+            seen_folders.add(folder)
+            matches.append(entry)
+        matches = sorted(
+            matches,
+            key=lambda item: safe_str(item.get("export_timestamp_local", item.get("timestamp"))),
+            reverse=True,
+        )
+        if matches:
+            return matches[0], warnings
+        return None, warnings
+
+    def _link_reset_history_report_fields(self, report_text):
+        fields = {}
+        lines = safe_str(report_text).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        for index, raw_line in enumerate(lines):
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith("- ") and ":" in line:
+                key, value = line[2:].split(":", 1)
+                fields[key.strip()] = value.strip()
+                continue
+            if line.endswith(":"):
+                key = line[:-1].strip()
+                for next_line in lines[index + 1:]:
+                    value = next_line.strip()
+                    if value:
+                        fields[key] = value
+                        break
+        return fields
+
+    def _link_reset_history_parse_xyz_text(self, value):
+        text = safe_str(value).strip()
+        match = re.search(
+            r"\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)",
+            text,
+        )
+        if not match:
+            return None
+        try:
+            return [float(match.group(1)), float(match.group(2)), float(match.group(3))]
+        except:
+            return None
+
+    def _link_reset_history_bool(self, value):
+        return safe_str(value).strip().lower() in ["true", "yes", "1", "passed"]
+
+    def _parse_link_reset_status_export(self, export_entry):
+        if not export_entry:
+            return None, "QA export entry is unavailable."
+        export_folder = safe_str(export_entry.get("export_folder")).strip()
+        report_candidates = [
+            safe_str(export_entry.get("text_file")).strip(),
+            os.path.join(export_folder, "report.txt") if export_folder else "",
+            safe_str(export_entry.get("report_file")).strip(),
+            os.path.join(export_folder, "report.md") if export_folder else "",
+        ]
+        report_text = None
+        report_path = None
+        for candidate in report_candidates:
+            if not candidate or not os.path.exists(candidate):
+                continue
+            try:
+                stream = codecs.open(candidate, "r", "utf-8")
+                try:
+                    report_text = stream.read()
+                finally:
+                    stream.close()
+                report_path = candidate
+                break
+            except:
+                continue
+        if not report_text:
+            return None, "Matched QA export has no readable report.txt or report.md."
+
+        fields = self._link_reset_history_report_fields(report_text)
+        workflow_status = safe_str(fields.get("Workflow status")).strip()
+        if not workflow_status:
+            return None, "Matched QA export report has no parseable workflow status."
+
+        active_view_text = safe_str(fields.get("Active view") or export_entry.get("active_view_name"))
+        active_view_name = safe_str(export_entry.get("active_view_name")).strip()
+        if not active_view_name and active_view_text:
+            active_view_name = re.sub(r"\s+\[[^\]]+\]\s*$", "", active_view_text).strip()
+        initial_origin = self._link_reset_history_parse_xyz_text(fields.get("Rollback original origin"))
+        initial_origin_mm = self._link_reset_history_parse_xyz_text(
+            fields.get("Rollback original origin approximate mm")
+        )
+        final_origin = self._link_reset_history_parse_xyz_text(fields.get("Final origin"))
+        final_origin_mm = self._link_reset_history_parse_xyz_text(
+            fields.get("Final origin approximate mm")
+        )
+        target_link_id = (
+            fields.get("Target link id")
+            or fields.get("Applied link id")
+            or fields.get("Rollback-tested link id")
+            or "unavailable"
+        )
+        target_link_name = (
+            fields.get("Target link name")
+            or fields.get("Applied link name")
+            or fields.get("Rollback-tested link name")
+            or "unavailable"
+        )
+        parsed = {
+            "feature_id": "COORD-WR-005",
+            "status_id": fields.get("Status ID", "unavailable"),
+            "created_timestamp_local": fields.get(
+                "Timestamp",
+                export_entry.get("export_timestamp_local", "unavailable"),
+            ),
+            "document_title": fields.get(
+                "Active document",
+                export_entry.get("document_title", "unavailable"),
+            ),
+            "active_view_name": active_view_name or "unavailable",
+            "active_view_type": export_entry.get("active_view_type", "unavailable"),
+            "workflow_status": workflow_status,
+            "audit_state_exists": self._link_reset_history_bool(fields.get("Latest audit state exists")),
+            "audit_id": fields.get("Latest audit id", "unavailable"),
+            "audit_result": fields.get("Latest audit result", "Unavailable"),
+            "audit_total_links": fields.get("Latest audit total links", "unavailable"),
+            "audit_near_zero_count": fields.get("Latest audit near-zero count", "unavailable"),
+            "audit_offset_count": fields.get("Latest audit offset count", "unavailable"),
+            "audit_reset_candidate_count": fields.get("Latest audit reset candidate count", "unavailable"),
+            "audit_review_count": fields.get("Latest audit manual-review count", "unavailable"),
+            "rollback_state_exists": self._link_reset_history_bool(fields.get("Latest passed rollback source exists")),
+            "rollback_test_id": fields.get("Latest rollback test id", "unavailable"),
+            "rollback_result": fields.get("Latest rollback result", "Unavailable"),
+            "rollback_link_id": fields.get("Rollback-tested link id", "unavailable"),
+            "rollback_link_name": fields.get("Rollback-tested link name", "unavailable"),
+            "rollback_original_origin": initial_origin,
+            "rollback_original_origin_approx_mm": initial_origin_mm,
+            "apply_state_exists": self._link_reset_history_bool(fields.get("Latest apply state exists")),
+            "apply_id": fields.get("Latest apply id", "unavailable"),
+            "apply_result": fields.get("Latest apply result", "Unavailable"),
+            "applied_link_id": fields.get("Applied link id", target_link_id),
+            "applied_link_name": fields.get("Applied link name", target_link_name),
+            "apply_final_origin": final_origin,
+            "apply_final_origin_approx_mm": final_origin_mm,
+            "verification_state_exists": self._link_reset_history_bool(
+                fields.get("Latest COORD-WR-004 verification state exists")
+            ),
+            "verification_id": fields.get("Latest verification id", "unavailable"),
+            "verification_result": fields.get("Latest verification result", "Unavailable"),
+            "verification_link_id": fields.get("Target link id", target_link_id),
+            "verification_link_name": fields.get("Target link name", target_link_name),
+            "latest_qa_export_folder": export_folder or "unavailable",
+            "checkpoint_source": "qa_export_fallback",
+            "source_export_folder": export_folder or "unavailable",
+            "source_export_timestamp": export_entry.get("export_timestamp_local", "unavailable"),
+            "source_prompt": export_entry.get("source_prompt", fields.get("Source prompt", "unavailable")),
+            "report_header": "[LINK RESET WORKFLOW STATUS]",
+            "source_report_path": report_path,
+            "transaction_opened": self._link_reset_history_bool(fields.get("Transaction opened")),
+            "transaction_group_opened": self._link_reset_history_bool(fields.get("TransactionGroup opened")),
+            "moveelement_called": self._link_reset_history_bool(fields.get("MoveElement called")),
+            "model_modified": self._link_reset_history_bool(fields.get("Model modified")),
+            "linked_document_modified": self._link_reset_history_bool(fields.get("Linked document modified")),
+            "ui_selection_modified": self._link_reset_history_bool(fields.get("UI selection modified")),
+        }
+        return parsed, None
+
+    def _build_link_reset_history_record(self, status_state):
+        checkpoint_source = safe_str(status_state.get("checkpoint_source") or "shared_state")
+        use_shared_supporting_state = checkpoint_source == "shared_state"
+        rollback_state = {}
+        apply_state = {}
+        verification_state = {}
+        audit_state = {}
+        if use_shared_supporting_state:
+            rollback_state = get_latest_passed_link_origin_reset_rollback_state() or {}
+            apply_state = get_latest_link_origin_reset_apply_state() or {}
+            verification_state = get_latest_link_origin_reset_post_apply_verification_state() or {}
+            audit_state = get_latest_link_transform_audit_state() or {}
+
+        target_link_id = (
+            verification_state.get("target_link_id")
+            or status_state.get("verification_link_id")
+            or apply_state.get("applied_link_id")
+            or status_state.get("applied_link_id")
+            or rollback_state.get("selected_link_element_id")
+            or status_state.get("rollback_link_id")
+        )
+        target_link_name = (
+            verification_state.get("target_link_name")
+            or status_state.get("verification_link_name")
+            or apply_state.get("applied_link_name")
+            or apply_state.get("selected_link_name")
+            or status_state.get("applied_link_name")
+            or rollback_state.get("selected_link_name")
+            or status_state.get("rollback_link_name")
+        )
+        initial_origin = (
+            _xyz_plain(rollback_state.get("original_origin"))
+            or _xyz_plain(status_state.get("rollback_original_origin"))
+        )
+        initial_origin_mm = (
+            _xyz_plain(status_state.get("rollback_original_origin_approx_mm"))
+            or (_xyz_mm_plain(initial_origin) if initial_origin else None)
+        )
+        final_origin = (
+            _xyz_plain(verification_state.get("current_origin_xyz"))
+            or _xyz_plain(apply_state.get("final_origin_xyz"))
+            or _xyz_plain(status_state.get("apply_final_origin"))
+        )
+        final_origin_mm = (
+            _xyz_plain(status_state.get("apply_final_origin_approx_mm"))
+            or (_xyz_mm_plain(final_origin) if final_origin else None)
+        )
+        timestamp = (
+            safe_str(status_state.get("created_timestamp_local")).strip()
+            or time.strftime("%Y-%m-%d %H:%M:%S")
+        )
+        record = {
+            "history_record_id": "COORD-WR-006-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "timestamp": timestamp,
+            "document_title": safe_str(status_state.get("document_title")),
+            "active_view_name": safe_str(status_state.get("active_view_name")),
+            "workflow_status": safe_str(status_state.get("workflow_status")),
+            "status_id": safe_str(status_state.get("status_id")),
+            "audit_id": safe_str(status_state.get("audit_id") or audit_state.get("audit_id") or "unavailable"),
+            "audit_result": safe_str(status_state.get("audit_result") or audit_state.get("audit_result") or "Unavailable"),
+            "audit_total_links": status_state.get("audit_total_links", audit_state.get("total_link_count", "unavailable")),
+            "audit_near_zero_count": status_state.get("audit_near_zero_count", audit_state.get("near_zero_count", "unavailable")),
+            "audit_offset_count": status_state.get("audit_offset_count", audit_state.get("offset_count", "unavailable")),
+            "audit_reset_candidate_count": status_state.get(
+                "audit_reset_candidate_count",
+                audit_state.get("future_reset_candidate_count", audit_state.get("reset_candidate_count", "unavailable")),
+            ),
+            "audit_manual_review_count": status_state.get(
+                "audit_review_count",
+                audit_state.get("manual_review_count", audit_state.get("review_count", "unavailable")),
+            ),
+            "rollback_test_id": safe_str(status_state.get("rollback_test_id") or rollback_state.get("rollback_test_id") or "unavailable"),
+            "rollback_result": safe_str(status_state.get("rollback_result") or rollback_state.get("rollback_test_result") or "Unavailable"),
+            "apply_id": safe_str(status_state.get("apply_id") or apply_state.get("apply_id") or "unavailable"),
+            "apply_result": safe_str(status_state.get("apply_result") or apply_state.get("apply_result") or "Unavailable"),
+            "verification_id": safe_str(status_state.get("verification_id") or verification_state.get("verification_id") or "unavailable"),
+            "verification_result": safe_str(status_state.get("verification_result") or verification_state.get("verification_result") or "Unavailable"),
+            "target_link_id": target_link_id if target_link_id not in (None, "") else "unavailable",
+            "target_link_name": safe_str(target_link_name or "unavailable"),
+            "initial_origin_xyz": initial_origin or "unavailable",
+            "initial_origin_approx_mm": initial_origin_mm or "unavailable",
+            "final_origin_xyz": final_origin or "unavailable",
+            "final_origin_approx_mm": final_origin_mm or "unavailable",
+            "latest_qa_export_folder": safe_str(status_state.get("latest_qa_export_folder") or "unavailable"),
+            "checkpoint_source": checkpoint_source,
+            "source_export_folder": safe_str(status_state.get("source_export_folder") or "unavailable"),
+            "source_export_timestamp": safe_str(status_state.get("source_export_timestamp") or "unavailable"),
+            "source_prompt": safe_str(status_state.get("source_prompt")),
+            "source_header": safe_str(status_state.get("report_header") or "[LINK RESET WORKFLOW STATUS]"),
+            "transaction_opened": bool(status_state.get("transaction_opened")),
+            "transaction_group_opened": bool(status_state.get("transaction_group_opened")),
+            "move_element_called": bool(status_state.get("moveelement_called") or status_state.get("move_element_called")),
+            "model_modified": bool(status_state.get("model_modified")),
+            "linked_document_modified": bool(status_state.get("linked_document_modified")),
+            "ui_selection_modified": bool(status_state.get("ui_selection_modified")),
+            "notes": "Checkpoint captured from {0}.".format(checkpoint_source),
+        }
+        return record
+
+    def _link_reset_history_duplicate(self, records, record):
+        status_id = safe_str(record.get("status_id")).strip()
+        source_export_folder = safe_str(record.get("source_export_folder")).strip()
+        for existing in records:
+            if status_id and status_id != "unavailable":
+                if safe_str(existing.get("status_id")).strip() == status_id:
+                    return existing
+            elif source_export_folder and source_export_folder != "unavailable":
+                if safe_str(existing.get("source_export_folder")).strip() == source_export_folder:
+                    return existing
+            same_compound_key = (
+                safe_str(existing.get("document_title")) == safe_str(record.get("document_title"))
+                and safe_str(existing.get("status_id")) == safe_str(record.get("status_id"))
+                and safe_str(existing.get("workflow_status")) == safe_str(record.get("workflow_status"))
+                and safe_str(existing.get("timestamp")) == safe_str(record.get("timestamp"))
+            )
+            if same_compound_key:
+                return existing
+        return None
+
+    def _write_link_reset_history_csv(self, csv_path, records):
+        fields = self._link_reset_history_fields()
+        stream = codecs.open(csv_path, "w", "utf-8")
+        try:
+            stream.write(self._qa_index_csv_row(fields))
+            stream.write("\n")
+            for record in records:
+                values = [
+                    self._link_reset_history_csv_value(record.get(field))
+                    for field in fields
+                ]
+                stream.write(self._qa_index_csv_row(values))
+                stream.write("\n")
+        finally:
+            stream.close()
+
+    def _collect_link_reset_workflow_history(self, prompt):
+        paths = self._link_reset_history_paths()
+        status_state = get_latest_link_reset_workflow_status_state() or {}
+        records, warnings = self._read_link_reset_history_records(paths.get("jsonl"))
+        shared_state_meaningful = self._link_reset_history_record_is_meaningful(status_state)
+        fallback_attempted = not shared_state_meaningful
+        fallback_source_found = False
+        fallback_parsed = False
+        fallback_folder = "unavailable"
+        checkpoint_source = "shared_state" if shared_state_meaningful else "none"
+        checkpoint_state = status_state if shared_state_meaningful else {}
+
+        if shared_state_meaningful:
+            checkpoint_state = dict(status_state)
+            checkpoint_state["checkpoint_source"] = "shared_state"
+        else:
+            fallback_entry, fallback_warnings = self._latest_link_reset_status_export()
+            warnings.extend(fallback_warnings)
+            if fallback_entry:
+                fallback_source_found = True
+                fallback_folder = safe_str(fallback_entry.get("export_folder") or "unavailable")
+                parsed_state, parse_error = self._parse_link_reset_status_export(fallback_entry)
+                if parsed_state:
+                    fallback_parsed = True
+                    if self._link_reset_history_record_is_meaningful(parsed_state):
+                        checkpoint_state = parsed_state
+                        checkpoint_source = "qa_export_fallback"
+                    else:
+                        warnings.append("QA export fallback checkpoint is not meaningful.")
+                elif parse_error:
+                    warnings.append(parse_error)
+
+        append_attempted = bool(checkpoint_state and self._link_reset_history_record_is_meaningful(checkpoint_state))
+        append_succeeded = False
+        duplicate_skipped = False
+        latest_record = None
+
+        if status_state and not shared_state_meaningful:
+            warnings.append("Latest COORD-WR-005 status is not a meaningful workflow checkpoint.")
+        elif not status_state:
+            warnings.append("Latest COORD-WR-005 workflow status state is unavailable.")
+
+        if append_attempted:
+            candidate = self._build_link_reset_history_record(checkpoint_state)
+            duplicate = self._link_reset_history_duplicate(records, candidate)
+            if duplicate:
+                duplicate_skipped = True
+                latest_record = duplicate
+                try:
+                    if not os.path.isdir(paths.get("folder")):
+                        os.makedirs(paths.get("folder"))
+                    self._write_link_reset_history_csv(paths.get("csv"), records)
+                except Exception as exc:
+                    warnings.append("History CSV synchronization failed: {0}".format(safe_str(exc)))
+            else:
+                try:
+                    if not os.path.isdir(paths.get("folder")):
+                        os.makedirs(paths.get("folder"))
+                    stream = codecs.open(paths.get("jsonl"), "a", "utf-8")
+                    try:
+                        stream.write(json.dumps(candidate, sort_keys=True))
+                        stream.write("\n")
+                    finally:
+                        stream.close()
+                    records.append(candidate)
+                    self._write_link_reset_history_csv(paths.get("csv"), records)
+                    append_succeeded = True
+                    latest_record = candidate
+                except Exception as exc:
+                    warnings.append("History append failed: {0}".format(safe_str(exc)))
+
+        records = sorted(
+            records,
+            key=lambda item: safe_str(item.get("timestamp")),
+            reverse=True,
+        )
+        if latest_record is None and records:
+            latest_record = records[0]
+        return {
+            "feature_id": "COORD-WR-006",
+            "feature_name": "Link Reset Workflow History / Run Register",
+            "history_id": "COORD-WR-006-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "source_prompt": safe_str(prompt),
+            "document_title": _document_title(doc),
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": safe_str(getattr(getattr(uidoc, "ActiveView", None), "ViewType", "(unknown type)")),
+            "history_folder": paths.get("folder"),
+            "jsonl_path": paths.get("jsonl"),
+            "csv_path": paths.get("csv"),
+            "primary_shared_state_meaningful": shared_state_meaningful,
+            "qa_export_fallback_attempted": fallback_attempted,
+            "qa_export_fallback_source_found": fallback_source_found,
+            "qa_export_fallback_folder": fallback_folder,
+            "qa_export_fallback_parsed": fallback_parsed,
+            "checkpoint_source_used": checkpoint_source,
+            "append_attempted": append_attempted,
+            "append_succeeded": append_succeeded,
+            "duplicate_skipped": duplicate_skipped,
+            "latest_record": latest_record or {},
+            "record_count": len(records),
+            "latest_records": records[:10],
+            "warnings": warnings,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+    def _format_link_reset_workflow_history_report(self, data):
+        latest_record = data.get("latest_record") or {}
+        lines = [
+            "[LINK RESET WORKFLOW HISTORY]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "History Report ID:",
+            data.get("history_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "Revit link reset workflow history / local read-only register",
+            "",
+            "Current active document:",
+            data.get("document_title"),
+            "",
+            "Current active view:",
+            "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")),
+            "",
+            "History storage:",
+            "- History folder: {0}".format(data.get("history_folder")),
+            "- JSONL path: {0}".format(data.get("jsonl_path")),
+            "- CSV path: {0}".format(data.get("csv_path")),
+            "",
+            "Checkpoint source:",
+            "- Primary shared state meaningful: {0}".format(_coord_bool_text(data.get("primary_shared_state_meaningful"))),
+            "- QA export fallback attempted: {0}".format(_coord_bool_text(data.get("qa_export_fallback_attempted"))),
+            "- QA export fallback source found: {0}".format(_coord_bool_text(data.get("qa_export_fallback_source_found"))),
+            "- QA export fallback folder: {0}".format(data.get("qa_export_fallback_folder")),
+            "- QA export fallback parsed: {0}".format(_coord_bool_text(data.get("qa_export_fallback_parsed"))),
+            "- Checkpoint source used: {0}".format(data.get("checkpoint_source_used")),
+            "",
+            "Append status:",
+            "- Append attempted: {0}".format(_coord_bool_text(data.get("append_attempted"))),
+            "- Append succeeded: {0}".format(_coord_bool_text(data.get("append_succeeded"))),
+            "- Duplicate skipped: {0}".format(_coord_bool_text(data.get("duplicate_skipped"))),
+            "- Latest record id: {0}".format(latest_record.get("history_record_id", "none")),
+            "- Record count: {0}".format(data.get("record_count")),
+            "",
+            "Latest 10 workflow records (newest first):",
+        ]
+        records = data.get("latest_records") or []
+        if records:
+            for index, record in enumerate(records, 1):
+                lines.extend(
+                    [
+                        "{0}. {1} | {2} | {3}".format(
+                            index,
+                            record.get("timestamp", "unavailable"),
+                            record.get("workflow_status", "Unavailable"),
+                            record.get("document_title", "unavailable"),
+                        ),
+                        "   - Record id: {0}".format(record.get("history_record_id", "unavailable")),
+                        "   - Status id: {0}".format(record.get("status_id", "unavailable")),
+                        "   - Checkpoint source: {0}".format(record.get("checkpoint_source", "unavailable")),
+                        "   - Source export folder: {0}".format(record.get("source_export_folder", "unavailable")),
+                        "   - Audit: {0} | {1}".format(record.get("audit_id", "unavailable"), record.get("audit_result", "Unavailable")),
+                        "   - Rollback: {0} | {1}".format(record.get("rollback_test_id", "unavailable"), record.get("rollback_result", "Unavailable")),
+                        "   - Apply: {0} | {1}".format(record.get("apply_id", "unavailable"), record.get("apply_result", "Unavailable")),
+                        "   - Verification: {0} | {1}".format(record.get("verification_id", "unavailable"), record.get("verification_result", "Unavailable")),
+                        "   - Target link: {0} | {1}".format(record.get("target_link_id", "unavailable"), record.get("target_link_name", "unavailable")),
+                        "   - Initial origin: {0} ft; approx mm {1}".format(record.get("initial_origin_xyz", "unavailable"), record.get("initial_origin_approx_mm", "unavailable")),
+                        "   - Final origin: {0} ft; approx mm {1}".format(record.get("final_origin_xyz", "unavailable"), record.get("final_origin_approx_mm", "unavailable")),
+                        "   - Latest QA export folder: {0}".format(record.get("latest_qa_export_folder", "unavailable")),
+                    ]
+                )
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Warnings:",
+            ]
+        )
+        warnings = data.get("warnings") or []
+        if warnings:
+            for warning in warnings:
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- History requested: true",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Local workflow history files only.",
+                "- No Transaction or TransactionGroup was opened.",
+                "- No MoveElement, RotateElement, TransformElement, or Location.Move call was made.",
+                "- No link was moved, pinned, unpinned, reloaded, unloaded, selected, or auto-corrected.",
+                "- No audit, rollback test, apply, or verification action was run automatically.",
+                "- No linked document or Revit model data was modified.",
+                "- Only JSON-serializable checkpoint values were stored.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_link_reset_workflow_history_question(self, prompt):
+        if not _is_link_reset_workflow_history_prompt(prompt):
+            return None
+        history_data = self._collect_link_reset_workflow_history(prompt)
+        report_text = self._format_link_reset_workflow_history_report(history_data)
+        history_data["report_header"] = "[LINK RESET WORKFLOW HISTORY]"
+        history_data["report_scope"] = "Revit link reset workflow history / local read-only register"
+        history_data["report_text"] = report_text
+        self.latest_link_reset_workflow_history_state = dict(history_data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[LINK RESET WORKFLOW HISTORY]",
+            "report_text": report_text,
+            "report_scope": "Revit link reset workflow history / local read-only register",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-006",
         }
         self.latest_chat_output_is_deterministic_report = True
         return report_text
@@ -22445,9 +23195,13 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if link_workflow_status_reply is not None:
+            if link_workflow_history_reply is not None:
+                reply = link_workflow_history_reply
+                remember_report = True
+            elif link_workflow_status_reply is not None:
                 reply = link_workflow_status_reply
                 remember_report = True
             elif index_reply is not None:
