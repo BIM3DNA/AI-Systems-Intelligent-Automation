@@ -597,3 +597,28 @@ Still out of scope:
 - pin/unpin
 - parameter writes
 - UI selection modification
+
+### 2026-06-08 COORD-WR-006 scope alignment
+
+COORD-WR-006 adds a deterministic local workflow history layer over COORD-WR-005.
+
+Validated scope:
+
+- meaningful shared-state checkpoint capture
+- cross-session fallback from indexed `[LINK RESET WORKFLOW STATUS]` QA exports
+- defensive `report.txt`/`report.md` parsing
+- local JSONL and CSV workflow register
+- duplicate prevention by status id and source export folder
+- latest ten record reporting
+- `[LINK RESET WORKFLOW HISTORY]` QA export/index
+
+Still out of scope:
+
+- running audit, rollback, apply, or verification automatically
+- coordinate correction or auto-fix
+- model or linked-document mutation
+- UI selection modification
+- pin/unpin or reload/unload
+- parameter writes
+- applying by stored element id
+- storing raw Revit API objects

@@ -1389,3 +1389,33 @@ COORD-WR-004 now persists a compact valid verification snapshot under `latest_li
 - final dashboard export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260605_163936`
 
 No model mutation API was added to COORD-WR-005.
+
+---
+
+## 2026-06-08 COORD-WR-006 Cross-Session History Seeding
+
+**Status:** Resolved / runtime validated
+**Type:** coordination workflow persistence and evidence-recovery issue
+
+### Issue
+
+After Revit/pyRevit shared state reset, COORD-WR-005 returned `Not ready` and the initial COORD-WR-006 implementation refused to append a history row. Record count remained zero despite a previously exported clean workflow checkpoint.
+
+### Risk
+
+A workflow history feature that depends only on live shared state cannot provide evidence across session boundaries. Relying only on `latest_export.json` is also unsafe because it may point to a later `[LINK RESET WORKFLOW HISTORY]` export.
+
+### Resolution
+
+COORD-WR-006 now scans QA export JSONL/CSV indexes for the newest `[LINK RESET WORKFLOW STATUS]` entry, reads `report.txt` or `report.md`, parses fields defensively, and seeds the history register when the recovered workflow status is meaningful. Duplicate rows are blocked by `status_id`, with source export folder as fallback.
+
+### Runtime Result
+
+- recovered export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260605_163936`
+- recovered status: `COORD-WR-005-20260605_163912`
+- recovered workflow result: `Ready / clean`
+- first history run: append succeeded; record count 1
+- second history run: duplicate skipped; record count remained 1
+- final export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260608_094652`
+
+No Revit model mutation API was added.

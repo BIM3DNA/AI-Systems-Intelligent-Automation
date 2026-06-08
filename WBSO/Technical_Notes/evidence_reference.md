@@ -1803,3 +1803,36 @@ COORD-WR-005 - Link Reset Workflow Status Dashboard
 ### Technical Conclusion
 
 COORD-WR-005 provides selection-independent read-only workflow status reporting from serializable coordination state. Final runtime status was `Ready / clean`, and the dashboard introduced no model mutation behavior.
+
+## EV-AI-189 through EV-AI-196 - COORD-WR-006 Link Reset Workflow History / Run Register
+
+### Feature
+
+COORD-WR-006 - Link Reset Workflow History / Run Register
+
+### Evidence IDs
+
+- EV-AI-189: Implementation and workflow history feature. Added local JSONL/CSV storage, latest-ten reporting, deterministic prompt routes, `[LINK RESET WORKFLOW HISTORY]`, and QA export support.
+- EV-AI-190: Local history storage. Added `C:\Users\User\Desktop\Results\AI_Workbench\Workflow_History\link_reset_workflow_history.jsonl` and `link_reset_workflow_history.csv` for meaningful coordination checkpoints.
+- EV-AI-191: Cross-session fallback seeding. Added full QA export index scanning for the newest `[LINK RESET WORKFLOW STATUS]` export and defensive `report.txt`/`report.md` parsing.
+- EV-AI-192: Fallback recovery validation. With shared status `Not ready`, recovered `Ready / clean` checkpoint `COORD-WR-005-20260605_163912` from `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260605_163936`.
+- EV-AI-193: Duplicate prevention validation. A second run against the same fallback export skipped append and preserved record count 1.
+- EV-AI-194: Recovered record completeness. The row contained audit `COORD-WR-001-20260605_163837`, rollback `COORD-WR-002-20260605_145813`, apply `COORD-WR-003-20260605_150040`, verification `COORD-WR-004-20260605_163104`, link `2972572`, origins, source export, and workflow status.
+- EV-AI-195: Final history QA export. `[LINK RESET WORKFLOW HISTORY]` exported to `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260608_094652`.
+- EV-AI-196: Commit evidence. Commit `073eb567325b2155813a97be5533781c2e815d1f Add link reset workflow history register` on `main`.
+
+### Validation Folder
+
+`WBSO/Testing_Validation/runs/2026-06-08_coord-wr-006-link-reset-workflow-history-validated/`
+
+### Daily Log
+
+`DL-2026-06-08-08`
+
+### Week
+
+`2026-W11`
+
+### Technical Conclusion
+
+COORD-WR-006 persists meaningful workflow evidence across Revit/pyRevit session boundaries while remaining filesystem-only with respect to writes. It modifies no Revit model or linked-document data.

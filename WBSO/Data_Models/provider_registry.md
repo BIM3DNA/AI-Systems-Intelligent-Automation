@@ -210,3 +210,14 @@ COORD-WR-004 prompts route deterministically before Ollama/OpenAI fallback.
 - Stored element id use is read-only verification only.
 - Generic LLM output remains rejected by export as deterministic evidence.
 - No provider configuration was changed.
+
+## 2026-06-08 COORD-WR-006 Provider Boundary Note
+
+COORD-WR-006 prompts route deterministically before Ollama/OpenAI fallback.
+
+- LLM providers are not used to select, parse, classify, append, or deduplicate workflow checkpoints.
+- Shared-state and QA export fallback selection is deterministic.
+- QA export `report.txt`/`report.md` parsing uses fixed labels and defensive unavailable values.
+- The feature writes only local Workflow_History JSONL/CSV files.
+- Generic LLM output remains rejected as deterministic QA evidence.
+- No provider configuration was changed.

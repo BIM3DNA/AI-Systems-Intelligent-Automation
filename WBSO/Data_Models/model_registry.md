@@ -321,3 +321,32 @@ COORD-WR-004 is deterministic read-only verification logic for the reviewed link
 - no MoveElement
 - no model mutation
 - no UI selection modification
+
+## 2026-06-08 COORD-WR-006 Model Note
+
+Feature ID: COORD-WR-006
+
+Feature:
+Link Reset Workflow History / Run Register
+
+Status:
+Runtime validated and export/index validated
+
+Evidence:
+EV-AI-189 to EV-AI-196
+
+Commit:
+`073eb567325b2155813a97be5533781c2e815d1f Add link reset workflow history register`
+
+COORD-WR-006 is deterministic local-history logic for the reviewed Revit link reset workflow. It persists meaningful COORD-WR-005 checkpoints outside transient pyRevit shared state.
+
+- report header: `[LINK RESET WORKFLOW HISTORY]`
+- local folder: `C:\Users\User\Desktop\Results\AI_Workbench\Workflow_History`
+- files: `link_reset_workflow_history.jsonl`, `link_reset_workflow_history.csv`
+- source priority: meaningful shared COORD-WR-005 state, newest indexed `[LINK RESET WORKFLOW STATUS]` export, none
+- recovered checkpoint: `COORD-WR-005-20260605_163912`
+- recovered source export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260605_163936`
+- duplicate prevention: `status_id`, or source export folder when status id is unavailable
+- final history export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260608_094652`
+- no raw Revit API objects stored
+- no transaction, TransactionGroup, movement API, linked-document mutation, or UI selection modification

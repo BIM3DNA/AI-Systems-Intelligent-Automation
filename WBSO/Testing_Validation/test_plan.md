@@ -653,6 +653,59 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-06-08 COORD-WR-006 Runtime Validation Plan
+
+### A. Cross-session no-state condition
+
+- run `coord reset status`
+- confirm audit, rollback, apply, and verification shared states are unavailable
+- confirm workflow status `Not ready`
+- confirm transaction and model-modified flags false
+
+### B. Initial negative history path
+
+- run `show link reset workflow history` before fallback correction
+- confirm append attempted false and record count 0
+- preserve this negative evidence as the technical gap
+
+### C. QA export fallback recovery
+
+- scan full QA export JSONL/CSV indexes
+- find newest source header `[LINK RESET WORKFLOW STATUS]`
+- parse `report.txt`, with `report.md` fallback
+- recover source export `20260605_163936`
+- recover status `COORD-WR-005-20260605_163912` and `Ready / clean`
+
+### D. History append
+
+- confirm checkpoint source `qa_export_fallback`
+- confirm append attempted and succeeded
+- confirm record count 1
+- confirm audit, rollback, apply, verification, link, and origin fields
+
+### E. Duplicate prevention
+
+- run the same history prompt again
+- confirm append attempted true, append succeeded false, duplicate skipped true
+- confirm record count remains 1
+
+### F. QA export/index
+
+- export latest QA report
+- confirm source prompt `show link reset workflow history`
+- confirm header `[LINK RESET WORKFLOW HISTORY]`
+- confirm scope `Revit link reset workflow history / local read-only register`
+- confirm final folder `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260608_094652`
+
+### Pass criteria
+
+- cross-session fallback works without live shared workflow state
+- full index scan does not depend on `latest_export.json`
+- only meaningful checkpoints append
+- duplicates are prevented
+- history storage contains JSON-safe values only
+- no transaction, movement API, linked-document mutation, model mutation, or UI selection modification
+
 ## 2026-06-05 COORD-WR-005 Runtime Validation Plan
 
 ### A. Initial audit

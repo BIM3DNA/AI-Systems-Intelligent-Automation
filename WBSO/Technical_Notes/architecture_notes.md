@@ -1350,6 +1350,28 @@ Runtime validation completed the full chain for link `2972572`, from approximate
 
 COORD-WR-005 adds no transaction, TransactionGroup, movement API, correction, linked-document mutation, selection modification, reload/unload, pin/unpin, batch reset, or apply-by-stored-id behavior.
 
+## 2026-06-08 COORD-WR-006 Link Reset Workflow History / Run Register
+
+COORD-WR-006 extends COORD-WR-005 with a filesystem-backed workflow checkpoint register. Meaningful dashboard checkpoints are flattened into JSON-safe records and stored in `link_reset_workflow_history.jsonl` and `link_reset_workflow_history.csv` under `Desktop\Results\AI_Workbench\Workflow_History`.
+
+### Source architecture
+
+1. Prefer meaningful `latest_link_reset_workflow_status_state`.
+2. If shared state is unavailable, empty, or not meaningful, scan the complete QA export JSONL/CSV indexes.
+3. Select the newest export with source header `[LINK RESET WORKFLOW STATUS]`.
+4. Parse `report.txt`, with `report.md` fallback.
+5. Append only meaningful workflow statuses and prevent duplicates by `status_id` or source export folder.
+
+The full index scan is necessary because `latest_export.json` can point to a newer history report rather than the latest workflow-status report.
+
+### Runtime result
+
+After pyRevit shared state reset, COORD-WR-005 status `COORD-WR-005-20260608_091433` was `Not ready`. COORD-WR-006 initially appended nothing. The fallback then recovered clean checkpoint `COORD-WR-005-20260605_163912` from export `20260605_163936`, appended one record, and skipped the same record on a second run.
+
+### Safety boundary
+
+COORD-WR-006 reads QA export files and writes local history JSONL/CSV only. It opens no transaction or TransactionGroup, calls no movement API, runs no audit/rollback/apply/verification action, changes no selection, and modifies no Revit or linked-document data.
+
 ## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry
 
 MEP-RO-006 builds on MEP-RO-005 by registering every successful QA evidence export in a persistent local filesystem index.

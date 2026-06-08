@@ -587,3 +587,34 @@ A successful MEP-WR-003 persistent split marks the source dry-run/rollback pair 
 - no linked-document scan
 - no parameter write
 - no tag/schedule/view/sheet/system/circuit edit
+
+## 2026-06-08 - COORD-WR-006 Link Reset Workflow History / Run Register
+
+### Status
+
+Runtime validated and export/index validated.
+
+### Summary
+
+COORD-WR-006 persists meaningful COORD-WR-005 workflow checkpoints to local JSONL/CSV files and recovers prior workflow evidence across Revit/pyRevit session boundaries.
+
+### Critical finding
+
+Live shared state was unavailable after session reset, causing COORD-WR-005 status `COORD-WR-005-20260608_091433` to report `Not ready`. The initial history path appended nothing. The corrected fallback scanned the full QA export index and recovered `Ready / clean` checkpoint `COORD-WR-005-20260605_163912` from export `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260605_163936`.
+
+### Runtime results
+
+- fallback report: `COORD-WR-006-20260608_094522`
+- append attempted: true
+- append succeeded: true
+- duplicate skipped: false
+- record count: 1
+- repeated report: `COORD-WR-006-20260608_094609`
+- repeated append succeeded: false
+- repeated duplicate skipped: true
+- final export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260608_094652`
+- source header: `[LINK RESET WORKFLOW HISTORY]`
+
+### Safety
+
+COORD-WR-006 reads QA export files and writes local Workflow_History JSONL/CSV only. It opens no transaction or TransactionGroup and modifies no Revit model, linked document, or UI selection.
