@@ -3268,6 +3268,33 @@
     "mode": "deterministic"
   },
   {
+    "id": "link-reset-evidence-bundle-integrity",
+    "title": "Link reset evidence bundle integrity check",
+    "category": "BIM QA",
+    "group": "Coordination Write Research",
+    "discipline": "Coordination",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "revit_link_reset_evidence_file_index_integrity",
+    "canonical_prompt": "check link reset evidence bundle integrity",
+    "planner_aliases": [
+      "check link reset evidence bundle integrity",
+      "link reset evidence integrity",
+      "show link reset evidence integrity",
+      "check coord reset evidence integrity",
+      "coord reset evidence integrity",
+      "verify link reset handover files",
+      "show link reset handover integrity",
+      "link reset evidence file check"
+    ],
+    "deterministic_handler": "link_reset_evidence_bundle_integrity_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "check link reset evidence bundle integrity",
+    "mode": "deterministic"
+  },
+  {
     "id": "link-reset-workflow-evidence-bundle",
     "title": "Link reset workflow evidence bundle",
     "category": "BIM QA",

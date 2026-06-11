@@ -82,6 +82,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[LINK RESET HISTORY RECONCILIATION DASHBOARD]",
     "[LINK RESET WORKFLOW READINESS ADVISOR]",
     "[LINK RESET WORKFLOW EVIDENCE BUNDLE]",
+    "[LINK RESET EVIDENCE BUNDLE INTEGRITY CHECK]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -13799,6 +13800,21 @@ def _is_link_reset_workflow_evidence_bundle_prompt(prompt):
     return normalized in routes
 
 
+def _is_link_reset_evidence_bundle_integrity_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "check link reset evidence bundle integrity",
+        "link reset evidence integrity",
+        "show link reset evidence integrity",
+        "check coord reset evidence integrity",
+        "coord reset evidence integrity",
+        "verify link reset handover files",
+        "show link reset handover integrity",
+        "link reset evidence file check",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -14633,6 +14649,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_link_reset_history_reconciliation_dashboard_state = None
         self.latest_link_reset_workflow_readiness_advisor_state = None
         self.latest_link_reset_workflow_evidence_bundle_state = None
+        self.latest_link_reset_evidence_bundle_integrity_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -15825,6 +15842,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "Revit link reset workflow readiness / read-only next-action advisor"
         if header == "[LINK RESET WORKFLOW EVIDENCE BUNDLE]":
             return "Revit link reset workflow evidence bundle / read-only consolidated QA handover"
+        if header == "[LINK RESET EVIDENCE BUNDLE INTEGRITY CHECK]":
+            return "Revit link reset evidence integrity / read-only file and index validation"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -19841,6 +19860,507 @@ class OllamaAIChat(forms.WPFWindow):
             "report_scope": "Revit link reset workflow evidence bundle / read-only consolidated QA handover",
             "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
             "feature_id": "COORD-WR-010",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _parse_link_reset_evidence_bundle_rows(self, report_text):
+        rows = []
+        in_table = False
+        for raw_line in safe_str(report_text).replace("\r\n", "\n").replace(
+            "\r", "\n"
+        ).split("\n"):
+            line = raw_line.strip()
+            if line == "Evidence completeness:":
+                in_table = True
+                continue
+            if not in_table:
+                continue
+            if not line:
+                if rows:
+                    break
+                continue
+            if not line.startswith("|"):
+                if rows:
+                    break
+                continue
+            cells = [cell.strip() for cell in line.strip("|").split("|")]
+            if not cells or cells[0] in ["Feature id", "---"]:
+                continue
+            if len(cells) != 7:
+                rows.append(
+                    {
+                        "feature_id": "unavailable",
+                        "feature_name": "unavailable",
+                        "header": "unavailable",
+                        "latest_id": "unavailable",
+                        "result": "Unavailable",
+                        "source": "unavailable",
+                        "available": False,
+                        "parse_error": "Evidence table row has {0} columns; expected 7.".format(
+                            len(cells)
+                        ),
+                    }
+                )
+                continue
+            rows.append(
+                {
+                    "feature_id": cells[0],
+                    "feature_name": cells[1],
+                    "header": cells[2],
+                    "latest_id": cells[3],
+                    "result": cells[4],
+                    "source": cells[5],
+                    "available": self._link_reset_history_bool(cells[6]),
+                    "parse_error": None,
+                }
+            )
+        return rows
+
+    def _latest_link_reset_evidence_bundle_export(self, active_document):
+        entries, warnings = self._read_link_reset_history_qa_index()
+        matches = []
+        seen_folders = set()
+        for entry in entries:
+            header = entry.get(
+                "source_report_header", entry.get("source_header")
+            )
+            if safe_str(header).strip() != "[LINK RESET WORKFLOW EVIDENCE BUNDLE]":
+                continue
+            entry_document = safe_str(entry.get("document_title")).strip()
+            if (
+                entry_document
+                and entry_document.lower()
+                != safe_str(active_document).strip().lower()
+            ):
+                continue
+            folder = safe_str(entry.get("export_folder")).strip()
+            if not folder or folder in seen_folders:
+                continue
+            seen_folders.add(folder)
+            matches.append(entry)
+        matches = sorted(
+            matches,
+            key=lambda item: safe_str(
+                item.get("export_timestamp_local", item.get("timestamp"))
+            ),
+            reverse=True,
+        )
+        for entry in matches:
+            report_text, report_path = self._link_reset_evidence_report_text(
+                entry
+            )
+            if not report_text:
+                warnings.append(
+                    "Evidence bundle export has no readable report.txt or report.md: {0}.".format(
+                        entry.get("export_folder")
+                    )
+                )
+                continue
+            fields = self._link_reset_history_report_fields(report_text)
+            report_document = safe_str(
+                fields.get("Active document title")
+                or entry.get("document_title")
+            ).strip()
+            if report_document.lower() != safe_str(active_document).strip().lower():
+                warnings.append(
+                    "Evidence bundle report document does not match the active document."
+                )
+                continue
+            return {
+                "entry": dict(entry),
+                "fields": fields,
+                "report_text": report_text,
+                "report_path": report_path,
+                "rows": self._parse_link_reset_evidence_bundle_rows(report_text),
+            }, warnings
+        return {}, warnings
+
+    def _link_reset_integrity_index_paths(self):
+        root = self._qa_export_primary_root()
+        paths = []
+        for folder in [root, os.path.join(root, "_index")]:
+            for filename in ["qa_export_index.jsonl", "qa_export_index.csv"]:
+                path = os.path.join(folder, filename)
+                if path not in paths:
+                    paths.append(path)
+        return paths
+
+    def _link_reset_integrity_index_folders(self):
+        entries, warnings = self._read_link_reset_history_qa_index()
+        folders = set()
+        for entry in entries:
+            folder = safe_str(entry.get("export_folder")).strip()
+            if folder:
+                folders.add(os.path.normcase(os.path.normpath(folder)))
+        return folders, warnings
+
+    def _link_reset_integrity_recommendation(self, result):
+        recommendations = {
+            "INTEGRITY_COMPLETE": "No action required. All evidence bundle links and files are complete.",
+            "INTEGRITY_CLEAN_WITH_HISTORY_SOURCE": "No model action required. Evidence is clean; one or more source items are intentionally represented by the local history record.",
+            "INTEGRITY_PARTIAL_SOURCE_LINKS": "No immediate model action required. Review missing source links if a full handover audit trail is required.",
+            "INTEGRITY_MISSING_FILES": "Review missing QA export folders/files before final handover.",
+            "INTEGRITY_HISTORY_UNAVAILABLE": "Run show link reset workflow history after a valid workflow checkpoint exists.",
+            "INTEGRITY_REVIEW_REQUIRED": "Review evidence bundle parsing and QA export index consistency.",
+        }
+        return recommendations.get(
+            result, recommendations.get("INTEGRITY_REVIEW_REQUIRED")
+        )
+
+    def _collect_link_reset_evidence_bundle_integrity(self, prompt):
+        active_document = _document_title(doc)
+        bundle, warnings = self._latest_link_reset_evidence_bundle_export(
+            active_document
+        )
+        history_source = self._read_link_reset_reconciliation_dashboard_records()
+        warnings.extend(history_source.get("warnings") or [])
+        index_folders, index_warnings = (
+            self._link_reset_integrity_index_folders()
+        )
+        warnings.extend(index_warnings)
+        history_available = bool(history_source.get("history_available"))
+        checked_rows = []
+        source_rows = list(bundle.get("rows") or [])
+        if bundle:
+            source_rows.append(
+                {
+                    "feature_id": "COORD-WR-010",
+                    "feature_name": "Evidence Bundle / Handover Report",
+                    "header": "[LINK RESET WORKFLOW EVIDENCE BUNDLE]",
+                    "latest_id": bundle.get("fields", {}).get(
+                        "Bundle Report ID", "unavailable"
+                    ),
+                    "result": bundle.get("fields", {}).get(
+                        "Bundle result", "Unavailable"
+                    ),
+                    "source": bundle.get("entry", {}).get(
+                        "export_folder", "unavailable"
+                    ),
+                    "available": True,
+                    "parse_error": None,
+                }
+            )
+        for row in source_rows:
+            source = safe_str(row.get("source")).strip()
+            item = dict(row)
+            item.update(
+                {
+                    "folder_exists": False,
+                    "report_md_exists": False,
+                    "report_txt_exists": False,
+                    "metadata_json_exists": False,
+                    "artifact_manifest_exists": False,
+                    "index_reference_found": False,
+                    "classification": "REVIEW_REQUIRED",
+                }
+            )
+            if row.get("parse_error"):
+                warnings.append(row.get("parse_error"))
+            elif source.lower() == "history record":
+                item["classification"] = (
+                    "OK_HISTORY_RECORD_SOURCE"
+                    if history_available
+                    else "SOURCE_FOLDER_MISSING"
+                )
+            elif not source or source.lower() in ["none", "unavailable"]:
+                item["classification"] = "SOURCE_LINK_MISSING"
+            elif os.path.isabs(source):
+                item["folder_exists"] = os.path.isdir(source)
+                item["report_md_exists"] = os.path.isfile(
+                    os.path.join(source, "report.md")
+                )
+                item["report_txt_exists"] = os.path.isfile(
+                    os.path.join(source, "report.txt")
+                )
+                item["metadata_json_exists"] = os.path.isfile(
+                    os.path.join(source, "metadata.json")
+                )
+                item["artifact_manifest_exists"] = os.path.isfile(
+                    os.path.join(source, "artifact_manifest.txt")
+                )
+                item["index_reference_found"] = (
+                    os.path.normcase(os.path.normpath(source)) in index_folders
+                )
+                files_complete = all(
+                    [
+                        item.get("report_md_exists"),
+                        item.get("report_txt_exists"),
+                        item.get("metadata_json_exists"),
+                        item.get("artifact_manifest_exists"),
+                    ]
+                )
+                if not item.get("folder_exists"):
+                    item["classification"] = "SOURCE_FOLDER_MISSING"
+                elif not files_complete:
+                    item["classification"] = "FOLDER_EXISTS_FILES_INCOMPLETE"
+                elif not item.get("index_reference_found"):
+                    item["classification"] = "FOLDER_EXISTS_INDEX_MISSING"
+                else:
+                    item["classification"] = "OK_EXPORT_FOLDER_COMPLETE"
+            else:
+                item["classification"] = "REVIEW_REQUIRED"
+                warnings.append(
+                    "Evidence source is neither a recognized history source nor an absolute folder: {0}.".format(
+                        source
+                    )
+                )
+            checked_rows.append(item)
+
+        classification_names = [
+            "OK_EXPORT_FOLDER_COMPLETE",
+            "OK_HISTORY_RECORD_SOURCE",
+            "FOLDER_EXISTS_FILES_INCOMPLETE",
+            "FOLDER_EXISTS_INDEX_MISSING",
+            "SOURCE_LINK_MISSING",
+            "SOURCE_FOLDER_MISSING",
+            "REVIEW_REQUIRED",
+        ]
+        counts = {}
+        for name in classification_names:
+            counts[name] = len(
+                [
+                    item for item in checked_rows
+                    if item.get("classification") == name
+                ]
+            )
+
+        core_features = ["COORD-WR-006", "COORD-WR-008", "COORD-WR-009"]
+        core_available = all(
+            any(
+                item.get("feature_id") == feature_id
+                and item.get("classification")
+                in [
+                    "OK_EXPORT_FOLDER_COMPLETE",
+                    "OK_HISTORY_RECORD_SOURCE",
+                    "FOLDER_EXISTS_INDEX_MISSING",
+                ]
+                for item in checked_rows
+            )
+            for feature_id in core_features
+        )
+        history_source_required = any(
+            item.get("classification") == "OK_HISTORY_RECORD_SOURCE"
+            or (
+                item.get("source", "").lower() == "history record"
+                and item.get("classification") == "SOURCE_FOLDER_MISSING"
+            )
+            for item in checked_rows
+        )
+        if not bundle:
+            integrity_result = "INTEGRITY_REVIEW_REQUIRED"
+            warnings.append(
+                "No readable COORD-WR-010 evidence bundle export was found for the active document."
+            )
+        elif not checked_rows:
+            integrity_result = "INTEGRITY_REVIEW_REQUIRED"
+            warnings.append("No evidence completeness rows could be parsed.")
+        elif history_source_required and not history_available:
+            integrity_result = "INTEGRITY_HISTORY_UNAVAILABLE"
+        elif (
+            counts.get("FOLDER_EXISTS_FILES_INCOMPLETE", 0) > 0
+            or counts.get("SOURCE_FOLDER_MISSING", 0) > 0
+        ):
+            integrity_result = "INTEGRITY_MISSING_FILES"
+        elif counts.get("REVIEW_REQUIRED", 0) > 0:
+            integrity_result = "INTEGRITY_REVIEW_REQUIRED"
+        elif (
+            counts.get("SOURCE_LINK_MISSING", 0) > 0
+            or counts.get("FOLDER_EXISTS_INDEX_MISSING", 0) > 0
+        ):
+            integrity_result = (
+                "INTEGRITY_PARTIAL_SOURCE_LINKS"
+                if core_available
+                else "INTEGRITY_REVIEW_REQUIRED"
+            )
+        elif counts.get("OK_HISTORY_RECORD_SOURCE", 0) > 0:
+            integrity_result = "INTEGRITY_CLEAN_WITH_HISTORY_SOURCE"
+        elif counts.get("OK_EXPORT_FOLDER_COMPLETE", 0) == len(checked_rows):
+            integrity_result = "INTEGRITY_COMPLETE"
+        else:
+            integrity_result = "INTEGRITY_REVIEW_REQUIRED"
+
+        bundle_fields = bundle.get("fields") or {}
+        bundle_entry = bundle.get("entry") or {}
+        return {
+            "feature_id": "COORD-WR-011",
+            "feature_name": "Link Reset Evidence Bundle Integrity Check",
+            "integrity_id": "COORD-WR-011-{0}".format(
+                time.strftime("%Y%m%d_%H%M%S")
+            ),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "source_prompt": safe_str(prompt),
+            "document_title": active_document,
+            "active_view_name": _active_view_title(doc, uidoc),
+            "bundle_id": bundle_fields.get(
+                "Bundle Report ID", "unavailable"
+            ),
+            "bundle_export_folder": bundle_entry.get(
+                "export_folder", "unavailable"
+            ),
+            "history_source_path": history_source.get("history_path"),
+            "jsonl_used": bool(history_source.get("jsonl_used")),
+            "csv_fallback_used": bool(history_source.get("csv_fallback_used")),
+            "qa_index_paths_checked": self._link_reset_integrity_index_paths(),
+            "total_rows": len(checked_rows),
+            "counts": counts,
+            "checked_rows": checked_rows,
+            "integrity_result": integrity_result,
+            "recommended_next_action": self._link_reset_integrity_recommendation(
+                integrity_result
+            ),
+            "warnings": warnings,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+    def _format_link_reset_evidence_bundle_integrity_report(self, data):
+        counts = data.get("counts") or {}
+        lines = [
+            "[LINK RESET EVIDENCE BUNDLE INTEGRITY CHECK]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Integrity Report ID:",
+            data.get("integrity_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "Revit link reset evidence integrity / read-only file and index validation",
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view name:",
+            data.get("active_view_name"),
+            "",
+            "Latest evidence bundle:",
+            "- COORD-WR-010 bundle id: {0}".format(data.get("bundle_id")),
+            "- COORD-WR-010 export folder: {0}".format(
+                data.get("bundle_export_folder")
+            ),
+            "",
+            "Read sources:",
+            "- History source path: {0}".format(data.get("history_source_path")),
+            "- JSONL used: {0}".format(_coord_bool_text(data.get("jsonl_used"))),
+            "- CSV fallback used: {0}".format(
+                _coord_bool_text(data.get("csv_fallback_used"))
+            ),
+            "- QA index paths checked: {0}".format(
+                "; ".join(data.get("qa_index_paths_checked") or ["none"])
+            ),
+            "",
+            "Integrity counts:",
+            "- Total evidence rows parsed: {0}".format(data.get("total_rows")),
+        ]
+        for name in [
+            "OK_EXPORT_FOLDER_COMPLETE",
+            "OK_HISTORY_RECORD_SOURCE",
+            "FOLDER_EXISTS_FILES_INCOMPLETE",
+            "FOLDER_EXISTS_INDEX_MISSING",
+            "SOURCE_LINK_MISSING",
+            "SOURCE_FOLDER_MISSING",
+            "REVIEW_REQUIRED",
+        ]:
+            lines.append("- {0}: {1}".format(name, counts.get(name, 0)))
+        lines.extend(
+            [
+                "",
+                "Evidence file integrity:",
+                "| Feature id | Latest id | Header | Source/export folder | Folder exists | report.md | report.txt | metadata.json | artifact_manifest.txt | Index reference | Classification |",
+                "|---|---|---|---|---|---|---|---|---|---|---|",
+            ]
+        )
+        for item in data.get("checked_rows") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} |".format(
+                    item.get("feature_id"),
+                    item.get("latest_id"),
+                    safe_str(item.get("header")).replace("|", "/"),
+                    safe_str(item.get("source")).replace("|", "/"),
+                    _coord_bool_text(item.get("folder_exists")),
+                    _coord_bool_text(item.get("report_md_exists")),
+                    _coord_bool_text(item.get("report_txt_exists")),
+                    _coord_bool_text(item.get("metadata_json_exists")),
+                    _coord_bool_text(item.get("artifact_manifest_exists")),
+                    _coord_bool_text(item.get("index_reference_found")),
+                    item.get("classification"),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "Integrity result:",
+                data.get("integrity_result"),
+                "",
+                "Recommended next action:",
+                data.get("recommended_next_action"),
+                "",
+                "Warnings:",
+            ]
+        )
+        warnings = data.get("warnings") or []
+        if warnings:
+            for warning in warnings:
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Read-only evidence file and index validation only.",
+                "- No workflow action, history append, reconciliation, advisor, evidence bundle generation, reset, correction, folder creation, file copy, or QA export was run automatically.",
+                "- No link was moved, rotated, transformed, reloaded, unloaded, pinned, unpinned, or selected.",
+                "- No parameter, linked-document, Revit model, history, or QA evidence file was modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_link_reset_evidence_bundle_integrity_question(self, prompt):
+        if not _is_link_reset_evidence_bundle_integrity_prompt(prompt):
+            return None
+        integrity_data = self._collect_link_reset_evidence_bundle_integrity(
+            prompt
+        )
+        report_text = self._format_link_reset_evidence_bundle_integrity_report(
+            integrity_data
+        )
+        integrity_data["report_header"] = (
+            "[LINK RESET EVIDENCE BUNDLE INTEGRITY CHECK]"
+        )
+        integrity_data["report_scope"] = (
+            "Revit link reset evidence integrity / read-only file and index validation"
+        )
+        integrity_data["report_text"] = report_text
+        self.latest_link_reset_evidence_bundle_integrity_state = dict(
+            integrity_data
+        )
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[LINK RESET EVIDENCE BUNDLE INTEGRITY CHECK]",
+            "report_text": report_text,
+            "report_scope": "Revit link reset evidence integrity / read-only file and index validation",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-011",
         }
         self.latest_chat_output_is_deterministic_report = True
         return report_text
@@ -25661,6 +26181,9 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            link_evidence_integrity_reply = (
+                self.answer_link_reset_evidence_bundle_integrity_question(prompt)
+            )
             link_evidence_bundle_reply = (
                 self.answer_link_reset_workflow_evidence_bundle_question(prompt)
             )
@@ -25676,7 +26199,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if link_evidence_bundle_reply is not None:
+            if link_evidence_integrity_reply is not None:
+                reply = link_evidence_integrity_reply
+                remember_report = True
+            elif link_evidence_bundle_reply is not None:
                 reply = link_evidence_bundle_reply
                 remember_report = True
             elif link_readiness_advisor_reply is not None:
