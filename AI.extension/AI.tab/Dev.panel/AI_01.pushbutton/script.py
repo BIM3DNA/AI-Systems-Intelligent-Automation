@@ -79,6 +79,8 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[LINK RESET WORKFLOW STATUS]",
     "[LINK RESET WORKFLOW HISTORY]",
     "[LINK RESET HISTORY RECONCILIATION]",
+    "[LINK RESET HISTORY RECONCILIATION DASHBOARD]",
+    "[LINK RESET WORKFLOW READINESS ADVISOR]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -3227,6 +3229,25 @@ def set_latest_link_reset_workflow_status_state(state_dict):
 def get_latest_link_reset_workflow_status_state():
     state = get_coord_shared_state()
     value = state.get("latest_link_reset_workflow_status_state")
+    if isinstance(value, dict):
+        return value
+    return None
+
+
+def set_latest_link_reset_history_reconciliation_dashboard_state(state_dict):
+    state = get_coord_shared_state()
+    state["latest_link_reset_history_reconciliation_dashboard_state"] = dict(
+        state_dict or {}
+    )
+    ok, error = _set_coord_shared_state(state)
+    return ok, error
+
+
+def get_latest_link_reset_history_reconciliation_dashboard_state():
+    state = get_coord_shared_state()
+    value = state.get(
+        "latest_link_reset_history_reconciliation_dashboard_state"
+    )
     if isinstance(value, dict):
         return value
     return None
@@ -13733,6 +13754,35 @@ def _is_link_reset_history_reconciliation_prompt(prompt):
     return normalized in routes
 
 
+def _is_link_reset_history_reconciliation_dashboard_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show link reset history dashboard",
+        "link reset history dashboard",
+        "show coord history dashboard",
+        "coord history dashboard",
+        "reconcile all link reset history",
+        "check all link reset history against current model",
+        "show link reset reconciliation dashboard",
+    ]
+    return normalized in routes
+
+
+def _is_link_reset_workflow_readiness_advisor_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show link reset readiness advisor",
+        "link reset readiness advisor",
+        "show coord reset readiness",
+        "coord reset readiness",
+        "what should i do next for link reset",
+        "link reset next action",
+        "coordinate reset next action",
+        "show link reset workflow advisor",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -14564,6 +14614,8 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_link_reset_workflow_status_state = None
         self.latest_link_reset_workflow_history_state = None
         self.latest_link_reset_history_reconciliation_state = None
+        self.latest_link_reset_history_reconciliation_dashboard_state = None
+        self.latest_link_reset_workflow_readiness_advisor_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -15750,6 +15802,10 @@ class OllamaAIChat(forms.WPFWindow):
             return "Revit link reset workflow history / local read-only register"
         if header == "[LINK RESET HISTORY RECONCILIATION]":
             return "Revit link reset history reconciliation / read-only current-state check"
+        if header == "[LINK RESET HISTORY RECONCILIATION DASHBOARD]":
+            return "Revit link reset history dashboard / read-only multi-record current-state check"
+        if header == "[LINK RESET WORKFLOW READINESS ADVISOR]":
+            return "Revit link reset workflow readiness / read-only next-action advisor"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -18564,6 +18620,1383 @@ class OllamaAIChat(forms.WPFWindow):
             "report_scope": "Revit link reset history reconciliation / read-only current-state check",
             "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
             "feature_id": "COORD-WR-007",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _read_link_reset_reconciliation_dashboard_records(self):
+        paths = self._link_reset_history_paths()
+        jsonl_path = paths.get("jsonl")
+        csv_path = paths.get("csv")
+        records = []
+        warnings = []
+        jsonl_used = False
+        csv_fallback_used = False
+        history_available = False
+        history_path = jsonl_path
+        jsonl_unreadable = False
+
+        if os.path.exists(jsonl_path):
+            nonempty_line_count = 0
+            try:
+                stream = codecs.open(jsonl_path, "r", "utf-8")
+                try:
+                    for line_number, line in enumerate(stream, 1):
+                        text = line.strip()
+                        if not text:
+                            continue
+                        nonempty_line_count += 1
+                        try:
+                            loaded = json.loads(text)
+                            if isinstance(loaded, dict):
+                                row = dict(loaded)
+                                row["_history_file_order"] = len(records)
+                                records.append(row)
+                            else:
+                                warnings.append(
+                                    "JSONL line {0} is not an object.".format(line_number)
+                                )
+                        except Exception as exc:
+                            warnings.append(
+                                "JSONL line {0} could not be parsed: {1}".format(
+                                    line_number,
+                                    safe_str(exc),
+                                )
+                            )
+                finally:
+                    stream.close()
+                if records or nonempty_line_count == 0:
+                    jsonl_used = True
+                    history_available = True
+                else:
+                    jsonl_unreadable = True
+                    warnings.append("History JSONL contains no valid records.")
+            except Exception as exc:
+                jsonl_unreadable = True
+                warnings.append("History JSONL could not be read: {0}".format(safe_str(exc)))
+        else:
+            jsonl_unreadable = True
+            warnings.append("History JSONL is unavailable.")
+
+        if jsonl_unreadable and os.path.exists(csv_path):
+            csv_records = []
+            try:
+                stream = codecs.open(csv_path, "r", "utf-8")
+                try:
+                    reader = csv.DictReader(stream)
+                    for row in reader:
+                        if isinstance(row, dict):
+                            loaded = dict(row)
+                            loaded["_history_file_order"] = len(csv_records)
+                            csv_records.append(loaded)
+                finally:
+                    stream.close()
+                records = csv_records
+                csv_fallback_used = True
+                history_available = True
+                history_path = csv_path
+            except Exception as exc:
+                warnings.append("History CSV fallback could not be read: {0}".format(safe_str(exc)))
+
+        return {
+            "records": records,
+            "history_path": history_path,
+            "jsonl_used": jsonl_used,
+            "csv_fallback_used": csv_fallback_used,
+            "history_available": history_available,
+            "warnings": warnings,
+        }
+
+    def _link_reset_dashboard_record_identity(self, record):
+        recorded_id = record.get("target_link_id")
+        try:
+            if recorded_id not in (None, "", "none", "unavailable"):
+                return "id:{0}".format(int(recorded_id))
+        except:
+            pass
+        recorded_name = safe_str(record.get("target_link_name")).strip()
+        if recorded_name and recorded_name.lower() not in ["none", "unavailable"]:
+            return "name:{0}".format(recorded_name.lower())
+        return "incomplete:{0}".format(record.get("_history_file_order", 0))
+
+    def _link_reset_dashboard_record_rank(self, record):
+        timestamp = safe_str(record.get("timestamp")).strip()
+        match = re.match(
+            r"^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})",
+            timestamp,
+        )
+        if match:
+            return tuple([3] + [int(value) for value in match.groups()] + [
+                _safe_int(record.get("_history_file_order"), 0)
+            ])
+        history_id = safe_str(record.get("history_record_id")).strip()
+        match = re.search(r"(\d{8})_(\d{6})", history_id)
+        if match:
+            date_text = match.group(1)
+            time_text = match.group(2)
+            return (
+                2,
+                int(date_text[0:4]),
+                int(date_text[4:6]),
+                int(date_text[6:8]),
+                int(time_text[0:2]),
+                int(time_text[2:4]),
+                int(time_text[4:6]),
+                _safe_int(record.get("_history_file_order"), 0),
+            )
+        return (1, 0, 0, 0, 0, 0, 0, _safe_int(record.get("_history_file_order"), 0))
+
+    def _reconcile_link_reset_dashboard_record(self, record, tolerance_ft):
+        result = {
+            "history_record_id": safe_str(record.get("history_record_id") or "unavailable"),
+            "status_id": safe_str(record.get("status_id") or "unavailable"),
+            "workflow_status": safe_str(record.get("workflow_status") or "unavailable"),
+            "recorded_link_id": record.get("target_link_id", "unavailable"),
+            "recorded_link_name": safe_str(record.get("target_link_name") or "unavailable"),
+            "link_resolution_source": "none",
+            "current_link_id": "unavailable",
+            "current_link_name": "unavailable",
+            "recorded_final_origin": self._link_reset_reconciliation_xyz(
+                record.get("final_origin_xyz")
+            ),
+            "current_origin": None,
+            "delta_ft": None,
+            "delta_mm": None,
+            "classification": None,
+            "warnings": [],
+        }
+
+        recorded_id = record.get("target_link_id")
+        recorded_name = safe_str(record.get("target_link_name")).strip()
+        workflow_status = safe_str(record.get("workflow_status")).strip()
+        valid_name = bool(
+            recorded_name and recorded_name.lower() not in ["none", "unavailable"]
+        )
+        if (
+            not workflow_status
+            or workflow_status.lower() in ["none", "unavailable"]
+        ):
+            result["classification"] = "HISTORY_RECORD_INCOMPLETE"
+            return result
+        if not result.get("recorded_final_origin"):
+            result["classification"] = "HISTORY_RECORD_INCOMPLETE"
+            return result
+        if (
+            recorded_id in (None, "", "none", "unavailable")
+            and not valid_name
+        ):
+            result["classification"] = "HISTORY_RECORD_INCOMPLETE"
+            return result
+
+        target_link = None
+        try:
+            if recorded_id not in (None, "", "none", "unavailable"):
+                candidate = doc.GetElement(DB.ElementId(int(recorded_id)))
+                if isinstance(candidate, DB.RevitLinkInstance):
+                    target_link = candidate
+                    result["link_resolution_source"] = "recorded element id"
+        except:
+            target_link = None
+
+        if target_link is None and valid_name:
+            name_matches = []
+            try:
+                for instance in DB.FilteredElementCollector(doc).OfClass(DB.RevitLinkInstance):
+                    if safe_str(get_elem_name(instance)).strip().lower() == recorded_name.lower():
+                        name_matches.append(instance)
+            except Exception as exc:
+                result["warnings"].append(
+                    "RevitLinkInstance name fallback failed: {0}".format(safe_str(exc))
+                )
+                result["classification"] = "REVIEW_REQUIRED"
+                return result
+            if len(name_matches) == 1:
+                target_link = name_matches[0]
+                result["link_resolution_source"] = "recorded link name"
+            elif len(name_matches) > 1:
+                result["warnings"].append(
+                    "Multiple RevitLinkInstance elements match the recorded link name."
+                )
+                result["classification"] = "REVIEW_REQUIRED"
+                return result
+
+        if target_link is None:
+            result["classification"] = "HISTORY_LINK_NOT_FOUND"
+            return result
+
+        result["current_link_id"] = _safe_element_id_value(target_link)
+        result["current_link_name"] = get_elem_name(target_link) or "(unnamed link instance)"
+        try:
+            current_transform = target_link.GetTransform()
+            result["current_origin"] = _xyz_plain(current_transform.Origin)
+        except Exception as exc:
+            result["warnings"].append(
+                "Current link transform origin is unreadable: {0}".format(safe_str(exc))
+            )
+            result["classification"] = "REVIEW_REQUIRED"
+            return result
+
+        if not result.get("current_origin"):
+            result["warnings"].append("Current link transform origin is unavailable.")
+            result["classification"] = "REVIEW_REQUIRED"
+            return result
+
+        delta_ft = _xyz_distance(
+            result.get("current_origin"),
+            result.get("recorded_final_origin"),
+        )
+        result["delta_ft"] = delta_ft
+        result["delta_mm"] = delta_ft * 304.8 if delta_ft is not None else None
+        if delta_ft is None:
+            result["classification"] = "REVIEW_REQUIRED"
+        elif delta_ft <= tolerance_ft:
+            result["classification"] = "MATCHES_CURRENT_MODEL"
+        else:
+            result["classification"] = "HISTORY_STALE_CURRENT_MODEL_DIFFERS"
+        return result
+
+    def _link_reset_dashboard_recommendation(self, dashboard_result):
+        recommendations = {
+            "DASHBOARD_ALL_MATCH": "No action required. All latest recorded link reset checkpoints for this document still match the current model.",
+            "DASHBOARD_HAS_STALE_OR_MISSING": "Run COORD-WR-001 audit before any reset decision. Review stale or missing links first.",
+            "DASHBOARD_NO_HISTORY_FOR_ACTIVE_DOCUMENT": "No matching history exists for this document. Run COORD-WR-005/006 after a valid workflow checkpoint exists.",
+            "DASHBOARD_HISTORY_UNAVAILABLE": "History file is unavailable or unreadable. Run COORD-WR-006 after a valid workflow checkpoint exists.",
+            "DASHBOARD_REVIEW_REQUIRED": "Review incomplete history rows and run COORD-WR-001 audit.",
+        }
+        return recommendations.get(
+            dashboard_result,
+            recommendations.get("DASHBOARD_REVIEW_REQUIRED"),
+        )
+
+    def _collect_link_reset_history_reconciliation_dashboard(self, prompt):
+        tolerance_ft = 0.003
+        source = self._read_link_reset_reconciliation_dashboard_records()
+        records = source.get("records") or []
+        active_document = safe_str(_document_title(doc)).strip()
+        matching_records = []
+        for record in records:
+            recorded_document = safe_str(record.get("document_title")).strip()
+            if recorded_document and recorded_document.lower() == active_document.lower():
+                matching_records.append(record)
+
+        selected_records = []
+        groups = {}
+        for record in matching_records:
+            identity = self._link_reset_dashboard_record_identity(record)
+            previous = groups.get(identity)
+            if previous is None or (
+                self._link_reset_dashboard_record_rank(record)
+                > self._link_reset_dashboard_record_rank(previous)
+            ):
+                groups[identity] = record
+        for identity in sorted(groups.keys()):
+            selected_records.append(groups.get(identity))
+
+        checked_records = []
+        warnings = list(source.get("warnings") or [])
+        if source.get("history_available"):
+            for record in selected_records:
+                checked = self._reconcile_link_reset_dashboard_record(
+                    record,
+                    tolerance_ft,
+                )
+                checked_records.append(checked)
+                warnings.extend(checked.get("warnings") or [])
+
+        classifications = [
+            "MATCHES_CURRENT_MODEL",
+            "HISTORY_STALE_CURRENT_MODEL_DIFFERS",
+            "HISTORY_LINK_NOT_FOUND",
+            "HISTORY_RECORD_INCOMPLETE",
+            "REVIEW_REQUIRED",
+        ]
+        counts = {}
+        for classification in classifications:
+            counts[classification] = len(
+                [
+                    item
+                    for item in checked_records
+                    if item.get("classification") == classification
+                ]
+            )
+
+        if not source.get("history_available"):
+            dashboard_result = "DASHBOARD_HISTORY_UNAVAILABLE"
+        elif not matching_records:
+            dashboard_result = "DASHBOARD_NO_HISTORY_FOR_ACTIVE_DOCUMENT"
+        elif (
+            counts.get("HISTORY_STALE_CURRENT_MODEL_DIFFERS", 0) > 0
+            or counts.get("HISTORY_LINK_NOT_FOUND", 0) > 0
+        ):
+            dashboard_result = "DASHBOARD_HAS_STALE_OR_MISSING"
+        elif (
+            counts.get("HISTORY_RECORD_INCOMPLETE", 0) > 0
+            or counts.get("REVIEW_REQUIRED", 0) > 0
+        ):
+            dashboard_result = "DASHBOARD_REVIEW_REQUIRED"
+        elif checked_records and counts.get("MATCHES_CURRENT_MODEL") == len(checked_records):
+            dashboard_result = "DASHBOARD_ALL_MATCH"
+        else:
+            dashboard_result = "DASHBOARD_REVIEW_REQUIRED"
+
+        return {
+            "feature_id": "COORD-WR-008",
+            "feature_name": "Link Reset History Reconciliation Dashboard",
+            "dashboard_id": "COORD-WR-008-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "source_prompt": safe_str(prompt),
+            "document_title": active_document,
+            "active_view_name": _active_view_title(doc, uidoc),
+            "history_source_path": source.get("history_path"),
+            "jsonl_used": bool(source.get("jsonl_used")),
+            "csv_fallback_used": bool(source.get("csv_fallback_used")),
+            "total_history_records_loaded": len(records),
+            "records_matching_active_document": len(matching_records),
+            "unique_target_links_checked": len(checked_records),
+            "counts": counts,
+            "tolerance_ft": tolerance_ft,
+            "tolerance_mm": tolerance_ft * 304.8,
+            "checked_records": checked_records,
+            "warnings": warnings,
+            "dashboard_result": dashboard_result,
+            "recommended_next_action": self._link_reset_dashboard_recommendation(
+                dashboard_result
+            ),
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+    def _format_link_reset_history_reconciliation_dashboard_report(self, data):
+        counts = data.get("counts") or {}
+        lines = [
+            "[LINK RESET HISTORY RECONCILIATION DASHBOARD]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Dashboard Report ID:",
+            data.get("dashboard_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "Revit link reset history dashboard / read-only multi-record current-state check",
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view name:",
+            data.get("active_view_name"),
+            "",
+            "History loading:",
+            "- History source path: {0}".format(data.get("history_source_path")),
+            "- JSONL used: {0}".format(_coord_bool_text(data.get("jsonl_used"))),
+            "- CSV fallback used: {0}".format(
+                _coord_bool_text(data.get("csv_fallback_used"))
+            ),
+            "- Total history records loaded: {0}".format(
+                data.get("total_history_records_loaded")
+            ),
+            "- Records matching active document: {0}".format(
+                data.get("records_matching_active_document")
+            ),
+            "- Unique target links checked: {0}".format(
+                data.get("unique_target_links_checked")
+            ),
+            "",
+            "Classification counts:",
+            "- MATCHES_CURRENT_MODEL: {0}".format(
+                counts.get("MATCHES_CURRENT_MODEL", 0)
+            ),
+            "- HISTORY_STALE_CURRENT_MODEL_DIFFERS: {0}".format(
+                counts.get("HISTORY_STALE_CURRENT_MODEL_DIFFERS", 0)
+            ),
+            "- HISTORY_LINK_NOT_FOUND: {0}".format(
+                counts.get("HISTORY_LINK_NOT_FOUND", 0)
+            ),
+            "- HISTORY_RECORD_INCOMPLETE: {0}".format(
+                counts.get("HISTORY_RECORD_INCOMPLETE", 0)
+            ),
+            "- REVIEW_REQUIRED: {0}".format(counts.get("REVIEW_REQUIRED", 0)),
+            "- Tolerance ft: {0:.6f}".format(data.get("tolerance_ft")),
+            "- Tolerance approx mm: {0:.3f}".format(data.get("tolerance_mm")),
+            "",
+            "Dashboard result:",
+            data.get("dashboard_result"),
+            "",
+            "Recommended next action:",
+            data.get("recommended_next_action"),
+            "",
+            "Latest checked records:",
+            "| History record | Status id | Workflow status | Recorded link id | Recorded link name | Resolution | Current link id | Current link name | Recorded final origin ft | Current origin ft | Delta ft | Delta mm | Classification |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        checked_records = data.get("checked_records") or []
+        if checked_records:
+            for item in checked_records:
+                lines.append(
+                    "| {0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11} | {12} |".format(
+                        item.get("history_record_id"),
+                        item.get("status_id"),
+                        item.get("workflow_status"),
+                        item.get("recorded_link_id"),
+                        safe_str(item.get("recorded_link_name")).replace("|", "/"),
+                        item.get("link_resolution_source"),
+                        item.get("current_link_id"),
+                        safe_str(item.get("current_link_name")).replace("|", "/"),
+                        _format_xyz_feet(item.get("recorded_final_origin")),
+                        _format_xyz_feet(item.get("current_origin")),
+                        "{0:.6f}".format(item.get("delta_ft"))
+                        if item.get("delta_ft") is not None
+                        else "unavailable",
+                        "{0:.3f}".format(item.get("delta_mm"))
+                        if item.get("delta_mm") is not None
+                        else "unavailable",
+                        item.get("classification"),
+                    )
+                )
+        else:
+            lines.append("| none | none | none | none | none | none | none | none | none | none | none | none | none |")
+        lines.extend(["", "Warnings:"])
+        warnings = data.get("warnings") or []
+        if warnings:
+            for warning in warnings:
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Read-only multi-record history reconciliation dashboard only.",
+                "- No history record was created or appended.",
+                "- No audit, rollback, apply, verification, reset, or correction action was run.",
+                "- No link was moved, rotated, transformed, reloaded, unloaded, pinned, unpinned, or selected.",
+                "- No parameter, linked-document, or Revit model data was modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_link_reset_history_reconciliation_dashboard_question(self, prompt):
+        if not _is_link_reset_history_reconciliation_dashboard_prompt(prompt):
+            return None
+        dashboard_data = self._collect_link_reset_history_reconciliation_dashboard(prompt)
+        report_text = self._format_link_reset_history_reconciliation_dashboard_report(
+            dashboard_data
+        )
+        dashboard_data["report_header"] = (
+            "[LINK RESET HISTORY RECONCILIATION DASHBOARD]"
+        )
+        dashboard_data["report_scope"] = (
+            "Revit link reset history dashboard / read-only multi-record current-state check"
+        )
+        dashboard_data["report_text"] = report_text
+        shared_dashboard_state = {
+            "feature_id": "COORD-WR-008",
+            "dashboard_report_id": safe_str(
+                dashboard_data.get("dashboard_id") or "unavailable"
+            ),
+            "dashboard_id": safe_str(
+                dashboard_data.get("dashboard_id") or "unavailable"
+            ),
+            "timestamp": safe_str(
+                dashboard_data.get("created_timestamp_local") or "unavailable"
+            ),
+            "active_document_title": safe_str(
+                dashboard_data.get("document_title") or "unavailable"
+            ),
+            "document_title": safe_str(
+                dashboard_data.get("document_title") or "unavailable"
+            ),
+            "active_view_name": safe_str(
+                dashboard_data.get("active_view_name") or "unavailable"
+            ),
+            "dashboard_result": safe_str(
+                dashboard_data.get("dashboard_result") or "Unavailable"
+            ),
+            "total_history_records_loaded": _safe_int(
+                dashboard_data.get("total_history_records_loaded"), 0
+            ),
+            "records_matching_active_document": _safe_int(
+                dashboard_data.get("records_matching_active_document"), 0
+            ),
+            "unique_target_links_checked": _safe_int(
+                dashboard_data.get("unique_target_links_checked"), 0
+            ),
+            "counts": dict(dashboard_data.get("counts") or {}),
+            "history_source_path": safe_str(
+                dashboard_data.get("history_source_path") or "unavailable"
+            ),
+            "qa_export_folder": safe_str(
+                dashboard_data.get("qa_export_folder") or "unavailable"
+            ),
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+        storage_ok, storage_error = (
+            set_latest_link_reset_history_reconciliation_dashboard_state(
+                shared_dashboard_state
+            )
+        )
+        dashboard_data["shared_state_write_succeeded"] = bool(storage_ok)
+        dashboard_data["shared_state_write_error"] = storage_error
+        self.latest_link_reset_history_reconciliation_dashboard_state = dict(
+            dashboard_data
+        )
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[LINK RESET HISTORY RECONCILIATION DASHBOARD]",
+            "report_text": report_text,
+            "report_scope": "Revit link reset history dashboard / read-only multi-record current-state check",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-008",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _link_reset_advisor_document_match(self, state, active_document):
+        if not state:
+            return None
+        state_document = safe_str(state.get("document_title")).strip()
+        if not state_document or state_document.lower() in ["none", "unavailable"]:
+            return None
+        return state_document.lower() == safe_str(active_document).strip().lower()
+
+    def _link_reset_advisor_same_id(self, left, right):
+        if left in (None, "", "none", "unavailable"):
+            return False
+        if right in (None, "", "none", "unavailable"):
+            return False
+        try:
+            return int(left) == int(right)
+        except:
+            return safe_str(left).strip() == safe_str(right).strip()
+
+    def _latest_link_reset_history_record_for_document(self, active_document):
+        source = self._read_link_reset_reconciliation_dashboard_records()
+        records = source.get("records") or []
+        matches = [
+            item
+            for item in records
+            if safe_str(item.get("document_title")).strip().lower()
+            == safe_str(active_document).strip().lower()
+        ]
+        if not matches:
+            return {}, source
+        latest = max(matches, key=self._link_reset_dashboard_record_rank)
+        return dict(latest), source
+
+    def _normalize_link_reset_dashboard_advisor_state(
+        self, state, source, export_folder="unavailable"
+    ):
+        if not isinstance(state, dict) or not state:
+            return {}
+        counts = state.get("counts") or {}
+        normalized_export_folder = safe_str(export_folder).strip()
+        if (
+            not normalized_export_folder
+            or normalized_export_folder.lower() in ["none", "unavailable"]
+        ):
+            normalized_export_folder = safe_str(
+                state.get("qa_export_folder") or "unavailable"
+            )
+        return {
+            "feature_id": "COORD-WR-008",
+            "dashboard_id": safe_str(
+                state.get("dashboard_id")
+                or state.get("dashboard_report_id")
+                or "unavailable"
+            ),
+            "dashboard_result": safe_str(
+                state.get("dashboard_result") or "Unavailable"
+            ),
+            "document_title": safe_str(
+                state.get("document_title")
+                or state.get("active_document_title")
+                or "unavailable"
+            ),
+            "active_view_name": safe_str(
+                state.get("active_view_name") or "unavailable"
+            ),
+            "created_timestamp_local": safe_str(
+                state.get("created_timestamp_local")
+                or state.get("timestamp")
+                or "unavailable"
+            ),
+            "total_history_records_loaded": _safe_int(
+                state.get("total_history_records_loaded"), 0
+            ),
+            "records_matching_active_document": _safe_int(
+                state.get("records_matching_active_document"), 0
+            ),
+            "unique_target_links_checked": _safe_int(
+                state.get("unique_target_links_checked"), 0
+            ),
+            "counts": dict(counts) if isinstance(counts, dict) else {},
+            "history_source_path": safe_str(
+                state.get("history_source_path") or "unavailable"
+            ),
+            "dashboard_source": source,
+            "dashboard_export_folder": normalized_export_folder,
+            "checked_records": list(state.get("checked_records") or []),
+        }
+
+    def _parse_link_reset_dashboard_export(self, export_entry):
+        if not export_entry:
+            return None, "QA export entry is unavailable."
+        export_folder = safe_str(export_entry.get("export_folder")).strip()
+        report_candidates = [
+            safe_str(export_entry.get("text_file")).strip(),
+            os.path.join(export_folder, "report.txt") if export_folder else "",
+            safe_str(export_entry.get("report_file")).strip(),
+            os.path.join(export_folder, "report.md") if export_folder else "",
+        ]
+        report_text = None
+        for candidate in report_candidates:
+            if not candidate or not os.path.exists(candidate):
+                continue
+            try:
+                stream = codecs.open(candidate, "r", "utf-8")
+                try:
+                    report_text = stream.read()
+                finally:
+                    stream.close()
+                break
+            except:
+                continue
+        if not report_text:
+            return None, "Matched dashboard export has no readable report.txt or report.md."
+
+        fields = self._link_reset_history_report_fields(report_text)
+        dashboard_result = safe_str(fields.get("Dashboard result")).strip()
+        document_title = safe_str(
+            fields.get("Active document title")
+            or export_entry.get("document_title")
+        ).strip()
+        if not dashboard_result:
+            return None, "Matched dashboard export has no parseable dashboard result."
+        if not document_title:
+            return None, "Matched dashboard export has no parseable document title."
+        count_keys = [
+            "MATCHES_CURRENT_MODEL",
+            "HISTORY_STALE_CURRENT_MODEL_DIFFERS",
+            "HISTORY_LINK_NOT_FOUND",
+            "HISTORY_RECORD_INCOMPLETE",
+            "REVIEW_REQUIRED",
+        ]
+        counts = {}
+        for key in count_keys:
+            if key in fields:
+                counts[key] = _safe_int(fields.get(key), 0)
+        return {
+            "dashboard_id": safe_str(
+                fields.get("Dashboard Report ID") or "unavailable"
+            ),
+            "dashboard_result": dashboard_result,
+            "document_title": document_title,
+            "active_view_name": safe_str(
+                fields.get("Active view name")
+                or export_entry.get("active_view_name")
+                or "unavailable"
+            ),
+            "created_timestamp_local": safe_str(
+                fields.get("Timestamp")
+                or export_entry.get("export_timestamp_local")
+                or "unavailable"
+            ),
+            "total_history_records_loaded": _safe_int(
+                fields.get("Total history records loaded"), 0
+            ),
+            "records_matching_active_document": _safe_int(
+                fields.get("Records matching active document"), 0
+            ),
+            "unique_target_links_checked": _safe_int(
+                fields.get("Unique target links checked"), 0
+            ),
+            "counts": counts,
+            "history_source_path": safe_str(
+                fields.get("History source path") or "unavailable"
+            ),
+        }, None
+
+    def _latest_link_reset_dashboard_export_for_document(self, active_document):
+        entries, warnings = self._read_link_reset_history_qa_index()
+        matches = []
+        seen_folders = set()
+        for entry in entries:
+            header = entry.get(
+                "source_report_header", entry.get("source_header")
+            )
+            if (
+                safe_str(header).strip()
+                != "[LINK RESET HISTORY RECONCILIATION DASHBOARD]"
+            ):
+                continue
+            entry_document = safe_str(entry.get("document_title")).strip()
+            if (
+                entry_document
+                and entry_document.lower()
+                != safe_str(active_document).strip().lower()
+            ):
+                continue
+            folder = safe_str(entry.get("export_folder")).strip()
+            if not folder or folder in seen_folders:
+                continue
+            seen_folders.add(folder)
+            matches.append(entry)
+        matches = sorted(
+            matches,
+            key=lambda item: safe_str(
+                item.get("export_timestamp_local", item.get("timestamp"))
+            ),
+            reverse=True,
+        )
+        for entry in matches:
+            parsed, parse_error = self._parse_link_reset_dashboard_export(entry)
+            if parse_error:
+                warnings.append(parse_error)
+                continue
+            if (
+                safe_str(parsed.get("document_title")).strip().lower()
+                != safe_str(active_document).strip().lower()
+            ):
+                warnings.append(
+                    "Dashboard QA export document does not match the active document."
+                )
+                continue
+            return self._normalize_link_reset_dashboard_advisor_state(
+                parsed,
+                "qa_export_fallback",
+                safe_str(entry.get("export_folder") or "unavailable"),
+            ), warnings
+        return {}, warnings
+
+    def _latest_link_reset_dashboard_for_advisor(self, active_document):
+        warnings = []
+        shared_state = (
+            get_latest_link_reset_history_reconciliation_dashboard_state() or {}
+        )
+        normalized = self._normalize_link_reset_dashboard_advisor_state(
+            shared_state, "shared_state"
+        )
+        if normalized and self._link_reset_advisor_document_match(
+            normalized, active_document
+        ) is True:
+            return normalized, warnings
+
+        session_state = (
+            self.latest_link_reset_history_reconciliation_dashboard_state or {}
+        )
+        normalized = self._normalize_link_reset_dashboard_advisor_state(
+            session_state, "shared_state"
+        )
+        if normalized and self._link_reset_advisor_document_match(
+            normalized, active_document
+        ) is True:
+            return normalized, warnings
+
+        fallback_state, fallback_warnings = (
+            self._latest_link_reset_dashboard_export_for_document(
+                active_document
+            )
+        )
+        warnings.extend(fallback_warnings)
+        if fallback_state:
+            return fallback_state, warnings
+        return {}, warnings
+
+    def _link_reset_advisor_recommendation(self, classification):
+        commands = {
+            "READY_NO_ACTION_CLEAN": "No command required",
+            "RUN_AUDIT_FIRST": "audit link transforms",
+            "SELECT_ONE_RESET_CANDIDATE": "Select exactly one reset-candidate Revit link, then run rollback test",
+            "RUN_ROLLBACK_TEST_NEXT": "run link origin reset rollback test ROLLBACK-LINK-RESET-OK",
+            "READY_TO_APPLY_REVIEWED_RESET": "apply selected link origin reset PERSISTENT-LINK-RESET-OK",
+            "RUN_POST_APPLY_VERIFICATION_NEXT": "verify latest link origin reset apply",
+            "RUN_WORKFLOW_STATUS_NEXT": "show link reset workflow status",
+            "RUN_HISTORY_UPDATE_NEXT": "show link reset workflow history",
+            "RUN_RECONCILIATION_NEXT": "show link reset reconciliation dashboard",
+            "REVIEW_REQUIRED": "show link reset workflow status",
+        }
+        actions = {
+            "READY_NO_ACTION_CLEAN": "No action required. Current link reset history dashboard confirms all latest recorded checkpoints still match the current model.",
+            "RUN_AUDIT_FIRST": "Run the read-only link transform audit before making any reset decision.",
+            "SELECT_ONE_RESET_CANDIDATE": "Select exactly one reset-candidate RevitLinkInstance identified by the latest audit before running the rollback test.",
+            "RUN_ROLLBACK_TEST_NEXT": "Run the rollback-only origin reset test for the selected candidate before any persistent apply.",
+            "READY_TO_APPLY_REVIEWED_RESET": "The selected/source link has a passed rollback test and is ready for explicit reviewed persistent apply.",
+            "RUN_POST_APPLY_VERIFICATION_NEXT": "Verify the applied link reset against the current model before recording workflow status.",
+            "RUN_WORKFLOW_STATUS_NEXT": "Generate a fresh workflow status checkpoint after successful verification.",
+            "RUN_HISTORY_UPDATE_NEXT": "Append or confirm the latest clean workflow checkpoint in the local history register.",
+            "RUN_RECONCILIATION_NEXT": "Reconcile the latest history checkpoint against the current live model.",
+            "REVIEW_REQUIRED": "Workflow states are ambiguous, conflicting, or from another document. Review the workflow status before continuing.",
+        }
+        return commands.get(classification, "show link reset workflow status"), actions.get(
+            classification,
+            actions.get("REVIEW_REQUIRED"),
+        )
+
+    def _collect_link_reset_workflow_readiness_advisor(self, prompt):
+        active_document = _document_title(doc)
+        selected_elements = []
+        selected_links = []
+        try:
+            selected_elements = _selected_elements(doc, uidoc)
+        except:
+            selected_elements = []
+        for element in selected_elements:
+            try:
+                if isinstance(element, DB.RevitLinkInstance):
+                    selected_links.append(element)
+            except:
+                pass
+
+        selected_link_id = "none"
+        selected_link_name = "none"
+        if len(selected_links) == 1:
+            selected_link_id = _safe_element_id_value(selected_links[0])
+            selected_link_name = get_elem_name(selected_links[0]) or "(unnamed link instance)"
+
+        audit_state = (
+            get_latest_link_transform_audit_state()
+            or self.latest_link_transform_audit_state
+            or {}
+        )
+        rollback_state = get_latest_passed_link_origin_reset_rollback_state() or {}
+        apply_state = get_latest_link_origin_reset_apply_state() or {}
+        verification_state = (
+            get_latest_link_origin_reset_post_apply_verification_state()
+            or self.latest_link_origin_reset_post_apply_verification_state
+            or {}
+        )
+        status_state = (
+            get_latest_link_reset_workflow_status_state()
+            or self.latest_link_reset_workflow_status_state
+            or {}
+        )
+        history_record, history_source = (
+            self._latest_link_reset_history_record_for_document(active_document)
+        )
+        reconciliation_state = self.latest_link_reset_history_reconciliation_state or {}
+        dashboard_state, dashboard_warnings = (
+            self._latest_link_reset_dashboard_for_advisor(active_document)
+        )
+
+        audit_doc_match = self._link_reset_advisor_document_match(
+            audit_state, active_document
+        )
+        rollback_doc_match = self._link_reset_advisor_document_match(
+            rollback_state, active_document
+        )
+        apply_doc_match = self._link_reset_advisor_document_match(
+            apply_state, active_document
+        )
+        verification_doc_match = self._link_reset_advisor_document_match(
+            verification_state, active_document
+        )
+        status_doc_match = self._link_reset_advisor_document_match(
+            status_state, active_document
+        )
+        reconciliation_doc_match = self._link_reset_advisor_document_match(
+            reconciliation_state, active_document
+        )
+        dashboard_doc_match = self._link_reset_advisor_document_match(
+            dashboard_state, active_document
+        )
+
+        rollback_errors = _passed_link_origin_reset_rollback_source_validation_errors(
+            rollback_state
+        )
+        apply_errors = _link_origin_reset_apply_state_validation_errors(apply_state)
+        verification_errors = self._coord_status_verification_validation_errors(
+            verification_state
+        )
+        rollback_valid = bool(
+            rollback_state and not rollback_errors and rollback_doc_match is not False
+        )
+        apply_valid = bool(
+            apply_state and not apply_errors and apply_doc_match is not False
+        )
+        verification_valid = bool(
+            verification_state
+            and not verification_errors
+            and verification_doc_match is not False
+        )
+
+        audit_candidate_count = _safe_int(
+            audit_state.get(
+                "future_reset_candidate_count",
+                audit_state.get("reset_candidate_count"),
+            ),
+            0,
+        )
+        audit_result = safe_str(audit_state.get("audit_result") or "Unavailable")
+        selected_is_audit_candidate = None
+        audit_links = audit_state.get("links") or []
+        if len(selected_links) == 1 and audit_links:
+            selected_is_audit_candidate = False
+            for item in audit_links:
+                if self._link_reset_advisor_same_id(
+                    item.get("id"), selected_link_id
+                ):
+                    selected_is_audit_candidate = bool(
+                        item.get("future_reset_candidate")
+                    )
+                    break
+
+        rollback_link_id = rollback_state.get("selected_link_element_id")
+        rollback_matches_selected = bool(
+            len(selected_links) == 1
+            and rollback_valid
+            and self._link_reset_advisor_same_id(
+                rollback_link_id, selected_link_id
+            )
+        )
+        apply_link_id = apply_state.get(
+            "applied_link_id", apply_state.get("selected_link_element_id")
+        )
+        verification_link_id = verification_state.get("target_link_id")
+        apply_matches_rollback = bool(
+            apply_valid
+            and rollback_valid
+            and self._link_reset_advisor_same_id(apply_link_id, rollback_link_id)
+        )
+        verification_matches_apply = bool(
+            verification_valid
+            and apply_valid
+            and self._link_reset_advisor_same_id(
+                verification_link_id, apply_link_id
+            )
+        )
+
+        workflow_status = safe_str(
+            status_state.get("workflow_status") or "Unavailable"
+        )
+        status_ready_clean = bool(
+            status_state
+            and status_doc_match is not False
+            and workflow_status.lower() == "ready / clean"
+        )
+        status_verification_id = status_state.get("verification_id")
+        status_matches_verification = bool(
+            status_ready_clean
+            and verification_valid
+            and safe_str(status_verification_id).strip()
+            == safe_str(verification_state.get("verification_id")).strip()
+        )
+        history_status_id = history_record.get("status_id")
+        history_matches_status = bool(
+            history_record
+            and status_ready_clean
+            and safe_str(history_status_id).strip()
+            == safe_str(status_state.get("status_id")).strip()
+        )
+
+        reconciliation_result = safe_str(
+            reconciliation_state.get("reconciliation_result") or "Unavailable"
+        )
+        reconciliation_history_id = reconciliation_state.get(
+            "selected_history_record_id"
+        )
+        reconciliation_matches_history = bool(
+            history_record
+            and reconciliation_state
+            and reconciliation_doc_match is not False
+            and safe_str(reconciliation_history_id).strip()
+            == safe_str(history_record.get("history_record_id")).strip()
+        )
+        dashboard_result = safe_str(
+            dashboard_state.get("dashboard_result") or "Unavailable"
+        )
+        dashboard_history_ids = [
+            safe_str(item.get("history_record_id")).strip()
+            for item in (dashboard_state.get("checked_records") or [])
+        ]
+        dashboard_matches_history = bool(
+            history_record
+            and dashboard_state
+            and dashboard_doc_match is not False
+            and safe_str(history_record.get("history_record_id")).strip()
+            in dashboard_history_ids
+        )
+
+        warnings = list(history_source.get("warnings") or [])
+        warnings.extend(dashboard_warnings)
+        document_conflicts = []
+        for label, state, matches in [
+            ("audit", audit_state, audit_doc_match),
+            ("rollback", rollback_state, rollback_doc_match),
+            ("apply", apply_state, apply_doc_match),
+            ("verification", verification_state, verification_doc_match),
+            ("workflow status", status_state, status_doc_match),
+            ("reconciliation", reconciliation_state, reconciliation_doc_match),
+            ("reconciliation dashboard", dashboard_state, dashboard_doc_match),
+        ]:
+            if state and matches is False:
+                document_conflicts.append(label)
+        if document_conflicts:
+            warnings.append(
+                "Latest state belongs to another document: {0}.".format(
+                    ", ".join(document_conflicts)
+                )
+            )
+        if rollback_errors:
+            warnings.append(
+                "Rollback source validation: {0}.".format(
+                    "; ".join(rollback_errors)
+                )
+            )
+        if apply_errors:
+            warnings.append(
+                "Apply source validation: {0}.".format("; ".join(apply_errors))
+            )
+        if verification_errors:
+            warnings.append(
+                "Verification source validation: {0}.".format(
+                    "; ".join(verification_errors)
+                )
+            )
+        if (
+            len(selected_links) == 1
+            and audit_candidate_count > 0
+            and selected_is_audit_candidate is None
+        ):
+            warnings.append(
+                "Audit summary reports reset candidates but does not retain per-link candidate identity."
+            )
+
+        useful_state_exists = bool(
+            audit_state
+            or rollback_state
+            or apply_state
+            or verification_state
+            or status_state
+            or history_record
+            or reconciliation_state
+            or dashboard_state
+        )
+        if (
+            dashboard_state
+            and dashboard_doc_match is not False
+            and dashboard_result == "DASHBOARD_ALL_MATCH"
+        ):
+            classification = "READY_NO_ACTION_CLEAN"
+        elif (
+            dashboard_state
+            and dashboard_doc_match is not False
+            and dashboard_result == "DASHBOARD_HAS_STALE_OR_MISSING"
+        ):
+            classification = "RUN_AUDIT_FIRST"
+        elif (
+            dashboard_state
+            and dashboard_doc_match is not False
+            and dashboard_result == "DASHBOARD_REVIEW_REQUIRED"
+        ):
+            classification = "REVIEW_REQUIRED"
+        elif document_conflicts:
+            classification = "REVIEW_REQUIRED"
+        elif not useful_state_exists:
+            classification = "RUN_AUDIT_FIRST"
+        elif verification_valid and (
+            not apply_valid or not verification_matches_apply
+        ):
+            classification = "REVIEW_REQUIRED"
+        elif verification_valid and not status_matches_verification:
+            classification = "RUN_WORKFLOW_STATUS_NEXT"
+        elif apply_valid and not apply_matches_rollback:
+            classification = "REVIEW_REQUIRED"
+        elif apply_valid and not verification_valid:
+            classification = "RUN_POST_APPLY_VERIFICATION_NEXT"
+        elif status_ready_clean and not history_matches_status:
+            classification = "RUN_HISTORY_UPDATE_NEXT"
+        elif history_record and not (
+            reconciliation_matches_history or dashboard_matches_history
+        ):
+            classification = "RUN_RECONCILIATION_NEXT"
+        elif dashboard_matches_history and dashboard_result == "DASHBOARD_ALL_MATCH":
+            classification = "READY_NO_ACTION_CLEAN"
+        elif reconciliation_matches_history and reconciliation_result == "MATCHES_CURRENT_MODEL":
+            classification = "READY_NO_ACTION_CLEAN"
+        elif history_record:
+            classification = "REVIEW_REQUIRED"
+        elif rollback_valid and len(selected_links) != 1:
+            classification = "SELECT_ONE_RESET_CANDIDATE"
+        elif rollback_valid and not rollback_matches_selected:
+            classification = "RUN_ROLLBACK_TEST_NEXT"
+        elif rollback_matches_selected:
+            classification = "READY_TO_APPLY_REVIEWED_RESET"
+        elif audit_state and audit_doc_match is not False and audit_candidate_count == 0:
+            if audit_result == "OK":
+                classification = "READY_NO_ACTION_CLEAN"
+            else:
+                classification = "REVIEW_REQUIRED"
+        elif audit_candidate_count > 0 and len(selected_links) != 1:
+            classification = "SELECT_ONE_RESET_CANDIDATE"
+        elif (
+            audit_candidate_count > 0
+            and len(selected_links) == 1
+            and selected_is_audit_candidate is False
+        ):
+            classification = "REVIEW_REQUIRED"
+        elif audit_candidate_count > 0:
+            classification = "RUN_ROLLBACK_TEST_NEXT"
+        else:
+            classification = "RUN_AUDIT_FIRST"
+
+        recommended_command, recommended_action = (
+            self._link_reset_advisor_recommendation(classification)
+        )
+        return {
+            "feature_id": "COORD-WR-009",
+            "feature_name": "Link Reset Workflow Readiness Advisor",
+            "advisor_id": "COORD-WR-009-{0}".format(
+                time.strftime("%Y%m%d_%H%M%S")
+            ),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "source_prompt": safe_str(prompt),
+            "document_title": active_document,
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": safe_str(
+                getattr(
+                    getattr(uidoc, "ActiveView", None),
+                    "ViewType",
+                    "(unknown type)",
+                )
+            ),
+            "selected_element_count": len(selected_elements),
+            "selected_link_count": len(selected_links),
+            "selected_link_id": selected_link_id,
+            "selected_link_name": selected_link_name,
+            "audit_id": audit_state.get("audit_id", "unavailable"),
+            "audit_result": audit_result,
+            "audit_candidate_count": audit_candidate_count,
+            "rollback_test_id": rollback_state.get(
+                "rollback_test_id", "unavailable"
+            ),
+            "rollback_result": rollback_state.get(
+                "rollback_test_result", "Unavailable"
+            ),
+            "apply_id": apply_state.get("apply_id", "unavailable"),
+            "apply_result": apply_state.get(
+                "apply_result",
+                apply_state.get("reviewed_apply_result", "Unavailable"),
+            ),
+            "verification_id": verification_state.get(
+                "verification_id", "unavailable"
+            ),
+            "verification_result": verification_state.get(
+                "verification_result", "Unavailable"
+            ),
+            "status_id": status_state.get("status_id", "unavailable"),
+            "workflow_status": workflow_status,
+            "history_record_id": history_record.get(
+                "history_record_id", "unavailable"
+            ),
+            "history_status": history_record.get(
+                "workflow_status", "Unavailable"
+            ),
+            "history_path": history_source.get("history_path"),
+            "reconciliation_id": reconciliation_state.get(
+                "reconciliation_id", "unavailable"
+            ),
+            "reconciliation_result": reconciliation_result,
+            "dashboard_id": dashboard_state.get("dashboard_id", "unavailable"),
+            "dashboard_result": dashboard_result,
+            "dashboard_source": dashboard_state.get(
+                "dashboard_source", "unavailable"
+            ),
+            "dashboard_export_folder": dashboard_state.get(
+                "dashboard_export_folder", "unavailable"
+            ),
+            "dashboard_document_title": dashboard_state.get(
+                "document_title", "unavailable"
+            ),
+            "dashboard_timestamp": dashboard_state.get(
+                "created_timestamp_local", "unavailable"
+            ),
+            "readiness_classification": classification,
+            "recommended_next_command": recommended_command,
+            "recommended_next_action": recommended_action,
+            "warnings": warnings,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+    def _format_link_reset_workflow_readiness_advisor_report(self, data):
+        lines = [
+            "[LINK RESET WORKFLOW READINESS ADVISOR]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Advisor Report ID:",
+            data.get("advisor_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "Revit link reset workflow readiness / read-only next-action advisor",
+            "",
+            "Active context:",
+            "- Active document title: {0}".format(data.get("document_title")),
+            "- Active view: {0} [{1}]".format(
+                data.get("active_view_name"), data.get("active_view_type")
+            ),
+            "- Selected element count: {0}".format(
+                data.get("selected_element_count")
+            ),
+            "- Selected RevitLinkInstance count: {0}".format(
+                data.get("selected_link_count")
+            ),
+            "- Selected link id: {0}".format(data.get("selected_link_id")),
+            "- Selected link name: {0}".format(data.get("selected_link_name")),
+            "",
+            "Latest workflow state:",
+            "- COORD-WR-001 audit id: {0}".format(data.get("audit_id")),
+            "- COORD-WR-001 audit result: {0}".format(data.get("audit_result")),
+            "- COORD-WR-001 reset candidates: {0}".format(
+                data.get("audit_candidate_count")
+            ),
+            "- COORD-WR-002 rollback id: {0}".format(
+                data.get("rollback_test_id")
+            ),
+            "- COORD-WR-002 rollback result: {0}".format(
+                data.get("rollback_result")
+            ),
+            "- COORD-WR-003 apply id: {0}".format(data.get("apply_id")),
+            "- COORD-WR-003 apply result: {0}".format(data.get("apply_result")),
+            "- COORD-WR-004 verification id: {0}".format(
+                data.get("verification_id")
+            ),
+            "- COORD-WR-004 verification result: {0}".format(
+                data.get("verification_result")
+            ),
+            "- COORD-WR-005 workflow status id: {0}".format(
+                data.get("status_id")
+            ),
+            "- COORD-WR-005 workflow status: {0}".format(
+                data.get("workflow_status")
+            ),
+            "- COORD-WR-006 history record id: {0}".format(
+                data.get("history_record_id")
+            ),
+            "- COORD-WR-006 history status: {0}".format(
+                data.get("history_status")
+            ),
+            "- COORD-WR-006 history path: {0}".format(data.get("history_path")),
+            "- COORD-WR-007 reconciliation id: {0}".format(
+                data.get("reconciliation_id")
+            ),
+            "- COORD-WR-007 reconciliation result: {0}".format(
+                data.get("reconciliation_result")
+            ),
+            "- COORD-WR-008 dashboard id: {0}".format(
+                data.get("dashboard_id")
+            ),
+            "- COORD-WR-008 dashboard result: {0}".format(
+                data.get("dashboard_result")
+            ),
+            "- COORD-WR-008 dashboard source: {0}".format(
+                data.get("dashboard_source")
+            ),
+            "- COORD-WR-008 dashboard export folder: {0}".format(
+                data.get("dashboard_export_folder")
+            ),
+            "- COORD-WR-008 dashboard active document title: {0}".format(
+                data.get("dashboard_document_title")
+            ),
+            "- COORD-WR-008 dashboard timestamp: {0}".format(
+                data.get("dashboard_timestamp")
+            ),
+            "",
+            "Readiness classification:",
+            data.get("readiness_classification"),
+            "",
+            "Recommended next command:",
+            data.get("recommended_next_command"),
+            "",
+            "Recommended next action:",
+            data.get("recommended_next_action"),
+            "",
+            "Warnings:",
+        ]
+        warnings = data.get("warnings") or []
+        if warnings:
+            for warning in warnings:
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Advisor requested: true",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Read-only next-action advisor only.",
+                "- No audit, rollback, apply, verification, workflow status, history append, reconciliation, reset, or correction was run.",
+                "- No history record or QA export was created automatically.",
+                "- No link was moved, rotated, transformed, reloaded, unloaded, pinned, unpinned, or selected.",
+                "- No parameter, linked-document, or Revit model data was modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_link_reset_workflow_readiness_advisor_question(self, prompt):
+        if not _is_link_reset_workflow_readiness_advisor_prompt(prompt):
+            return None
+        advisor_data = self._collect_link_reset_workflow_readiness_advisor(prompt)
+        report_text = self._format_link_reset_workflow_readiness_advisor_report(
+            advisor_data
+        )
+        advisor_data["report_header"] = "[LINK RESET WORKFLOW READINESS ADVISOR]"
+        advisor_data["report_scope"] = (
+            "Revit link reset workflow readiness / read-only next-action advisor"
+        )
+        advisor_data["report_text"] = report_text
+        self.latest_link_reset_workflow_readiness_advisor_state = dict(
+            advisor_data
+        )
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[LINK RESET WORKFLOW READINESS ADVISOR]",
+            "report_text": report_text,
+            "report_scope": "Revit link reset workflow readiness / read-only next-action advisor",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-009",
         }
         self.latest_chat_output_is_deterministic_report = True
         return report_text
@@ -23557,13 +24990,25 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            link_readiness_advisor_reply = (
+                self.answer_link_reset_workflow_readiness_advisor_question(prompt)
+            )
+            link_history_dashboard_reply = (
+                self.answer_link_reset_history_reconciliation_dashboard_question(prompt)
+            )
             link_history_reconciliation_reply = (
                 self.answer_link_reset_history_reconciliation_question(prompt)
             )
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if link_history_reconciliation_reply is not None:
+            if link_readiness_advisor_reply is not None:
+                reply = link_readiness_advisor_reply
+                remember_report = True
+            elif link_history_dashboard_reply is not None:
+                reply = link_history_dashboard_reply
+                remember_report = True
+            elif link_history_reconciliation_reply is not None:
                 reply = link_history_reconciliation_reply
                 remember_report = True
             elif link_workflow_history_reply is not None:
