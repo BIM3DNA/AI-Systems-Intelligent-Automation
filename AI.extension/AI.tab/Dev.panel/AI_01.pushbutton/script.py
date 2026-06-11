@@ -78,6 +78,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[LINK ORIGIN RESET POST-APPLY VERIFICATION]",
     "[LINK RESET WORKFLOW STATUS]",
     "[LINK RESET WORKFLOW HISTORY]",
+    "[LINK RESET HISTORY RECONCILIATION]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -13719,6 +13720,19 @@ def _is_link_reset_workflow_history_prompt(prompt):
     return normalized in routes
 
 
+def _is_link_reset_history_reconciliation_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "check link reset history against current model",
+        "verify link reset history current state",
+        "reconcile link reset history",
+        "check coord history current state",
+        "link reset history current check",
+        "show link reset history reconciliation",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -14549,6 +14563,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_link_origin_reset_post_apply_verification_state = None
         self.latest_link_reset_workflow_status_state = None
         self.latest_link_reset_workflow_history_state = None
+        self.latest_link_reset_history_reconciliation_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -15733,6 +15748,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "Revit link reset workflow status / read-only dashboard"
         if header == "[LINK RESET WORKFLOW HISTORY]":
             return "Revit link reset workflow history / local read-only register"
+        if header == "[LINK RESET HISTORY RECONCILIATION]":
+            return "Revit link reset history reconciliation / read-only current-state check"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -18202,6 +18219,351 @@ class OllamaAIChat(forms.WPFWindow):
             "report_scope": "Revit link reset workflow history / local read-only register",
             "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
             "feature_id": "COORD-WR-006",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _read_link_reset_reconciliation_records(self):
+        paths = self._link_reset_history_paths()
+        records, warnings = self._read_link_reset_history_records(paths.get("jsonl"))
+        history_path = paths.get("jsonl")
+        if records:
+            return records, history_path, warnings
+
+        csv_path = paths.get("csv")
+        if not os.path.exists(csv_path):
+            return records, history_path, warnings
+        try:
+            stream = codecs.open(csv_path, "r", "utf-8")
+            try:
+                reader = csv.DictReader(stream)
+                for row in reader:
+                    if isinstance(row, dict):
+                        records.append(row)
+            finally:
+                stream.close()
+            if records:
+                history_path = csv_path
+        except Exception as exc:
+            warnings.append("History CSV could not be read: {0}".format(safe_str(exc)))
+        return records, history_path, warnings
+
+    def _link_reset_reconciliation_xyz(self, value):
+        plain = _xyz_plain(value)
+        if plain:
+            return plain
+        text = safe_str(value).strip()
+        if not text or text.lower() in ["none", "unavailable", "null"]:
+            return None
+        try:
+            loaded = json.loads(text)
+            plain = _xyz_plain(loaded)
+            if plain:
+                return plain
+        except:
+            pass
+        return self._link_reset_history_parse_xyz_text(text)
+
+    def _link_reset_reconciliation_recommendation(self, result):
+        recommendations = {
+            "MATCHES_CURRENT_MODEL": "No action required. Current model still matches latest recorded clean workflow checkpoint.",
+            "HISTORY_STALE_CURRENT_MODEL_DIFFERS": "Run COORD-WR-001 audit before any further reset decision.",
+            "HISTORY_LINK_NOT_FOUND": "Review link reload/removal/name changes. Run COORD-WR-001 audit.",
+            "HISTORY_DOCUMENT_MISMATCH": "Open the document that produced the history record or run COORD-WR-001 in this document.",
+            "HISTORY_NO_RECORDS": "Run COORD-WR-005/006 workflow status/history after a valid workflow checkpoint exists.",
+            "HISTORY_RECORD_INCOMPLETE": "Review history record fields and run COORD-WR-001 audit.",
+            "REVIEW_REQUIRED": "Review history record fields and run COORD-WR-001 audit.",
+        }
+        return recommendations.get(result, recommendations.get("REVIEW_REQUIRED"))
+
+    def _collect_link_reset_history_reconciliation(self, prompt):
+        tolerance_ft = 0.003
+        data = {
+            "feature_id": "COORD-WR-007",
+            "feature_name": "Link Reset History Current-State Reconciliation",
+            "reconciliation_id": "COORD-WR-007-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "source_prompt": safe_str(prompt),
+            "document_title": _document_title(doc),
+            "active_view_name": _active_view_title(doc, uidoc),
+            "history_file_path": self._link_reset_history_paths().get("jsonl"),
+            "selected_history_record_id": "unavailable",
+            "selected_history_status_id": "unavailable",
+            "history_checkpoint_source": "unavailable",
+            "history_source_export_folder": "unavailable",
+            "recorded_document_title": "unavailable",
+            "recorded_workflow_status": "unavailable",
+            "recorded_target_link_id": "unavailable",
+            "recorded_target_link_name": "unavailable",
+            "recorded_final_origin": None,
+            "recorded_final_origin_mm": None,
+            "current_target_link_id": "unavailable",
+            "current_target_link_name": "unavailable",
+            "current_origin": None,
+            "current_origin_mm": None,
+            "delta_ft": None,
+            "delta_mm": None,
+            "tolerance_ft": tolerance_ft,
+            "tolerance_mm": tolerance_ft * 304.8,
+            "link_resolution_source": "none",
+            "warnings": [],
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+        records, history_path, warnings = self._read_link_reset_reconciliation_records()
+        data["history_file_path"] = history_path
+        data["warnings"].extend(warnings)
+        valid_records = [item for item in records if isinstance(item, dict)]
+        valid_records = sorted(
+            valid_records,
+            key=lambda item: safe_str(item.get("timestamp")),
+            reverse=True,
+        )
+        if not valid_records:
+            data["reconciliation_result"] = "HISTORY_NO_RECORDS"
+            data["recommended_next_action"] = self._link_reset_reconciliation_recommendation(
+                data.get("reconciliation_result")
+            )
+            return data
+
+        record = valid_records[0]
+        data["selected_history_record_id"] = safe_str(
+            record.get("history_record_id") or "unavailable"
+        )
+        data["selected_history_status_id"] = safe_str(record.get("status_id") or "unavailable")
+        data["history_checkpoint_source"] = safe_str(
+            record.get("checkpoint_source") or "unavailable"
+        )
+        data["history_source_export_folder"] = safe_str(
+            record.get("source_export_folder") or "unavailable"
+        )
+        data["recorded_document_title"] = safe_str(
+            record.get("document_title") or "unavailable"
+        )
+        data["recorded_workflow_status"] = safe_str(
+            record.get("workflow_status") or "unavailable"
+        )
+        data["recorded_target_link_id"] = record.get("target_link_id", "unavailable")
+        data["recorded_target_link_name"] = safe_str(
+            record.get("target_link_name") or "unavailable"
+        )
+        data["recorded_final_origin"] = self._link_reset_reconciliation_xyz(
+            record.get("final_origin_xyz")
+        )
+        data["recorded_final_origin_mm"] = self._link_reset_reconciliation_xyz(
+            record.get("final_origin_approx_mm")
+        )
+
+        active_title = safe_str(data.get("document_title")).strip()
+        recorded_title = safe_str(data.get("recorded_document_title")).strip()
+        if not recorded_title or recorded_title.lower() == "unavailable":
+            data["reconciliation_result"] = "HISTORY_RECORD_INCOMPLETE"
+        elif active_title.lower() != recorded_title.lower():
+            data["reconciliation_result"] = "HISTORY_DOCUMENT_MISMATCH"
+        elif (
+            not data.get("recorded_final_origin")
+            or not data.get("recorded_workflow_status")
+            or safe_str(data.get("recorded_workflow_status")).lower() == "unavailable"
+        ):
+            data["reconciliation_result"] = "HISTORY_RECORD_INCOMPLETE"
+        else:
+            target_link = None
+            recorded_id = record.get("target_link_id")
+            try:
+                if recorded_id not in (None, "", "none", "unavailable"):
+                    candidate = doc.GetElement(DB.ElementId(int(recorded_id)))
+                    if isinstance(candidate, DB.RevitLinkInstance):
+                        target_link = candidate
+                        data["link_resolution_source"] = "recorded element id"
+            except:
+                target_link = None
+
+            recorded_name = safe_str(record.get("target_link_name")).strip()
+            if target_link is None and recorded_name and recorded_name.lower() != "unavailable":
+                name_matches = []
+                try:
+                    for instance in DB.FilteredElementCollector(doc).OfClass(DB.RevitLinkInstance):
+                        if safe_str(get_elem_name(instance)).strip().lower() == recorded_name.lower():
+                            name_matches.append(instance)
+                except Exception as exc:
+                    data["warnings"].append(
+                        "RevitLinkInstance name fallback failed: {0}".format(safe_str(exc))
+                    )
+                if len(name_matches) == 1:
+                    target_link = name_matches[0]
+                    data["link_resolution_source"] = "recorded link name"
+                elif len(name_matches) > 1:
+                    data["warnings"].append(
+                        "Multiple RevitLinkInstance elements match the recorded link name."
+                    )
+                    data["reconciliation_result"] = "REVIEW_REQUIRED"
+
+            if target_link is None and not data.get("reconciliation_result"):
+                if (
+                    recorded_id in (None, "", "none", "unavailable")
+                    and (not recorded_name or recorded_name.lower() == "unavailable")
+                ):
+                    data["reconciliation_result"] = "HISTORY_RECORD_INCOMPLETE"
+                else:
+                    data["reconciliation_result"] = "HISTORY_LINK_NOT_FOUND"
+
+            if target_link is not None:
+                data["current_target_link_id"] = _safe_element_id_value(target_link)
+                data["current_target_link_name"] = get_elem_name(target_link) or "(unnamed link instance)"
+                try:
+                    current_transform = target_link.GetTransform()
+                    current_origin = _xyz_plain(current_transform.Origin)
+                    data["current_origin"] = current_origin
+                    data["current_origin_mm"] = _xyz_mm_plain(current_origin)
+                except Exception as exc:
+                    data["warnings"].append(
+                        "Current link transform origin is unreadable: {0}".format(safe_str(exc))
+                    )
+                    data["reconciliation_result"] = "REVIEW_REQUIRED"
+
+                if data.get("current_origin"):
+                    delta_ft = _xyz_distance(
+                        data.get("current_origin"),
+                        data.get("recorded_final_origin"),
+                    )
+                    data["delta_ft"] = delta_ft
+                    data["delta_mm"] = delta_ft * 304.8 if delta_ft is not None else None
+                    if delta_ft is None:
+                        data["reconciliation_result"] = "REVIEW_REQUIRED"
+                    elif delta_ft <= tolerance_ft:
+                        data["reconciliation_result"] = "MATCHES_CURRENT_MODEL"
+                    else:
+                        data["reconciliation_result"] = "HISTORY_STALE_CURRENT_MODEL_DIFFERS"
+                elif not data.get("reconciliation_result"):
+                    data["warnings"].append("Current link transform origin is unavailable.")
+                    data["reconciliation_result"] = "REVIEW_REQUIRED"
+
+        data["recommended_next_action"] = self._link_reset_reconciliation_recommendation(
+            data.get("reconciliation_result")
+        )
+        return data
+
+    def _format_link_reset_history_reconciliation_report(self, data):
+        lines = [
+            "[LINK RESET HISTORY RECONCILIATION]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Reconciliation Report ID:",
+            data.get("reconciliation_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "Revit link reset history reconciliation / read-only current-state check",
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view name:",
+            data.get("active_view_name"),
+            "",
+            "History source:",
+            "- History file path: {0}".format(data.get("history_file_path")),
+            "- Selected history record id: {0}".format(data.get("selected_history_record_id")),
+            "- Selected history status id: {0}".format(data.get("selected_history_status_id")),
+            "- History checkpoint source: {0}".format(data.get("history_checkpoint_source")),
+            "- History source export folder: {0}".format(data.get("history_source_export_folder")),
+            "",
+            "Recorded checkpoint:",
+            "- Recorded document title: {0}".format(data.get("recorded_document_title")),
+            "- Recorded workflow status: {0}".format(data.get("recorded_workflow_status")),
+            "- Recorded target link id: {0}".format(data.get("recorded_target_link_id")),
+            "- Recorded target link name: {0}".format(data.get("recorded_target_link_name")),
+            "- Recorded final origin ft: {0}".format(_format_xyz_feet(data.get("recorded_final_origin"))),
+            "- Recorded final origin approx mm: {0}".format(
+                _format_xyz_mm(data.get("recorded_final_origin"))
+                if data.get("recorded_final_origin")
+                else "(unavailable)"
+            ),
+            "",
+            "Current model state:",
+            "- Link resolution source: {0}".format(data.get("link_resolution_source")),
+            "- Current target link id: {0}".format(data.get("current_target_link_id")),
+            "- Current target link name: {0}".format(data.get("current_target_link_name")),
+            "- Current origin ft: {0}".format(_format_xyz_feet(data.get("current_origin"))),
+            "- Current origin approx mm: {0}".format(_format_xyz_mm(data.get("current_origin"))),
+            "- Delta ft: {0}".format(
+                "{0:.6f}".format(data.get("delta_ft"))
+                if data.get("delta_ft") is not None
+                else "unavailable"
+            ),
+            "- Delta approx mm: {0}".format(
+                "{0:.3f}".format(data.get("delta_mm"))
+                if data.get("delta_mm") is not None
+                else "unavailable"
+            ),
+            "- Tolerance ft: {0:.6f}".format(data.get("tolerance_ft")),
+            "- Tolerance approx mm: {0:.3f}".format(data.get("tolerance_mm")),
+            "",
+            "Reconciliation result:",
+            data.get("reconciliation_result"),
+            "",
+            "Recommended next action:",
+            data.get("recommended_next_action"),
+            "",
+            "Warnings:",
+        ]
+        warnings = data.get("warnings") or []
+        if warnings:
+            for warning in warnings:
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Read-only history reconciliation only.",
+                "- No audit, rollback, apply, verification, reset, or correction action was run.",
+                "- No link was moved, rotated, transformed, reloaded, unloaded, pinned, unpinned, or selected.",
+                "- No parameter or linked-document data was modified.",
+                "- Revit model data was not modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_link_reset_history_reconciliation_question(self, prompt):
+        if not _is_link_reset_history_reconciliation_prompt(prompt):
+            return None
+        reconciliation_data = self._collect_link_reset_history_reconciliation(prompt)
+        report_text = self._format_link_reset_history_reconciliation_report(reconciliation_data)
+        reconciliation_data["report_header"] = "[LINK RESET HISTORY RECONCILIATION]"
+        reconciliation_data["report_scope"] = (
+            "Revit link reset history reconciliation / read-only current-state check"
+        )
+        reconciliation_data["report_text"] = report_text
+        self.latest_link_reset_history_reconciliation_state = dict(reconciliation_data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[LINK RESET HISTORY RECONCILIATION]",
+            "report_text": report_text,
+            "report_scope": "Revit link reset history reconciliation / read-only current-state check",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-007",
         }
         self.latest_chat_output_is_deterministic_report = True
         return report_text
@@ -23195,10 +23557,16 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            link_history_reconciliation_reply = (
+                self.answer_link_reset_history_reconciliation_question(prompt)
+            )
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if link_workflow_history_reply is not None:
+            if link_history_reconciliation_reply is not None:
+                reply = link_history_reconciliation_reply
+                remember_report = True
+            elif link_workflow_history_reply is not None:
                 reply = link_workflow_history_reply
                 remember_report = True
             elif link_workflow_status_reply is not None:
