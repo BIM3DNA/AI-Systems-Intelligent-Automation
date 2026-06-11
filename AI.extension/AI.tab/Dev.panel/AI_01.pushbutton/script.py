@@ -84,6 +84,9 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[LINK RESET WORKFLOW EVIDENCE BUNDLE]",
     "[LINK RESET EVIDENCE BUNDLE INTEGRITY CHECK]",
     "[REVIT LINK INVENTORY HEALTH AUDIT]",
+    "[REVIT LINK INVENTORY SNAPSHOT REGISTER]",
+    "[REVIT LINK INVENTORY SNAPSHOT STATUS]",
+    "[COORDINATION LINK MASTER STATUS]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -13872,6 +13875,53 @@ def _is_revit_link_inventory_health_audit_prompt(prompt):
     return normalized in routes
 
 
+def _is_revit_link_inventory_snapshot_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show link inventory snapshot",
+        "link inventory snapshot",
+        "show revit link inventory snapshot",
+        "revit link inventory snapshot",
+        "check link inventory changes",
+        "show link inventory changes",
+        "coord link inventory snapshot",
+        "show coordination link inventory changes",
+    ]
+    return normalized in routes
+
+
+def _is_revit_link_inventory_snapshot_status_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show link inventory snapshot status",
+        "link inventory snapshot status",
+        "show revit link snapshot status",
+        "revit link snapshot status",
+        "show link inventory baseline status",
+        "link inventory baseline status",
+        "show coord link snapshot status",
+        "coord link snapshot status",
+        "show link inventory drift status",
+    ]
+    return normalized in routes
+
+
+def _is_coordination_link_master_status_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show coordination link master status",
+        "coordination link master status",
+        "show coord link master status",
+        "coord link master status",
+        "show link master status",
+        "link master status",
+        "show coordination handover status",
+        "coordination handover status",
+        "show link coordination status",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -14708,6 +14758,9 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_link_reset_workflow_evidence_bundle_state = None
         self.latest_link_reset_evidence_bundle_integrity_state = None
         self.latest_revit_link_inventory_health_audit_state = None
+        self.latest_revit_link_inventory_snapshot_state = None
+        self.latest_revit_link_inventory_snapshot_status_state = None
+        self.latest_coordination_link_master_status_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -15904,6 +15957,12 @@ class OllamaAIChat(forms.WPFWindow):
             return "Revit link reset evidence integrity / read-only file and index validation"
         if header == "[REVIT LINK INVENTORY HEALTH AUDIT]":
             return "Revit link inventory and external-reference health / read-only coordination audit"
+        if header == "[REVIT LINK INVENTORY SNAPSHOT REGISTER]":
+            return "Revit link inventory snapshot and change detection / read-only model audit with local snapshot storage"
+        if header == "[REVIT LINK INVENTORY SNAPSHOT STATUS]":
+            return "Revit link inventory snapshot status / read-only baseline and drift dashboard"
+        if header == "[COORDINATION LINK MASTER STATUS]":
+            return "coordination link master status / read-only consolidated handover dashboard"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -20916,6 +20975,2010 @@ class OllamaAIChat(forms.WPFWindow):
             "report_scope": "Revit link inventory and external-reference health / read-only coordination audit",
             "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
             "feature_id": "COORD-WR-012",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _link_inventory_snapshot_paths(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+        folder = os.path.join(
+            user_profile,
+            "Desktop",
+            "Results",
+            "AI_Workbench",
+            "Link_Inventory_History",
+        )
+        return {
+            "folder": folder,
+            "jsonl": os.path.join(folder, "link_inventory_snapshots.jsonl"),
+            "csv": os.path.join(folder, "link_inventory_latest.csv"),
+        }
+
+    def _read_link_inventory_snapshots(self, jsonl_path):
+        records = []
+        warnings = []
+        if not jsonl_path or not os.path.exists(jsonl_path):
+            return records, warnings
+        try:
+            stream = codecs.open(jsonl_path, "r", "utf-8")
+            try:
+                for line_number, line in enumerate(stream, 1):
+                    text = line.strip()
+                    if not text:
+                        continue
+                    try:
+                        loaded = json.loads(text)
+                        if isinstance(loaded, dict):
+                            loaded["_file_order"] = line_number
+                            records.append(loaded)
+                    except Exception as exc:
+                        warnings.append(
+                            "Snapshot JSONL line {0} could not be parsed: {1}".format(
+                                line_number, safe_str(exc)
+                            )
+                        )
+            finally:
+                stream.close()
+        except Exception as exc:
+            warnings.append(
+                "Snapshot JSONL could not be read: {0}".format(safe_str(exc))
+            )
+        return records, warnings
+
+    def _link_inventory_snapshot_rotation_summary(self, item):
+        return "rotation={0}; orthonormal={1}; mirrored={2}; X={3}; Y={4}; Z={5}".format(
+            safe_str(item.get("rotation_z_degrees")),
+            safe_str(item.get("basis_orthonormal")),
+            safe_str(item.get("mirrored")),
+            safe_str(item.get("basis_x")),
+            safe_str(item.get("basis_y")),
+            safe_str(item.get("basis_z")),
+        )
+
+    def _link_inventory_snapshot_row(
+        self, inventory_item, snapshot_id, timestamp, document_title, view_name
+    ):
+        origin = _xyz_plain(inventory_item.get("origin"))
+        return {
+            "snapshot_report_id": snapshot_id,
+            "snapshot_timestamp": timestamp,
+            "active_document_title": document_title,
+            "active_view_name": view_name,
+            "link_instance_id": inventory_item.get("instance_id"),
+            "link_instance_name": safe_str(
+                inventory_item.get("instance_name")
+            ),
+            "link_type_id": inventory_item.get("type_id"),
+            "link_type_name": safe_str(inventory_item.get("type_name")),
+            "linked_document_title": safe_str(
+                inventory_item.get("linked_document_title")
+            ),
+            "external_reference_path": safe_str(
+                inventory_item.get("external_reference_path")
+            ),
+            "external_reference_status": safe_str(
+                inventory_item.get("external_reference_status")
+            ),
+            "loaded_readable": bool(inventory_item.get("loaded_readable")),
+            "pinned": inventory_item.get("pinned"),
+            "workset_name": safe_str(inventory_item.get("workset_name")),
+            "workset_id": inventory_item.get("workset_id"),
+            "origin_ft": origin,
+            "origin_mm": _xyz_mm_plain(origin),
+            "rotation_summary": self._link_inventory_snapshot_rotation_summary(
+                inventory_item
+            ),
+            "near_zero_origin": bool(
+                inventory_item.get("near_zero_origin")
+            ),
+            "rotated_nonorthogonal": bool(
+                inventory_item.get("rotated_or_nonorthogonal")
+            ),
+            "mirrored": inventory_item.get("mirrored"),
+            "history_covered": bool(
+                inventory_item.get("history_covered")
+            ),
+            "latest_history_record_id": safe_str(
+                inventory_item.get("history_record_id")
+            ),
+            "latest_history_status": safe_str(
+                inventory_item.get("history_status")
+            ),
+            "link_health_classification": safe_str(
+                inventory_item.get("classification")
+            ),
+        }
+
+    def _link_inventory_snapshot_normalized_row(self, row):
+        normalized = dict(row or {})
+        for key in [
+            "snapshot_report_id",
+            "snapshot_timestamp",
+            "active_view_name",
+        ]:
+            normalized.pop(key, None)
+        return normalized
+
+    def _link_inventory_snapshot_signature(self, rows):
+        normalized = [
+            self._link_inventory_snapshot_normalized_row(row)
+            for row in (rows or [])
+        ]
+        normalized = sorted(
+            normalized,
+            key=lambda item: (
+                _safe_int(item.get("link_instance_id"), -1),
+                safe_str(item.get("link_instance_name")),
+                safe_str(item.get("external_reference_path")),
+            ),
+        )
+        return json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+
+    def _link_inventory_snapshot_key(self, row):
+        link_id = row.get("link_instance_id")
+        try:
+            return "id:{0}".format(int(link_id))
+        except:
+            return "context:{0}|{1}".format(
+                safe_str(row.get("link_instance_name")).strip().lower(),
+                safe_str(row.get("external_reference_path")).strip().lower(),
+            )
+
+    def _link_inventory_snapshot_change(
+        self, change_type, row, previous_value, current_value, notes
+    ):
+        row = row or {}
+        return {
+            "change_type": change_type,
+            "link_instance_id": row.get(
+                "link_instance_id", "unavailable"
+            ),
+            "link_instance_name": row.get(
+                "link_instance_name", "unavailable"
+            ),
+            "previous_value": previous_value,
+            "current_value": current_value,
+            "notes": notes,
+        }
+
+    def _compare_link_inventory_snapshots(self, previous_rows, current_rows):
+        previous_map = {
+            self._link_inventory_snapshot_key(row): row
+            for row in (previous_rows or [])
+        }
+        current_map = {
+            self._link_inventory_snapshot_key(row): row
+            for row in (current_rows or [])
+        }
+        changes = []
+        unchanged_count = 0
+        for key in sorted(set(previous_map.keys()) | set(current_map.keys())):
+            previous = previous_map.get(key)
+            current = current_map.get(key)
+            if previous is None:
+                changes.append(
+                    self._link_inventory_snapshot_change(
+                        "ADDED_LINK",
+                        current,
+                        "not present",
+                        "present",
+                        "Link exists in current inventory only.",
+                    )
+                )
+                continue
+            if current is None:
+                changes.append(
+                    self._link_inventory_snapshot_change(
+                        "REMOVED_LINK",
+                        previous,
+                        "present",
+                        "not present",
+                        "Link existed in previous inventory only.",
+                    )
+                )
+                continue
+
+            link_changes = []
+            comparisons = [
+                (
+                    "PATH_CHANGED",
+                    "external_reference_path",
+                    "External reference path changed.",
+                ),
+                (
+                    "LOAD_STATUS_CHANGED",
+                    "loaded_readable",
+                    "Loaded/readable status changed.",
+                ),
+                (
+                    "ROTATION_CHANGED",
+                    "rotation_summary",
+                    "Rotation or basis summary changed.",
+                ),
+                (
+                    "PINNED_STATUS_CHANGED",
+                    "pinned",
+                    "Pinned status changed.",
+                ),
+                (
+                    "WORKSET_CHANGED",
+                    "workset_name",
+                    "Workset assignment changed.",
+                ),
+                (
+                    "HISTORY_COVERAGE_CHANGED",
+                    "history_covered",
+                    "COORD-WR-006 history coverage changed.",
+                ),
+                (
+                    "HEALTH_CLASSIFICATION_CHANGED",
+                    "link_health_classification",
+                    "Link health classification changed.",
+                ),
+            ]
+            for change_type, field_name, notes in comparisons:
+                if safe_str(previous.get(field_name)) != safe_str(
+                    current.get(field_name)
+                ):
+                    link_changes.append(
+                        self._link_inventory_snapshot_change(
+                            change_type,
+                            current,
+                            safe_str(previous.get(field_name)),
+                            safe_str(current.get(field_name)),
+                            notes,
+                        )
+                    )
+            if (
+                safe_str(previous.get("workset_id"))
+                != safe_str(current.get("workset_id"))
+                and not any(
+                    item.get("change_type") == "WORKSET_CHANGED"
+                    for item in link_changes
+                )
+            ):
+                link_changes.append(
+                    self._link_inventory_snapshot_change(
+                        "WORKSET_CHANGED",
+                        current,
+                        "{0} ({1})".format(
+                            previous.get("workset_name"),
+                            previous.get("workset_id"),
+                        ),
+                        "{0} ({1})".format(
+                            current.get("workset_name"),
+                            current.get("workset_id"),
+                        ),
+                        "Workset id changed.",
+                    )
+                )
+            previous_origin = _xyz_plain(previous.get("origin_ft"))
+            current_origin = _xyz_plain(current.get("origin_ft"))
+            origin_delta = (
+                _xyz_distance(previous_origin, current_origin)
+                if previous_origin and current_origin
+                else None
+            )
+            if origin_delta is None:
+                if previous_origin != current_origin:
+                    link_changes.append(
+                        self._link_inventory_snapshot_change(
+                            "ORIGIN_CHANGED",
+                            current,
+                            _format_xyz_feet(previous_origin),
+                            _format_xyz_feet(current_origin),
+                            "Origin comparison was incomplete.",
+                        )
+                    )
+            elif origin_delta > 0.003:
+                link_changes.append(
+                    self._link_inventory_snapshot_change(
+                        "ORIGIN_CHANGED",
+                        current,
+                        _format_xyz_feet(previous_origin),
+                        _format_xyz_feet(current_origin),
+                        "Origin delta {0:.6f} ft ({1:.3f} mm) exceeds tolerance.".format(
+                            origin_delta, origin_delta * 304.8
+                        ),
+                    )
+                )
+            if link_changes:
+                changes.extend(link_changes)
+            else:
+                unchanged_count += 1
+        return changes, unchanged_count
+
+    def _write_link_inventory_latest_csv(self, csv_path, rows):
+        fields = [
+            "snapshot_report_id",
+            "snapshot_timestamp",
+            "active_document_title",
+            "active_view_name",
+            "link_instance_id",
+            "link_instance_name",
+            "link_type_id",
+            "link_type_name",
+            "linked_document_title",
+            "external_reference_path",
+            "external_reference_status",
+            "loaded_readable",
+            "pinned",
+            "workset_name",
+            "workset_id",
+            "origin_ft",
+            "origin_mm",
+            "rotation_summary",
+            "near_zero_origin",
+            "rotated_nonorthogonal",
+            "mirrored",
+            "history_covered",
+            "latest_history_record_id",
+            "latest_history_status",
+            "link_health_classification",
+        ]
+        stream = codecs.open(csv_path, "w", "utf-8")
+        try:
+            stream.write(self._qa_index_csv_row(fields))
+            stream.write("\n")
+            for row in rows or []:
+                values = []
+                for field in fields:
+                    value = row.get(field)
+                    if isinstance(value, (list, tuple, dict)):
+                        value = json.dumps(value, sort_keys=True)
+                    values.append(value)
+                stream.write(self._qa_index_csv_row(values))
+                stream.write("\n")
+        finally:
+            stream.close()
+
+    def _link_inventory_snapshot_recommendation(self, result):
+        recommendations = {
+            "LINK_SNAPSHOT_BASELINE_CREATED": "Baseline snapshot created. Re-run this command after future link changes to detect inventory drift.",
+            "LINK_SNAPSHOT_UNCHANGED": "No action required. Link inventory matches the previous stored snapshot.",
+            "LINK_SNAPSHOT_DUPLICATE_SKIPPED": "No action required. Current link inventory is unchanged and duplicate snapshot append was skipped.",
+            "LINK_SNAPSHOT_CHANGED": "Review detected link inventory changes. Run show revit link inventory and COORD-WR-001 audit before any reset decision.",
+            "LINK_SNAPSHOT_NO_LINKS": "No Revit links found in the active document.",
+            "LINK_SNAPSHOT_REVIEW_REQUIRED": "Review snapshot warnings and run show revit link inventory.",
+        }
+        return recommendations.get(
+            result, recommendations.get("LINK_SNAPSHOT_REVIEW_REQUIRED")
+        )
+
+    def _collect_revit_link_inventory_snapshot(self, prompt):
+        inventory = self._collect_revit_link_inventory_health_audit(prompt)
+        paths = self._link_inventory_snapshot_paths()
+        snapshot_id = "COORD-WR-013-{0}".format(
+            time.strftime("%Y%m%d_%H%M%S")
+        )
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        current_rows = [
+            self._link_inventory_snapshot_row(
+                item,
+                snapshot_id,
+                timestamp,
+                inventory.get("document_title"),
+                inventory.get("active_view_name"),
+            )
+            for item in (inventory.get("rows") or [])
+        ]
+        signature = self._link_inventory_snapshot_signature(current_rows)
+        snapshots, warnings = self._read_link_inventory_snapshots(
+            paths.get("jsonl")
+        )
+        warnings.extend(inventory.get("warnings") or [])
+        matching = [
+            item for item in snapshots
+            if safe_str(item.get("active_document_title")).strip().lower()
+            == safe_str(inventory.get("document_title")).strip().lower()
+        ]
+        previous = (
+            max(
+                matching,
+                key=lambda item: (
+                    safe_str(item.get("snapshot_timestamp")),
+                    _safe_int(item.get("_file_order"), 0),
+                ),
+            )
+            if matching
+            else {}
+        )
+        previous_rows = previous.get("rows") or []
+        changes, unchanged_count = self._compare_link_inventory_snapshots(
+            previous_rows, current_rows
+        )
+        duplicate = bool(
+            previous
+            and safe_str(previous.get("inventory_signature")) == signature
+        )
+        append_attempted = not duplicate
+        append_succeeded = False
+        duplicate_skipped = duplicate
+        csv_write_succeeded = False
+        snapshot_record = {
+            "feature_id": "COORD-WR-013",
+            "snapshot_report_id": snapshot_id,
+            "snapshot_timestamp": timestamp,
+            "active_document_title": inventory.get("document_title"),
+            "active_view_name": inventory.get("active_view_name"),
+            "inventory_signature": signature,
+            "link_count": len(current_rows),
+            "rows": current_rows,
+        }
+        try:
+            if not os.path.isdir(paths.get("folder")):
+                os.makedirs(paths.get("folder"))
+            self._write_link_inventory_latest_csv(
+                paths.get("csv"), current_rows
+            )
+            csv_write_succeeded = True
+            if append_attempted:
+                stream = codecs.open(paths.get("jsonl"), "a", "utf-8")
+                try:
+                    stream.write(json.dumps(snapshot_record, sort_keys=True))
+                    stream.write("\n")
+                finally:
+                    stream.close()
+                append_succeeded = True
+        except Exception as exc:
+            warnings.append(
+                "Snapshot storage failed: {0}".format(safe_str(exc))
+            )
+
+        change_types = [
+            "ADDED_LINK",
+            "REMOVED_LINK",
+            "PATH_CHANGED",
+            "LOAD_STATUS_CHANGED",
+            "ORIGIN_CHANGED",
+            "ROTATION_CHANGED",
+            "PINNED_STATUS_CHANGED",
+            "WORKSET_CHANGED",
+            "HISTORY_COVERAGE_CHANGED",
+            "HEALTH_CLASSIFICATION_CHANGED",
+        ]
+        counts = {}
+        for change_type in change_types:
+            counts[change_type] = len(
+                [
+                    item for item in changes
+                    if item.get("change_type") == change_type
+                ]
+            )
+
+        storage_failed = bool(
+            not csv_write_succeeded
+            or (append_attempted and not append_succeeded)
+        )
+        if storage_failed:
+            dashboard_result = "LINK_SNAPSHOT_REVIEW_REQUIRED"
+        elif not current_rows:
+            dashboard_result = "LINK_SNAPSHOT_NO_LINKS"
+        elif not previous:
+            dashboard_result = "LINK_SNAPSHOT_BASELINE_CREATED"
+        elif duplicate_skipped:
+            dashboard_result = "LINK_SNAPSHOT_DUPLICATE_SKIPPED"
+        elif changes:
+            dashboard_result = "LINK_SNAPSHOT_CHANGED"
+        elif append_succeeded:
+            dashboard_result = "LINK_SNAPSHOT_UNCHANGED"
+        else:
+            dashboard_result = "LINK_SNAPSHOT_REVIEW_REQUIRED"
+
+        return {
+            "feature_id": "COORD-WR-013",
+            "feature_name": "Revit Link Inventory Snapshot Register / Change Detection",
+            "snapshot_id": snapshot_id,
+            "created_timestamp_local": timestamp,
+            "source_prompt": safe_str(prompt),
+            "document_title": inventory.get("document_title"),
+            "active_view_name": inventory.get("active_view_name"),
+            "snapshot_folder": paths.get("folder"),
+            "jsonl_path": paths.get("jsonl"),
+            "csv_path": paths.get("csv"),
+            "previous_snapshot_found": bool(previous),
+            "previous_snapshot_id": previous.get(
+                "snapshot_report_id", "unavailable"
+            ),
+            "previous_snapshot_timestamp": previous.get(
+                "snapshot_timestamp", "unavailable"
+            ),
+            "current_link_count": len(current_rows),
+            "counts": counts,
+            "unchanged_count": unchanged_count,
+            "append_attempted": append_attempted,
+            "append_succeeded": append_succeeded,
+            "duplicate_skipped": duplicate_skipped,
+            "csv_write_succeeded": csv_write_succeeded,
+            "changes": changes,
+            "rows": current_rows,
+            "dashboard_result": dashboard_result,
+            "recommended_next_action": self._link_inventory_snapshot_recommendation(
+                dashboard_result
+            ),
+            "warnings": warnings,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+    def _format_revit_link_inventory_snapshot_report(self, data):
+        counts = data.get("counts") or {}
+        lines = [
+            "[REVIT LINK INVENTORY SNAPSHOT REGISTER]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Snapshot Report ID:",
+            data.get("snapshot_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "Revit link inventory snapshot and change detection / read-only model audit with local snapshot storage",
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view name:",
+            data.get("active_view_name"),
+            "",
+            "Snapshot storage:",
+            "- Snapshot folder: {0}".format(data.get("snapshot_folder")),
+            "- JSONL snapshot path: {0}".format(data.get("jsonl_path")),
+            "- Latest CSV path: {0}".format(data.get("csv_path")),
+            "- Previous snapshot found: {0}".format(
+                _coord_bool_text(data.get("previous_snapshot_found"))
+            ),
+            "- Previous snapshot id: {0}".format(
+                data.get("previous_snapshot_id")
+            ),
+            "- Previous snapshot timestamp: {0}".format(
+                data.get("previous_snapshot_timestamp")
+            ),
+            "",
+            "Change counts:",
+            "- Current link count: {0}".format(data.get("current_link_count")),
+            "- Added: {0}".format(counts.get("ADDED_LINK", 0)),
+            "- Removed: {0}".format(counts.get("REMOVED_LINK", 0)),
+            "- Path changed: {0}".format(counts.get("PATH_CHANGED", 0)),
+            "- Load status changed: {0}".format(
+                counts.get("LOAD_STATUS_CHANGED", 0)
+            ),
+            "- Origin changed: {0}".format(
+                counts.get("ORIGIN_CHANGED", 0)
+            ),
+            "- Rotation changed: {0}".format(
+                counts.get("ROTATION_CHANGED", 0)
+            ),
+            "- Pinned status changed: {0}".format(
+                counts.get("PINNED_STATUS_CHANGED", 0)
+            ),
+            "- Workset changed: {0}".format(
+                counts.get("WORKSET_CHANGED", 0)
+            ),
+            "- History coverage changed: {0}".format(
+                counts.get("HISTORY_COVERAGE_CHANGED", 0)
+            ),
+            "- Health classification changed: {0}".format(
+                counts.get("HEALTH_CLASSIFICATION_CHANGED", 0)
+            ),
+            "- Unchanged: {0}".format(data.get("unchanged_count")),
+            "",
+            "Append status:",
+            "- Append attempted: {0}".format(
+                _coord_bool_text(data.get("append_attempted"))
+            ),
+            "- Append succeeded: {0}".format(
+                _coord_bool_text(data.get("append_succeeded"))
+            ),
+            "- Duplicate skipped: {0}".format(
+                _coord_bool_text(data.get("duplicate_skipped"))
+            ),
+            "- Latest CSV write succeeded: {0}".format(
+                _coord_bool_text(data.get("csv_write_succeeded"))
+            ),
+            "",
+            "Dashboard result:",
+            data.get("dashboard_result"),
+            "",
+            "Recommended next action:",
+            data.get("recommended_next_action"),
+            "",
+            "Change summary:",
+            "| Change type | Link instance id | Link name | Previous value | Current value | Notes |",
+            "|---|---|---|---|---|---|",
+        ]
+        changes = data.get("changes") or []
+        if changes:
+            for item in changes:
+                lines.append(
+                    "| {0} | {1} | {2} | {3} | {4} | {5} |".format(
+                        item.get("change_type"),
+                        item.get("link_instance_id"),
+                        safe_str(item.get("link_instance_name")).replace(
+                            "|", "/"
+                        ),
+                        safe_str(item.get("previous_value")).replace("|", "/"),
+                        safe_str(item.get("current_value")).replace("|", "/"),
+                        safe_str(item.get("notes")).replace("|", "/"),
+                    )
+                )
+        else:
+            lines.append("| UNCHANGED | none | none | none | none | No meaningful changes detected. |")
+        lines.extend(
+            [
+                "",
+                "Current snapshot inventory:",
+                "| Link instance id | Link name | External path | Loaded/readable | Pinned | Workset | Origin ft | Origin mm | Health classification | History covered |",
+                "|---|---|---|---|---|---|---|---|---|---|",
+            ]
+        )
+        for row in data.get("rows") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} ({6}) | {7} | {8} | {9} | {10} |".format(
+                    row.get("link_instance_id"),
+                    safe_str(row.get("link_instance_name")).replace("|", "/"),
+                    safe_str(row.get("external_reference_path")).replace(
+                        "|", "/"
+                    ),
+                    _coord_bool_text(row.get("loaded_readable")),
+                    _coord_bool_text(row.get("pinned")),
+                    safe_str(row.get("workset_name")).replace("|", "/"),
+                    row.get("workset_id"),
+                    _format_xyz_feet(row.get("origin_ft")),
+                    _format_xyz_mm(row.get("origin_ft")),
+                    row.get("link_health_classification"),
+                    _coord_bool_text(row.get("history_covered")),
+                )
+            )
+        if not data.get("rows"):
+            lines.append("| none | none | none | false | false | none | none | none | none | false |")
+        lines.extend(["", "Warnings:"])
+        warnings = data.get("warnings") or []
+        if warnings:
+            for warning in warnings:
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Current Revit link inventory was read without modifying the model.",
+                "- Local writes were limited to Link_Inventory_History snapshot JSONL and latest CSV files.",
+                "- COORD-WR-006 history and QA export files were not modified.",
+                "- No reset, correction, rollback, apply, verification, history append, reconciliation, advisor, bundle, integrity, reload, unload, pin, unpin, or selection action was run.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_revit_link_inventory_snapshot_question(self, prompt):
+        if not _is_revit_link_inventory_snapshot_prompt(prompt):
+            return None
+        snapshot_data = self._collect_revit_link_inventory_snapshot(prompt)
+        report_text = self._format_revit_link_inventory_snapshot_report(
+            snapshot_data
+        )
+        snapshot_data["report_header"] = (
+            "[REVIT LINK INVENTORY SNAPSHOT REGISTER]"
+        )
+        snapshot_data["report_scope"] = (
+            "Revit link inventory snapshot and change detection / read-only model audit with local snapshot storage"
+        )
+        snapshot_data["report_text"] = report_text
+        self.latest_revit_link_inventory_snapshot_state = dict(snapshot_data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[REVIT LINK INVENTORY SNAPSHOT REGISTER]",
+            "report_text": report_text,
+            "report_scope": "Revit link inventory snapshot and change detection / read-only model audit with local snapshot storage",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-013",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _read_link_inventory_latest_csv_count(self, csv_path):
+        if not csv_path or not os.path.exists(csv_path):
+            return None, None
+        try:
+            stream = codecs.open(csv_path, "r", "utf-8")
+            try:
+                rows = [row for row in csv.DictReader(stream)]
+            finally:
+                stream.close()
+            return len(rows), None
+        except Exception as exc:
+            return None, "Latest snapshot CSV could not be read: {0}".format(
+                safe_str(exc)
+            )
+
+    def _link_inventory_snapshot_health_summary(self, snapshot):
+        counts = {}
+        for row in (snapshot or {}).get("rows") or []:
+            classification = safe_str(
+                row.get("link_health_classification") or "unavailable"
+            )
+            counts[classification] = counts.get(classification, 0) + 1
+        if not counts:
+            return "unavailable"
+        return "; ".join(
+            [
+                "{0}: {1}".format(key, counts[key])
+                for key in sorted(counts.keys())
+            ]
+        )
+
+    def _normalize_link_inventory_snapshot_status_source(
+        self, state, source, export_folder="unavailable"
+    ):
+        if not isinstance(state, dict) or not state:
+            return {}
+        counts = state.get("counts") or {}
+        return {
+            "report_id": safe_str(
+                state.get("snapshot_id")
+                or state.get("snapshot_report_id")
+                or "unavailable"
+            ),
+            "timestamp": safe_str(
+                state.get("created_timestamp_local")
+                or state.get("snapshot_timestamp")
+                or "unavailable"
+            ),
+            "document_title": safe_str(
+                state.get("document_title")
+                or state.get("active_document_title")
+                or "unavailable"
+            ),
+            "active_view_name": safe_str(
+                state.get("active_view_name") or "unavailable"
+            ),
+            "dashboard_result": safe_str(
+                state.get("dashboard_result") or "unavailable"
+            ),
+            "previous_snapshot_found": bool(
+                state.get("previous_snapshot_found")
+            ),
+            "previous_snapshot_id": safe_str(
+                state.get("previous_snapshot_id") or "unavailable"
+            ),
+            "current_link_count": _safe_int(
+                state.get("current_link_count"), 0
+            ),
+            "counts": {
+                "ADDED_LINK": _safe_int(counts.get("ADDED_LINK"), 0),
+                "REMOVED_LINK": _safe_int(counts.get("REMOVED_LINK"), 0),
+                "PATH_CHANGED": _safe_int(counts.get("PATH_CHANGED"), 0),
+                "LOAD_STATUS_CHANGED": _safe_int(
+                    counts.get("LOAD_STATUS_CHANGED"), 0
+                ),
+                "ORIGIN_CHANGED": _safe_int(
+                    counts.get("ORIGIN_CHANGED"), 0
+                ),
+                "ROTATION_CHANGED": _safe_int(
+                    counts.get("ROTATION_CHANGED"), 0
+                ),
+                "PINNED_STATUS_CHANGED": _safe_int(
+                    counts.get("PINNED_STATUS_CHANGED"), 0
+                ),
+                "WORKSET_CHANGED": _safe_int(
+                    counts.get("WORKSET_CHANGED"), 0
+                ),
+                "HISTORY_COVERAGE_CHANGED": _safe_int(
+                    counts.get("HISTORY_COVERAGE_CHANGED"), 0
+                ),
+                "HEALTH_CLASSIFICATION_CHANGED": _safe_int(
+                    counts.get("HEALTH_CLASSIFICATION_CHANGED"), 0
+                ),
+            },
+            "unchanged_count": _safe_int(
+                state.get("unchanged_count"), 0
+            ),
+            "append_attempted": bool(state.get("append_attempted")),
+            "append_succeeded": bool(state.get("append_succeeded")),
+            "duplicate_skipped": bool(state.get("duplicate_skipped")),
+            "csv_write_succeeded": bool(
+                state.get("csv_write_succeeded")
+            ),
+            "source": source,
+            "export_folder": safe_str(export_folder or "unavailable"),
+        }
+
+    def _parse_link_inventory_snapshot_export(self, export_entry):
+        if not export_entry:
+            return {}, "COORD-WR-013 QA export entry is unavailable."
+        export_folder = safe_str(export_entry.get("export_folder")).strip()
+        candidates = [
+            safe_str(export_entry.get("text_file")).strip(),
+            os.path.join(export_folder, "report.txt") if export_folder else "",
+            safe_str(export_entry.get("report_file")).strip(),
+            os.path.join(export_folder, "report.md") if export_folder else "",
+        ]
+        report_text = ""
+        for candidate in candidates:
+            if not candidate or not os.path.exists(candidate):
+                continue
+            try:
+                stream = codecs.open(candidate, "r", "utf-8")
+                try:
+                    report_text = stream.read()
+                finally:
+                    stream.close()
+                if report_text:
+                    break
+            except:
+                continue
+        if not report_text:
+            return {}, "Matched COORD-WR-013 export has no readable report."
+        fields = self._link_reset_history_report_fields(report_text)
+        dashboard_result = safe_str(fields.get("Dashboard result")).strip()
+        if not dashboard_result:
+            return {}, "Matched COORD-WR-013 export has no dashboard result."
+        count_fields = {
+            "ADDED_LINK": "Added",
+            "REMOVED_LINK": "Removed",
+            "PATH_CHANGED": "Path changed",
+            "LOAD_STATUS_CHANGED": "Load status changed",
+            "ORIGIN_CHANGED": "Origin changed",
+            "ROTATION_CHANGED": "Rotation changed",
+            "PINNED_STATUS_CHANGED": "Pinned status changed",
+            "WORKSET_CHANGED": "Workset changed",
+            "HISTORY_COVERAGE_CHANGED": "History coverage changed",
+            "HEALTH_CLASSIFICATION_CHANGED": "Health classification changed",
+        }
+        counts = {}
+        for key, field_name in count_fields.items():
+            counts[key] = _safe_int(fields.get(field_name), 0)
+        parsed = {
+            "snapshot_id": fields.get(
+                "Snapshot Report ID", "unavailable"
+            ),
+            "created_timestamp_local": fields.get(
+                "Timestamp",
+                export_entry.get("export_timestamp_local", "unavailable"),
+            ),
+            "document_title": fields.get(
+                "Active document title",
+                export_entry.get("document_title", "unavailable"),
+            ),
+            "active_view_name": fields.get(
+                "Active view name",
+                export_entry.get("active_view_name", "unavailable"),
+            ),
+            "dashboard_result": dashboard_result,
+            "previous_snapshot_found": self._link_reset_history_bool(
+                fields.get("Previous snapshot found")
+            ),
+            "previous_snapshot_id": fields.get(
+                "Previous snapshot id", "unavailable"
+            ),
+            "current_link_count": _safe_int(
+                fields.get("Current link count"), 0
+            ),
+            "counts": counts,
+            "unchanged_count": _safe_int(fields.get("Unchanged"), 0),
+            "append_attempted": self._link_reset_history_bool(
+                fields.get("Append attempted")
+            ),
+            "append_succeeded": self._link_reset_history_bool(
+                fields.get("Append succeeded")
+            ),
+            "duplicate_skipped": self._link_reset_history_bool(
+                fields.get("Duplicate skipped")
+            ),
+            "csv_write_succeeded": self._link_reset_history_bool(
+                fields.get("Latest CSV write succeeded")
+            ),
+        }
+        return self._normalize_link_inventory_snapshot_status_source(
+            parsed, "qa_export_fallback", export_folder or "unavailable"
+        ), None
+
+    def _latest_link_inventory_snapshot_export_for_document(
+        self, active_document
+    ):
+        entries, warnings = self._read_link_reset_history_qa_index()
+        matches = []
+        seen_folders = set()
+        for entry in entries:
+            header = entry.get(
+                "source_report_header", entry.get("source_header")
+            )
+            if (
+                safe_str(header).strip()
+                != "[REVIT LINK INVENTORY SNAPSHOT REGISTER]"
+            ):
+                continue
+            entry_document = safe_str(entry.get("document_title")).strip()
+            if (
+                entry_document
+                and entry_document.lower()
+                != safe_str(active_document).strip().lower()
+            ):
+                continue
+            folder = safe_str(entry.get("export_folder")).strip()
+            if not folder or folder in seen_folders:
+                continue
+            seen_folders.add(folder)
+            matches.append(entry)
+        matches = sorted(
+            matches,
+            key=lambda item: safe_str(
+                item.get("export_timestamp_local", item.get("timestamp"))
+            ),
+            reverse=True,
+        )
+        for entry in matches:
+            parsed, error = self._parse_link_inventory_snapshot_export(entry)
+            if error:
+                warnings.append(error)
+                continue
+            if (
+                safe_str(parsed.get("document_title")).strip().lower()
+                != safe_str(active_document).strip().lower()
+            ):
+                warnings.append(
+                    "COORD-WR-013 QA export document does not match the active document."
+                )
+                continue
+            return parsed, warnings
+        return {}, warnings
+
+    def _latest_link_inventory_snapshot_status_source(
+        self, active_document
+    ):
+        warnings = []
+        state = self.latest_revit_link_inventory_snapshot_state or {}
+        normalized = self._normalize_link_inventory_snapshot_status_source(
+            state, "shared_state"
+        )
+        if (
+            normalized
+            and safe_str(normalized.get("document_title")).strip().lower()
+            == safe_str(active_document).strip().lower()
+        ):
+            return normalized, warnings
+        fallback, fallback_warnings = (
+            self._latest_link_inventory_snapshot_export_for_document(
+                active_document
+            )
+        )
+        warnings.extend(fallback_warnings)
+        return fallback, warnings
+
+    def _link_inventory_snapshot_status_recommendation(self, result):
+        recommendations = {
+            "SNAPSHOT_STATUS_BASELINE_ONLY": "Baseline snapshot exists. Re-run show link inventory snapshot after future link changes to detect drift.",
+            "SNAPSHOT_STATUS_UNCHANGED_CLEAN": "No action required. Latest snapshot check confirms the link inventory is unchanged from the stored baseline.",
+            "SNAPSHOT_STATUS_CHANGED": "Review detected link inventory changes. Run show revit link inventory and COORD-WR-001 audit before any reset decision.",
+            "SNAPSHOT_STATUS_HISTORY_UNAVAILABLE": "Run show link inventory snapshot to create a baseline.",
+            "SNAPSHOT_STATUS_LATEST_EXPORT_UNAVAILABLE": "Run show link inventory snapshot to refresh snapshot status evidence.",
+            "SNAPSHOT_STATUS_REVIEW_REQUIRED": "Review snapshot files and run show link inventory snapshot.",
+        }
+        return recommendations.get(
+            result, recommendations["SNAPSHOT_STATUS_REVIEW_REQUIRED"]
+        )
+
+    def _collect_revit_link_inventory_snapshot_status(self, prompt):
+        paths = self._link_inventory_snapshot_paths()
+        document_title = safe_str(getattr(doc, "Title", "(unknown document)"))
+        active_view_name = self._safe_active_view_name()
+        records, warnings = self._read_link_inventory_snapshots(
+            paths.get("jsonl")
+        )
+        matching = [
+            item
+            for item in records
+            if safe_str(item.get("active_document_title")).strip().lower()
+            == document_title.strip().lower()
+        ]
+        matching = sorted(
+            matching,
+            key=lambda item: (
+                safe_str(item.get("snapshot_timestamp")),
+                _safe_int(item.get("_file_order"), 0),
+            ),
+        )
+        baseline = matching[0] if matching else {}
+        latest = matching[-1] if matching else {}
+        csv_count, csv_warning = self._read_link_inventory_latest_csv_count(
+            paths.get("csv")
+        )
+        if csv_warning:
+            warnings.append(csv_warning)
+        latest_source, source_warnings = (
+            self._latest_link_inventory_snapshot_status_source(
+                document_title
+            )
+        )
+        warnings.extend(source_warnings)
+        counts = latest_source.get("counts") or {}
+        changed_total = sum(
+            [
+                _safe_int(counts.get(key), 0)
+                for key in [
+                    "ADDED_LINK",
+                    "REMOVED_LINK",
+                    "PATH_CHANGED",
+                    "LOAD_STATUS_CHANGED",
+                    "ORIGIN_CHANGED",
+                    "ROTATION_CHANGED",
+                    "PINNED_STATUS_CHANGED",
+                    "WORKSET_CHANGED",
+                    "HISTORY_COVERAGE_CHANGED",
+                    "HEALTH_CLASSIFICATION_CHANGED",
+                ]
+            ]
+        )
+        latest_result = safe_str(
+            latest_source.get("dashboard_result") or "unavailable"
+        )
+        if not matching:
+            dashboard_result = "SNAPSHOT_STATUS_HISTORY_UNAVAILABLE"
+        elif not latest_source:
+            dashboard_result = "SNAPSHOT_STATUS_LATEST_EXPORT_UNAVAILABLE"
+        elif (
+            latest_result == "LINK_SNAPSHOT_BASELINE_CREATED"
+            and changed_total == 0
+        ):
+            dashboard_result = "SNAPSHOT_STATUS_BASELINE_ONLY"
+        elif (
+            latest_result
+            in ["LINK_SNAPSHOT_DUPLICATE_SKIPPED", "LINK_SNAPSHOT_UNCHANGED"]
+            and changed_total == 0
+        ):
+            dashboard_result = "SNAPSHOT_STATUS_UNCHANGED_CLEAN"
+        elif (
+            latest_result == "LINK_SNAPSHOT_CHANGED"
+            or changed_total > 0
+        ):
+            dashboard_result = "SNAPSHOT_STATUS_CHANGED"
+        else:
+            dashboard_result = "SNAPSHOT_STATUS_REVIEW_REQUIRED"
+        if (
+            latest_source
+            and latest.get("link_count") is not None
+            and _safe_int(latest_source.get("current_link_count"), -1)
+            != _safe_int(latest.get("link_count"), -2)
+        ):
+            warnings.append(
+                "Latest export link count differs from the latest stored snapshot."
+            )
+            dashboard_result = "SNAPSHOT_STATUS_REVIEW_REQUIRED"
+        return {
+            "feature_id": "COORD-WR-014",
+            "feature_name": "Revit Link Inventory Snapshot Status Dashboard",
+            "status_id": "COORD-WR-014-{0}".format(
+                time.strftime("%Y%m%d_%H%M%S")
+            ),
+            "created_timestamp_local": time.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+            "source_prompt": safe_str(prompt),
+            "document_title": document_title,
+            "active_view_name": active_view_name,
+            "jsonl_path": paths.get("jsonl"),
+            "csv_path": paths.get("csv"),
+            "jsonl_exists": os.path.exists(paths.get("jsonl")),
+            "csv_exists": os.path.exists(paths.get("csv")),
+            "snapshot_count": len(matching),
+            "baseline_snapshot_id": baseline.get(
+                "snapshot_report_id", "unavailable"
+            ),
+            "baseline_snapshot_timestamp": baseline.get(
+                "snapshot_timestamp", "unavailable"
+            ),
+            "latest_snapshot_id": latest.get(
+                "snapshot_report_id", "unavailable"
+            ),
+            "latest_snapshot_timestamp": latest.get(
+                "snapshot_timestamp", "unavailable"
+            ),
+            "latest_snapshot_link_count": latest.get(
+                "link_count", "unavailable"
+            ),
+            "latest_inventory_signature": latest.get(
+                "inventory_signature", "unavailable"
+            ),
+            "latest_health_summary": self._link_inventory_snapshot_health_summary(
+                latest
+            ),
+            "latest_csv_row_count": (
+                csv_count if csv_count is not None else "unavailable"
+            ),
+            "latest_source": latest_source,
+            "dashboard_result": dashboard_result,
+            "recommended_next_action": self._link_inventory_snapshot_status_recommendation(
+                dashboard_result
+            ),
+            "warnings": warnings,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+    def _format_revit_link_inventory_snapshot_status_report(self, data):
+        source = data.get("latest_source") or {}
+        counts = source.get("counts") or {}
+        metrics = [
+            ("Active-document snapshots", data.get("snapshot_count")),
+            ("Baseline snapshot id", data.get("baseline_snapshot_id")),
+            ("Latest stored snapshot id", data.get("latest_snapshot_id")),
+            ("Latest stored link count", data.get("latest_snapshot_link_count")),
+            ("Latest CSV row count", data.get("latest_csv_row_count")),
+            ("Latest COORD-WR-013 result", source.get("dashboard_result", "unavailable")),
+            ("Detected changed fields", sum([_safe_int(value, 0) for value in counts.values()])),
+            ("Unchanged links", source.get("unchanged_count", 0)),
+            ("Dashboard result", data.get("dashboard_result")),
+        ]
+        lines = [
+            "[REVIT LINK INVENTORY SNAPSHOT STATUS]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Snapshot Status Report ID:",
+            data.get("status_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "Revit link inventory snapshot status / read-only baseline and drift dashboard",
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view name:",
+            data.get("active_view_name"),
+            "",
+            "Snapshot files:",
+            "- Snapshot JSONL path: {0}".format(data.get("jsonl_path")),
+            "- Latest CSV path: {0}".format(data.get("csv_path")),
+            "- Snapshot JSONL exists: {0}".format(_coord_bool_text(data.get("jsonl_exists"))),
+            "- Latest CSV exists: {0}".format(_coord_bool_text(data.get("csv_exists"))),
+            "- Active-document snapshot count: {0}".format(data.get("snapshot_count")),
+            "- Baseline snapshot id: {0}".format(data.get("baseline_snapshot_id")),
+            "- Baseline snapshot timestamp: {0}".format(data.get("baseline_snapshot_timestamp")),
+            "- Latest stored snapshot id: {0}".format(data.get("latest_snapshot_id")),
+            "- Latest stored snapshot timestamp: {0}".format(data.get("latest_snapshot_timestamp")),
+            "- Latest stored link count: {0}".format(data.get("latest_snapshot_link_count")),
+            "- Latest stored inventory signature: {0}".format(data.get("latest_inventory_signature")),
+            "- Latest stored health summary: {0}".format(data.get("latest_health_summary")),
+            "- Latest CSV row count: {0}".format(data.get("latest_csv_row_count")),
+            "",
+            "Latest COORD-WR-013 evidence:",
+            "- Latest COORD-WR-013 report id: {0}".format(source.get("report_id", "unavailable")),
+            "- Latest COORD-WR-013 timestamp: {0}".format(source.get("timestamp", "unavailable")),
+            "- Latest COORD-WR-013 dashboard result: {0}".format(source.get("dashboard_result", "unavailable")),
+            "- Latest COORD-WR-013 source: {0}".format(source.get("source", "unavailable")),
+            "- Latest COORD-WR-013 export folder: {0}".format(source.get("export_folder", "unavailable")),
+            "- Previous snapshot found: {0}".format(_coord_bool_text(source.get("previous_snapshot_found"))),
+            "- Previous snapshot id: {0}".format(source.get("previous_snapshot_id", "unavailable")),
+            "- Current link count: {0}".format(source.get("current_link_count", "unavailable")),
+            "- Added count: {0}".format(counts.get("ADDED_LINK", 0)),
+            "- Removed count: {0}".format(counts.get("REMOVED_LINK", 0)),
+            "- Path changed count: {0}".format(counts.get("PATH_CHANGED", 0)),
+            "- Load status changed count: {0}".format(counts.get("LOAD_STATUS_CHANGED", 0)),
+            "- Origin changed count: {0}".format(counts.get("ORIGIN_CHANGED", 0)),
+            "- Rotation changed count: {0}".format(counts.get("ROTATION_CHANGED", 0)),
+            "- Pinned status changed count: {0}".format(counts.get("PINNED_STATUS_CHANGED", 0)),
+            "- Workset changed count: {0}".format(counts.get("WORKSET_CHANGED", 0)),
+            "- History coverage changed count: {0}".format(counts.get("HISTORY_COVERAGE_CHANGED", 0)),
+            "- Health classification changed count: {0}".format(counts.get("HEALTH_CLASSIFICATION_CHANGED", 0)),
+            "- Unchanged count: {0}".format(source.get("unchanged_count", 0)),
+            "- Append attempted: {0}".format(_coord_bool_text(source.get("append_attempted"))),
+            "- Append succeeded: {0}".format(_coord_bool_text(source.get("append_succeeded"))),
+            "- Duplicate skipped: {0}".format(_coord_bool_text(source.get("duplicate_skipped"))),
+            "- Latest CSV write succeeded: {0}".format(_coord_bool_text(source.get("csv_write_succeeded"))),
+            "",
+            "Dashboard result:",
+            data.get("dashboard_result"),
+            "",
+            "Recommended next action:",
+            data.get("recommended_next_action"),
+            "",
+            "Latest snapshot status table:",
+            "| Metric | Value |",
+            "|---|---|",
+        ]
+        for metric, value in metrics:
+            lines.append(
+                "| {0} | {1} |".format(
+                    safe_str(metric).replace("|", "/"),
+                    safe_str(value).replace("|", "/"),
+                )
+            )
+        lines.extend(["", "Warnings:"])
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Read-only snapshot baseline and drift dashboard only.",
+                "- Existing Link_Inventory_History and QA export files were read but not modified.",
+                "- No snapshot, inventory, audit, reset, correction, rollback, apply, verification, history append, reconciliation, advisor, bundle, integrity, reload, unload, pin, unpin, or selection action was run.",
+                "- No Revit model or linked-document data was modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_revit_link_inventory_snapshot_status_question(self, prompt):
+        if not _is_revit_link_inventory_snapshot_status_prompt(prompt):
+            return None
+        data = self._collect_revit_link_inventory_snapshot_status(prompt)
+        report_text = self._format_revit_link_inventory_snapshot_status_report(
+            data
+        )
+        data["report_header"] = (
+            "[REVIT LINK INVENTORY SNAPSHOT STATUS]"
+        )
+        data["report_scope"] = (
+            "Revit link inventory snapshot status / read-only baseline and drift dashboard"
+        )
+        data["report_text"] = report_text
+        self.latest_revit_link_inventory_snapshot_status_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[REVIT LINK INVENTORY SNAPSHOT STATUS]",
+            "report_text": report_text,
+            "report_scope": "Revit link inventory snapshot status / read-only baseline and drift dashboard",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-014",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _coordination_link_master_specs(self):
+        return [
+            {
+                "feature_id": "COORD-WR-010",
+                "header": "[LINK RESET WORKFLOW EVIDENCE BUNDLE]",
+                "id_field": "Bundle Report ID",
+                "result_field": "Bundle result",
+            },
+            {
+                "feature_id": "COORD-WR-011",
+                "header": "[LINK RESET EVIDENCE BUNDLE INTEGRITY CHECK]",
+                "id_field": "Integrity Report ID",
+                "result_field": "Integrity result",
+            },
+            {
+                "feature_id": "COORD-WR-012",
+                "header": "[REVIT LINK INVENTORY HEALTH AUDIT]",
+                "id_field": "Inventory Report ID",
+                "result_field": "Dashboard result",
+            },
+            {
+                "feature_id": "COORD-WR-013",
+                "header": "[REVIT LINK INVENTORY SNAPSHOT REGISTER]",
+                "id_field": "Snapshot Report ID",
+                "result_field": "Dashboard result",
+            },
+            {
+                "feature_id": "COORD-WR-014",
+                "header": "[REVIT LINK INVENTORY SNAPSHOT STATUS]",
+                "id_field": "Snapshot Status Report ID",
+                "result_field": "Dashboard result",
+            },
+        ]
+
+    def _coordination_link_master_report_text(self, export_entry):
+        export_folder = safe_str(export_entry.get("export_folder")).strip()
+        warnings = []
+        candidates = [
+            safe_str(export_entry.get("text_file")).strip(),
+            os.path.join(export_folder, "report.txt") if export_folder else "",
+            safe_str(export_entry.get("report_file")).strip(),
+            os.path.join(export_folder, "report.md") if export_folder else "",
+        ]
+        for candidate in candidates:
+            if not candidate or not os.path.exists(candidate):
+                continue
+            try:
+                stream = codecs.open(candidate, "r", "utf-8")
+                try:
+                    text = stream.read()
+                finally:
+                    stream.close()
+                if text:
+                    return text, candidate, None
+            except Exception as exc:
+                warnings.append(
+                    "QA report could not be read at {0}: {1}".format(
+                        candidate, safe_str(exc)
+                    )
+                )
+        if warnings:
+            return "", "unavailable", "; ".join(warnings)
+        return "", "unavailable", "QA export has no readable report.txt or report.md."
+
+    def _coordination_link_master_table_metric(self, report_text, metric):
+        target = safe_str(metric).strip().lower()
+        for raw_line in safe_str(report_text).replace(
+            "\r\n", "\n"
+        ).replace("\r", "\n").split("\n"):
+            line = raw_line.strip()
+            if not line.startswith("|"):
+                continue
+            cells = [cell.strip() for cell in line.strip("|").split("|")]
+            if len(cells) >= 2 and cells[0].lower() == target:
+                return cells[1]
+        return None
+
+    def _parse_coordination_link_master_export(self, spec, export_entry):
+        report_text, report_path, error = (
+            self._coordination_link_master_report_text(export_entry)
+        )
+        if error:
+            return {}, error
+        fields = self._link_reset_history_report_fields(report_text)
+        report_id = safe_str(fields.get(spec.get("id_field"))).strip()
+        result = safe_str(fields.get(spec.get("result_field"))).strip()
+        document_title = safe_str(
+            fields.get("Active document title")
+            or export_entry.get("document_title")
+        ).strip()
+        if not report_id or not result:
+            return {}, "QA export for {0} is incomplete.".format(
+                spec.get("feature_id")
+            )
+        data = {
+            "feature_id": spec.get("feature_id"),
+            "header": spec.get("header"),
+            "report_id": report_id,
+            "result": result,
+            "timestamp": safe_str(
+                fields.get("Timestamp")
+                or export_entry.get("export_timestamp_local")
+                or "unavailable"
+            ),
+            "document_title": document_title or "unavailable",
+            "active_view_name": safe_str(
+                fields.get("Active view name")
+                or export_entry.get("active_view_name")
+                or "unavailable"
+            ),
+            "export_folder": safe_str(
+                export_entry.get("export_folder") or "unavailable"
+            ),
+            "report_path": report_path,
+            "source": "qa_export",
+            "available": True,
+            "counts": {},
+        }
+        if spec.get("feature_id") == "COORD-WR-011":
+            for key in [
+                "OK_EXPORT_FOLDER_COMPLETE",
+                "OK_HISTORY_RECORD_SOURCE",
+                "FOLDER_EXISTS_FILES_INCOMPLETE",
+                "FOLDER_EXISTS_INDEX_MISSING",
+                "SOURCE_LINK_MISSING",
+                "SOURCE_FOLDER_MISSING",
+                "REVIEW_REQUIRED",
+            ]:
+                data["counts"][key] = _safe_int(fields.get(key), 0)
+            data["missing_count"] = sum(
+                [
+                    data["counts"].get(key, 0)
+                    for key in [
+                        "FOLDER_EXISTS_FILES_INCOMPLETE",
+                        "FOLDER_EXISTS_INDEX_MISSING",
+                        "SOURCE_LINK_MISSING",
+                        "SOURCE_FOLDER_MISSING",
+                        "REVIEW_REQUIRED",
+                    ]
+                ]
+            )
+        elif spec.get("feature_id") == "COORD-WR-012":
+            mappings = {
+                "total_link_count": "Total RevitLinkInstance count",
+                "loaded_count": "Loaded/readable links",
+                "unreadable_count": "Unloaded/unreadable links",
+                "offset_count": "Offset from zero",
+                "rotated_count": "Rotated/non-orthogonal",
+            }
+            for key, field_name in mappings.items():
+                data[key] = _safe_int(fields.get(field_name), 0)
+        elif spec.get("feature_id") == "COORD-WR-013":
+            mappings = {
+                "current_link_count": "Current link count",
+                "added_count": "Added",
+                "removed_count": "Removed",
+                "path_changed_count": "Path changed",
+                "load_status_changed_count": "Load status changed",
+                "origin_changed_count": "Origin changed",
+                "rotation_changed_count": "Rotation changed",
+                "pinned_status_changed_count": "Pinned status changed",
+                "workset_changed_count": "Workset changed",
+                "history_coverage_changed_count": "History coverage changed",
+                "health_classification_changed_count": "Health classification changed",
+                "unchanged_count": "Unchanged",
+            }
+            for key, field_name in mappings.items():
+                data[key] = _safe_int(fields.get(field_name), 0)
+            data["duplicate_skipped"] = self._link_reset_history_bool(
+                fields.get("Duplicate skipped")
+            )
+            data["changed_field_count"] = sum(
+                [
+                    data.get(key, 0)
+                    for key in [
+                        "added_count",
+                        "removed_count",
+                        "path_changed_count",
+                        "load_status_changed_count",
+                        "origin_changed_count",
+                        "rotation_changed_count",
+                        "pinned_status_changed_count",
+                        "workset_changed_count",
+                        "history_coverage_changed_count",
+                        "health_classification_changed_count",
+                    ]
+                ]
+            )
+        elif spec.get("feature_id") == "COORD-WR-014":
+            data["snapshot_count"] = _safe_int(
+                fields.get("Active-document snapshot count"), 0
+            )
+            data["baseline_snapshot_id"] = safe_str(
+                fields.get("Baseline snapshot id") or "unavailable"
+            )
+            data["latest_snapshot_id"] = safe_str(
+                fields.get("Latest stored snapshot id") or "unavailable"
+            )
+            data["latest_wr013_result"] = safe_str(
+                fields.get("Latest COORD-WR-013 dashboard result")
+                or "unavailable"
+            )
+            data["changed_field_count"] = _safe_int(
+                self._coordination_link_master_table_metric(
+                    report_text, "Detected changed fields"
+                ),
+                0,
+            )
+            data["unchanged_count"] = _safe_int(
+                self._coordination_link_master_table_metric(
+                    report_text, "Unchanged links"
+                ),
+                0,
+            )
+        return data, None
+
+    def _coordination_link_master_latest_exports(self, active_document):
+        entries, warnings = self._read_link_reset_history_qa_index()
+        results = {}
+        for spec in self._coordination_link_master_specs():
+            matches = []
+            seen_folders = set()
+            for entry in entries:
+                header = entry.get(
+                    "source_report_header", entry.get("source_header")
+                )
+                if safe_str(header).strip() != spec.get("header"):
+                    continue
+                entry_document = safe_str(
+                    entry.get("document_title")
+                ).strip()
+                if (
+                    entry_document
+                    and entry_document.lower()
+                    != safe_str(active_document).strip().lower()
+                ):
+                    continue
+                folder = safe_str(entry.get("export_folder")).strip()
+                if not folder or folder in seen_folders:
+                    continue
+                seen_folders.add(folder)
+                matches.append(entry)
+            matches = sorted(
+                matches,
+                key=lambda item: safe_str(
+                    item.get(
+                        "export_timestamp_local", item.get("timestamp")
+                    )
+                ),
+                reverse=True,
+            )
+            parsed = {}
+            for entry in matches:
+                candidate, error = self._parse_coordination_link_master_export(
+                    spec, entry
+                )
+                if error:
+                    warnings.append(error)
+                    continue
+                if (
+                    safe_str(candidate.get("document_title")).strip().lower()
+                    != safe_str(active_document).strip().lower()
+                ):
+                    warnings.append(
+                        "{0} QA export document does not match the active document.".format(
+                            spec.get("feature_id")
+                        )
+                    )
+                    continue
+                parsed = candidate
+                break
+            results[spec.get("feature_id")] = parsed
+        return results, warnings
+
+    def _coordination_link_master_shared_fallback(
+        self, feature_id, active_document
+    ):
+        states = {
+            "COORD-WR-010": self.latest_link_reset_workflow_evidence_bundle_state,
+            "COORD-WR-011": self.latest_link_reset_evidence_bundle_integrity_state,
+            "COORD-WR-012": self.latest_revit_link_inventory_health_audit_state,
+            "COORD-WR-013": self.latest_revit_link_inventory_snapshot_state,
+            "COORD-WR-014": self.latest_revit_link_inventory_snapshot_status_state,
+        }
+        state = states.get(feature_id) or {}
+        if not isinstance(state, dict) or not state:
+            return {}
+        state_document = safe_str(
+            state.get("document_title")
+            or state.get("active_document_title")
+        ).strip()
+        if state_document.lower() != safe_str(active_document).strip().lower():
+            return {}
+        mappings = {
+            "COORD-WR-010": ("bundle_id", "bundle_result"),
+            "COORD-WR-011": ("integrity_id", "integrity_result"),
+            "COORD-WR-012": ("inventory_id", "dashboard_result"),
+            "COORD-WR-013": ("snapshot_id", "dashboard_result"),
+            "COORD-WR-014": ("status_id", "dashboard_result"),
+        }
+        id_key, result_key = mappings.get(feature_id)
+        data = {
+            "feature_id": feature_id,
+            "header": state.get("report_header", "unavailable"),
+            "report_id": state.get(id_key, "unavailable"),
+            "result": state.get(result_key, "Unavailable"),
+            "timestamp": state.get(
+                "created_timestamp_local", "unavailable"
+            ),
+            "document_title": state_document,
+            "active_view_name": state.get(
+                "active_view_name", "unavailable"
+            ),
+            "export_folder": "unavailable",
+            "source": "shared_state",
+            "available": True,
+            "counts": dict(state.get("counts") or {}),
+        }
+        if feature_id == "COORD-WR-011":
+            data["missing_count"] = sum(
+                [
+                    _safe_int(data["counts"].get(key), 0)
+                    for key in [
+                        "FOLDER_EXISTS_FILES_INCOMPLETE",
+                        "FOLDER_EXISTS_INDEX_MISSING",
+                        "SOURCE_LINK_MISSING",
+                        "SOURCE_FOLDER_MISSING",
+                        "REVIEW_REQUIRED",
+                    ]
+                ]
+            )
+        elif feature_id == "COORD-WR-012":
+            for key in [
+                "total_link_count",
+                "loaded_count",
+                "unreadable_count",
+                "offset_count",
+                "rotated_count",
+            ]:
+                data[key] = _safe_int(state.get(key), 0)
+        elif feature_id == "COORD-WR-013":
+            data["current_link_count"] = _safe_int(
+                state.get("current_link_count"), 0
+            )
+            data["duplicate_skipped"] = bool(
+                state.get("duplicate_skipped")
+            )
+            data["added_count"] = _safe_int(
+                data["counts"].get("ADDED_LINK"), 0
+            )
+            data["removed_count"] = _safe_int(
+                data["counts"].get("REMOVED_LINK"), 0
+            )
+            data["changed_field_count"] = sum(
+                [_safe_int(value, 0) for value in data["counts"].values()]
+            )
+        elif feature_id == "COORD-WR-014":
+            source = state.get("latest_source") or {}
+            data["snapshot_count"] = _safe_int(
+                state.get("snapshot_count"), 0
+            )
+            data["baseline_snapshot_id"] = state.get(
+                "baseline_snapshot_id", "unavailable"
+            )
+            data["latest_snapshot_id"] = state.get(
+                "latest_snapshot_id", "unavailable"
+            )
+            data["latest_wr013_result"] = source.get(
+                "dashboard_result", "unavailable"
+            )
+            data["changed_field_count"] = sum(
+                [
+                    _safe_int(value, 0)
+                    for value in (source.get("counts") or {}).values()
+                ]
+            )
+            data["unchanged_count"] = _safe_int(
+                source.get("unchanged_count"), 0
+            )
+        return data
+
+    def _coordination_link_master_recommendation(self, result):
+        recommendations = {
+            "COORD_LINK_MASTER_CLEAN": "No action required. Coordination link state is clean, fully evidenced, and unchanged.",
+            "COORD_LINK_MASTER_CLEAN_WITH_HISTORY_SOURCE": "No model action required. Coordination link state is clean and unchanged; one or more source items are represented through local history evidence.",
+            "COORD_LINK_MASTER_RECONCILIATION_REQUIRED": "Run show link reset reconciliation dashboard and then refresh the evidence bundle.",
+            "COORD_LINK_MASTER_INVENTORY_CHANGED": "Review detected inventory changes. Run show revit link inventory and COORD-WR-001 audit before any reset decision.",
+            "COORD_LINK_MASTER_EVIDENCE_INCOMPLETE": "Review missing evidence exports/files before final handover.",
+            "COORD_LINK_MASTER_HISTORY_UNAVAILABLE": "Run show link reset workflow history and show link inventory snapshot after valid checkpoints exist.",
+            "COORD_LINK_MASTER_REVIEW_REQUIRED": "Review coordination link evidence reports and rerun the relevant read-only dashboard.",
+        }
+        return recommendations.get(
+            result, recommendations["COORD_LINK_MASTER_REVIEW_REQUIRED"]
+        )
+
+    def _collect_coordination_link_master_status(self, prompt):
+        document_title = safe_str(getattr(doc, "Title", "(unknown document)"))
+        reports, warnings = self._coordination_link_master_latest_exports(
+            document_title
+        )
+        for spec in self._coordination_link_master_specs():
+            feature_id = spec.get("feature_id")
+            if not reports.get(feature_id):
+                reports[feature_id] = (
+                    self._coordination_link_master_shared_fallback(
+                        feature_id, document_title
+                    )
+                )
+        history_paths = self._link_reset_history_paths()
+        snapshot_paths = self._link_inventory_snapshot_paths()
+        history_exists = os.path.exists(history_paths.get("jsonl"))
+        snapshot_exists = os.path.exists(snapshot_paths.get("jsonl"))
+        csv_exists = os.path.exists(snapshot_paths.get("csv"))
+        history_source = self._read_link_reset_reconciliation_dashboard_records()
+        active_history_records = [
+            item
+            for item in (history_source.get("records") or [])
+            if safe_str(item.get("document_title")).strip().lower()
+            == document_title.strip().lower()
+        ]
+        snapshot_records, snapshot_warnings = (
+            self._read_link_inventory_snapshots(snapshot_paths.get("jsonl"))
+        )
+        warnings.extend(snapshot_warnings)
+        active_snapshot_records = [
+            item
+            for item in snapshot_records
+            if safe_str(item.get("active_document_title")).strip().lower()
+            == document_title.strip().lower()
+        ]
+        history_available = bool(active_history_records)
+        snapshot_history_available = bool(active_snapshot_records)
+        wr010 = reports.get("COORD-WR-010") or {}
+        wr011 = reports.get("COORD-WR-011") or {}
+        wr012 = reports.get("COORD-WR-012") or {}
+        wr013 = reports.get("COORD-WR-013") or {}
+        wr014 = reports.get("COORD-WR-014") or {}
+        changed_count = max(
+            _safe_int(wr013.get("changed_field_count"), 0),
+            _safe_int(wr014.get("changed_field_count"), 0),
+        )
+        required_available = all(
+            [
+                bool(wr010),
+                bool(wr011),
+                bool(wr012),
+                bool(wr013),
+                bool(wr014),
+            ]
+        )
+        if not history_available and not snapshot_history_available:
+            master_result = "COORD_LINK_MASTER_HISTORY_UNAVAILABLE"
+        elif (
+            wr014.get("result") == "SNAPSHOT_STATUS_CHANGED"
+            or wr013.get("result") == "LINK_SNAPSHOT_CHANGED"
+            or changed_count > 0
+        ):
+            master_result = "COORD_LINK_MASTER_INVENTORY_CHANGED"
+        elif (
+            wr010.get("result")
+            in [
+                "BUNDLE_RECONCILIATION_REQUIRED",
+                "BUNDLE_STALE_OR_MISSING",
+            ]
+            or (
+                history_exists
+                and (
+                    not wr010
+                    or not wr011
+                    or not wr014
+                )
+            )
+        ):
+            master_result = "COORD_LINK_MASTER_RECONCILIATION_REQUIRED"
+        elif (
+            wr011.get("result")
+            in [
+                "INTEGRITY_PARTIAL_SOURCE_LINKS",
+                "INTEGRITY_MISSING_FILES",
+            ]
+            or _safe_int(wr011.get("missing_count"), 0) > 0
+            or not required_available
+        ):
+            master_result = "COORD_LINK_MASTER_EVIDENCE_INCOMPLETE"
+        elif (
+            wr010.get("result") == "BUNDLE_COMPLETE_CLEAN"
+            and wr011.get("result") == "INTEGRITY_COMPLETE"
+            and wr012.get("result") == "LINK_INVENTORY_HEALTH_OK"
+            and wr014.get("result")
+            == "SNAPSHOT_STATUS_UNCHANGED_CLEAN"
+        ):
+            master_result = "COORD_LINK_MASTER_CLEAN"
+        elif (
+            wr010.get("result")
+            in [
+                "BUNDLE_CLEAN_WITH_PARTIAL_SOURCE_LINKS",
+                "BUNDLE_COMPLETE_CLEAN",
+            ]
+            and wr011.get("result")
+            in [
+                "INTEGRITY_CLEAN_WITH_HISTORY_SOURCE",
+                "INTEGRITY_COMPLETE",
+            ]
+            and wr012.get("result") == "LINK_INVENTORY_HEALTH_OK"
+            and wr014.get("result")
+            == "SNAPSHOT_STATUS_UNCHANGED_CLEAN"
+        ):
+            master_result = "COORD_LINK_MASTER_CLEAN_WITH_HISTORY_SOURCE"
+        else:
+            master_result = "COORD_LINK_MASTER_REVIEW_REQUIRED"
+        return {
+            "feature_id": "COORD-WR-015",
+            "feature_name": "Coordination Link Master Status Dashboard",
+            "master_status_id": "COORD-WR-015-{0}".format(
+                time.strftime("%Y%m%d_%H%M%S")
+            ),
+            "created_timestamp_local": time.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+            "source_prompt": safe_str(prompt),
+            "document_title": document_title,
+            "active_view_name": self._safe_active_view_name(),
+            "qa_index_paths_checked": self._link_reset_history_qa_index_paths(),
+            "history_path": history_paths.get("jsonl"),
+            "history_exists": history_exists,
+            "active_document_history_count": len(active_history_records),
+            "snapshot_jsonl_path": snapshot_paths.get("jsonl"),
+            "snapshot_jsonl_exists": snapshot_exists,
+            "active_document_snapshot_history_count": len(
+                active_snapshot_records
+            ),
+            "snapshot_csv_path": snapshot_paths.get("csv"),
+            "snapshot_csv_exists": csv_exists,
+            "reports": reports,
+            "current_link_inventory_count": wr012.get(
+                "total_link_count", "unavailable"
+            ),
+            "active_document_snapshot_count": wr014.get(
+                "snapshot_count", "unavailable"
+            ),
+            "detected_inventory_changed_fields": changed_count,
+            "master_result": master_result,
+            "recommended_next_action": self._coordination_link_master_recommendation(
+                master_result
+            ),
+            "warnings": warnings,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+    def _format_coordination_link_master_status_report(self, data):
+        reports = data.get("reports") or {}
+        lines = [
+            "[COORDINATION LINK MASTER STATUS]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Master Status Report ID:",
+            data.get("master_status_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "coordination link master status / read-only consolidated handover dashboard",
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view name:",
+            data.get("active_view_name"),
+            "",
+            "Read sources:",
+            "- QA index paths checked: {0}".format(
+                "; ".join(data.get("qa_index_paths_checked") or ["none"])
+            ),
+            "- History file path: {0}".format(data.get("history_path")),
+            "- History file exists: {0}".format(_coord_bool_text(data.get("history_exists"))),
+            "- Active-document history record count: {0}".format(data.get("active_document_history_count")),
+            "- Inventory snapshot JSONL path: {0}".format(data.get("snapshot_jsonl_path")),
+            "- Inventory snapshot JSONL exists: {0}".format(_coord_bool_text(data.get("snapshot_jsonl_exists"))),
+            "- Active-document inventory snapshot record count: {0}".format(data.get("active_document_snapshot_history_count")),
+            "- Inventory latest CSV path: {0}".format(data.get("snapshot_csv_path")),
+            "- Inventory latest CSV exists: {0}".format(_coord_bool_text(data.get("snapshot_csv_exists"))),
+            "",
+            "Latest coordination evidence:",
+        ]
+        for feature_id in [
+            "COORD-WR-010",
+            "COORD-WR-011",
+            "COORD-WR-012",
+            "COORD-WR-013",
+            "COORD-WR-014",
+        ]:
+            item = reports.get(feature_id) or {}
+            lines.extend(
+                [
+                    "- {0} id: {1}".format(feature_id, item.get("report_id", "unavailable")),
+                    "- {0} result: {1}".format(feature_id, item.get("result", "Unavailable")),
+                    "- {0} export folder: {1}".format(feature_id, item.get("export_folder", "unavailable")),
+                    "- {0} source: {1}".format(feature_id, item.get("source", "unavailable")),
+                ]
+            )
+        wr011 = reports.get("COORD-WR-011") or {}
+        wr012 = reports.get("COORD-WR-012") or {}
+        wr013 = reports.get("COORD-WR-013") or {}
+        wr014 = reports.get("COORD-WR-014") or {}
+        integrity_counts = wr011.get("counts") or {}
+        lines.extend(
+            [
+                "",
+                "Evidence details:",
+                "- COORD-WR-011 OK_EXPORT_FOLDER_COMPLETE: {0}".format(integrity_counts.get("OK_EXPORT_FOLDER_COMPLETE", 0)),
+                "- COORD-WR-011 OK_HISTORY_RECORD_SOURCE: {0}".format(integrity_counts.get("OK_HISTORY_RECORD_SOURCE", 0)),
+                "- COORD-WR-011 missing files/source links: {0}".format(wr011.get("missing_count", "unavailable")),
+                "- COORD-WR-012 total RevitLinkInstance count: {0}".format(wr012.get("total_link_count", "unavailable")),
+                "- COORD-WR-012 loaded/readable count: {0}".format(wr012.get("loaded_count", "unavailable")),
+                "- COORD-WR-012 unloaded/unreadable count: {0}".format(wr012.get("unreadable_count", "unavailable")),
+                "- COORD-WR-012 offset count: {0}".format(wr012.get("offset_count", "unavailable")),
+                "- COORD-WR-012 rotated/non-orthogonal count: {0}".format(wr012.get("rotated_count", "unavailable")),
+                "- COORD-WR-013 current link count: {0}".format(wr013.get("current_link_count", "unavailable")),
+                "- COORD-WR-013 added count: {0}".format(wr013.get("added_count", "unavailable")),
+                "- COORD-WR-013 removed count: {0}".format(wr013.get("removed_count", "unavailable")),
+                "- COORD-WR-013 changed field count: {0}".format(wr013.get("changed_field_count", "unavailable")),
+                "- COORD-WR-013 duplicate skipped: {0}".format(_coord_bool_text(wr013.get("duplicate_skipped"))),
+                "- COORD-WR-014 active-document snapshot count: {0}".format(wr014.get("snapshot_count", "unavailable")),
+                "- COORD-WR-014 baseline snapshot id: {0}".format(wr014.get("baseline_snapshot_id", "unavailable")),
+                "- COORD-WR-014 latest stored snapshot id: {0}".format(wr014.get("latest_snapshot_id", "unavailable")),
+                "- COORD-WR-014 latest COORD-WR-013 result: {0}".format(wr014.get("latest_wr013_result", "unavailable")),
+                "- COORD-WR-014 detected changed fields: {0}".format(wr014.get("changed_field_count", "unavailable")),
+                "- COORD-WR-014 unchanged links: {0}".format(wr014.get("unchanged_count", "unavailable")),
+                "",
+                "Master summary:",
+                "- Current link inventory count: {0}".format(data.get("current_link_inventory_count")),
+                "- Active-document snapshot count: {0}".format(data.get("active_document_snapshot_count")),
+                "- Detected inventory changed fields: {0}".format(data.get("detected_inventory_changed_fields")),
+                "",
+                "Master result:",
+                data.get("master_result"),
+                "",
+                "Recommended next action:",
+                data.get("recommended_next_action"),
+                "",
+                "Master evidence status table:",
+                "| Feature id | Report/header | Latest id | Result/status | Export folder | Available |",
+                "|---|---|---|---|---|---|",
+            ]
+        )
+        for spec in self._coordination_link_master_specs():
+            item = reports.get(spec.get("feature_id")) or {}
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} |".format(
+                    spec.get("feature_id"),
+                    safe_str(spec.get("header")).replace("|", "/"),
+                    item.get("report_id", "unavailable"),
+                    safe_str(item.get("result", "Unavailable")).replace("|", "/"),
+                    safe_str(item.get("export_folder", "unavailable")).replace("|", "/"),
+                    _coord_bool_text(bool(item)),
+                )
+            )
+        lines.extend(["", "Warnings:"])
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Read-only consolidated coordination handover dashboard only.",
+                "- Existing history, snapshot, CSV, QA index, and QA report files were read but not modified.",
+                "- No audit, reset, rollback, apply, verification, workflow status, history append, reconciliation, advisor, bundle, integrity check, inventory audit, snapshot append, snapshot status, reload, unload, pin, unpin, selection, or correction action was run.",
+                "- No Revit model or linked-document data was modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_coordination_link_master_status_question(self, prompt):
+        if not _is_coordination_link_master_status_prompt(prompt):
+            return None
+        data = self._collect_coordination_link_master_status(prompt)
+        report_text = self._format_coordination_link_master_status_report(
+            data
+        )
+        data["report_header"] = "[COORDINATION LINK MASTER STATUS]"
+        data["report_scope"] = (
+            "coordination link master status / read-only consolidated handover dashboard"
+        )
+        data["report_text"] = report_text
+        self.latest_coordination_link_master_status_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[COORDINATION LINK MASTER STATUS]",
+            "report_text": report_text,
+            "report_scope": "coordination link master status / read-only consolidated handover dashboard",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-015",
         }
         self.latest_chat_output_is_deterministic_report = True
         return report_text
@@ -26736,6 +28799,17 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            coordination_link_master_status_reply = (
+                self.answer_coordination_link_master_status_question(prompt)
+            )
+            link_inventory_snapshot_status_reply = (
+                self.answer_revit_link_inventory_snapshot_status_question(
+                    prompt
+                )
+            )
+            link_inventory_snapshot_reply = (
+                self.answer_revit_link_inventory_snapshot_question(prompt)
+            )
             link_inventory_health_reply = (
                 self.answer_revit_link_inventory_health_audit_question(prompt)
             )
@@ -26757,7 +28831,16 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if link_inventory_health_reply is not None:
+            if coordination_link_master_status_reply is not None:
+                reply = coordination_link_master_status_reply
+                remember_report = True
+            elif link_inventory_snapshot_status_reply is not None:
+                reply = link_inventory_snapshot_status_reply
+                remember_report = True
+            elif link_inventory_snapshot_reply is not None:
+                reply = link_inventory_snapshot_reply
+                remember_report = True
+            elif link_inventory_health_reply is not None:
                 reply = link_inventory_health_reply
                 remember_report = True
             elif link_evidence_integrity_reply is not None:
