@@ -83,6 +83,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[LINK RESET WORKFLOW READINESS ADVISOR]",
     "[LINK RESET WORKFLOW EVIDENCE BUNDLE]",
     "[LINK RESET EVIDENCE BUNDLE INTEGRITY CHECK]",
+    "[REVIT LINK INVENTORY HEALTH AUDIT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -3017,6 +3018,46 @@ def _external_reference_path_text(external_ref):
         except:
             continue
     return "<path not available>"
+
+
+def _link_external_reference_info(link_type):
+    info = {
+        "path": "PATH_UNAVAILABLE",
+        "path_available": False,
+        "status": "STATUS_UNAVAILABLE",
+        "reference_available": False,
+    }
+    if link_type is None:
+        return info
+    external_ref = None
+    try:
+        external_ref = link_type.GetExternalFileReference()
+    except:
+        external_ref = None
+    if external_ref is not None:
+        info["reference_available"] = True
+        path_text = _external_reference_path_text(external_ref)
+        if path_text and path_text != "<path not available>":
+            info["path"] = path_text
+            info["path_available"] = True
+        for getter in ("GetLinkedFileStatus", "GetStatus"):
+            try:
+                status = getattr(external_ref, getter)()
+                status_text = safe_str(status)
+                if status_text:
+                    info["status"] = status_text
+                    break
+            except:
+                continue
+    if info.get("status") == "STATUS_UNAVAILABLE":
+        try:
+            status = link_type.GetLinkedFileStatus()
+            status_text = safe_str(status)
+            if status_text:
+                info["status"] = status_text
+        except:
+            pass
+    return info
 
 
 def _xyz_summary(xyz):
@@ -13815,6 +13856,22 @@ def _is_link_reset_evidence_bundle_integrity_prompt(prompt):
     return normalized in routes
 
 
+def _is_revit_link_inventory_health_audit_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show revit link inventory",
+        "revit link inventory",
+        "show link health audit",
+        "link health audit",
+        "show coord link health audit",
+        "coord link health audit",
+        "show external reference link audit",
+        "link path and load status audit",
+        "show coordination link inventory",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -14650,6 +14707,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_link_reset_workflow_readiness_advisor_state = None
         self.latest_link_reset_workflow_evidence_bundle_state = None
         self.latest_link_reset_evidence_bundle_integrity_state = None
+        self.latest_revit_link_inventory_health_audit_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -15844,6 +15902,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "Revit link reset workflow evidence bundle / read-only consolidated QA handover"
         if header == "[LINK RESET EVIDENCE BUNDLE INTEGRITY CHECK]":
             return "Revit link reset evidence integrity / read-only file and index validation"
+        if header == "[REVIT LINK INVENTORY HEALTH AUDIT]":
+            return "Revit link inventory and external-reference health / read-only coordination audit"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -20361,6 +20421,501 @@ class OllamaAIChat(forms.WPFWindow):
             "report_scope": "Revit link reset evidence integrity / read-only file and index validation",
             "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
             "feature_id": "COORD-WR-011",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _revit_link_inventory_history_map(self, active_document):
+        source = self._read_link_reset_reconciliation_dashboard_records()
+        records = [
+            item for item in (source.get("records") or [])
+            if safe_str(item.get("document_title")).strip().lower()
+            == safe_str(active_document).strip().lower()
+        ]
+        by_id = {}
+        by_name = {}
+        for record in records:
+            link_id = record.get("target_link_id")
+            link_name = safe_str(record.get("target_link_name")).strip().lower()
+            try:
+                link_id_key = int(link_id)
+            except:
+                link_id_key = None
+            if link_id_key is not None:
+                current = by_id.get(link_id_key)
+                if (
+                    current is None
+                    or self._link_reset_dashboard_record_rank(record)
+                    > self._link_reset_dashboard_record_rank(current)
+                ):
+                    by_id[link_id_key] = record
+            if link_name and link_name not in ["none", "unavailable"]:
+                current = by_name.get(link_name)
+                if (
+                    current is None
+                    or self._link_reset_dashboard_record_rank(record)
+                    > self._link_reset_dashboard_record_rank(current)
+                ):
+                    by_name[link_name] = record
+        return by_id, by_name, source
+
+    def _revit_link_inventory_recommendation(self, result):
+        recommendations = {
+            "LINK_INVENTORY_HEALTH_OK": "No action required. Link inventory health is clean.",
+            "LINK_INVENTORY_HAS_OFFSETS": "Run COORD-WR-001 link transform audit before any reset decision.",
+            "LINK_INVENTORY_HAS_ROTATED_OR_NONORTHOGONAL_LINKS": "Review rotated/non-orthogonal links manually before any reset decision.",
+            "LINK_INVENTORY_HAS_UNLOADED_OR_UNREADABLE_LINKS": "Review unloaded or unreadable links before relying on coordinate evidence.",
+            "LINK_INVENTORY_NO_LINKS": "No Revit links found in the active document.",
+            "LINK_INVENTORY_REVIEW_REQUIRED": "Review link inventory warnings and run COORD-WR-001 audit if coordinate correction is being considered.",
+        }
+        return recommendations.get(
+            result, recommendations.get("LINK_INVENTORY_REVIEW_REQUIRED")
+        )
+
+    def _collect_revit_link_inventory_health_audit(self, prompt):
+        active_document = _document_title(doc)
+        selected_elements = []
+        try:
+            selected_elements = _selected_elements(doc, uidoc)
+        except:
+            selected_elements = []
+        history_by_id, history_by_name, history_source = (
+            self._revit_link_inventory_history_map(active_document)
+        )
+        warnings = list(history_source.get("warnings") or [])
+        try:
+            instances = list(
+                DB.FilteredElementCollector(doc).OfClass(DB.RevitLinkInstance)
+            )
+        except Exception as exc:
+            instances = []
+            warnings.append(
+                "RevitLinkInstance collection failed: {0}".format(safe_str(exc))
+            )
+        try:
+            instances = sorted(
+                instances,
+                key=lambda item: (
+                    _safe_element_id_value(item) or 0,
+                    safe_str(get_elem_name(item)),
+                ),
+            )
+        except:
+            pass
+
+        rows = []
+        tolerance_ft = 0.003
+        for index, instance in enumerate(instances, 1):
+            instance_id = _safe_element_id_value(instance)
+            instance_name = get_elem_name(instance) or "(unnamed link instance)"
+            link_type, type_id, type_name = _link_transform_type_info(
+                doc, instance
+            )
+            linked_document_title = "unloaded or unreadable"
+            loaded_readable = False
+            try:
+                link_doc = instance.GetLinkDocument()
+                if link_doc is not None:
+                    loaded_readable = True
+                    linked_document_title = _document_title(link_doc)
+            except:
+                pass
+
+            external_info = _link_external_reference_info(link_type)
+            pinned = _safe_bool_attr(instance, "Pinned")
+            workset_name = _link_transform_workset_name(doc, instance)
+            workset_id = "unavailable"
+            try:
+                workset_id = _safe_element_id_value(instance.WorksetId)
+            except:
+                pass
+
+            origin = None
+            distance = None
+            rotation_z = "unreadable"
+            basis_x = "unreadable"
+            basis_y = "unreadable"
+            basis_z = "unreadable"
+            basis_orthonormal = "unknown"
+            mirrored = "unknown"
+            transform_readable = False
+            try:
+                transform = instance.GetTransform()
+                origin = _xyz_plain(transform.Origin)
+                distance = _xyz_distance(origin, [0.0, 0.0, 0.0])
+                rotation_z = _transform_rotation_z_degrees(transform)
+                basis_x = _transform_basis_vector_text(transform.BasisX)
+                basis_y = _transform_basis_vector_text(transform.BasisY)
+                basis_z = _transform_basis_vector_text(transform.BasisZ)
+                basis_orthonormal = _basis_appears_orthonormal(transform)
+                determinant = _transform_basis_determinant(transform)
+                if determinant is not None:
+                    mirrored = determinant < 0.0
+                transform_readable = True
+            except:
+                transform_readable = False
+
+            near_zero = bool(
+                distance is not None and distance <= tolerance_ft
+            )
+            rotated = False
+            if isinstance(rotation_z, (int, float)):
+                angle = abs(float(rotation_z))
+                angle = min(angle, abs(360.0 - angle))
+                rotated = angle > LINK_TRANSFORM_ROTATION_TOLERANCE_DEG
+            nonorthogonal = basis_orthonormal is False
+            suspicious_basis = bool(
+                rotated or nonorthogonal or mirrored is True
+            )
+
+            history_record = None
+            try:
+                history_record = history_by_id.get(int(instance_id))
+            except:
+                history_record = None
+            if history_record is None:
+                history_record = history_by_name.get(
+                    safe_str(instance_name).strip().lower()
+                )
+            history_covered = bool(history_record)
+            history_classification = (
+                "LINK_HISTORY_COVERED"
+                if history_covered
+                else "LINK_HISTORY_NOT_COVERED"
+            )
+
+            notes = []
+            if not external_info.get("path_available"):
+                notes.append("LINK_EXTERNAL_REFERENCE_UNAVAILABLE")
+            notes.append(history_classification)
+            if pinned is True:
+                notes.append("Link is pinned.")
+            if not loaded_readable:
+                classification = "LINK_UNLOADED_OR_UNREADABLE"
+            elif not transform_readable or distance is None:
+                classification = "LINK_REVIEW_REQUIRED"
+            elif suspicious_basis:
+                classification = "LINK_ROTATED_OR_NONORTHOGONAL"
+            elif not near_zero:
+                classification = "LINK_OFFSET_FROM_ZERO"
+            elif basis_orthonormal is True and mirrored is not True:
+                classification = "LINK_OK_ZERO_ORIGIN"
+            else:
+                classification = "LINK_REVIEW_REQUIRED"
+
+            rows.append(
+                {
+                    "row_number": index,
+                    "instance_id": instance_id,
+                    "instance_name": instance_name,
+                    "type_id": type_id if type_id is not None else "unavailable",
+                    "type_name": type_name or "unreadable",
+                    "linked_document_title": linked_document_title,
+                    "external_reference_path": external_info.get("path"),
+                    "external_reference_status": external_info.get("status"),
+                    "path_available": bool(
+                        external_info.get("path_available")
+                    ),
+                    "loaded_readable": loaded_readable,
+                    "pinned": pinned,
+                    "workset_name": workset_name,
+                    "workset_id": workset_id,
+                    "origin": origin,
+                    "rotation_z_degrees": rotation_z,
+                    "basis_x": basis_x,
+                    "basis_y": basis_y,
+                    "basis_z": basis_z,
+                    "basis_orthonormal": basis_orthonormal,
+                    "near_zero_origin": near_zero,
+                    "rotated_or_nonorthogonal": suspicious_basis,
+                    "mirrored": mirrored,
+                    "history_covered": history_covered,
+                    "history_classification": history_classification,
+                    "history_record_id": (
+                        history_record.get("history_record_id", "unavailable")
+                        if history_record
+                        else "unavailable"
+                    ),
+                    "history_status": (
+                        history_record.get("workflow_status", "Unavailable")
+                        if history_record
+                        else "Unavailable"
+                    ),
+                    "history_final_origin": (
+                        self._link_reset_reconciliation_xyz(
+                            history_record.get("final_origin_xyz")
+                        )
+                        if history_record
+                        else None
+                    ),
+                    "classification": classification,
+                    "notes": notes,
+                }
+            )
+
+        loaded_count = len(
+            [item for item in rows if item.get("loaded_readable")]
+        )
+        unreadable_count = len(rows) - loaded_count
+        near_zero_count = len(
+            [item for item in rows if item.get("near_zero_origin")]
+        )
+        offset_count = len(
+            [
+                item for item in rows
+                if item.get("origin") is not None
+                and not item.get("near_zero_origin")
+            ]
+        )
+        rotated_count = len(
+            [
+                item for item in rows
+                if item.get("rotated_or_nonorthogonal")
+            ]
+        )
+        review_count = len(
+            [
+                item for item in rows
+                if item.get("classification") == "LINK_REVIEW_REQUIRED"
+            ]
+        )
+        if not rows:
+            dashboard_result = "LINK_INVENTORY_NO_LINKS"
+        elif unreadable_count > 0:
+            dashboard_result = (
+                "LINK_INVENTORY_HAS_UNLOADED_OR_UNREADABLE_LINKS"
+            )
+        elif rotated_count > 0:
+            dashboard_result = (
+                "LINK_INVENTORY_HAS_ROTATED_OR_NONORTHOGONAL_LINKS"
+            )
+        elif offset_count > 0:
+            dashboard_result = "LINK_INVENTORY_HAS_OFFSETS"
+        elif review_count > 0:
+            dashboard_result = "LINK_INVENTORY_REVIEW_REQUIRED"
+        else:
+            dashboard_result = "LINK_INVENTORY_HEALTH_OK"
+
+        return {
+            "feature_id": "COORD-WR-012",
+            "feature_name": "Revit Link Inventory / External Reference Health Audit",
+            "inventory_id": "COORD-WR-012-{0}".format(
+                time.strftime("%Y%m%d_%H%M%S")
+            ),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "source_prompt": safe_str(prompt),
+            "document_title": active_document,
+            "active_view_name": _active_view_title(doc, uidoc),
+            "selected_element_count": len(selected_elements),
+            "total_link_count": len(rows),
+            "loaded_count": loaded_count,
+            "unreadable_count": unreadable_count,
+            "near_zero_count": near_zero_count,
+            "offset_count": offset_count,
+            "rotated_count": rotated_count,
+            "pinned_count": len(
+                [item for item in rows if item.get("pinned") is True]
+            ),
+            "path_available_count": len(
+                [item for item in rows if item.get("path_available")]
+            ),
+            "path_unavailable_count": len(
+                [item for item in rows if not item.get("path_available")]
+            ),
+            "history_covered_count": len(
+                [item for item in rows if item.get("history_covered")]
+            ),
+            "tolerance_ft": tolerance_ft,
+            "tolerance_mm": tolerance_ft * 304.8,
+            "rows": rows,
+            "history_source_path": history_source.get("history_path"),
+            "jsonl_used": bool(history_source.get("jsonl_used")),
+            "csv_fallback_used": bool(history_source.get("csv_fallback_used")),
+            "dashboard_result": dashboard_result,
+            "recommended_next_action": self._revit_link_inventory_recommendation(
+                dashboard_result
+            ),
+            "warnings": warnings,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+    def _format_revit_link_inventory_health_audit_report(self, data):
+        lines = [
+            "[REVIT LINK INVENTORY HEALTH AUDIT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Inventory Report ID:",
+            data.get("inventory_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "Revit link inventory and external-reference health / read-only coordination audit",
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view name:",
+            data.get("active_view_name"),
+            "",
+            "Summary:",
+            "- Selected element count: {0}".format(
+                data.get("selected_element_count")
+            ),
+            "- Total RevitLinkInstance count: {0}".format(
+                data.get("total_link_count")
+            ),
+            "- Loaded/readable links: {0}".format(data.get("loaded_count")),
+            "- Unloaded/unreadable links: {0}".format(
+                data.get("unreadable_count")
+            ),
+            "- Near-zero origin: {0}".format(data.get("near_zero_count")),
+            "- Offset from zero: {0}".format(data.get("offset_count")),
+            "- Rotated/non-orthogonal: {0}".format(
+                data.get("rotated_count")
+            ),
+            "- Pinned links: {0}".format(data.get("pinned_count")),
+            "- External reference path available: {0}".format(
+                data.get("path_available_count")
+            ),
+            "- External reference path unavailable: {0}".format(
+                data.get("path_unavailable_count")
+            ),
+            "- Covered by COORD-WR-006 history: {0}".format(
+                data.get("history_covered_count")
+            ),
+            "- History source path: {0}".format(
+                data.get("history_source_path")
+            ),
+            "- History JSONL used: {0}".format(
+                _coord_bool_text(data.get("jsonl_used"))
+            ),
+            "- History CSV fallback used: {0}".format(
+                _coord_bool_text(data.get("csv_fallback_used"))
+            ),
+            "- Tolerance ft: {0:.6f}".format(data.get("tolerance_ft")),
+            "- Tolerance approx mm: {0:.3f}".format(
+                data.get("tolerance_mm")
+            ),
+            "",
+            "Dashboard result:",
+            data.get("dashboard_result"),
+            "",
+            "Recommended next action:",
+            data.get("recommended_next_action"),
+            "",
+            "Link inventory:",
+            "| # | Instance id | Instance name | Type id | Type name | Linked document | External path | External status | Loaded | Pinned | Workset | Origin ft | Origin mm | Rotation/basis | Near zero | Rotated/non-orthogonal | Mirrored | History covered | Latest history record | History status | Recorded final origin | Classification | Notes |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        for item in data.get("rows") or []:
+            rotation_basis = "rotation={0}; orthonormal={1}; X={2}; Y={3}; Z={4}".format(
+                item.get("rotation_z_degrees"),
+                item.get("basis_orthonormal"),
+                item.get("basis_x"),
+                item.get("basis_y"),
+                item.get("basis_z"),
+            )
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} ({11}) | {12} | {13} | {14} | {15} | {16} | {17} | {18} | {19} | {20} | {21} | {22} | {23} |".format(
+                    item.get("row_number"),
+                    item.get("instance_id"),
+                    safe_str(item.get("instance_name")).replace("|", "/"),
+                    item.get("type_id"),
+                    safe_str(item.get("type_name")).replace("|", "/"),
+                    safe_str(item.get("linked_document_title")).replace(
+                        "|", "/"
+                    ),
+                    safe_str(item.get("external_reference_path")).replace(
+                        "|", "/"
+                    ),
+                    safe_str(item.get("external_reference_status")).replace(
+                        "|", "/"
+                    ),
+                    _coord_bool_text(item.get("loaded_readable")),
+                    _coord_bool_text(item.get("pinned")),
+                    safe_str(item.get("workset_name")).replace("|", "/"),
+                    item.get("workset_id"),
+                    _format_xyz_feet(item.get("origin")),
+                    _format_xyz_mm(item.get("origin")),
+                    safe_str(rotation_basis).replace("|", "/"),
+                    _coord_bool_text(item.get("near_zero_origin")),
+                    _coord_bool_text(
+                        item.get("rotated_or_nonorthogonal")
+                    ),
+                    _coord_bool_text(item.get("mirrored")),
+                    _coord_bool_text(item.get("history_covered")),
+                    item.get("history_record_id"),
+                    safe_str(item.get("history_status")).replace("|", "/"),
+                    _format_xyz_feet(item.get("history_final_origin")),
+                    item.get("classification"),
+                    "; ".join(item.get("notes") or ["none"]).replace("|", "/"),
+                )
+            )
+        if not data.get("rows"):
+            lines.append(
+                "| none | none | none | none | none | none | none | none | false | false | none | none | none | none | none | false | false | false | false | none | none | none | LINK_INVENTORY_NO_LINKS | none |"
+            )
+        lines.extend(["", "Warnings:"])
+        warnings = data.get("warnings") or []
+        if warnings:
+            for warning in warnings:
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Read-only link inventory and external-reference health audit only.",
+                "- PATH_UNAVAILABLE is reported as a non-blocking reference note.",
+                "- No reset, correction, rollback, apply, verification, history append, reconciliation, advisor, bundle, integrity check, reload, unload, pin, unpin, or selection action was run.",
+                "- No parameter, linked-document, external-reference, or Revit model data was modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_revit_link_inventory_health_audit_question(self, prompt):
+        if not _is_revit_link_inventory_health_audit_prompt(prompt):
+            return None
+        inventory_data = self._collect_revit_link_inventory_health_audit(prompt)
+        report_text = self._format_revit_link_inventory_health_audit_report(
+            inventory_data
+        )
+        inventory_data["report_header"] = "[REVIT LINK INVENTORY HEALTH AUDIT]"
+        inventory_data["report_scope"] = (
+            "Revit link inventory and external-reference health / read-only coordination audit"
+        )
+        inventory_data["report_text"] = report_text
+        self.latest_revit_link_inventory_health_audit_state = dict(
+            inventory_data
+        )
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[REVIT LINK INVENTORY HEALTH AUDIT]",
+            "report_text": report_text,
+            "report_scope": "Revit link inventory and external-reference health / read-only coordination audit",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-012",
         }
         self.latest_chat_output_is_deterministic_report = True
         return report_text
@@ -26181,6 +26736,9 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            link_inventory_health_reply = (
+                self.answer_revit_link_inventory_health_audit_question(prompt)
+            )
             link_evidence_integrity_reply = (
                 self.answer_link_reset_evidence_bundle_integrity_question(prompt)
             )
@@ -26199,7 +26757,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if link_evidence_integrity_reply is not None:
+            if link_inventory_health_reply is not None:
+                reply = link_inventory_health_reply
+                remember_report = True
+            elif link_evidence_integrity_reply is not None:
                 reply = link_evidence_integrity_reply
                 remember_report = True
             elif link_evidence_bundle_reply is not None:

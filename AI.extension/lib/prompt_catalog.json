@@ -3268,6 +3268,34 @@
     "mode": "deterministic"
   },
   {
+    "id": "revit-link-inventory-health-audit",
+    "title": "Revit link inventory health audit",
+    "category": "BIM QA",
+    "group": "Coordination Audits",
+    "discipline": "Coordination",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_document_revit_link_inventory_external_reference_health",
+    "canonical_prompt": "show revit link inventory",
+    "planner_aliases": [
+      "show revit link inventory",
+      "revit link inventory",
+      "show link health audit",
+      "link health audit",
+      "show coord link health audit",
+      "coord link health audit",
+      "show external reference link audit",
+      "link path and load status audit",
+      "show coordination link inventory"
+    ],
+    "deterministic_handler": "revit_link_inventory_health_audit_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show revit link inventory",
+    "mode": "deterministic"
+  },
+  {
     "id": "link-reset-evidence-bundle-integrity",
     "title": "Link reset evidence bundle integrity check",
     "category": "BIM QA",
