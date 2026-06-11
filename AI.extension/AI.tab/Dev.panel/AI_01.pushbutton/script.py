@@ -81,6 +81,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[LINK RESET HISTORY RECONCILIATION]",
     "[LINK RESET HISTORY RECONCILIATION DASHBOARD]",
     "[LINK RESET WORKFLOW READINESS ADVISOR]",
+    "[LINK RESET WORKFLOW EVIDENCE BUNDLE]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -13783,6 +13784,21 @@ def _is_link_reset_workflow_readiness_advisor_prompt(prompt):
     return normalized in routes
 
 
+def _is_link_reset_workflow_evidence_bundle_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show link reset evidence bundle",
+        "link reset evidence bundle",
+        "show coord reset evidence bundle",
+        "coord reset evidence bundle",
+        "link reset handover report",
+        "show link reset handover",
+        "show link reset workflow evidence",
+        "export link reset evidence bundle",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -14616,6 +14632,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_link_reset_history_reconciliation_state = None
         self.latest_link_reset_history_reconciliation_dashboard_state = None
         self.latest_link_reset_workflow_readiness_advisor_state = None
+        self.latest_link_reset_workflow_evidence_bundle_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -15806,6 +15823,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "Revit link reset history dashboard / read-only multi-record current-state check"
         if header == "[LINK RESET WORKFLOW READINESS ADVISOR]":
             return "Revit link reset workflow readiness / read-only next-action advisor"
+        if header == "[LINK RESET WORKFLOW EVIDENCE BUNDLE]":
+            return "Revit link reset workflow evidence bundle / read-only consolidated QA handover"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -19170,6 +19189,658 @@ class OllamaAIChat(forms.WPFWindow):
             "report_scope": "Revit link reset history dashboard / read-only multi-record current-state check",
             "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
             "feature_id": "COORD-WR-008",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _link_reset_evidence_index_source_path(self):
+        paths = self._link_reset_history_qa_index_paths()
+        jsonl_paths = [
+            path for path in paths
+            if path.lower().endswith(".jsonl") and os.path.exists(path)
+        ]
+        if jsonl_paths:
+            return jsonl_paths[0]
+        csv_paths = [
+            path for path in paths
+            if path.lower().endswith(".csv") and os.path.exists(path)
+        ]
+        if csv_paths:
+            return csv_paths[0]
+        return "unavailable"
+
+    def _link_reset_evidence_report_text(self, export_entry):
+        if not export_entry:
+            return None, None
+        export_folder = safe_str(export_entry.get("export_folder")).strip()
+        candidates = [
+            safe_str(export_entry.get("text_file")).strip(),
+            os.path.join(export_folder, "report.txt") if export_folder else "",
+            safe_str(export_entry.get("report_file")).strip(),
+            os.path.join(export_folder, "report.md") if export_folder else "",
+        ]
+        for candidate in candidates:
+            if not candidate or not os.path.exists(candidate):
+                continue
+            try:
+                stream = codecs.open(candidate, "r", "utf-8")
+                try:
+                    return stream.read(), candidate
+                finally:
+                    stream.close()
+            except:
+                continue
+        return None, None
+
+    def _link_reset_evidence_latest_export(
+        self, entries, header, active_document, preferred_folder=None
+    ):
+        matches = []
+        for entry in entries:
+            entry_header = entry.get(
+                "source_report_header", entry.get("source_header")
+            )
+            if safe_str(entry_header).strip() != header:
+                continue
+            entry_document = safe_str(entry.get("document_title")).strip()
+            if (
+                entry_document
+                and entry_document.lower()
+                != safe_str(active_document).strip().lower()
+            ):
+                continue
+            matches.append(entry)
+        if preferred_folder:
+            preferred = [
+                item for item in matches
+                if safe_str(item.get("export_folder")).strip()
+                == safe_str(preferred_folder).strip()
+            ]
+            if preferred:
+                matches = preferred
+        matches = sorted(
+            matches,
+            key=lambda item: safe_str(
+                item.get("export_timestamp_local", item.get("timestamp"))
+            ),
+            reverse=True,
+        )
+        if not matches:
+            return {}, {}, None
+        entry = dict(matches[0])
+        report_text, report_path = self._link_reset_evidence_report_text(entry)
+        fields = (
+            self._link_reset_history_report_fields(report_text)
+            if report_text
+            else {}
+        )
+        return entry, fields, report_path
+
+    def _link_reset_evidence_recommendation(self, result):
+        recommendations = {
+            "BUNDLE_COMPLETE_CLEAN": "No action required. Evidence bundle confirms the latest recorded link reset workflow is clean and still matches the current model.",
+            "BUNDLE_CLEAN_WITH_PARTIAL_SOURCE_LINKS": "No model action required. Evidence is clean, but review missing older source links in the QA export index if a full audit trail is required.",
+            "BUNDLE_RECONCILIATION_REQUIRED": "Run show link reset reconciliation dashboard before final handover.",
+            "BUNDLE_STALE_OR_MISSING": "Run COORD-WR-001 audit before any reset decision. Review stale or missing links first.",
+            "BUNDLE_HISTORY_UNAVAILABLE": "Run show link reset workflow history after a valid workflow checkpoint exists.",
+            "BUNDLE_REVIEW_REQUIRED": "Review source evidence and run show link reset workflow advisor.",
+        }
+        return recommendations.get(
+            result, recommendations.get("BUNDLE_REVIEW_REQUIRED")
+        )
+
+    def _collect_link_reset_workflow_evidence_bundle(self, prompt):
+        active_document = _document_title(doc)
+        history_source = self._read_link_reset_reconciliation_dashboard_records()
+        history_records = [
+            item for item in (history_source.get("records") or [])
+            if safe_str(item.get("document_title")).strip().lower()
+            == safe_str(active_document).strip().lower()
+        ]
+        history_record = (
+            max(history_records, key=self._link_reset_dashboard_record_rank)
+            if history_records
+            else {}
+        )
+        index_entries, index_warnings = self._read_link_reset_history_qa_index()
+        warnings = list(history_source.get("warnings") or [])
+        warnings.extend(index_warnings)
+        source_export_folder = safe_str(
+            history_record.get("source_export_folder") or "unavailable"
+        )
+
+        headers = {
+            "COORD-WR-001": "[LINK TRANSFORM AUDIT REPORT]",
+            "COORD-WR-002": "[LINK ORIGIN RESET ROLLBACK TEST]",
+            "COORD-WR-003": "[LINK ORIGIN RESET REVIEWED APPLY]",
+            "COORD-WR-004": "[LINK ORIGIN RESET POST-APPLY VERIFICATION]",
+            "COORD-WR-005": "[LINK RESET WORKFLOW STATUS]",
+            "COORD-WR-006": "[LINK RESET WORKFLOW HISTORY]",
+            "COORD-WR-007": "[LINK RESET HISTORY RECONCILIATION]",
+            "COORD-WR-008": "[LINK RESET HISTORY RECONCILIATION DASHBOARD]",
+            "COORD-WR-009": "[LINK RESET WORKFLOW READINESS ADVISOR]",
+        }
+        feature_names = {
+            "COORD-WR-001": "Link Transform Audit",
+            "COORD-WR-002": "Link Origin Reset Rollback Test",
+            "COORD-WR-003": "Reviewed Link Origin Reset Apply",
+            "COORD-WR-004": "Post-Apply Verification",
+            "COORD-WR-005": "Workflow Status",
+            "COORD-WR-006": "Workflow History",
+            "COORD-WR-007": "History Reconciliation",
+            "COORD-WR-008": "Reconciliation Dashboard",
+            "COORD-WR-009": "Readiness Advisor",
+        }
+        export_data = {}
+        for feature_id, header in headers.items():
+            preferred = (
+                source_export_folder
+                if feature_id == "COORD-WR-005"
+                and source_export_folder.lower() not in ["none", "unavailable"]
+                else None
+            )
+            entry, fields, report_path = self._link_reset_evidence_latest_export(
+                index_entries, header, active_document, preferred
+            )
+            export_data[feature_id] = {
+                "entry": entry,
+                "fields": fields,
+                "report_path": report_path,
+            }
+
+        dashboard_state, dashboard_warnings = (
+            self._latest_link_reset_dashboard_for_advisor(active_document)
+        )
+        warnings.extend(dashboard_warnings)
+        dashboard_export = export_data.get("COORD-WR-008") or {}
+        if not dashboard_state and dashboard_export.get("fields"):
+            parsed_dashboard, parse_error = self._parse_link_reset_dashboard_export(
+                dashboard_export.get("entry")
+            )
+            if parse_error:
+                warnings.append(parse_error)
+            elif parsed_dashboard:
+                dashboard_state = self._normalize_link_reset_dashboard_advisor_state(
+                    parsed_dashboard,
+                    "qa_export_fallback",
+                    dashboard_export.get("entry", {}).get("export_folder"),
+                )
+
+        advisor_export = export_data.get("COORD-WR-009") or {}
+        advisor_fields = advisor_export.get("fields") or {}
+        advisor_state = {}
+        session_advisor = self.latest_link_reset_workflow_readiness_advisor_state or {}
+        if self._link_reset_advisor_document_match(
+            session_advisor, active_document
+        ) is True:
+            advisor_state = {
+                "advisor_id": session_advisor.get("advisor_id"),
+                "readiness_classification": session_advisor.get(
+                    "readiness_classification"
+                ),
+                "document_title": session_advisor.get("document_title"),
+                "created_timestamp_local": session_advisor.get(
+                    "created_timestamp_local"
+                ),
+                "advisor_source": "shared_state",
+                "advisor_export_folder": "unavailable",
+            }
+        elif advisor_fields:
+            advisor_document = safe_str(
+                advisor_fields.get("Active document title")
+                or advisor_export.get("entry", {}).get("document_title")
+            )
+            if advisor_document.strip().lower() == active_document.strip().lower():
+                advisor_state = {
+                    "advisor_id": advisor_fields.get(
+                        "Advisor Report ID", "unavailable"
+                    ),
+                    "readiness_classification": advisor_fields.get(
+                        "Readiness classification", "Unavailable"
+                    ),
+                    "document_title": advisor_document,
+                    "created_timestamp_local": advisor_fields.get(
+                        "Timestamp",
+                        advisor_export.get("entry", {}).get(
+                            "export_timestamp_local", "unavailable"
+                        ),
+                    ),
+                    "advisor_source": "qa_export_fallback",
+                    "advisor_export_folder": advisor_export.get(
+                        "entry", {}
+                    ).get("export_folder", "unavailable"),
+                }
+
+        reconciliation_export = export_data.get("COORD-WR-007") or {}
+        reconciliation_fields = reconciliation_export.get("fields") or {}
+        reconciliation_state = {
+            "reconciliation_id": reconciliation_fields.get(
+                "Reconciliation Report ID", "unavailable"
+            ),
+            "reconciliation_result": reconciliation_fields.get(
+                "Reconciliation result", "Unavailable"
+            ),
+            "reconciliation_source": (
+                "qa_export_fallback"
+                if reconciliation_fields
+                else "unavailable"
+            ),
+            "reconciliation_export_folder": reconciliation_export.get(
+                "entry", {}
+            ).get("export_folder", "unavailable"),
+        }
+
+        history_ids = {
+            "COORD-WR-001": history_record.get("audit_id"),
+            "COORD-WR-002": history_record.get("rollback_test_id"),
+            "COORD-WR-003": history_record.get("apply_id"),
+            "COORD-WR-004": history_record.get("verification_id"),
+            "COORD-WR-005": history_record.get("status_id"),
+            "COORD-WR-006": history_record.get("history_record_id"),
+        }
+        history_results = {
+            "COORD-WR-001": history_record.get("audit_result"),
+            "COORD-WR-002": history_record.get("rollback_result"),
+            "COORD-WR-003": history_record.get("apply_result"),
+            "COORD-WR-004": history_record.get("verification_result"),
+            "COORD-WR-005": history_record.get("workflow_status"),
+            "COORD-WR-006": history_record.get("workflow_status"),
+        }
+        field_id_keys = {
+            "COORD-WR-001": "Audit ID",
+            "COORD-WR-002": "Rollback Test ID",
+            "COORD-WR-003": "Reviewed Apply ID",
+            "COORD-WR-004": "Verification Report ID",
+            "COORD-WR-005": "Status ID",
+            "COORD-WR-006": "History Report ID",
+        }
+        field_result_keys = {
+            "COORD-WR-001": "Audit result",
+            "COORD-WR-002": "Rollback-test result",
+            "COORD-WR-003": "Reviewed apply result",
+            "COORD-WR-004": "Verification result",
+            "COORD-WR-005": "Workflow status",
+            "COORD-WR-006": "Latest record id",
+        }
+        evidence_rows = []
+        missing_source_links = []
+        for feature_id in [
+            "COORD-WR-001",
+            "COORD-WR-002",
+            "COORD-WR-003",
+            "COORD-WR-004",
+            "COORD-WR-005",
+            "COORD-WR-006",
+        ]:
+            item = export_data.get(feature_id) or {}
+            fields = item.get("fields") or {}
+            latest_id = (
+                history_ids.get(feature_id)
+                or fields.get(field_id_keys.get(feature_id))
+                or "unavailable"
+            )
+            result = (
+                history_results.get(feature_id)
+                or fields.get(field_result_keys.get(feature_id))
+                or "Unavailable"
+            )
+            export_folder = item.get("entry", {}).get(
+                "export_folder", "unavailable"
+            )
+            available = bool(
+                latest_id
+                and safe_str(latest_id).lower() not in ["none", "unavailable"]
+            )
+            if feature_id in [
+                "COORD-WR-001",
+                "COORD-WR-002",
+                "COORD-WR-003",
+                "COORD-WR-004",
+            ] and safe_str(export_folder).lower() in ["none", "unavailable"]:
+                missing_source_links.append(feature_id)
+            evidence_rows.append(
+                {
+                    "feature_id": feature_id,
+                    "feature_name": feature_names.get(feature_id),
+                    "header": headers.get(feature_id),
+                    "latest_id": latest_id,
+                    "result": result,
+                    "source": export_folder if item.get("entry") else "history record",
+                    "available": available,
+                }
+            )
+
+        evidence_rows.extend(
+            [
+                {
+                    "feature_id": "COORD-WR-007",
+                    "feature_name": feature_names.get("COORD-WR-007"),
+                    "header": headers.get("COORD-WR-007"),
+                    "latest_id": reconciliation_state.get("reconciliation_id"),
+                    "result": reconciliation_state.get("reconciliation_result"),
+                    "source": reconciliation_state.get(
+                        "reconciliation_export_folder"
+                    ),
+                    "available": bool(reconciliation_fields),
+                },
+                {
+                    "feature_id": "COORD-WR-008",
+                    "feature_name": feature_names.get("COORD-WR-008"),
+                    "header": headers.get("COORD-WR-008"),
+                    "latest_id": dashboard_state.get(
+                        "dashboard_id", "unavailable"
+                    ),
+                    "result": dashboard_state.get(
+                        "dashboard_result", "Unavailable"
+                    ),
+                    "source": dashboard_state.get(
+                        "dashboard_export_folder",
+                        dashboard_state.get("dashboard_source", "unavailable"),
+                    ),
+                    "available": bool(dashboard_state),
+                },
+                {
+                    "feature_id": "COORD-WR-009",
+                    "feature_name": feature_names.get("COORD-WR-009"),
+                    "header": headers.get("COORD-WR-009"),
+                    "latest_id": advisor_state.get(
+                        "advisor_id", "unavailable"
+                    ),
+                    "result": advisor_state.get(
+                        "readiness_classification", "Unavailable"
+                    ),
+                    "source": advisor_state.get(
+                        "advisor_export_folder",
+                        advisor_state.get("advisor_source", "unavailable"),
+                    ),
+                    "available": bool(advisor_state),
+                },
+            ]
+        )
+
+        history_status = safe_str(
+            history_record.get("workflow_status") or "Unavailable"
+        )
+        dashboard_result = safe_str(
+            dashboard_state.get("dashboard_result") or "Unavailable"
+        )
+        advisor_result = safe_str(
+            advisor_state.get("readiness_classification") or "Unavailable"
+        )
+        source_ids_complete = all(
+            safe_str(history_record.get(key)).lower()
+            not in ["", "none", "unavailable"]
+            for key in [
+                "audit_id",
+                "rollback_test_id",
+                "apply_id",
+                "verification_id",
+            ]
+        )
+        if not history_record:
+            bundle_result = "BUNDLE_HISTORY_UNAVAILABLE"
+        elif not dashboard_state:
+            bundle_result = "BUNDLE_RECONCILIATION_REQUIRED"
+        elif (
+            dashboard_result == "DASHBOARD_HAS_STALE_OR_MISSING"
+            or (
+                advisor_state
+                and advisor_result != "READY_NO_ACTION_CLEAN"
+            )
+        ):
+            bundle_result = "BUNDLE_STALE_OR_MISSING"
+        elif (
+            history_status == "Ready / clean"
+            and dashboard_result == "DASHBOARD_ALL_MATCH"
+            and advisor_result == "READY_NO_ACTION_CLEAN"
+            and source_ids_complete
+        ):
+            bundle_result = (
+                "BUNDLE_CLEAN_WITH_PARTIAL_SOURCE_LINKS"
+                if missing_source_links
+                else "BUNDLE_COMPLETE_CLEAN"
+            )
+        else:
+            bundle_result = "BUNDLE_REVIEW_REQUIRED"
+        if missing_source_links:
+            warnings.append(
+                "QA export links are unavailable for: {0}.".format(
+                    ", ".join(missing_source_links)
+                )
+            )
+
+        return {
+            "feature_id": "COORD-WR-010",
+            "feature_name": "Link Reset Workflow Evidence Bundle / Handover Report",
+            "bundle_id": "COORD-WR-010-{0}".format(
+                time.strftime("%Y%m%d_%H%M%S")
+            ),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "source_prompt": safe_str(prompt),
+            "document_title": active_document,
+            "active_view_name": _active_view_title(doc, uidoc),
+            "history_source_path": history_source.get("history_path"),
+            "jsonl_used": bool(history_source.get("jsonl_used")),
+            "csv_fallback_used": bool(history_source.get("csv_fallback_used")),
+            "qa_export_index_source_path": self._link_reset_evidence_index_source_path(),
+            "history_record": history_record,
+            "reconciliation_state": reconciliation_state,
+            "dashboard_state": dashboard_state,
+            "advisor_state": advisor_state,
+            "evidence_rows": evidence_rows,
+            "bundle_result": bundle_result,
+            "recommended_next_action": self._link_reset_evidence_recommendation(
+                bundle_result
+            ),
+            "warnings": warnings,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+    def _format_link_reset_workflow_evidence_bundle_report(self, data):
+        history = data.get("history_record") or {}
+        reconciliation = data.get("reconciliation_state") or {}
+        dashboard = data.get("dashboard_state") or {}
+        advisor = data.get("advisor_state") or {}
+        lines = [
+            "[LINK RESET WORKFLOW EVIDENCE BUNDLE]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Bundle Report ID:",
+            data.get("bundle_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "Revit link reset workflow evidence bundle / read-only consolidated QA handover",
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view name:",
+            data.get("active_view_name"),
+            "",
+            "Evidence sources:",
+            "- History source path: {0}".format(data.get("history_source_path")),
+            "- JSONL used: {0}".format(_coord_bool_text(data.get("jsonl_used"))),
+            "- CSV fallback used: {0}".format(
+                _coord_bool_text(data.get("csv_fallback_used"))
+            ),
+            "- QA export index source path: {0}".format(
+                data.get("qa_export_index_source_path")
+            ),
+            "",
+            "Latest active-document history checkpoint:",
+            "- History record id: {0}".format(
+                history.get("history_record_id", "unavailable")
+            ),
+            "- History workflow status: {0}".format(
+                history.get("workflow_status", "Unavailable")
+            ),
+            "- Source workflow status id: {0}".format(
+                history.get("status_id", "unavailable")
+            ),
+            "- Checkpoint source: {0}".format(
+                history.get("checkpoint_source", "unavailable")
+            ),
+            "- Recovered source export folder: {0}".format(
+                history.get("source_export_folder", "unavailable")
+            ),
+            "- Audit: {0} | {1}".format(
+                history.get("audit_id", "unavailable"),
+                history.get("audit_result", "Unavailable"),
+            ),
+            "- Rollback: {0} | {1}".format(
+                history.get("rollback_test_id", "unavailable"),
+                history.get("rollback_result", "Unavailable"),
+            ),
+            "- Apply: {0} | {1}".format(
+                history.get("apply_id", "unavailable"),
+                history.get("apply_result", "Unavailable"),
+            ),
+            "- Verification: {0} | {1}".format(
+                history.get("verification_id", "unavailable"),
+                history.get("verification_result", "Unavailable"),
+            ),
+            "- Target link: {0} | {1}".format(
+                history.get("target_link_id", "unavailable"),
+                history.get("target_link_name", "unavailable"),
+            ),
+            "- Recorded initial origin ft: {0}".format(
+                _format_xyz_feet(history.get("initial_origin_xyz"))
+            ),
+            "- Recorded initial origin approx mm: {0}".format(
+                _format_xyz_mm(history.get("initial_origin_xyz"))
+            ),
+            "- Recorded final origin ft: {0}".format(
+                _format_xyz_feet(history.get("final_origin_xyz"))
+            ),
+            "- Recorded final origin approx mm: {0}".format(
+                _format_xyz_mm(history.get("final_origin_xyz"))
+            ),
+            "",
+            "Reconciliation evidence:",
+            "- COORD-WR-007 reconciliation id: {0}".format(
+                reconciliation.get("reconciliation_id")
+            ),
+            "- COORD-WR-007 result: {0}".format(
+                reconciliation.get("reconciliation_result")
+            ),
+            "- COORD-WR-007 source: {0}".format(
+                reconciliation.get("reconciliation_source")
+            ),
+            "- COORD-WR-007 export folder: {0}".format(
+                reconciliation.get("reconciliation_export_folder")
+            ),
+            "- COORD-WR-008 dashboard id: {0}".format(
+                dashboard.get("dashboard_id", "unavailable")
+            ),
+            "- COORD-WR-008 result: {0}".format(
+                dashboard.get("dashboard_result", "Unavailable")
+            ),
+            "- COORD-WR-008 source: {0}".format(
+                dashboard.get("dashboard_source", "unavailable")
+            ),
+            "- COORD-WR-008 export folder: {0}".format(
+                dashboard.get("dashboard_export_folder", "unavailable")
+            ),
+            "- COORD-WR-009 advisor id: {0}".format(
+                advisor.get("advisor_id", "unavailable")
+            ),
+            "- COORD-WR-009 classification: {0}".format(
+                advisor.get("readiness_classification", "Unavailable")
+            ),
+            "- COORD-WR-009 source: {0}".format(
+                advisor.get("advisor_source", "unavailable")
+            ),
+            "- COORD-WR-009 export folder: {0}".format(
+                advisor.get("advisor_export_folder", "unavailable")
+            ),
+            "",
+            "Evidence completeness:",
+            "| Feature id | Feature name | Report/header | Latest id | Result/status | Source/export folder | Available |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for item in data.get("evidence_rows") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} |".format(
+                    item.get("feature_id"),
+                    safe_str(item.get("feature_name")).replace("|", "/"),
+                    safe_str(item.get("header")).replace("|", "/"),
+                    item.get("latest_id"),
+                    safe_str(item.get("result")).replace("|", "/"),
+                    safe_str(item.get("source")).replace("|", "/"),
+                    _coord_bool_text(item.get("available")),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "Bundle result:",
+                data.get("bundle_result"),
+                "",
+                "Recommended next action:",
+                data.get("recommended_next_action"),
+                "",
+                "Warnings:",
+            ]
+        )
+        warnings = data.get("warnings") or []
+        if warnings:
+            for warning in warnings:
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Read-only consolidated QA handover only.",
+                "- No workflow action, history append, reconciliation, advisor, reset, correction, or QA export was run automatically.",
+                "- No link was moved, rotated, transformed, reloaded, unloaded, pinned, unpinned, or selected.",
+                "- No parameter, linked-document, or Revit model data was modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_link_reset_workflow_evidence_bundle_question(self, prompt):
+        if not _is_link_reset_workflow_evidence_bundle_prompt(prompt):
+            return None
+        bundle_data = self._collect_link_reset_workflow_evidence_bundle(prompt)
+        report_text = self._format_link_reset_workflow_evidence_bundle_report(
+            bundle_data
+        )
+        bundle_data["report_header"] = "[LINK RESET WORKFLOW EVIDENCE BUNDLE]"
+        bundle_data["report_scope"] = (
+            "Revit link reset workflow evidence bundle / read-only consolidated QA handover"
+        )
+        bundle_data["report_text"] = report_text
+        self.latest_link_reset_workflow_evidence_bundle_state = dict(bundle_data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[LINK RESET WORKFLOW EVIDENCE BUNDLE]",
+            "report_text": report_text,
+            "report_scope": "Revit link reset workflow evidence bundle / read-only consolidated QA handover",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-010",
         }
         self.latest_chat_output_is_deterministic_report = True
         return report_text
@@ -24990,6 +25661,9 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            link_evidence_bundle_reply = (
+                self.answer_link_reset_workflow_evidence_bundle_question(prompt)
+            )
             link_readiness_advisor_reply = (
                 self.answer_link_reset_workflow_readiness_advisor_question(prompt)
             )
@@ -25002,7 +25676,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if link_readiness_advisor_reply is not None:
+            if link_evidence_bundle_reply is not None:
+                reply = link_evidence_bundle_reply
+                remember_report = True
+            elif link_readiness_advisor_reply is not None:
                 reply = link_readiness_advisor_reply
                 remember_report = True
             elif link_history_dashboard_reply is not None:

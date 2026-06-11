@@ -3268,6 +3268,33 @@
     "mode": "deterministic"
   },
   {
+    "id": "link-reset-workflow-evidence-bundle",
+    "title": "Link reset workflow evidence bundle",
+    "category": "BIM QA",
+    "group": "Coordination Write Research",
+    "discipline": "Coordination",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "revit_link_reset_workflow_consolidated_qa_handover",
+    "canonical_prompt": "show link reset evidence bundle",
+    "planner_aliases": [
+      "show link reset evidence bundle",
+      "link reset evidence bundle",
+      "show coord reset evidence bundle",
+      "coord reset evidence bundle",
+      "link reset handover report",
+      "show link reset handover",
+      "show link reset workflow evidence",
+      "export link reset evidence bundle"
+    ],
+    "deterministic_handler": "link_reset_workflow_evidence_bundle_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show link reset evidence bundle",
+    "mode": "deterministic"
+  },
+  {
     "id": "link-reset-workflow-readiness-advisor",
     "title": "Link reset workflow readiness advisor",
     "category": "BIM QA",
