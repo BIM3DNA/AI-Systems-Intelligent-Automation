@@ -1464,6 +1464,42 @@ The 2026-05-06 BUNGE runtime session passed the listed plan-only workflow. Execu
 
 - all live validation targets listed above
 
+## 2026-06-11 COORD-WR-007 to COORD-WR-015 Validation Plan
+
+### Context
+
+- Document: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- View: `TEST [FloorPlan]`
+- Evidence: EV-AI-197 through EV-AI-215
+
+### Tests
+
+1. Reconcile the latest WR-006 history record against the current link transform; expect `MATCHES_CURRENT_MODEL`.
+2. Reconcile all active-document history records; expect `DASHBOARD_ALL_MATCH`.
+3. Validate WR-009 fallback recovery of WR-008 evidence; expect `READY_NO_ACTION_CLEAN`.
+4. Build WR-010 evidence bundle; expect clean result with history source.
+5. Validate WR-011 export folders/files and history source; expect no missing evidence.
+6. Inventory all active-document Revit links; expect 8 loaded/readable links and no offsets/rotations.
+7. Create WR-013 baseline, repeat unchanged snapshot, and verify duplicate append is skipped.
+8. Read WR-014 status without creating a new snapshot; expect unchanged-clean.
+9. Consolidate WR-010 through WR-014; expect `COORD_LINK_MASTER_CLEAN_WITH_HISTORY_SOURCE`.
+10. Export each deterministic report through the existing QA export/index mechanism.
+
+### Pass Criteria
+
+- fixed deterministic routes and headers
+- active document and view match validation context
+- cross-session QA fallback uses indexed deterministic reports
+- history/current-origin comparisons stay within `0.003 ft`
+- snapshot duplicate prevention preserves one active-document baseline record
+- final master export is `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260611_143318`
+- no transaction, TransactionGroup, MoveElement, linked-document mutation, parameter write, or UI selection modification
+- only WR-013 writes local snapshot JSONL/CSV evidence
+
+### Result
+
+Passed. See `WBSO/Testing_Validation/runs/2026-06-11_coord-wr-007-to-015-coordination-link-evidence-inventory-validated/`.
+
 ## 2026-04-20 Runtime Targets for Stable-Baseline ModelMind Catalog Usability
 
 ### Catalog usability

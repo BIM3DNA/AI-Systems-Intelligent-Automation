@@ -1180,7 +1180,7 @@ Deterministic routing did not intercept the MEP-RO-001 selection-report prompts 
 
 ## 2026-05-18 MEP-WR-001 and MEP-ACT-002 Runtime Validation
 
-**Status:** Resolved / runtime validated  
+**Status:** Resolved / runtime validated
 **Type:** deterministic split dry-run and confirmation-guard validation
 
 ### MEP-WR-001 validated items
@@ -1419,3 +1419,32 @@ COORD-WR-006 now scans QA export JSONL/CSV indexes for the newest `[LINK RESET W
 - final export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260608_094652`
 
 No Revit model mutation API was added.
+
+---
+
+## 2026-06-11 COORD-WR-007 to COORD-WR-015 Cross-Session Evidence and Inventory
+
+**Status:** Resolved / runtime validated
+**Type:** coordination evidence continuity, reconciliation, and handover governance
+
+### Issues
+
+- transient pyRevit state could not be the sole source for later reconciliation and readiness reports
+- WR-009 initially failed to detect the latest WR-008 dashboard and recommended unnecessary reconciliation
+- workflow handover needed to distinguish complete export folders from valid history-record sources
+- link inventory needed durable baseline/change evidence without duplicate snapshot growth
+- top-level handover status required conservative aggregation across evidence, integrity, current inventory, and snapshot drift
+
+### Resolution
+
+The batch added deterministic QA-index/report fallback parsing, tolerance-based history reconciliation, readiness classification, evidence bundling and file integrity checks, active-document link inventory, JSONL/CSV snapshot persistence with duplicate prevention, read-only snapshot status, and a consolidated master dashboard.
+
+### Runtime Result
+
+- WR-009 patch recovered `DASHBOARD_ALL_MATCH` and returned `READY_NO_ACTION_CLEAN`
+- WR-011 found 9 complete export folders and 1 valid history source
+- WR-012 found 8 loaded/readable zero-origin links
+- WR-014 returned `SNAPSHOT_STATUS_UNCHANGED_CLEAN`
+- WR-015 returned `COORD_LINK_MASTER_CLEAN_WITH_HISTORY_SOURCE`
+
+No Revit mutation API was added. Only WR-013 wrote local Link_Inventory_History JSONL/CSV evidence.

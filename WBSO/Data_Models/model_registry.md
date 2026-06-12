@@ -350,3 +350,21 @@ COORD-WR-006 is deterministic local-history logic for the reviewed Revit link re
 - final history export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260608_094652`
 - no raw Revit API objects stored
 - no transaction, TransactionGroup, movement API, linked-document mutation, or UI selection modification
+
+## 2026-06-11 COORD-WR-007 to COORD-WR-015 Model Note
+
+Feature IDs: COORD-WR-007 through COORD-WR-015
+Status: Runtime validated
+Evidence: EV-AI-197 through EV-AI-215
+
+The batch uses deterministic state dictionaries and local evidence files rather than LLM model output:
+
+- WR-007/008: history reconciliation state
+- WR-009: readiness advisor state with WR-008 QA-export fallback
+- WR-010/011: evidence bundle and integrity state
+- WR-012: current Revit link inventory health state
+- WR-013: normalized snapshot record/signature in JSONL and latest CSV
+- WR-014: snapshot baseline/drift status state
+- WR-015: consolidated master status state
+
+Final master report `COORD-WR-015-20260611_143248` returned `COORD_LINK_MASTER_CLEAN_WITH_HISTORY_SOURCE`. Commit: `3a1ab8d4b71c63cb08209e24dfafee939da98033 Add coordination link master status dashboard`.

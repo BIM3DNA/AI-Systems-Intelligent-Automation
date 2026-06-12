@@ -201,6 +201,15 @@ COORD-WR-005 prompts route deterministically before Ollama/OpenAI fallback.
 - Generic LLM output remains rejected as deterministic QA evidence.
 - No provider configuration was changed.
 
+## 2026-06-11 COORD-WR-007 to COORD-WR-015 Provider Boundary Note
+
+All COORD-WR-007 through COORD-WR-015 routes are deterministic and execute before Ollama/OpenAI fallback.
+
+- providers do not select history records, resolve links, compare transforms, classify readiness, validate evidence files, inventory links, compare snapshots, or determine master status
+- QA export fallback parsing uses fixed headers and fields
+- generic LLM output remains non-exportable as deterministic evidence
+- no provider configuration was changed
+
 ## 2026-06-04 COORD-WR-004 Provider Boundary Note
 
 COORD-WR-004 prompts route deterministically before Ollama/OpenAI fallback.

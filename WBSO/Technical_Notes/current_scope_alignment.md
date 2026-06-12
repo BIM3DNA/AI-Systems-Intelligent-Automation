@@ -622,3 +622,32 @@ Still out of scope:
 - parameter writes
 - applying by stored element id
 - storing raw Revit API objects
+
+### 2026-06-11 COORD-WR-007 to COORD-WR-015 scope alignment
+
+Validated scope:
+
+- current-model reconciliation against local clean history checkpoints
+- multi-record/per-link reconciliation dashboard
+- deterministic next-action advisor with QA-export fallback
+- consolidated workflow evidence bundle and file integrity validation
+- active-document Revit link inventory/external-reference health audit
+- local JSONL/CSV inventory snapshot baseline and duplicate prevention
+- read-only snapshot drift/status dashboard
+- consolidated coordination master handover status
+- QA export/index support for all report headers
+
+Safety boundary:
+
+- no automatic audit, rollback, apply, verification, reset, or correction
+- no transaction or TransactionGroup
+- no link movement, rotation, transform, reload/unload, pin/unpin, or parameter write
+- no linked-document or UI selection mutation
+- only COORD-WR-013 writes local snapshot JSONL/CSV files
+
+Still out of scope:
+
+- automatic remediation based on reconciliation or inventory status
+- batch link correction
+- linked-document editing
+- production correction without explicit reviewed workflow

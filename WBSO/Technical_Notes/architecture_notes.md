@@ -1372,6 +1372,24 @@ After pyRevit shared state reset, COORD-WR-005 status `COORD-WR-005-20260608_091
 
 COORD-WR-006 reads QA export files and writes local history JSONL/CSV only. It opens no transaction or TransactionGroup, calls no movement API, runs no audit/rollback/apply/verification action, changes no selection, and modifies no Revit or linked-document data.
 
+## 2026-06-11 COORD-WR-007 to COORD-WR-015 Evidence and Inventory Architecture
+
+This batch extends the reviewed link-reset chain into a durable coordination evidence architecture:
+
+1. WR-007 reconciles the latest local history checkpoint with the current live link transform.
+2. WR-008 reconciles the latest checkpoint per target link.
+3. WR-009 classifies the next safe action and recovers WR-008 through QA-export fallback when shared state is unavailable.
+4. WR-010 consolidates workflow evidence into a handover bundle.
+5. WR-011 validates actual evidence folders and required files.
+6. WR-012 produces a current active-document link inventory and health classification.
+7. WR-013 persists normalized inventory snapshots in local JSONL/CSV and prevents duplicate append.
+8. WR-014 reads snapshot history and latest WR-013 evidence without creating a new snapshot.
+9. WR-015 consolidates WR-010 through WR-014 into `[COORDINATION LINK MASTER STATUS]`.
+
+The architecture deliberately separates live Revit reads from durable filesystem evidence. QA index and report parsing provides cross-session recovery without automatic workflow execution. WR-013 is the only feature in the batch that writes local history files; all other features are read-only with respect to both Revit model data and local evidence sources.
+
+Final validated classification: `COORD_LINK_MASTER_CLEAN_WITH_HISTORY_SOURCE`.
+
 ## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry
 
 MEP-RO-006 builds on MEP-RO-005 by registering every successful QA evidence export in a persistent local filesystem index.
