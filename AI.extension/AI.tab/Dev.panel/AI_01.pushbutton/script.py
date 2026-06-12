@@ -91,6 +91,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[COORDINATION LINK HANDOVER REGISTER]",
     "[COORDINATION LINK HANDOVER REGISTER STATUS]",
     "[COORDINATION LINK HANDOVER REGISTER INTEGRITY]",
+    "[COORDINATION LINK FINAL HANDOVER SUMMARY]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -13993,6 +13994,23 @@ def _is_coordination_link_handover_integrity_prompt(prompt):
     return normalized in routes
 
 
+def _is_coordination_link_final_handover_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show coordination link final handover",
+        "coordination link final handover",
+        "show coord link final handover",
+        "coord link final handover",
+        "show final coordination handover",
+        "final coordination handover",
+        "show link final handover",
+        "link final handover",
+        "show coordination closeout summary",
+        "coordination closeout summary",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -14836,6 +14854,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_coordination_link_handover_register_state = None
         self.latest_coordination_link_handover_status_state = None
         self.latest_coordination_link_handover_integrity_state = None
+        self.latest_coordination_link_final_handover_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -16046,6 +16065,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "coordination link handover register status / read-only local master run history dashboard"
         if header == "[COORDINATION LINK HANDOVER REGISTER INTEGRITY]":
             return "coordination link handover register integrity / read-only local register and evidence consistency check"
+        if header == "[COORDINATION LINK FINAL HANDOVER SUMMARY]":
+            return "coordination link final handover summary / read-only consolidated closeout report"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -25962,6 +25983,528 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _coordination_link_final_handover_specs(self):
+        return [
+            {
+                "feature_id": "COORD-WR-015",
+                "header": "[COORDINATION LINK MASTER STATUS]",
+                "id_field": "Master Status Report ID",
+                "result_field": "Master result",
+                "fields": {
+                    "current_link_inventory_count": "Current link inventory count",
+                    "active_document_snapshot_count": "Active-document snapshot count",
+                    "detected_inventory_changed_fields": "Detected inventory changed fields",
+                },
+            },
+            {
+                "feature_id": "COORD-WR-016",
+                "header": "[COORDINATION LINK MASTER EVIDENCE INTEGRITY]",
+                "id_field": "Master Integrity Report ID",
+                "result_field": "Dashboard result",
+                "fields": {
+                    "complete_export_folders": "Complete export folders",
+                    "history_files_ok": "History files OK",
+                    "snapshot_files_ok": "Snapshot files OK",
+                    "missing_folders_files": "Missing folders/files",
+                    "incomplete_folders": "Incomplete folders",
+                    "index_missing": "Index missing",
+                    "header_mismatch": "Header mismatch",
+                    "parse_failed": "Parse failed",
+                    "unavailable": "Unavailable",
+                    "review_required": "Review required",
+                },
+            },
+            {
+                "feature_id": "COORD-WR-017",
+                "header": "[COORDINATION LINK HANDOVER REGISTER]",
+                "id_field": "Handover Register Report ID",
+                "result_field": "Register classification",
+                "fields": {
+                    "append_attempted": "Append attempted",
+                    "append_succeeded": "Append succeeded",
+                    "duplicate_skipped": "Duplicate skipped",
+                    "active_document_register_count": "Active-document register record count after run",
+                },
+            },
+            {
+                "feature_id": "COORD-WR-018",
+                "header": "[COORDINATION LINK HANDOVER REGISTER STATUS]",
+                "id_field": "Handover Status Report ID",
+                "result_field": "Dashboard result",
+                "fields": {
+                    "latest_register_id": "Latest register id",
+                    "latest_register_clean": "Latest register record clean",
+                    "duplicate_skipped": "Duplicate skipped",
+                    "active_document_register_count": "Active-document register record count",
+                    "latest_csv_row_count": "Latest CSV row count",
+                },
+            },
+            {
+                "feature_id": "COORD-WR-019",
+                "header": "[COORDINATION LINK HANDOVER REGISTER INTEGRITY]",
+                "id_field": "Handover Register Integrity Report ID",
+                "result_field": "Dashboard result",
+                "fields": {
+                    "csv_matches_jsonl_latest": "Latest CSV matches JSONL latest",
+                    "jsonl_parse_failures": "JSONL parse failures",
+                    "active_document_register_count": "Active-document records",
+                    "complete_export_folders": "Complete export folders",
+                    "missing_folders_files": "Missing files/folders",
+                    "index_missing": "Index missing",
+                    "header_mismatch": "Header mismatch",
+                    "id_mismatch": "Id mismatch",
+                    "result_mismatch": "Result mismatch",
+                    "document_mismatch": "Document mismatch",
+                    "duplicate_signatures": "Duplicate signatures",
+                    "repeated_ids": "Repeated ids",
+                    "unavailable": "Unavailable",
+                    "review_required": "Review required",
+                },
+            },
+        ]
+
+    def _coordination_link_final_handover_export(
+        self, spec, active_document, entries
+    ):
+        matches = []
+        seen_folders = set()
+        for entry in entries:
+            header = entry.get(
+                "source_report_header", entry.get("source_header")
+            )
+            if safe_str(header).strip() != spec.get("header"):
+                continue
+            entry_document = safe_str(entry.get("document_title")).strip()
+            if (
+                entry_document
+                and entry_document.lower()
+                != safe_str(active_document).strip().lower()
+            ):
+                continue
+            folder = safe_str(entry.get("export_folder")).strip()
+            if not folder or folder.lower() in seen_folders:
+                continue
+            seen_folders.add(folder.lower())
+            matches.append(entry)
+        matches = sorted(
+            matches,
+            key=lambda item: safe_str(
+                item.get("export_timestamp_local", item.get("timestamp"))
+            ),
+            reverse=True,
+        )
+        if not matches:
+            return {}, "{0} QA export is unavailable.".format(
+                spec.get("feature_id")
+            )
+        entry = matches[0]
+        report_text, report_path, error = (
+            self._coordination_link_master_report_text(entry)
+        )
+        if error:
+            return {}, error
+        fields = self._link_reset_history_report_fields(report_text)
+        report_id = safe_str(fields.get(spec.get("id_field"))).strip()
+        result = safe_str(fields.get(spec.get("result_field"))).strip()
+        document_title = safe_str(
+            fields.get("Active document title")
+            or entry.get("document_title")
+        ).strip()
+        if (
+            document_title.lower()
+            != safe_str(active_document).strip().lower()
+        ):
+            return {}, "{0} QA export document does not match the active document.".format(
+                spec.get("feature_id")
+            )
+        if not report_id or not result:
+            return {}, "{0} QA export is missing its report id or result.".format(
+                spec.get("feature_id")
+            )
+        data = {
+            "feature_id": spec.get("feature_id"),
+            "header": spec.get("header"),
+            "report_id": report_id,
+            "result": result,
+            "timestamp": safe_str(
+                fields.get("Timestamp")
+                or entry.get("export_timestamp_local")
+                or "unavailable"
+            ),
+            "export_folder": safe_str(
+                entry.get("export_folder") or "unavailable"
+            ),
+            "document_title": document_title,
+            "active_view_name": safe_str(
+                fields.get("Active view name")
+                or entry.get("active_view_name")
+                or "unavailable"
+            ),
+            "available": True,
+            "report_path": report_path,
+        }
+        for key, field_name in (spec.get("fields") or {}).items():
+            data[key] = fields.get(field_name, "unavailable")
+        return data, None
+
+    def _coordination_link_final_handover_statement(self, result):
+        statements = {
+            "COORD_HANDOVER_FINAL_READY": "Final coordination handover state is ready. Evidence is complete, register is clean, and no link inventory drift is detected.",
+            "COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE": "Final coordination handover state is ready with accepted local history/snapshot evidence. Evidence is complete, register is clean, and no link inventory drift is detected.",
+            "COORD_HANDOVER_FINAL_REGISTERED_ONLY": "Clean handover state is registered, but status/integrity evidence should be refreshed before final handover.",
+            "COORD_HANDOVER_FINAL_EVIDENCE_INCOMPLETE": "Final handover is blocked by incomplete evidence.",
+            "COORD_HANDOVER_FINAL_REGISTER_INCOMPLETE": "Final handover is blocked by incomplete or inconsistent handover register data.",
+            "COORD_HANDOVER_FINAL_EXPORTS_UNAVAILABLE": "Final handover is blocked because one or more required QA exports are unavailable.",
+            "COORD_HANDOVER_FINAL_REVIEW_REQUIRED": "Final handover requires review before release.",
+        }
+        return statements.get(
+            result, statements["COORD_HANDOVER_FINAL_REVIEW_REQUIRED"]
+        )
+
+    def _coordination_link_final_handover_recommendation(self, result):
+        recommendations = {
+            "COORD_HANDOVER_FINAL_READY": "No action required. Coordination handover is ready.",
+            "COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE": "No model action required. Coordination handover is ready; retain local history/snapshot evidence with the QA export package.",
+            "COORD_HANDOVER_FINAL_REGISTERED_ONLY": "Run show coordination link handover status and show coordination link handover register integrity, then export latest QA report.",
+            "COORD_HANDOVER_FINAL_EVIDENCE_INCOMPLETE": "Review master status and master evidence integrity reports before handover.",
+            "COORD_HANDOVER_FINAL_REGISTER_INCOMPLETE": "Review handover register status and handover register integrity reports before handover.",
+            "COORD_HANDOVER_FINAL_EXPORTS_UNAVAILABLE": "Regenerate missing COORD-WR-015 through COORD-WR-019 QA exports.",
+            "COORD_HANDOVER_FINAL_REVIEW_REQUIRED": "Review final handover evidence chain and rerun the relevant read-only dashboards.",
+        }
+        return recommendations.get(
+            result,
+            recommendations["COORD_HANDOVER_FINAL_REVIEW_REQUIRED"],
+        )
+
+    def _collect_coordination_link_final_handover(self, prompt):
+        document_title = safe_str(getattr(doc, "Title", "(unknown document)"))
+        entries, warnings = self._read_link_reset_history_qa_index()
+        reports = {}
+        for spec in self._coordination_link_final_handover_specs():
+            report, error = self._coordination_link_final_handover_export(
+                spec, document_title, entries
+            )
+            reports[spec.get("feature_id")] = report
+            if error:
+                warnings.append(error)
+        wr015 = reports.get("COORD-WR-015") or {}
+        wr016 = reports.get("COORD-WR-016") or {}
+        wr017 = reports.get("COORD-WR-017") or {}
+        wr018 = reports.get("COORD-WR-018") or {}
+        wr019 = reports.get("COORD-WR-019") or {}
+        required_available = all(
+            [bool(reports.get(spec.get("feature_id"))) for spec in self._coordination_link_final_handover_specs()]
+        )
+        register_available = bool(wr017)
+        status_integrity_available = bool(wr018 and wr019)
+        master_incomplete = bool(
+            wr015.get("result")
+            in [
+                "COORD_LINK_MASTER_EVIDENCE_INCOMPLETE",
+                "COORD_LINK_MASTER_HISTORY_UNAVAILABLE",
+            ]
+            or wr016.get("result")
+            in [
+                "COORD_LINK_MASTER_INTEGRITY_MISSING_FILES",
+                "COORD_LINK_MASTER_INTEGRITY_PARTIAL_INDEX",
+                "COORD_LINK_MASTER_INTEGRITY_MASTER_EXPORT_UNAVAILABLE",
+            ]
+            or _safe_int(wr016.get("missing_folders_files"), 0) > 0
+            or _safe_int(wr016.get("incomplete_folders"), 0) > 0
+        )
+        register_incomplete = bool(
+            wr018.get("result")
+            in [
+                "COORD_HANDOVER_STATUS_REGISTER_MISSING",
+                "COORD_HANDOVER_STATUS_REVIEW_REQUIRED",
+            ]
+            or wr019.get("result")
+            in [
+                "COORD_HANDOVER_REGISTER_INTEGRITY_MISSING_FILES",
+                "COORD_HANDOVER_REGISTER_INTEGRITY_PARSE_FAILED",
+                "COORD_HANDOVER_REGISTER_INTEGRITY_REGISTER_MISSING",
+                "COORD_HANDOVER_REGISTER_INTEGRITY_REVIEW_REQUIRED",
+            ]
+        )
+        zero_values = [
+            wr015.get("detected_inventory_changed_fields"),
+            wr016.get("missing_folders_files"),
+            wr016.get("incomplete_folders"),
+            wr016.get("index_missing"),
+            wr016.get("header_mismatch"),
+            wr016.get("parse_failed"),
+            wr016.get("unavailable"),
+            wr016.get("review_required"),
+            wr019.get("jsonl_parse_failures"),
+            wr019.get("missing_folders_files"),
+            wr019.get("index_missing"),
+            wr019.get("header_mismatch"),
+            wr019.get("id_mismatch"),
+            wr019.get("result_mismatch"),
+            wr019.get("document_mismatch"),
+            wr019.get("duplicate_signatures"),
+            wr019.get("repeated_ids"),
+            wr019.get("unavailable"),
+            wr019.get("review_required"),
+        ]
+        all_zero = all([_safe_int(value, -1) == 0 for value in zero_values])
+        csv_matches = self._link_reset_history_bool(
+            wr019.get("csv_matches_jsonl_latest")
+        )
+        wr017_clean = wr017.get("result") in [
+            "COORD_HANDOVER_REGISTER_APPENDED_CLEAN",
+            "COORD_HANDOVER_REGISTER_DUPLICATE_SKIPPED",
+        ]
+        wr018_clean = wr018.get("result") in [
+            "COORD_HANDOVER_STATUS_CLEAN_REGISTERED",
+            "COORD_HANDOVER_STATUS_DUPLICATE_CONFIRMED",
+        ]
+        strict_ready = bool(
+            wr015.get("result") == "COORD_LINK_MASTER_CLEAN"
+            and wr016.get("result") == "COORD_LINK_MASTER_INTEGRITY_COMPLETE"
+            and wr017_clean
+            and wr018_clean
+            and wr019.get("result")
+            == "COORD_HANDOVER_REGISTER_INTEGRITY_CLEAN"
+            and all_zero
+            and csv_matches
+        )
+        history_ready = bool(
+            wr015.get("result")
+            in [
+                "COORD_LINK_MASTER_CLEAN",
+                "COORD_LINK_MASTER_CLEAN_WITH_HISTORY_SOURCE",
+            ]
+            and wr016.get("result")
+            in [
+                "COORD_LINK_MASTER_INTEGRITY_COMPLETE",
+                "COORD_LINK_MASTER_INTEGRITY_CLEAN_WITH_HISTORY_SOURCE",
+            ]
+            and wr017_clean
+            and wr018_clean
+            and wr019.get("result")
+            in [
+                "COORD_HANDOVER_REGISTER_INTEGRITY_CLEAN",
+                "COORD_HANDOVER_REGISTER_INTEGRITY_CLEAN_WITH_DUPLICATE_STATUS",
+            ]
+            and all_zero
+            and csv_matches
+        )
+        if not required_available:
+            if (
+                bool(wr015)
+                and bool(wr016)
+                and register_available
+                and not status_integrity_available
+                and wr017_clean
+            ):
+                dashboard_result = "COORD_HANDOVER_FINAL_REGISTERED_ONLY"
+            else:
+                dashboard_result = "COORD_HANDOVER_FINAL_EXPORTS_UNAVAILABLE"
+        elif master_incomplete:
+            dashboard_result = "COORD_HANDOVER_FINAL_EVIDENCE_INCOMPLETE"
+        elif register_incomplete:
+            dashboard_result = "COORD_HANDOVER_FINAL_REGISTER_INCOMPLETE"
+        elif strict_ready:
+            dashboard_result = "COORD_HANDOVER_FINAL_READY"
+        elif history_ready:
+            dashboard_result = (
+                "COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE"
+            )
+        else:
+            dashboard_result = "COORD_HANDOVER_FINAL_REVIEW_REQUIRED"
+        return {
+            "feature_id": "COORD-WR-020",
+            "feature_name": "Coordination Link Final Handover Summary",
+            "final_handover_id": "COORD-WR-020-{0}".format(
+                time.strftime("%Y%m%d_%H%M%S")
+            ),
+            "created_timestamp_local": time.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+            "source_prompt": safe_str(prompt),
+            "document_title": document_title,
+            "active_view_name": self._safe_active_view_name(),
+            "qa_index_paths_checked": self._link_reset_history_qa_index_paths(),
+            "reports": reports,
+            "dashboard_result": dashboard_result,
+            "final_handover_statement": (
+                self._coordination_link_final_handover_statement(
+                    dashboard_result
+                )
+            ),
+            "recommended_next_action": (
+                self._coordination_link_final_handover_recommendation(
+                    dashboard_result
+                )
+            ),
+            "warnings": warnings,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+
+    def _format_coordination_link_final_handover_report(self, data):
+        reports = data.get("reports") or {}
+        wr015 = reports.get("COORD-WR-015") or {}
+        wr016 = reports.get("COORD-WR-016") or {}
+        wr017 = reports.get("COORD-WR-017") or {}
+        wr018 = reports.get("COORD-WR-018") or {}
+        wr019 = reports.get("COORD-WR-019") or {}
+        facts = [
+            ("Current link inventory count", wr015.get("current_link_inventory_count", "unavailable")),
+            ("Active-document snapshot count", wr015.get("active_document_snapshot_count", "unavailable")),
+            ("Active-document handover register record count", wr019.get("active_document_register_count", wr018.get("active_document_register_count", "unavailable"))),
+            ("Latest handover register id", wr018.get("latest_register_id", "unavailable")),
+            ("Detected inventory changed fields", wr015.get("detected_inventory_changed_fields", "unavailable")),
+            ("Complete export folders", wr016.get("complete_export_folders", "unavailable")),
+            ("History files OK", wr016.get("history_files_ok", "unavailable")),
+            ("Snapshot files OK", wr016.get("snapshot_files_ok", "unavailable")),
+            ("Register CSV matches JSONL latest", wr019.get("csv_matches_jsonl_latest", "unavailable")),
+            ("JSONL parse failures", wr019.get("jsonl_parse_failures", "unavailable")),
+            ("Missing files/folders", wr019.get("missing_folders_files", wr016.get("missing_folders_files", "unavailable"))),
+            ("Incomplete folders", wr016.get("incomplete_folders", "unavailable")),
+            ("Index missing", wr019.get("index_missing", wr016.get("index_missing", "unavailable"))),
+            ("Header mismatch", wr019.get("header_mismatch", "unavailable")),
+            ("Id mismatch", wr019.get("id_mismatch", "unavailable")),
+            ("Result mismatch", wr019.get("result_mismatch", "unavailable")),
+            ("Document mismatch", wr019.get("document_mismatch", "unavailable")),
+            ("Duplicate signatures", wr019.get("duplicate_signatures", "unavailable")),
+            ("Repeated ids", wr019.get("repeated_ids", "unavailable")),
+            ("Unavailable", wr019.get("unavailable", wr016.get("unavailable", "unavailable"))),
+            ("Review required", wr019.get("review_required", wr016.get("review_required", "unavailable"))),
+        ]
+        lines = [
+            "[COORDINATION LINK FINAL HANDOVER SUMMARY]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Final Handover Report ID:",
+            data.get("final_handover_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "coordination link final handover summary / read-only consolidated closeout report",
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view name:",
+            data.get("active_view_name"),
+            "",
+            "QA index paths checked:",
+        ]
+        for path in data.get("qa_index_paths_checked") or []:
+            lines.append("- {0}".format(path))
+        lines.extend(
+            [
+                "",
+                "Final evidence table:",
+                "| Feature id | Expected header | Latest id | Result/status | Export folder | Available |",
+                "|---|---|---|---|---|---|",
+            ]
+        )
+        for spec in self._coordination_link_final_handover_specs():
+            item = reports.get(spec.get("feature_id")) or {}
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} |".format(
+                    spec.get("feature_id"),
+                    safe_str(spec.get("header")).replace("|", "/"),
+                    item.get("report_id", "unavailable"),
+                    safe_str(item.get("result", "Unavailable")).replace("|", "/"),
+                    safe_str(item.get("export_folder", "unavailable")).replace("|", "/"),
+                    _coord_bool_text(bool(item)),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "Final closeout facts:",
+                "| Metric | Value |",
+                "|---|---|",
+            ]
+        )
+        for metric, value in facts:
+            lines.append(
+                "| {0} | {1} |".format(
+                    metric, safe_str(value).replace("|", "/")
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "Final dashboard result:",
+                data.get("dashboard_result"),
+                "",
+                "Final handover statement:",
+                data.get("final_handover_statement"),
+                "",
+                "Recommended next action:",
+                data.get("recommended_next_action"),
+                "",
+                "Warnings:",
+            ]
+        )
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Read-only consolidated coordination closeout report only.",
+                "- Coordination_Handover_History, QA export index, and QA report files were read but not modified.",
+                "- No audit, reset, rollback, apply, verification, workflow status, history append, reconciliation, advisor, bundle, integrity check, inventory audit, snapshot append, snapshot status, master status, master integrity, handover register append, handover status, handover register integrity, reload, unload, pin, unpin, selection, or correction action was run.",
+                "- No Revit model or linked-document data was modified.",
+            ]
+        )
+        return "\n".join(lines)
+
+    def answer_coordination_link_final_handover_question(self, prompt):
+        if not _is_coordination_link_final_handover_prompt(prompt):
+            return None
+        data = self._collect_coordination_link_final_handover(prompt)
+        report_text = self._format_coordination_link_final_handover_report(
+            data
+        )
+        data["report_header"] = (
+            "[COORDINATION LINK FINAL HANDOVER SUMMARY]"
+        )
+        data["report_scope"] = (
+            "coordination link final handover summary / read-only consolidated closeout report"
+        )
+        data["report_text"] = report_text
+        self.latest_coordination_link_final_handover_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[COORDINATION LINK FINAL HANDOVER SUMMARY]",
+            "report_text": report_text,
+            "report_scope": "coordination link final handover summary / read-only consolidated closeout report",
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "COORD-WR-020",
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _link_reset_advisor_document_match(self, state, active_document):
         if not state:
             return None
@@ -31778,6 +32321,9 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            coordination_link_final_handover_reply = (
+                self.answer_coordination_link_final_handover_question(prompt)
+            )
             coordination_link_handover_integrity_reply = (
                 self.answer_coordination_link_handover_integrity_question(
                     prompt
@@ -31826,7 +32372,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if coordination_link_handover_integrity_reply is not None:
+            if coordination_link_final_handover_reply is not None:
+                reply = coordination_link_final_handover_reply
+                remember_report = True
+            elif coordination_link_handover_integrity_reply is not None:
                 reply = coordination_link_handover_integrity_reply
                 remember_report = True
             elif coordination_link_handover_status_reply is not None:

@@ -3268,6 +3268,35 @@
     "mode": "deterministic"
   },
   {
+    "id": "coordination-link-final-handover-summary",
+    "title": "Coordination link final handover summary",
+    "category": "BIM QA",
+    "group": "Coordination Audits",
+    "discipline": "Coordination",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "coordination_link_final_handover_summary",
+    "canonical_prompt": "show coordination link final handover",
+    "planner_aliases": [
+      "show coordination link final handover",
+      "coordination link final handover",
+      "show coord link final handover",
+      "coord link final handover",
+      "show final coordination handover",
+      "final coordination handover",
+      "show link final handover",
+      "link final handover",
+      "show coordination closeout summary",
+      "coordination closeout summary"
+    ],
+    "deterministic_handler": "coordination_link_final_handover_summary",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show coordination link final handover",
+    "mode": "deterministic"
+  },
+  {
     "id": "coordination-link-handover-register-integrity",
     "title": "Coordination link handover register integrity check",
     "category": "BIM QA",
