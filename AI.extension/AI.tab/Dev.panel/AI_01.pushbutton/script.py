@@ -94,6 +94,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[COORDINATION LINK HANDOVER REGISTER INTEGRITY]",
     "[COORDINATION LINK FINAL HANDOVER SUMMARY]",
     "[COORDINATION LINK FINAL HANDOVER PACKAGE MANIFEST]",
+    "[MEP READ ONLY V1 REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -2553,6 +2554,119 @@ def _lookup_first_param_value(elem, names):
         except:
             continue
     return None
+
+
+def _param_value_from_built_in(elem, built_in_param_names):
+    for name in built_in_param_names or []:
+        try:
+            built_in_param = getattr(DB.BuiltInParameter, name)
+            param = elem.get_Parameter(built_in_param)
+            value = _value_from_param(param)
+            if value:
+                return value
+        except:
+            continue
+    return None
+
+
+def _element_from_param_element_id(elem, built_in_param_names):
+    for name in built_in_param_names or []:
+        try:
+            built_in_param = getattr(DB.BuiltInParameter, name)
+            param = elem.get_Parameter(built_in_param)
+            if not param:
+                continue
+            element_id = param.AsElementId()
+            if (
+                element_id
+                and hasattr(element_id, "IntegerValue")
+                and element_id.IntegerValue > 0
+            ):
+                resolved = doc.GetElement(element_id)
+                if resolved is not None:
+                    return resolved
+        except:
+            continue
+    return None
+
+
+def _type_name_for_element(active_doc, elem):
+    try:
+        if elem is None:
+            return "unavailable"
+        type_id = elem.GetTypeId()
+        if not type_id or not hasattr(type_id, "IntegerValue") or type_id.IntegerValue <= 0:
+            return "unavailable"
+        type_elem = active_doc.GetElement(type_id)
+        if type_elem is None:
+            return "ElementId: {0}".format(type_id.IntegerValue)
+        value = _param_value_from_built_in(
+            type_elem,
+            ["SYMBOL_NAME_PARAM", "ALL_MODEL_TYPE_NAME"],
+        )
+        if value:
+            return safe_str(value)
+        try:
+            value = DB.Element.Name.GetValue(type_elem)
+            if value:
+                return safe_str(value)
+        except:
+            pass
+        try:
+            value = getattr(type_elem, "Name", None)
+            if value:
+                return safe_str(value)
+        except:
+            pass
+        return "ElementId: {0}".format(type_id.IntegerValue)
+    except:
+        return "unavailable"
+
+
+def _level_name_for_element(elem):
+    try:
+        if elem is None:
+            return "unavailable"
+        for attr_name in ["LevelId", "ReferenceLevelId"]:
+            try:
+                level_id = getattr(elem, attr_name, None)
+                if (
+                    level_id
+                    and hasattr(level_id, "IntegerValue")
+                    and level_id.IntegerValue > 0
+                ):
+                    level = doc.GetElement(level_id)
+                    level_name = get_elem_name(level)
+                    if level_name:
+                        return safe_str(level_name)
+            except:
+                pass
+        try:
+            level = getattr(elem, "Level", None)
+            level_name = get_elem_name(level)
+            if level_name:
+                return safe_str(level_name)
+        except:
+            pass
+        level = _element_from_param_element_id(
+            elem,
+            [
+                "RBS_START_LEVEL_PARAM",
+                "RBS_REFERENCE_LEVEL_PARAM",
+                "FAMILY_LEVEL_PARAM",
+                "INSTANCE_REFERENCE_LEVEL_PARAM",
+                "SCHEDULE_LEVEL_PARAM",
+            ],
+        )
+        level_name = get_elem_name(level)
+        if level_name:
+            return safe_str(level_name)
+        value = _lookup_first_param_value(elem, ["Level", "Reference Level"])
+        if value:
+            return safe_str(value)
+    except:
+        pass
+    return "unavailable"
 
 
 def _family_and_type_text(doc, elem):
@@ -14030,6 +14144,65 @@ def _is_coordination_link_handover_package_manifest_prompt(prompt):
     return normalized in routes
 
 
+MEP_RO_V1_ROUTE_ACTIONS = {
+    "report selected elements by category": "selected_by_category",
+    "selected elements by category": "selected_by_category",
+    "report selected categories": "selected_by_category",
+    "report selected elements by type": "selected_by_type",
+    "selected elements by type": "selected_by_type",
+    "report selected types": "selected_by_type",
+    "health check active view selection": "selection_health",
+    "active view selection health check": "selection_health",
+    "selection health check": "selection_health",
+    "report missing parameters from selection": "missing_parameters",
+    "missing parameters from selection": "missing_parameters",
+    "selected missing parameters": "missing_parameters",
+    "count selected ducts": "count_selected_ducts",
+    "selected duct count": "count_selected_ducts",
+    "count ducts in active view": "count_ducts_active_view",
+    "active view duct count": "count_ducts_active_view",
+    "list ducts in active view": "list_ducts_active_view",
+    "active view duct list": "list_ducts_active_view",
+    "report total selected duct length": "selected_duct_length",
+    "selected duct total length": "selected_duct_length",
+    "report total selected duct volume": "selected_duct_volume",
+    "report total selected duct volume in m3": "selected_duct_volume",
+    "selected duct total volume": "selected_duct_volume",
+    "find unconnected duct fittings": "unconnected_duct_fittings",
+    "unconnected duct fittings": "unconnected_duct_fittings",
+    "report ducts without system assignment": "ducts_without_system",
+    "ducts without system assignment": "ducts_without_system",
+    "count selected pipes": "count_selected_pipes",
+    "selected pipe count": "count_selected_pipes",
+    "report total selected pipe length": "selected_pipe_length",
+    "selected pipe total length": "selected_pipe_length",
+    "find unconnected pipe fittings": "unconnected_pipe_fittings",
+    "unconnected pipe fittings": "unconnected_pipe_fittings",
+    "report pipes without system assignment": "pipes_without_system",
+    "pipes without system assignment": "pipes_without_system",
+    "count selected fixtures": "count_selected_electrical",
+    "count selected devices": "count_selected_electrical",
+    "count selected fixtures and devices": "count_selected_electrical",
+    "selected electrical device count": "count_selected_electrical",
+    "report devices without circuit and system info": "devices_without_circuit",
+    "report devices without circuit/system info": "devices_without_circuit",
+    "devices without circuit info": "devices_without_circuit",
+    "electrical devices without system info": "devices_without_circuit",
+    "list fixtures by type in active view": "fixtures_by_type_active_view",
+    "list devices by type in active view": "fixtures_by_type_active_view",
+    "electrical fixtures by type in active view": "fixtures_by_type_active_view",
+    "select all ducts": "guarded_selection",
+    "select all pipes": "guarded_selection",
+    "select all electrical fixtures in active view": "guarded_selection",
+    "select all fixtures in active view": "guarded_selection",
+}
+
+
+def _mep_ro_v1_action_key(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return MEP_RO_V1_ROUTE_ACTIONS.get(normalized)
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -16092,6 +16265,8 @@ class OllamaAIChat(forms.WPFWindow):
             == "[COORDINATION LINK FINAL HANDOVER PACKAGE MANIFEST]"
         ):
             return "coordination link final handover package manifest / local evidence package index"
+        if header == "[MEP READ ONLY V1 REPORT]":
+            return "MEP read-only reporting / active-view and selected-element QA"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -27868,6 +28043,751 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _mep_ro_v1_active_view_type(self):
+        try:
+            return safe_str(uidoc.ActiveView.ViewType)
+        except:
+            try:
+                return safe_str(doc.ActiveView.ViewType)
+            except:
+                return "unavailable"
+
+    def _mep_ro_v1_category_id(self, built_in_category_name):
+        try:
+            return int(getattr(DB.BuiltInCategory, built_in_category_name))
+        except:
+            return None
+
+    def _mep_ro_v1_category_ids(self, names):
+        ids = []
+        for name in names or []:
+            value = self._mep_ro_v1_category_id(name)
+            if value is not None:
+                ids.append(value)
+        return ids
+
+    def _mep_ro_v1_element_category_id(self, elem):
+        try:
+            return int(elem.Category.Id.IntegerValue)
+        except:
+            return None
+
+    def _mep_ro_v1_element_category_name(self, elem):
+        try:
+            return get_elem_name(elem.Category) or "Uncategorized"
+        except:
+            return "Uncategorized"
+
+    def _mep_ro_v1_element_id_text(self, elem):
+        try:
+            return str(int(elem.Id.IntegerValue))
+        except:
+            return "unavailable"
+
+    def _mep_ro_v1_selected_elements(self):
+        elements = []
+        warnings = []
+        try:
+            selected_ids = list(uidoc.Selection.GetElementIds())
+        except Exception as exc:
+            return [], ["Selection could not be read: {0}".format(safe_str(exc))]
+        for element_id in selected_ids:
+            try:
+                elem = doc.GetElement(element_id)
+                if elem is None:
+                    warnings.append(
+                        "Selected element id {0} no longer resolves.".format(
+                            safe_str(getattr(element_id, "IntegerValue", element_id))
+                        )
+                    )
+                else:
+                    elements.append(elem)
+            except Exception as exc:
+                warnings.append(
+                    "Selected element could not be read: {0}".format(safe_str(exc))
+                )
+        return elements, warnings
+
+    def _mep_ro_v1_type_info(self, elem):
+        type_id = "unavailable"
+        type_name = "unavailable"
+        family_name = "unavailable"
+        type_elem = None
+        try:
+            type_id_obj = elem.GetTypeId()
+            type_id = safe_str(type_id_obj.IntegerValue)
+            type_elem = doc.GetElement(type_id_obj)
+        except:
+            type_elem = None
+        type_name = _type_name_for_element(doc, elem)
+        try:
+            family_name = safe_str(type_elem.FamilyName)
+        except:
+            try:
+                family_name = safe_str(elem.Symbol.Family.Name)
+            except:
+                family_name = "System family / unavailable"
+        return family_name, type_name, type_id
+
+    def _mep_ro_v1_param_value(self, elem, names):
+        for name in names or []:
+            try:
+                param = elem.LookupParameter(name)
+                value = _value_from_param(param)
+                if value not in (None, ""):
+                    return safe_str(value)
+            except:
+                continue
+        return ""
+
+    def _mep_ro_v1_lookup_param(self, elem, names):
+        for name in names or []:
+            try:
+                param = elem.LookupParameter(name)
+                if param:
+                    return param
+            except:
+                continue
+        return None
+
+    def _mep_ro_v1_length_ft(self, elem):
+        param = self._mep_ro_v1_lookup_param(elem, ["Length", "Centerline Length"])
+        if param:
+            try:
+                value = float(param.AsDouble())
+                if value > 0:
+                    return value, "parameter"
+            except:
+                pass
+        try:
+            location = elem.Location
+            curve = location.Curve
+            value = float(curve.Length)
+            if value > 0:
+                return value, "LocationCurve"
+        except:
+            pass
+        return None, "unreadable"
+
+    def _mep_ro_v1_volume_ft3(self, elem):
+        param = self._mep_ro_v1_lookup_param(elem, ["Volume"])
+        if param:
+            try:
+                value = float(param.AsDouble())
+                if value > 0:
+                    return value
+            except:
+                pass
+        return None
+
+    def _mep_ro_v1_level_name(self, elem):
+        value = _level_name_for_element(elem)
+        if value:
+            return safe_str(value)
+        return self._mep_ro_v1_param_value(elem, ["Level", "Reference Level"]) or "unavailable"
+
+    def _mep_ro_v1_size_text(self, elem):
+        value = self._mep_ro_v1_param_value(
+            elem,
+            ["Size", "Diameter", "Width", "Height", "Duct Size", "Pipe Size"],
+        )
+        return value or "unavailable"
+
+    def _mep_ro_v1_active_view_elements_by_category_ids(self, category_ids):
+        elements = []
+        warnings = []
+        for category_id in category_ids or []:
+            try:
+                built_in_category = DB.BuiltInCategory(category_id)
+                collector = (
+                    DB.FilteredElementCollector(doc, uidoc.ActiveView.Id)
+                    .OfCategory(built_in_category)
+                    .WhereElementIsNotElementType()
+                )
+                for elem in collector.ToElements():
+                    elements.append(elem)
+            except Exception as exc:
+                warnings.append(
+                    "Active-view collector failed for category {0}: {1}".format(
+                        safe_str(category_id), safe_str(exc)
+                    )
+                )
+        return elements, warnings
+
+    def _mep_ro_v1_system_assigned(self, elem):
+        try:
+            system = elem.MEPSystem
+            if system is not None:
+                return True
+        except:
+            pass
+        values = [
+            self._mep_ro_v1_param_value(
+                elem,
+                ["System Name", "System Type", "System Classification"],
+            )
+        ]
+        for value in values:
+            normalized = safe_str(value).strip().lower()
+            if normalized and normalized not in [
+                "(none)",
+                "undefined",
+                "unassigned",
+                "unavailable",
+                "none",
+            ]:
+                return True
+        return False
+
+    def _mep_ro_v1_connector_counts(self, elem):
+        connector_count = 0
+        unconnected_count = 0
+        try:
+            connectors = elem.MEPModel.ConnectorManager.Connectors
+        except:
+            connectors = None
+        if connectors is None:
+            return 0, 0, "unavailable"
+        for connector in connectors:
+            try:
+                connector_count += 1
+                if not connector.IsConnected:
+                    unconnected_count += 1
+            except:
+                continue
+        return connector_count, unconnected_count, "read"
+
+    def _mep_ro_v1_electrical_category_ids(self):
+        return self._mep_ro_v1_category_ids(
+            [
+                "OST_ElectricalFixtures",
+                "OST_ElectricalEquipment",
+                "OST_LightingFixtures",
+                "OST_DataDevices",
+                "OST_FireAlarmDevices",
+                "OST_SecurityDevices",
+                "OST_CommunicationDevices",
+            ]
+        )
+
+    def _mep_ro_v1_table(self, headers, rows):
+        lines = []
+        lines.append("| {0} |".format(" | ".join(headers)))
+        lines.append("|{0}|".format("|".join(["---" for _ in headers])))
+        for row in rows:
+            clean = []
+            for value in row:
+                clean.append(safe_str(value).replace("\r", " ").replace("\n", " ").replace("|", "\\|"))
+            lines.append("| {0} |".format(" | ".join(clean)))
+        return lines
+
+    def _mep_ro_v1_recommended_action(self, classification):
+        if classification == "MEP_RO_REPORT_EMPTY_SELECTION":
+            return "Select relevant elements and rerun the read-only report."
+        if classification == "MEP_RO_REPORT_EMPTY_ACTIVE_VIEW_RESULT":
+            return "Open the relevant MEP view or adjust view visibility/filtering and rerun."
+        if classification == "MEP_RO_REPORT_PARTIAL_WITH_SKIPPED_ELEMENTS":
+            return "Review skipped/unreadable elements before using the result for QA."
+        if classification == "MEP_RO_REPORT_REVIEW_REQUIRED":
+            return "Review warnings and rerun after correcting view/selection context."
+        if classification == "MEP_RO_SELECTION_ACTION_BLOCKED":
+            return "Use MEP-SEL-v1 later for reviewed selection-changing workflows."
+        return "No model action required. Review the report and export QA evidence if needed."
+
+    def _mep_ro_v1_base_data(self, prompt, action_name, scope):
+        return {
+            "feature_id": "MEP-RO-v1",
+            "feature_name": "MEP Read-Only Action Set v1",
+            "report_id": "MEP-RO-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "prompt": safe_str(prompt),
+            "action_name": action_name,
+            "document_title": _document_title(doc),
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "scope": scope,
+            "summary": [],
+            "tables": [],
+            "warnings": [],
+            "classification": "MEP_RO_REPORT_OK",
+        }
+
+    def _mep_ro_v1_build_data(self, prompt, action_key):
+        if action_key == "guarded_selection":
+            data = self._mep_ro_v1_base_data(prompt, "Guard selection-changing MEP route", "active view")
+            data["classification"] = "MEP_RO_SELECTION_ACTION_BLOCKED"
+            data["summary"].append(
+                "Selection-changing actions are reserved for MEP-SEL-v1 and are not part of MEP-RO-v1."
+            )
+            return data
+
+        selected_actions = [
+            "selected_by_category",
+            "selected_by_type",
+            "selection_health",
+            "missing_parameters",
+            "count_selected_ducts",
+            "selected_duct_length",
+            "selected_duct_volume",
+            "count_selected_pipes",
+            "selected_pipe_length",
+            "count_selected_electrical",
+        ]
+        action_names = {
+            "selected_by_category": "Report selected elements by category",
+            "selected_by_type": "Report selected elements by type",
+            "selection_health": "Health check active view selection",
+            "missing_parameters": "Report missing parameters from selection",
+            "count_selected_ducts": "Count selected ducts",
+            "count_ducts_active_view": "Count ducts in active view",
+            "list_ducts_active_view": "List ducts in active view",
+            "selected_duct_length": "Report total selected duct length",
+            "selected_duct_volume": "Report total selected duct volume",
+            "unconnected_duct_fittings": "Find unconnected duct fittings",
+            "ducts_without_system": "Report ducts without system assignment",
+            "count_selected_pipes": "Count selected pipes",
+            "selected_pipe_length": "Report total selected pipe length",
+            "unconnected_pipe_fittings": "Find unconnected pipe fittings",
+            "pipes_without_system": "Report pipes without system assignment",
+            "count_selected_electrical": "Count selected fixtures/devices",
+            "devices_without_circuit": "Report devices without circuit/system info",
+            "fixtures_by_type_active_view": "List fixtures/devices by type in active view",
+        }
+        scope = "selected elements" if action_key in selected_actions else "active view"
+        if action_key == "selection_health":
+            scope = "active view + selected elements"
+        data = self._mep_ro_v1_base_data(
+            prompt,
+            action_names.get(action_key, "MEP read-only report"),
+            scope,
+        )
+
+        selected, selection_warnings = self._mep_ro_v1_selected_elements()
+        data["warnings"].extend(selection_warnings)
+        duct_id = self._mep_ro_v1_category_id("OST_DuctCurves")
+        duct_fitting_id = self._mep_ro_v1_category_id("OST_DuctFitting")
+        pipe_id = self._mep_ro_v1_category_id("OST_PipeCurves")
+        pipe_fitting_id = self._mep_ro_v1_category_id("OST_PipeFitting")
+        electrical_ids = self._mep_ro_v1_electrical_category_ids()
+
+        if action_key == "selected_by_category":
+            groups = {}
+            for elem in selected:
+                cat_name = self._mep_ro_v1_element_category_name(elem)
+                cat_id = self._mep_ro_v1_element_category_id(elem)
+                key = (cat_name, cat_id)
+                groups.setdefault(key, []).append(self._mep_ro_v1_element_id_text(elem))
+            data["summary"].append("Selected elements: {0}".format(len(selected)))
+            rows = []
+            for key in sorted(groups.keys(), key=lambda item: safe_str(item[0])):
+                ids = groups[key]
+                rows.append([key[0], key[1], len(ids), ", ".join(ids[:10])])
+            data["tables"].append(("Selected categories", ["Category", "Category id", "Count", "Sample ids"], rows))
+            if not selected:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_SELECTION"
+
+        elif action_key == "selected_by_type":
+            groups = {}
+            for elem in selected:
+                cat_name = self._mep_ro_v1_element_category_name(elem)
+                family_name, type_name, type_id = self._mep_ro_v1_type_info(elem)
+                key = (cat_name, family_name, type_name, type_id)
+                groups.setdefault(key, []).append(self._mep_ro_v1_element_id_text(elem))
+            data["summary"].append("Selected elements: {0}".format(len(selected)))
+            rows = []
+            for key in sorted(groups.keys(), key=lambda item: safe_str(item)):
+                ids = groups[key]
+                rows.append([key[0], key[1], key[2], key[3], len(ids), ", ".join(ids[:10])])
+            data["tables"].append(("Selected types", ["Category", "Family", "Type", "Type id", "Count", "Sample ids"], rows))
+            if not selected:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_SELECTION"
+
+        elif action_key == "selection_health":
+            category_keys = set()
+            type_keys = set()
+            pinned = 0
+            model_count = 0
+            annotation_count = 0
+            linked_like = 0
+            for elem in selected:
+                category_keys.add(self._mep_ro_v1_element_category_name(elem))
+                type_keys.add(self._mep_ro_v1_type_info(elem))
+                try:
+                    if elem.Pinned:
+                        pinned += 1
+                except:
+                    pass
+                try:
+                    if elem.ViewSpecific:
+                        annotation_count += 1
+                    else:
+                        model_count += 1
+                except:
+                    model_count += 1
+                cat_name = self._mep_ro_v1_element_category_name(elem).lower()
+                if "link" in cat_name or "import" in cat_name or "cad" in cat_name:
+                    linked_like += 1
+            data["summary"].extend([
+                "Selection count: {0}".format(len(selected)),
+                "Selected category count: {0}".format(len(category_keys)),
+                "Selected type count: {0}".format(len(type_keys)),
+                "Model elements count: {0}".format(model_count),
+                "Annotation elements count: {0}".format(annotation_count),
+                "Pinned selected elements count: {0}".format(pinned),
+                "Linked/imported/reference-like elements count: {0}".format(linked_like),
+            ])
+            if not selected:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_SELECTION"
+            elif data["warnings"]:
+                data["classification"] = "MEP_RO_REPORT_REVIEW_REQUIRED"
+
+        elif action_key == "missing_parameters":
+            checklist = [
+                "Mark",
+                "Type Mark",
+                "Comments",
+                "System Name",
+                "System Type",
+                "Level",
+                "Offset",
+                "Diameter",
+                "Width",
+                "Height",
+                "Length",
+            ]
+            rows = []
+            for name in checklist:
+                missing = []
+                blank = []
+                present = 0
+                for elem in selected:
+                    try:
+                        param = elem.LookupParameter(name)
+                    except:
+                        param = None
+                    if not param:
+                        missing.append(self._mep_ro_v1_element_id_text(elem))
+                        continue
+                    value = _value_from_param(param)
+                    if value in (None, ""):
+                        blank.append(self._mep_ro_v1_element_id_text(elem))
+                    else:
+                        present += 1
+                rows.append([name, len(missing), len(blank), present, ", ".join(missing[:8]), ", ".join(blank[:8])])
+            data["summary"].append("Selected elements checked: {0}".format(len(selected)))
+            data["tables"].append(("Parameter checklist", ["Parameter", "Missing count", "Blank count", "Present count", "Sample missing ids", "Sample blank ids"], rows))
+            if not selected:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_SELECTION"
+
+        elif action_key in ["count_selected_ducts", "count_selected_pipes", "count_selected_electrical"]:
+            target_ids = []
+            label = "elements"
+            if action_key == "count_selected_ducts":
+                target_ids = [duct_id]
+                label = "selected duct count"
+            elif action_key == "count_selected_pipes":
+                target_ids = [pipe_id]
+                label = "selected pipe count"
+            else:
+                target_ids = electrical_ids
+                label = "selected electrical fixture/device count"
+            matches = [elem for elem in selected if self._mep_ro_v1_element_category_id(elem) in target_ids]
+            data["summary"].append("Total selected elements: {0}".format(len(selected)))
+            data["summary"].append("{0}: {1}".format(label, len(matches)))
+            if action_key == "count_selected_electrical":
+                groups = {}
+                for elem in matches:
+                    groups.setdefault(self._mep_ro_v1_element_category_name(elem), 0)
+                    groups[self._mep_ro_v1_element_category_name(elem)] += 1
+                rows = [[key, groups[key]] for key in sorted(groups.keys())]
+                data["tables"].append(("Electrical category breakdown", ["Category", "Count"], rows))
+            if not selected:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_SELECTION"
+
+        elif action_key in ["selected_duct_length", "selected_pipe_length"]:
+            target_id = duct_id if action_key == "selected_duct_length" else pipe_id
+            matches = [elem for elem in selected if self._mep_ro_v1_element_category_id(elem) == target_id]
+            total_ft = 0.0
+            skipped = []
+            for elem in matches:
+                length_ft, source = self._mep_ro_v1_length_ft(elem)
+                if length_ft is None:
+                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+                else:
+                    total_ft += length_ft
+            data["summary"].append("Selected MEP curve count: {0}".format(len(matches)))
+            data["summary"].append("Total length ft: {0:.3f}".format(total_ft))
+            data["summary"].append("Total length m: {0:.3f}".format(total_ft * 0.3048))
+            data["summary"].append("Skipped/unreadable count: {0}".format(len(skipped)))
+            if skipped:
+                data["warnings"].append("Unreadable length element ids: {0}".format(", ".join(skipped[:10])))
+                data["classification"] = "MEP_RO_REPORT_PARTIAL_WITH_SKIPPED_ELEMENTS"
+            if not selected:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_SELECTION"
+
+        elif action_key == "selected_duct_volume":
+            matches = [elem for elem in selected if self._mep_ro_v1_element_category_id(elem) == duct_id]
+            total_ft3 = 0.0
+            with_value = 0
+            missing = []
+            for elem in matches:
+                volume = self._mep_ro_v1_volume_ft3(elem)
+                if volume is None:
+                    missing.append(self._mep_ro_v1_element_id_text(elem))
+                else:
+                    with_value += 1
+                    total_ft3 += volume
+            data["summary"].append("Selected duct count: {0}".format(len(matches)))
+            data["summary"].append("Ducts with volume value: {0}".format(with_value))
+            data["summary"].append("Ducts missing volume: {0}".format(len(missing)))
+            data["summary"].append("Total volume ft3: {0:.3f}".format(total_ft3))
+            data["summary"].append("Total volume m3: {0:.3f}".format(total_ft3 * 0.028316846592))
+            if missing:
+                data["warnings"].append("Missing volume element ids: {0}".format(", ".join(missing[:10])))
+                data["classification"] = "MEP_RO_REPORT_PARTIAL_WITH_SKIPPED_ELEMENTS"
+            if not selected:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_SELECTION"
+
+        elif action_key in ["count_ducts_active_view", "list_ducts_active_view", "ducts_without_system"]:
+            ducts, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([duct_id])
+            data["warnings"].extend(warnings)
+            if action_key == "count_ducts_active_view":
+                data["summary"].append("Ducts in active view: {0}".format(len(ducts)))
+            elif action_key == "list_ducts_active_view":
+                rows = []
+                skipped = []
+                for duct in ducts[:100]:
+                    try:
+                        length_ft, source = self._mep_ro_v1_length_ft(duct)
+                        length_m = "" if length_ft is None else "{0:.3f}".format(length_ft * 0.3048)
+                        rows.append([
+                            self._mep_ro_v1_element_id_text(duct),
+                            self._mep_ro_v1_type_info(duct)[1],
+                            self._mep_ro_v1_param_value(duct, ["System Name", "System Type"]) or "unavailable",
+                            self._mep_ro_v1_level_name(duct),
+                            length_m or "unreadable",
+                            self._mep_ro_v1_size_text(duct),
+                        ])
+                    except Exception as exc:
+                        skipped.append(
+                            "{0} ({1})".format(
+                                self._mep_ro_v1_element_id_text(duct),
+                                safe_str(exc),
+                            )
+                        )
+                data["summary"].append("Total ducts in active view: {0}".format(len(ducts)))
+                data["summary"].append("Displayed duct rows: {0}".format(len(rows)))
+                data["summary"].append(
+                    "Truncated: {0}".format("true" if len(ducts) > 100 else "false")
+                )
+                data["summary"].append("Skipped/unreadable duct rows: {0}".format(len(skipped)))
+                if len(ducts) > 100:
+                    data["warnings"].append("Duct list truncated to first 100 rows.")
+                if skipped:
+                    data["warnings"].append(
+                        "Unreadable duct row ids: {0}".format(", ".join(skipped[:10]))
+                    )
+                    data["classification"] = "MEP_RO_REPORT_PARTIAL_WITH_SKIPPED_ELEMENTS"
+                data["tables"].append(("Active-view ducts", ["Element id", "Type", "System", "Level", "Length m", "Size"], rows))
+            else:
+                missing = [duct for duct in ducts if not self._mep_ro_v1_system_assigned(duct)]
+                data["summary"].append("Total ducts checked: {0}".format(len(ducts)))
+                data["summary"].append("Assigned count: {0}".format(len(ducts) - len(missing)))
+                data["summary"].append("Missing/unassigned count: {0}".format(len(missing)))
+                rows = [[self._mep_ro_v1_element_id_text(duct), self._mep_ro_v1_type_info(duct)[1], self._mep_ro_v1_level_name(duct)] for duct in missing[:50]]
+                data["tables"].append(("Ducts missing system assignment", ["Element id", "Type", "Level"], rows))
+            if not ducts:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_ACTIVE_VIEW_RESULT"
+
+        elif action_key in ["unconnected_duct_fittings", "unconnected_pipe_fittings"]:
+            category_id = duct_fitting_id if action_key == "unconnected_duct_fittings" else pipe_fitting_id
+            fittings, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([category_id])
+            data["warnings"].extend(warnings)
+            rows = []
+            for fitting in fittings:
+                connector_count, unconnected_count, status = self._mep_ro_v1_connector_counts(fitting)
+                if unconnected_count > 0:
+                    family_name, type_name, type_id = self._mep_ro_v1_type_info(fitting)
+                    rows.append([
+                        self._mep_ro_v1_element_id_text(fitting),
+                        "{0} / {1}".format(family_name, type_name),
+                        connector_count,
+                        unconnected_count,
+                        self._mep_ro_v1_level_name(fitting),
+                    ])
+            data["summary"].append("Fittings checked: {0}".format(len(fittings)))
+            data["summary"].append("Fittings with unconnected connectors: {0}".format(len(rows)))
+            data["tables"].append(("Unconnected fittings", ["Fitting id", "Family/type", "Connector count", "Unconnected connector count", "Level"], rows[:100]))
+            if not fittings:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_ACTIVE_VIEW_RESULT"
+
+        elif action_key == "selected_pipe_length":
+            pass
+
+        elif action_key == "pipes_without_system":
+            pipes, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([pipe_id])
+            data["warnings"].extend(warnings)
+            missing = [pipe for pipe in pipes if not self._mep_ro_v1_system_assigned(pipe)]
+            data["summary"].append("Total pipes checked: {0}".format(len(pipes)))
+            data["summary"].append("Assigned count: {0}".format(len(pipes) - len(missing)))
+            data["summary"].append("Missing/unassigned count: {0}".format(len(missing)))
+            data["summary"].append("Sample missing ids: {0}".format(", ".join([self._mep_ro_v1_element_id_text(pipe) for pipe in missing[:10]]) or "none"))
+            rows = [[self._mep_ro_v1_element_id_text(pipe), self._mep_ro_v1_type_info(pipe)[1], self._mep_ro_v1_level_name(pipe)] for pipe in missing[:50]]
+            data["tables"].append(("Pipes missing system assignment", ["Element id", "Type", "Level"], rows))
+            if not pipes:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_ACTIVE_VIEW_RESULT"
+
+        elif action_key == "devices_without_circuit":
+            devices, warnings = self._mep_ro_v1_active_view_elements_by_category_ids(electrical_ids)
+            data["warnings"].extend(warnings)
+            missing = []
+            with_info = 0
+            groups = {}
+            for elem in devices:
+                value = self._mep_ro_v1_param_value(elem, ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"])
+                if value:
+                    with_info += 1
+                else:
+                    missing.append(elem)
+                    family_name, type_name, type_id = self._mep_ro_v1_type_info(elem)
+                    key = (self._mep_ro_v1_element_category_name(elem), family_name, type_name)
+                    groups.setdefault(key, []).append(self._mep_ro_v1_element_id_text(elem))
+            data["summary"].append("Total devices checked: {0}".format(len(devices)))
+            data["summary"].append("Devices with circuit/system info: {0}".format(with_info))
+            data["summary"].append("Devices missing circuit/system info: {0}".format(len(missing)))
+            data["summary"].append("Sample missing ids: {0}".format(", ".join([self._mep_ro_v1_element_id_text(elem) for elem in missing[:10]]) or "none"))
+            rows = [[key[0], key[1], key[2], len(ids), ", ".join(ids[:8])] for key, ids in sorted(groups.items(), key=lambda item: safe_str(item[0]))]
+            data["tables"].append(("Missing circuit/system groups", ["Category", "Family", "Type", "Count", "Sample ids"], rows))
+            if not devices:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_ACTIVE_VIEW_RESULT"
+
+        elif action_key == "fixtures_by_type_active_view":
+            devices, warnings = self._mep_ro_v1_active_view_elements_by_category_ids(electrical_ids)
+            data["warnings"].extend(warnings)
+            groups = {}
+            for elem in devices:
+                family_name, type_name, type_id = self._mep_ro_v1_type_info(elem)
+                key = (self._mep_ro_v1_element_category_name(elem), family_name, type_name)
+                groups.setdefault(key, []).append(self._mep_ro_v1_element_id_text(elem))
+            rows = [[key[0], key[1], key[2], len(ids), ", ".join(ids[:10])] for key, ids in sorted(groups.items(), key=lambda item: safe_str(item[0]))]
+            data["summary"].append("Electrical fixtures/devices in active view: {0}".format(len(devices)))
+            data["summary"].append("Displayed type groups: {0}".format(len(rows)))
+            data["summary"].append("Truncated: false")
+            data["tables"].append(("Electrical devices by type", ["Category", "Family", "Type", "Count", "Sample ids"], rows))
+            if not devices:
+                data["classification"] = "MEP_RO_REPORT_EMPTY_ACTIVE_VIEW_RESULT"
+
+        review_warnings = [
+            warning
+            for warning in data["warnings"]
+            if "truncated to first" not in safe_str(warning).lower()
+        ]
+        if review_warnings and data["classification"] == "MEP_RO_REPORT_OK":
+            data["classification"] = "MEP_RO_REPORT_REVIEW_REQUIRED"
+        return data
+
+    def _mep_ro_v1_format_report(self, data):
+        lines = [
+            "[MEP READ ONLY V1 REPORT]",
+            "",
+            "Feature ID:",
+            "MEP-RO-v1",
+            "",
+            "Feature name:",
+            "MEP Read-Only Action Set v1",
+            "",
+            "Report ID:",
+            data.get("report_id"),
+            "",
+            "Timestamp:",
+            data.get("timestamp"),
+            "",
+            "Action name:",
+            data.get("action_name"),
+            "",
+            "Prompt:",
+            data.get("prompt"),
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")),
+            "",
+            "Scope:",
+            data.get("scope"),
+            "",
+            "Result classification:",
+            data.get("classification"),
+            "",
+            "Main summary counts:",
+        ]
+        if data.get("summary"):
+            for item in data.get("summary"):
+                lines.append("- {0}".format(item))
+        else:
+            lines.append("- none")
+        for title, headers, rows in data.get("tables") or []:
+            lines.extend(["", title + ":"])
+            if rows:
+                lines.extend(self._mep_ro_v1_table(headers, rows))
+            else:
+                lines.append("- none")
+        lines.extend(["", "Warnings:"])
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Recommended next action:",
+                self._mep_ro_v1_recommended_action(data.get("classification")),
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- MEP-RO-v1 is report-only.",
+                "- Current Revit UI selection was read but not modified.",
+                "- No transaction was opened.",
+                "- No model data was modified.",
+            ]
+        )
+        return "\n".join([safe_str(line) for line in lines])
+
+    def answer_mep_read_only_v1_question(self, prompt):
+        action_key = _mep_ro_v1_action_key(prompt)
+        if not action_key:
+            return None
+        data = self._mep_ro_v1_build_data(prompt, action_key)
+        report_text = self._mep_ro_v1_format_report(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MEP READ ONLY V1 REPORT]",
+            "report_text": report_text,
+            "report_scope": "MEP read-only reporting / active-view and selected-element QA",
+            "report_timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "created_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feature_id": "MEP-RO-v1",
+            "feature_name": "MEP Read-Only Action Set v1",
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view_name"),
+            "active_view_type": data.get("active_view_type"),
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _link_reset_advisor_document_match(self, state, active_document):
         if not state:
             return None
@@ -33684,6 +34604,9 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
+                prompt
+            )
             coordination_link_package_manifest_reply = (
                 self.answer_coordination_link_handover_package_manifest_question(
                     prompt
@@ -33740,7 +34663,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if coordination_link_package_manifest_reply is not None:
+            if mep_read_only_v1_reply is not None:
+                reply = mep_read_only_v1_reply
+                preserve_latest_report_state = True
+            elif coordination_link_package_manifest_reply is not None:
                 reply = coordination_link_package_manifest_reply
                 preserve_latest_report_state = True
             elif coordination_link_final_handover_reply is not None:
