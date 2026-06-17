@@ -1390,6 +1390,18 @@ The architecture deliberately separates live Revit reads from durable filesystem
 
 Final validated classification: `COORD_LINK_MASTER_CLEAN_WITH_HISTORY_SOURCE`.
 
+## 2026-06-12 COORD-WR-016 to COORD-WR-020 Final Handover Architecture
+
+This batch closes the coordination evidence chain after WR-015:
+
+1. WR-016 validates that the master report is backed by complete export folders, indexes, history, and snapshot files.
+2. WR-017 persists a normalized clean master/integrity checkpoint in a separate `Coordination_Handover_History` JSONL register and latest CSV, with signature-based duplicate prevention.
+3. WR-018 reads the register and latest WR-017 QA evidence without appending.
+4. WR-019 validates JSONL parsing, CSV alignment, duplicate/repeated identifiers, and referenced WR-015/016 exports.
+5. WR-020 consolidates WR-015 through WR-019 into one conservative final closeout report.
+
+The architecture separates the single filesystem write boundary in WR-017 from the read-only dashboards in WR-018 through WR-020. The final validated classification is `COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE`.
+
 ## 2026-05-17 MEP-RO-006 QA Export Index / Snapshot Registry
 
 MEP-RO-006 builds on MEP-RO-005 by registering every successful QA evidence export in a persistent local filesystem index.

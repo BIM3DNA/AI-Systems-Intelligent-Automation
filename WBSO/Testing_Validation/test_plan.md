@@ -1500,6 +1500,40 @@ The 2026-05-06 BUNGE runtime session passed the listed plan-only workflow. Execu
 
 Passed. See `WBSO/Testing_Validation/runs/2026-06-11_coord-wr-007-to-015-coordination-link-evidence-inventory-validated/`.
 
+## 2026-06-12 COORD-WR-016 to COORD-WR-020 Validation Plan
+
+### Context
+
+- Document: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- View: `{3D - e.avdovicQREF7} [ThreeD]`
+- Evidence: EV-AI-216 through EV-AI-226
+
+### Tests
+
+1. Validate WR-015 referenced export folders, required files, indexes, history, and snapshots; expect `COORD_LINK_MASTER_INTEGRITY_CLEAN_WITH_HISTORY_SOURCE`.
+2. Run WR-017 with no existing register; expect one clean JSONL append and latest CSV write.
+3. Repeat WR-017 against the same evidence signature; expect duplicate skipped and record count preserved at one.
+4. Read WR-018 status without appending; expect `COORD_HANDOVER_STATUS_DUPLICATE_CONFIRMED`.
+5. Validate WR-019 JSONL parsing, CSV agreement, duplicate/repeated IDs, and WR-015/016 referenced exports; expect clean-with-duplicate-status.
+6. Consolidate WR-015 through WR-019 in WR-020; expect `COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE`.
+7. Export each deterministic report through the existing QA export/index mechanism.
+
+### Pass Criteria
+
+- fixed deterministic routes and headers
+- active document and view match validation context
+- WR-016 evidence defect counts are zero
+- WR-017 creates one clean register record and skips the repeated signature
+- WR-018 and WR-019 do not append register records
+- JSONL latest record matches latest CSV
+- WR-020 reports zero drift, missing, mismatch, duplicate, unavailable, and review defects
+- final export is `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260612_171342`
+- no transaction, TransactionGroup, MoveElement, linked-document mutation, parameter write, or UI selection modification
+
+### Result
+
+Passed. See `WBSO/Testing_Validation/runs/2026-06-12_coord-wr-016-to-020-coordination-link-final-handover-validated/`.
+
 ## 2026-04-20 Runtime Targets for Stable-Baseline ModelMind Catalog Usability
 
 ### Catalog usability

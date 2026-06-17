@@ -368,3 +368,20 @@ The batch uses deterministic state dictionaries and local evidence files rather 
 - WR-015: consolidated master status state
 
 Final master report `COORD-WR-015-20260611_143248` returned `COORD_LINK_MASTER_CLEAN_WITH_HISTORY_SOURCE`. Commit: `3a1ab8d4b71c63cb08209e24dfafee939da98033 Add coordination link master status dashboard`.
+
+## 2026-06-12 COORD-WR-016 to COORD-WR-020 Model Note
+
+Feature IDs: COORD-WR-016 through COORD-WR-020
+Status: Runtime validated
+Evidence: EV-AI-216 through EV-AI-226
+Commit: `713382d1ec97b453a2f48870172e08796f7f5aa1 Add coordination handover final evidence workflow`
+
+The batch completes the deterministic coordination final-handover evidence model:
+
+- WR-016: master evidence integrity state for export folders, indexes, history, and snapshots
+- WR-017: normalized local handover register record/signature in JSONL and latest CSV
+- WR-018: read-only handover register status and duplicate state
+- WR-019: JSONL/CSV and referenced export integrity state
+- WR-020: consolidated final handover closeout state
+
+The final report `COORD-WR-020-20260612_171325` returned `COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE`. WR-017 is the only feature in this batch that writes local evidence files; no feature modifies Revit model data.

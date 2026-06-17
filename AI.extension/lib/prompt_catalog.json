@@ -3268,6 +3268,35 @@
     "mode": "deterministic"
   },
   {
+    "id": "coordination-link-final-handover-package-manifest",
+    "title": "Coordination link final handover package manifest",
+    "category": "BIM QA",
+    "group": "Coordination Audits",
+    "discipline": "Coordination",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "coordination_link_final_handover_package_manifest",
+    "canonical_prompt": "show coordination link handover package manifest",
+    "planner_aliases": [
+      "show coordination link handover package manifest",
+      "coordination link handover package manifest",
+      "show coord link handover package manifest",
+      "coord link handover package manifest",
+      "show final handover package manifest",
+      "final handover package manifest",
+      "show coordination evidence package",
+      "coordination evidence package",
+      "show coordination handover package",
+      "coordination handover package"
+    ],
+    "deterministic_handler": "coordination_link_final_handover_package_manifest",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show coordination link handover package manifest",
+    "mode": "deterministic"
+  },
+  {
     "id": "coordination-link-final-handover-summary",
     "title": "Coordination link final handover summary",
     "category": "BIM QA",

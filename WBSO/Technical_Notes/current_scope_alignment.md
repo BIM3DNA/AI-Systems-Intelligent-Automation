@@ -651,3 +651,31 @@ Still out of scope:
 - batch link correction
 - linked-document editing
 - production correction without explicit reviewed workflow
+
+### 2026-06-12 COORD-WR-016 to COORD-WR-020 scope alignment
+
+Validated scope:
+
+- master evidence folder/file/index/history/snapshot integrity checking
+- durable local coordination handover JSONL register and latest CSV
+- duplicate handover signature prevention
+- read-only handover register status dashboard
+- handover JSONL/CSV and referenced export integrity validation
+- final consolidated coordination handover closeout
+- QA export/index support for all report headers
+- final result `COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE`
+
+Safety boundary:
+
+- no Revit transaction or TransactionGroup
+- no link movement, rotation, transform, reload/unload, pin/unpin, or parameter write
+- no linked-document or UI selection mutation
+- WR-017 writes only local Coordination_Handover_History JSONL/CSV
+- WR-018 through WR-020 do not append local evidence
+
+Still out of scope:
+
+- automatic remediation or correction from final handover status
+- batch link correction
+- linked-document editing
+- production correction without explicit reviewed workflow

@@ -1448,3 +1448,33 @@ The batch added deterministic QA-index/report fallback parsing, tolerance-based 
 - WR-015 returned `COORD_LINK_MASTER_CLEAN_WITH_HISTORY_SOURCE`
 
 No Revit mutation API was added. Only WR-013 wrote local Link_Inventory_History JSONL/CSV evidence.
+
+---
+
+## 2026-06-12 COORD-WR-016 to COORD-WR-020 Final Handover Evidence Closure
+
+**Status:** Resolved / runtime validated
+**Type:** coordination evidence integrity, durable handover history, and final closeout governance
+
+### Issues
+
+- the WR-015 master result still required independent validation of referenced folders, files, indexes, history, and snapshots
+- final clean handover state needed durable storage separate from reset history and inventory snapshots
+- users needed register status without creating another register row
+- the local JSONL/CSV register and referenced exports needed independent consistency checks
+- five separate evidence reports still lacked one final human-readable closeout
+
+### Resolution
+
+WR-016 added master evidence integrity checks. WR-017 added a local handover register and duplicate prevention. WR-018 added read-only register status. WR-019 added register and referenced-export integrity checks. WR-020 consolidated WR-015 through WR-019 into the final handover summary.
+
+### Runtime Result
+
+- WR-016: `COORD_LINK_MASTER_INTEGRITY_CLEAN_WITH_HISTORY_SOURCE`
+- WR-017: clean append followed by `COORD_HANDOVER_REGISTER_DUPLICATE_SKIPPED`
+- WR-018: `COORD_HANDOVER_STATUS_DUPLICATE_CONFIRMED`
+- WR-019: `COORD_HANDOVER_REGISTER_INTEGRITY_CLEAN_WITH_DUPLICATE_STATUS`
+- WR-020: `COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE`
+- final export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260612_171342`
+
+No Revit model mutation API was added. WR-017 wrote only the documented local handover JSONL/CSV files.

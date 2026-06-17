@@ -14,6 +14,7 @@ import math
 import tempfile
 import codecs
 import csv
+import hashlib
 import System
 
 from System import Action
@@ -92,6 +93,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[COORDINATION LINK HANDOVER REGISTER STATUS]",
     "[COORDINATION LINK HANDOVER REGISTER INTEGRITY]",
     "[COORDINATION LINK FINAL HANDOVER SUMMARY]",
+    "[COORDINATION LINK FINAL HANDOVER PACKAGE MANIFEST]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14011,6 +14013,23 @@ def _is_coordination_link_final_handover_prompt(prompt):
     return normalized in routes
 
 
+def _is_coordination_link_handover_package_manifest_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    routes = [
+        "show coordination link handover package manifest",
+        "coordination link handover package manifest",
+        "show coord link handover package manifest",
+        "coord link handover package manifest",
+        "show final handover package manifest",
+        "final handover package manifest",
+        "show coordination evidence package",
+        "coordination evidence package",
+        "show coordination handover package",
+        "coordination handover package",
+    ]
+    return normalized in routes
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -14855,6 +14874,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_coordination_link_handover_status_state = None
         self.latest_coordination_link_handover_integrity_state = None
         self.latest_coordination_link_final_handover_state = None
+        self.latest_coordination_link_handover_package_manifest_state = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -16067,6 +16087,11 @@ class OllamaAIChat(forms.WPFWindow):
             return "coordination link handover register integrity / read-only local register and evidence consistency check"
         if header == "[COORDINATION LINK FINAL HANDOVER SUMMARY]":
             return "coordination link final handover summary / read-only consolidated closeout report"
+        if (
+            header
+            == "[COORDINATION LINK FINAL HANDOVER PACKAGE MANIFEST]"
+        ):
+            return "coordination link final handover package manifest / local evidence package index"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -26505,6 +26530,1344 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _coord_wr021_safe_text(self, value, default="unavailable"):
+        try:
+            if value is None:
+                return default
+            if value is True:
+                return "true"
+            if value is False:
+                return "false"
+            if isinstance(value, (list, tuple, dict)):
+                return json.dumps(
+                    value,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                )
+            return str(value)
+        except:
+            return default
+
+    def _coord_wr021_md_cell(self, value):
+        text = self._coord_wr021_safe_text(value)
+        text = text.replace("\r", " ").replace("\n", " ")
+        return text.replace("|", "\\|")
+
+    def _coord_wr021_csv_cell(self, value):
+        text = self._coord_wr021_safe_text(value)
+        return text.replace("\r", " ").replace("\n", " ")
+
+    def _coordination_link_handover_package_paths(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser(
+            "~"
+        )
+        root = os.path.join(
+            user_profile,
+            "Desktop",
+            "Results",
+            "AI_Workbench",
+            "Coordination_Handover_Packages",
+        )
+        return {
+            "root": root,
+            "index_jsonl": os.path.join(
+                root, "coordination_handover_package_manifest_index.jsonl"
+            ),
+            "latest_csv": os.path.join(
+                root, "coordination_handover_package_manifest_latest.csv"
+            ),
+        }
+
+    def _coordination_link_handover_package_specs(self):
+        specs = self._coordination_link_final_handover_specs()
+        specs.append(
+            {
+                "feature_id": "COORD-WR-020",
+                "header": "[COORDINATION LINK FINAL HANDOVER SUMMARY]",
+                "id_field": "Final Handover Report ID",
+                "result_field": "Final dashboard result",
+                "fields": {
+                    "current_link_inventory_count": "Current link inventory count",
+                    "active_document_snapshot_count": "Active-document snapshot count",
+                    "active_document_handover_register_record_count": "Active-document handover register record count",
+                    "latest_handover_register_id": "Latest handover register id",
+                    "detected_inventory_changed_fields": "Detected inventory changed fields",
+                    "missing_files_folders": "Missing files/folders",
+                    "incomplete_folders": "Incomplete folders",
+                    "index_missing": "Index missing",
+                    "header_mismatch": "Header mismatch",
+                    "id_mismatch": "Id mismatch",
+                    "result_mismatch": "Result mismatch",
+                    "document_mismatch": "Document mismatch",
+                    "duplicate_signatures": "Duplicate signatures",
+                    "repeated_ids": "Repeated ids",
+                    "unavailable": "Unavailable",
+                    "review_required": "Review required",
+                },
+            }
+        )
+        return specs
+
+    def _coordination_link_package_report_fields(self, report_text):
+        fields = self._link_reset_history_report_fields(report_text)
+        lines = (
+            safe_str(report_text)
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .split("\n")
+        )
+        for raw_line in lines:
+            line = raw_line.strip()
+            if not line.startswith("|") or not line.endswith("|"):
+                continue
+            cells = [item.strip() for item in line.strip("|").split("|")]
+            if len(cells) != 2:
+                continue
+            key, value = cells
+            if (
+                not key
+                or key.lower() in ["metric", "---"]
+                or set(key) == set("-")
+            ):
+                continue
+            fields[key] = value
+        return fields
+
+    def _coordination_link_handover_package_export(
+        self, spec, active_document, entries
+    ):
+        report, error = self._coordination_link_final_handover_export(
+            spec, active_document, entries
+        )
+        if not report:
+            return {}, error
+        try:
+            stream = codecs.open(report.get("report_path"), "r", "utf-8")
+            try:
+                report_text = stream.read()
+            finally:
+                stream.close()
+            fields = self._coordination_link_package_report_fields(
+                report_text
+            )
+            report["fields"] = fields
+            for key, field_name in (spec.get("fields") or {}).items():
+                report[key] = fields.get(field_name, report.get(key))
+        except Exception as exc:
+            return {}, "{0} report could not be reparsed: {1}".format(
+                spec.get("feature_id"), safe_str(exc)
+            )
+        return report, None
+
+    def _coordination_link_handover_local_evidence_paths(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser(
+            "~"
+        )
+        root = os.path.join(user_profile, "Desktop", "Results", "AI_Workbench")
+        return [
+            {
+                "source": "Workflow history JSONL",
+                "path": os.path.join(
+                    root,
+                    "Workflow_History",
+                    "link_reset_workflow_history.jsonl",
+                ),
+            },
+            {
+                "source": "Inventory snapshot JSONL",
+                "path": os.path.join(
+                    root,
+                    "Link_Inventory_History",
+                    "link_inventory_snapshots.jsonl",
+                ),
+            },
+            {
+                "source": "Inventory latest CSV",
+                "path": os.path.join(
+                    root,
+                    "Link_Inventory_History",
+                    "link_inventory_latest.csv",
+                ),
+            },
+            {
+                "source": "Handover register JSONL",
+                "path": os.path.join(
+                    root,
+                    "Coordination_Handover_History",
+                    "coordination_link_handover_register.jsonl",
+                ),
+            },
+            {
+                "source": "Handover latest CSV",
+                "path": os.path.join(
+                    root,
+                    "Coordination_Handover_History",
+                    "coordination_link_handover_latest.csv",
+                ),
+            },
+        ]
+
+    def _coordination_link_package_file_fingerprint(
+        self, source, path, feature_id="", report_id="", result=""
+    ):
+        exists = bool(path and os.path.isfile(path))
+        item = {
+            "source": safe_str(source),
+            "source_type": "file",
+            "feature_id": safe_str(feature_id),
+            "report_id": safe_str(report_id),
+            "result": safe_str(result),
+            "file_path": safe_str(path),
+            "exists": exists,
+            "file_size_bytes": 0,
+            "sha256": "unavailable",
+            "hash_status": "not_available",
+            "classification": "MISSING_FILE",
+        }
+        if not exists:
+            return item
+        try:
+            item["file_size_bytes"] = os.path.getsize(path)
+            digest = hashlib.sha256()
+            stream = open(path, "rb")
+            try:
+                while True:
+                    chunk = stream.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    digest.update(chunk)
+            finally:
+                stream.close()
+            item["sha256"] = digest.hexdigest()
+            item["hash_status"] = "ok"
+            item["classification"] = "FILE_OK"
+        except Exception as exc:
+            item["hash_status"] = "failed"
+            item["classification"] = "HASH_FAILED"
+            item["warning"] = safe_str(exc)
+        return item
+
+    def _coordination_link_package_source_checks(
+        self, spec, report, index_folders
+    ):
+        folder = safe_str(report.get("export_folder")).strip()
+        expected = [
+            ("report.md", os.path.join(folder, "report.md")),
+            ("report.txt", os.path.join(folder, "report.txt")),
+            ("metadata.json", os.path.join(folder, "metadata.json")),
+            (
+                "artifact_manifest.txt",
+                os.path.join(folder, "artifact_manifest.txt"),
+            ),
+        ]
+        file_checks = []
+        for label, path in expected:
+            item = self._coordination_link_package_file_fingerprint(
+                "{0} {1}".format(spec.get("feature_id"), label),
+                path,
+                spec.get("feature_id"),
+                report.get("report_id", "unavailable"),
+                report.get("result", "Unavailable"),
+            )
+            item["source_type"] = "source_export"
+            file_checks.append(item)
+        folder_exists = bool(folder and os.path.isdir(folder))
+        index_reference = bool(folder and folder.lower() in index_folders)
+        report_text = ""
+        for candidate in [
+            os.path.join(folder, "report.txt"),
+            os.path.join(folder, "report.md"),
+        ]:
+            if not os.path.isfile(candidate):
+                continue
+            try:
+                stream = codecs.open(candidate, "r", "utf-8")
+                try:
+                    report_text = stream.read()
+                finally:
+                    stream.close()
+                break
+            except:
+                continue
+        header_found = spec.get("header") in report_text
+        id_matches = bool(
+            report.get("report_id")
+            and safe_str(report.get("report_id")) in report_text
+        )
+        complete = bool(
+            folder_exists
+            and all([item.get("exists") for item in file_checks])
+            and header_found
+            and id_matches
+        )
+        return {
+            "feature_id": spec.get("feature_id"),
+            "expected_header": spec.get("header"),
+            "report_id": report.get("report_id", "unavailable"),
+            "result": report.get("result", "Unavailable"),
+            "export_folder": folder or "unavailable",
+            "available": bool(report),
+            "folder_exists": folder_exists,
+            "report_md": os.path.isfile(os.path.join(folder, "report.md")),
+            "report_txt": os.path.isfile(os.path.join(folder, "report.txt")),
+            "metadata_json": os.path.isfile(
+                os.path.join(folder, "metadata.json")
+            ),
+            "artifact_manifest_txt": os.path.isfile(
+                os.path.join(folder, "artifact_manifest.txt")
+            ),
+            "index_reference": index_reference,
+            "expected_header_found": header_found,
+            "report_id_matches": id_matches,
+            "classification": (
+                "SOURCE_EXPORT_COMPLETE" if complete else "SOURCE_EXPORT_REVIEW_REQUIRED"
+            ),
+            "file_checks": file_checks,
+        }
+
+    def _coordination_link_package_signature(self, data):
+        reports = data.get("reports") or {}
+        wr020 = reports.get("COORD-WR-020") or {}
+        signature = {
+            "active_document_title": safe_str(
+                data.get("document_title")
+            ).strip().lower(),
+            "latest_handover_register_id": safe_str(
+                wr020.get("latest_handover_register_id")
+            ),
+            "current_link_inventory_count": safe_str(
+                wr020.get("current_link_inventory_count")
+            ),
+            "active_document_snapshot_count": safe_str(
+                wr020.get("active_document_snapshot_count")
+            ),
+            "active_document_handover_register_record_count": safe_str(
+                wr020.get("active_document_handover_register_record_count")
+            ),
+            "detected_inventory_changed_fields": safe_str(
+                wr020.get("detected_inventory_changed_fields")
+            ),
+            "source_export_folders": [],
+            "local_evidence_file_paths": [],
+        }
+        for spec in self._coordination_link_handover_package_specs():
+            report = reports.get(spec.get("feature_id")) or {}
+            signature[spec.get("feature_id")] = {
+                "report_id": safe_str(report.get("report_id")),
+                "result": safe_str(report.get("result")),
+            }
+            signature["source_export_folders"].append(
+                safe_str(report.get("export_folder"))
+            )
+        for item in data.get("local_evidence_file_checks") or []:
+            signature["local_evidence_file_paths"].append(
+                safe_str(item.get("file_path"))
+            )
+        return json.dumps(signature, sort_keys=True, separators=(",", ":"))
+
+    def _read_coordination_link_package_index(self, path):
+        records = []
+        warnings = []
+        if not path or not os.path.isfile(path):
+            return records, warnings
+        try:
+            stream = codecs.open(path, "r", "utf-8")
+            try:
+                for line_number, line in enumerate(stream, 1):
+                    text = line.strip()
+                    if not text:
+                        continue
+                    try:
+                        loaded = json.loads(text)
+                        if isinstance(loaded, dict):
+                            loaded["_file_order"] = line_number
+                            records.append(loaded)
+                    except Exception as exc:
+                        warnings.append(
+                            "Package index JSONL line {0} could not be parsed: {1}".format(
+                                line_number, safe_str(exc)
+                            )
+                        )
+            finally:
+                stream.close()
+        except Exception as exc:
+            warnings.append(
+                "Package index JSONL could not be read: {0}".format(
+                    safe_str(exc)
+                )
+            )
+        return records, warnings
+
+    def _coordination_link_package_recommendation(self, result):
+        recommendations = {
+            "COORD_HANDOVER_PACKAGE_MANIFEST_CREATED_READY": "No action required. Final handover package manifest was created.",
+            "COORD_HANDOVER_PACKAGE_MANIFEST_CREATED_READY_WITH_HISTORY_SOURCE": "No model action required. Final handover package manifest was created; retain local history/snapshot/register evidence with the QA export package.",
+            "COORD_HANDOVER_PACKAGE_MANIFEST_DUPLICATE_SKIPPED": "No action required. Current final handover package manifest already exists for this evidence signature.",
+            "COORD_HANDOVER_PACKAGE_MANIFEST_MISSING_EVIDENCE": "Review missing evidence files before handover.",
+            "COORD_HANDOVER_PACKAGE_MANIFEST_HASH_FAILED": "Review unreadable evidence files or failed hash calculations.",
+            "COORD_HANDOVER_PACKAGE_MANIFEST_FINAL_EXPORT_UNAVAILABLE": "Run show coordination link final handover and export latest QA report.",
+            "COORD_HANDOVER_PACKAGE_MANIFEST_REVIEW_REQUIRED": "Review final handover evidence chain and rerun the relevant read-only dashboards.",
+        }
+        return recommendations.get(
+            result,
+            recommendations[
+                "COORD_HANDOVER_PACKAGE_MANIFEST_REVIEW_REQUIRED"
+            ],
+        )
+
+    def _write_coordination_link_package_files(self, data, record):
+        package_folder = record.get("package_folder")
+        if not os.path.isdir(package_folder):
+            os.makedirs(package_folder)
+        json_path = os.path.join(
+            package_folder, "coordination_handover_package_manifest.json"
+        )
+        csv_path = os.path.join(
+            package_folder, "coordination_handover_package_manifest.csv"
+        )
+        md_path = os.path.join(
+            package_folder, "coordination_handover_package_manifest.md"
+        )
+        payload = {
+            "package_manifest_id": record.get("package_manifest_id"),
+            "timestamp": record.get("timestamp"),
+            "active_document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view_name"),
+            "final_result": record.get("final_result"),
+            "normalized_package_signature": record.get(
+                "normalized_package_signature"
+            ),
+            "source_reports": list(data.get("source_report_checks") or []),
+            "source_export_file_checks": list(
+                data.get("source_export_file_checks") or []
+            ),
+            "local_evidence_file_checks": list(
+                data.get("local_evidence_file_checks") or []
+            ),
+            "counts": dict(data.get("counts") or {}),
+            "safety_flags": {
+                "transaction_opened": False,
+                "transaction_group_opened": False,
+                "move_element_called": False,
+                "model_modified": False,
+                "linked_document_modified": False,
+                "ui_selection_modified": False,
+            },
+        }
+        stream = codecs.open(json_path, "w", "utf-8")
+        try:
+            stream.write(json.dumps(payload, indent=2, sort_keys=True))
+            stream.write("\n")
+        finally:
+            stream.close()
+
+        fields = [
+            "package_manifest_id",
+            "source_type",
+            "feature_id",
+            "report_id",
+            "result",
+            "file_path",
+            "exists",
+            "file_size_bytes",
+            "sha256",
+            "hash_status",
+            "classification",
+        ]
+        rows = []
+        rows.extend(data.get("source_export_file_checks") or [])
+        rows.extend(data.get("local_evidence_file_checks") or [])
+        stream = codecs.open(csv_path, "w", "utf-8")
+        try:
+            stream.write(self._qa_index_csv_row(fields))
+            stream.write("\n")
+            for item in rows:
+                values = [
+                    self._coord_wr021_csv_cell(
+                        record.get("package_manifest_id")
+                    )
+                ]
+                for field in fields[1:]:
+                    values.append(
+                        self._coord_wr021_csv_cell(item.get(field, ""))
+                    )
+                stream.write(self._qa_index_csv_row(values))
+                stream.write("\n")
+        finally:
+            stream.close()
+
+        lines = [
+            "# Coordination Link Final Handover Package Manifest",
+            "",
+            "- Package manifest id: `{0}`".format(
+                record.get("package_manifest_id")
+            ),
+            "- Active document: `{0}`".format(data.get("document_title")),
+            "- Active view: `{0}`".format(data.get("active_view_name")),
+            "- Final result: `{0}`".format(record.get("final_result")),
+            "",
+            "## Source Reports",
+            "",
+            "| Feature | Report ID | Result | Export folder |",
+            "|---|---|---|---|",
+        ]
+        for item in data.get("source_report_checks") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} |".format(
+                    self._coord_wr021_md_cell(item.get("feature_id")),
+                    self._coord_wr021_md_cell(item.get("report_id")),
+                    self._coord_wr021_md_cell(item.get("result")),
+                    self._coord_wr021_md_cell(item.get("export_folder")),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "## Local Evidence",
+                "",
+                "| Source | Path | Exists | SHA-256 | Classification |",
+                "|---|---|---|---|---|",
+            ]
+        )
+        for item in data.get("local_evidence_file_checks") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} |".format(
+                    self._coord_wr021_md_cell(item.get("source")),
+                    self._coord_wr021_md_cell(item.get("file_path")),
+                    _coord_bool_text(item.get("exists")),
+                    self._coord_wr021_md_cell(item.get("sha256")),
+                    self._coord_wr021_md_cell(item.get("classification")),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "## Counts",
+                "",
+            ]
+        )
+        for key, value in sorted((data.get("counts") or {}).items()):
+            lines.append(
+                "- {0}: {1}".format(
+                    self._coord_wr021_md_cell(key),
+                    self._coord_wr021_md_cell(value),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "## Conclusion",
+                "",
+                data.get("dashboard_result"),
+            ]
+        )
+        stream = codecs.open(md_path, "w", "utf-8")
+        try:
+            stream.write(
+                "\n".join([self._coord_wr021_safe_text(line) for line in lines])
+            )
+            stream.write("\n")
+        finally:
+            stream.close()
+        return json_path, csv_path, md_path
+
+    def _write_coordination_link_package_manifest_csv(
+        self, csv_path, data, record
+    ):
+        fields = [
+            "package_manifest_id",
+            "source_type",
+            "feature_id",
+            "report_id",
+            "result",
+            "file_path",
+            "exists",
+            "file_size_bytes",
+            "sha256",
+            "hash_status",
+            "classification",
+        ]
+        rows = []
+        rows.extend(data.get("source_export_file_checks") or [])
+        rows.extend(data.get("local_evidence_file_checks") or [])
+        stream = codecs.open(csv_path, "w", "utf-8")
+        try:
+            stream.write(self._qa_index_csv_row(fields))
+            stream.write("\n")
+            for item in rows:
+                values = [
+                    self._coord_wr021_csv_cell(
+                        record.get("package_manifest_id")
+                    )
+                ]
+                for field in fields[1:]:
+                    values.append(
+                        self._coord_wr021_csv_cell(item.get(field, ""))
+                    )
+                stream.write(self._qa_index_csv_row(values))
+                stream.write("\n")
+        finally:
+            stream.close()
+
+    def _write_coordination_link_package_manifest_md(
+        self, md_path, data, record
+    ):
+        lines = [
+            "# Coordination Link Final Handover Package Manifest",
+            "",
+            "- Package manifest id: `{0}`".format(
+                self._coord_wr021_md_cell(record.get("package_manifest_id"))
+            ),
+            "- Active document: `{0}`".format(
+                self._coord_wr021_md_cell(data.get("document_title"))
+            ),
+            "- Active view: `{0}`".format(
+                self._coord_wr021_md_cell(data.get("active_view_name"))
+            ),
+            "- Final result: `{0}`".format(
+                self._coord_wr021_md_cell(record.get("final_result"))
+            ),
+            "",
+            "## Source Reports",
+            "",
+            "| Feature | Report ID | Result | Export folder |",
+            "|---|---|---|---|",
+        ]
+        for item in data.get("source_report_checks") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} |".format(
+                    self._coord_wr021_md_cell(item.get("feature_id")),
+                    self._coord_wr021_md_cell(item.get("report_id")),
+                    self._coord_wr021_md_cell(item.get("result")),
+                    self._coord_wr021_md_cell(item.get("export_folder")),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "## Local Evidence",
+                "",
+                "| Source | Path | Exists | SHA-256 | Classification |",
+                "|---|---|---|---|---|",
+            ]
+        )
+        for item in data.get("local_evidence_file_checks") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} |".format(
+                    self._coord_wr021_md_cell(item.get("source")),
+                    self._coord_wr021_md_cell(item.get("file_path")),
+                    _coord_bool_text(item.get("exists")),
+                    self._coord_wr021_md_cell(item.get("sha256")),
+                    self._coord_wr021_md_cell(item.get("classification")),
+                )
+            )
+        lines.extend(["", "## Counts", ""])
+        for key, value in sorted((data.get("counts") or {}).items()):
+            lines.append(
+                "- {0}: {1}".format(
+                    self._coord_wr021_md_cell(key),
+                    self._coord_wr021_md_cell(value),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "## Conclusion",
+                "",
+                self._coord_wr021_safe_text(data.get("dashboard_result")),
+            ]
+        )
+        stream = codecs.open(md_path, "w", "utf-8")
+        try:
+            stream.write(
+                "\n".join(
+                    [self._coord_wr021_safe_text(line) for line in lines]
+                )
+            )
+            stream.write("\n")
+        finally:
+            stream.close()
+
+    def _write_coordination_link_package_latest_csv(self, path, records):
+        fields = [
+            "package_manifest_id",
+            "timestamp",
+            "active_document_title",
+            "active_view_name",
+            "final_result",
+            "dashboard_result",
+            "package_folder",
+            "normalized_package_signature",
+        ]
+        stream = codecs.open(path, "w", "utf-8")
+        try:
+            stream.write(self._qa_index_csv_row(fields))
+            stream.write("\n")
+            for record in records or []:
+                stream.write(
+                    self._qa_index_csv_row(
+                        [
+                            self._coord_wr021_csv_cell(
+                                record.get(field, "unavailable")
+                            )
+                            for field in fields
+                        ]
+                    )
+                )
+                stream.write("\n")
+        finally:
+            stream.close()
+
+    def _collect_coordination_link_handover_package_manifest(self, prompt):
+        document_title = safe_str(getattr(doc, "Title", "(unknown document)"))
+        active_view_name = self._safe_active_view_name()
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        package_id = "COORD-WR-021-{0}".format(
+            time.strftime("%Y%m%d_%H%M%S")
+        )
+        paths = self._coordination_link_handover_package_paths()
+        entries, warnings = self._read_link_reset_history_qa_index()
+        index_folders = set(
+            [
+                safe_str(entry.get("export_folder")).strip().lower()
+                for entry in entries
+                if safe_str(entry.get("export_folder")).strip()
+            ]
+        )
+        reports = {}
+        source_report_checks = []
+        source_export_file_checks = []
+        for spec in self._coordination_link_handover_package_specs():
+            report, error = self._coordination_link_handover_package_export(
+                spec, document_title, entries
+            )
+            reports[spec.get("feature_id")] = report
+            if error:
+                warnings.append(error)
+            source_check = self._coordination_link_package_source_checks(
+                spec, report, index_folders
+            )
+            source_report_checks.append(source_check)
+            source_export_file_checks.extend(
+                source_check.get("file_checks") or []
+            )
+
+        local_evidence_file_checks = []
+        for item in self._coordination_link_handover_local_evidence_paths():
+            check = self._coordination_link_package_file_fingerprint(
+                item.get("source"), item.get("path")
+            )
+            check["source_type"] = "local_evidence"
+            local_evidence_file_checks.append(check)
+
+        data = {
+            "feature_id": "COORD-WR-021",
+            "feature_name": "Coordination Link Final Handover Package Manifest",
+            "package_manifest_report_id": package_id,
+            "created_timestamp_local": timestamp,
+            "source_prompt": safe_str(prompt),
+            "document_title": document_title,
+            "active_view_name": active_view_name,
+            "package_storage_root": paths.get("root"),
+            "package_manifest_index_path": paths.get("index_jsonl"),
+            "latest_package_csv_path": paths.get("latest_csv"),
+            "reports": reports,
+            "source_report_checks": source_report_checks,
+            "source_export_file_checks": source_export_file_checks,
+            "local_evidence_file_checks": local_evidence_file_checks,
+            "warnings": warnings,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "model_modified": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+        }
+        signature = self._coordination_link_package_signature(data)
+        data["normalized_package_signature"] = signature
+
+        existing_records, index_warnings = (
+            self._read_coordination_link_package_index(
+                paths.get("index_jsonl")
+            )
+        )
+        warnings.extend(index_warnings)
+        active_records = [
+            item
+            for item in existing_records
+            if safe_str(item.get("active_document_title")).strip().lower()
+            == document_title.strip().lower()
+        ]
+        active_records = sorted(
+            active_records,
+            key=lambda item: (
+                safe_str(item.get("timestamp")),
+                _safe_int(item.get("_file_order"), 0),
+            ),
+            reverse=True,
+        )
+        previous = active_records[0] if active_records else {}
+        previous_signature = safe_str(
+            previous.get("normalized_package_signature")
+        ).strip()
+        signature_match = bool(
+            previous_signature and previous_signature == signature
+        )
+        data["package_index_existed_before"] = os.path.isfile(
+            paths.get("index_jsonl")
+        )
+        data["existing_active_document_package_count_before"] = len(
+            active_records
+        )
+        data["latest_previous_package_manifest_id"] = previous.get(
+            "package_manifest_id", "unavailable"
+        )
+        data["latest_previous_signature_match"] = signature_match
+
+        all_source_available = all(
+            [bool(reports.get(spec.get("feature_id"))) for spec in self._coordination_link_handover_package_specs()]
+        )
+        wr020 = reports.get("COORD-WR-020") or {}
+        final_result = safe_str(wr020.get("result")).strip()
+        missing_count = 0
+        hash_failures = 0
+        source_complete = 0
+        for item in source_report_checks:
+            if item.get("classification") == "SOURCE_EXPORT_COMPLETE":
+                source_complete += 1
+            if not item.get("folder_exists"):
+                missing_count += 1
+            for key in [
+                "report_md",
+                "report_txt",
+                "metadata_json",
+                "artifact_manifest_txt",
+            ]:
+                if not item.get(key):
+                    missing_count += 1
+        for item in (
+            source_export_file_checks + local_evidence_file_checks
+        ):
+            if not item.get("exists"):
+                missing_count += 1
+            if item.get("hash_status") == "failed":
+                hash_failures += 1
+                warnings.append(
+                    "Hash failed for {0}: {1}".format(
+                        item.get("file_path"),
+                        item.get("warning", "unavailable"),
+                    )
+                )
+        files_fingerprinted = len(
+            [
+                item
+                for item in (
+                    source_export_file_checks + local_evidence_file_checks
+                )
+                if item.get("hash_status") == "ok"
+            ]
+        )
+        counts = {
+            "source_reports_found": len(
+                [item for item in reports.values() if item]
+            ),
+            "source_export_folders_complete": source_complete,
+            "local_evidence_files_ok": len(
+                [
+                    item
+                    for item in local_evidence_file_checks
+                    if item.get("classification") == "FILE_OK"
+                ]
+            ),
+            "files_fingerprinted": files_fingerprinted,
+            "hash_failures": hash_failures,
+            "missing_files_folders": missing_count,
+            "parse_failures": len(
+                [warning for warning in warnings if "parse" in warning.lower()]
+            ),
+            "unavailable": len(
+                [
+                    item
+                    for item in source_report_checks
+                    if not item.get("available")
+                ]
+            ),
+            "review_required": len(
+                [
+                    item
+                    for item in source_report_checks
+                    if item.get("classification")
+                    != "SOURCE_EXPORT_COMPLETE"
+                ]
+            )
+            + len(
+                [
+                    item
+                    for item in local_evidence_file_checks
+                    if item.get("classification") != "FILE_OK"
+                ]
+            ),
+        }
+        data["counts"] = counts
+
+        append_attempted = False
+        append_succeeded = False
+        duplicate_skipped = False
+        latest_csv_write_succeeded = False
+        package_folder = "unavailable"
+        package_json_path = "unavailable"
+        package_csv_path = "unavailable"
+        package_md_path = "unavailable"
+        new_record = {}
+        package_write_failure_stage = "none"
+
+        if not wr020 or not all_source_available:
+            dashboard_result = (
+                "COORD_HANDOVER_PACKAGE_MANIFEST_FINAL_EXPORT_UNAVAILABLE"
+                if not wr020
+                else "COORD_HANDOVER_PACKAGE_MANIFEST_MISSING_EVIDENCE"
+            )
+        elif signature_match:
+            duplicate_skipped = True
+            dashboard_result = (
+                "COORD_HANDOVER_PACKAGE_MANIFEST_DUPLICATE_SKIPPED"
+            )
+        elif missing_count > 0:
+            dashboard_result = "COORD_HANDOVER_PACKAGE_MANIFEST_MISSING_EVIDENCE"
+        elif hash_failures > 0:
+            dashboard_result = "COORD_HANDOVER_PACKAGE_MANIFEST_HASH_FAILED"
+        elif final_result == "COORD_HANDOVER_FINAL_READY":
+            dashboard_result = "COORD_HANDOVER_PACKAGE_MANIFEST_CREATED_READY"
+        elif final_result == "COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE":
+            dashboard_result = (
+                "COORD_HANDOVER_PACKAGE_MANIFEST_CREATED_READY_WITH_HISTORY_SOURCE"
+            )
+        else:
+            dashboard_result = "COORD_HANDOVER_PACKAGE_MANIFEST_REVIEW_REQUIRED"
+
+        if dashboard_result in [
+            "COORD_HANDOVER_PACKAGE_MANIFEST_CREATED_READY",
+            "COORD_HANDOVER_PACKAGE_MANIFEST_CREATED_READY_WITH_HISTORY_SOURCE",
+        ]:
+            append_attempted = True
+            package_folder = os.path.join(paths.get("root"), package_id)
+            new_record = {
+                "package_manifest_id": package_id,
+                "timestamp": timestamp,
+                "active_document_title": document_title,
+                "active_view_name": active_view_name,
+                "final_result": final_result,
+                "dashboard_result": dashboard_result,
+                "package_folder": package_folder,
+                "normalized_package_signature": signature,
+            }
+            data["dashboard_result"] = dashboard_result
+            try:
+                if not os.path.isdir(paths.get("root")):
+                    os.makedirs(paths.get("root"))
+            except Exception as exc:
+                package_write_failure_stage = "json_write_failed"
+                dashboard_result = (
+                    "COORD_HANDOVER_PACKAGE_MANIFEST_REVIEW_REQUIRED"
+                )
+                warnings.append(
+                    "Package manifest write failed at {0}: {1}".format(
+                        package_write_failure_stage, safe_str(exc)
+                    )
+                )
+            if package_write_failure_stage == "none":
+                try:
+                    if not os.path.isdir(package_folder):
+                        os.makedirs(package_folder)
+                    package_json_path = os.path.join(
+                        package_folder,
+                        "coordination_handover_package_manifest.json",
+                    )
+                    payload = {
+                        "package_manifest_id": new_record.get(
+                            "package_manifest_id"
+                        ),
+                        "timestamp": new_record.get("timestamp"),
+                        "active_document_title": data.get("document_title"),
+                        "active_view_name": data.get("active_view_name"),
+                        "final_result": new_record.get("final_result"),
+                        "normalized_package_signature": new_record.get(
+                            "normalized_package_signature"
+                        ),
+                        "source_reports": list(
+                            data.get("source_report_checks") or []
+                        ),
+                        "source_export_file_checks": list(
+                            data.get("source_export_file_checks") or []
+                        ),
+                        "local_evidence_file_checks": list(
+                            data.get("local_evidence_file_checks") or []
+                        ),
+                        "counts": dict(data.get("counts") or {}),
+                        "safety_flags": {
+                            "transaction_opened": False,
+                            "transaction_group_opened": False,
+                            "move_element_called": False,
+                            "model_modified": False,
+                            "linked_document_modified": False,
+                            "ui_selection_modified": False,
+                        },
+                    }
+                    stream = codecs.open(package_json_path, "w", "utf-8")
+                    try:
+                        stream.write(
+                            json.dumps(payload, indent=2, sort_keys=True)
+                        )
+                        stream.write("\n")
+                    finally:
+                        stream.close()
+                except Exception as exc:
+                    package_write_failure_stage = "json_write_failed"
+                    dashboard_result = (
+                        "COORD_HANDOVER_PACKAGE_MANIFEST_REVIEW_REQUIRED"
+                    )
+                    warnings.append(
+                        "Package manifest write failed at {0}: {1}".format(
+                            package_write_failure_stage, safe_str(exc)
+                        )
+                    )
+            if package_write_failure_stage == "none":
+                try:
+                    package_csv_path = os.path.join(
+                        package_folder,
+                        "coordination_handover_package_manifest.csv",
+                    )
+                    self._write_coordination_link_package_manifest_csv(
+                        package_csv_path, data, new_record
+                    )
+                except Exception as exc:
+                    package_write_failure_stage = "csv_write_failed"
+                    dashboard_result = (
+                        "COORD_HANDOVER_PACKAGE_MANIFEST_REVIEW_REQUIRED"
+                    )
+                    warnings.append(
+                        "Package manifest write failed at {0}: {1}".format(
+                            package_write_failure_stage, safe_str(exc)
+                        )
+                    )
+            if package_write_failure_stage == "none":
+                try:
+                    package_md_path = os.path.join(
+                        package_folder,
+                        "coordination_handover_package_manifest.md",
+                    )
+                    self._write_coordination_link_package_manifest_md(
+                        package_md_path, data, new_record
+                    )
+                except Exception as exc:
+                    package_write_failure_stage = "md_write_failed"
+                    dashboard_result = (
+                        "COORD_HANDOVER_PACKAGE_MANIFEST_REVIEW_REQUIRED"
+                    )
+                    warnings.append(
+                        "Package manifest write failed at {0}: {1}".format(
+                            package_write_failure_stage, safe_str(exc)
+                        )
+                    )
+            if package_write_failure_stage == "none":
+                try:
+                    stream = codecs.open(
+                        paths.get("index_jsonl"), "a", "utf-8"
+                    )
+                    try:
+                        stream.write(json.dumps(new_record, sort_keys=True))
+                        stream.write("\n")
+                    finally:
+                        stream.close()
+                    active_records.insert(0, new_record)
+                    append_succeeded = True
+                except Exception as exc:
+                    package_write_failure_stage = "index_append_failed"
+                    dashboard_result = (
+                        "COORD_HANDOVER_PACKAGE_MANIFEST_REVIEW_REQUIRED"
+                    )
+                    warnings.append(
+                        "Package manifest write failed at {0}: {1}".format(
+                            package_write_failure_stage, safe_str(exc)
+                        )
+                    )
+            if package_write_failure_stage == "none":
+                try:
+                    self._write_coordination_link_package_latest_csv(
+                        paths.get("latest_csv"), active_records
+                    )
+                    latest_csv_write_succeeded = True
+                except Exception as exc:
+                    package_write_failure_stage = "latest_csv_write_failed"
+                    dashboard_result = (
+                        "COORD_HANDOVER_PACKAGE_MANIFEST_REVIEW_REQUIRED"
+                    )
+                    warnings.append(
+                        "Package manifest write failed at {0}: {1}".format(
+                            package_write_failure_stage, safe_str(exc)
+                        )
+                    )
+        data.update(
+            {
+                "package_folder_created_path": package_folder,
+                "package_json_path": package_json_path,
+                "package_csv_path": package_csv_path,
+                "package_md_path": package_md_path,
+                "append_attempted": append_attempted,
+                "append_succeeded": append_succeeded,
+                "duplicate_skipped": duplicate_skipped,
+                "latest_package_csv_write_succeeded": latest_csv_write_succeeded,
+                "package_write_failure_stage": package_write_failure_stage,
+                "latest_coord_wr_020": wr020,
+                "dashboard_result": dashboard_result,
+                "recommended_next_action": (
+                    self._coordination_link_package_recommendation(
+                        dashboard_result
+                    )
+                ),
+            }
+        )
+        return data
+
+    def _format_coordination_link_handover_package_manifest_report(
+        self, data
+    ):
+        counts = data.get("counts") or {}
+        wr020 = data.get("latest_coord_wr_020") or {}
+        lines = [
+            "[COORDINATION LINK FINAL HANDOVER PACKAGE MANIFEST]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Package Manifest Report ID:",
+            data.get("package_manifest_report_id"),
+            "",
+            "Timestamp:",
+            data.get("created_timestamp_local"),
+            "",
+            "Scope:",
+            "coordination link final handover package manifest / local evidence package index",
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view name:",
+            data.get("active_view_name"),
+            "",
+            "Package storage:",
+            "- Package storage root: {0}".format(
+                data.get("package_storage_root")
+            ),
+            "- Package manifest index path: {0}".format(
+                data.get("package_manifest_index_path")
+            ),
+            "- Latest package CSV path: {0}".format(
+                data.get("latest_package_csv_path")
+            ),
+            "- Package folder created path: {0}".format(
+                data.get("package_folder_created_path")
+            ),
+            "- Package JSON path: {0}".format(data.get("package_json_path")),
+            "- Package CSV path: {0}".format(data.get("package_csv_path")),
+            "- Package MD path: {0}".format(data.get("package_md_path")),
+            "- Package index existed before run: {0}".format(
+                _coord_bool_text(data.get("package_index_existed_before"))
+            ),
+            "- Existing active-document package record count before run: {0}".format(
+                data.get("existing_active_document_package_count_before")
+            ),
+            "- Latest previous package manifest id: {0}".format(
+                data.get("latest_previous_package_manifest_id")
+            ),
+            "- Latest previous signature match: {0}".format(
+                _coord_bool_text(data.get("latest_previous_signature_match"))
+            ),
+            "- Append attempted: {0}".format(
+                _coord_bool_text(data.get("append_attempted"))
+            ),
+            "- Append succeeded: {0}".format(
+                _coord_bool_text(data.get("append_succeeded"))
+            ),
+            "- Duplicate skipped: {0}".format(
+                _coord_bool_text(data.get("duplicate_skipped"))
+            ),
+            "- Latest package CSV write succeeded: {0}".format(
+                _coord_bool_text(
+                    data.get("latest_package_csv_write_succeeded")
+                )
+            ),
+            "- Package write failure stage: {0}".format(
+                self._coord_wr021_md_cell(
+                    data.get("package_write_failure_stage")
+                )
+            ),
+            "",
+            "Latest COORD-WR-020:",
+            "- Latest COORD-WR-020 id: {0}".format(
+                wr020.get("report_id", "unavailable")
+            ),
+            "- Latest COORD-WR-020 result: {0}".format(
+                wr020.get("result", "Unavailable")
+            ),
+            "- Latest COORD-WR-020 export folder: {0}".format(
+                wr020.get("export_folder", "unavailable")
+            ),
+            "",
+            "Source report table:",
+            "| Feature id | Expected header | Report id | Result/status | Export folder | Available | Folder exists | report.md | report.txt | metadata.json | artifact_manifest.txt | Index reference | Classification |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        for item in data.get("source_report_checks") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11} | {12} |".format(
+                    self._coord_wr021_md_cell(item.get("feature_id")),
+                    self._coord_wr021_md_cell(item.get("expected_header")),
+                    self._coord_wr021_md_cell(item.get("report_id")),
+                    self._coord_wr021_md_cell(item.get("result")),
+                    self._coord_wr021_md_cell(item.get("export_folder")),
+                    _coord_bool_text(item.get("available")),
+                    _coord_bool_text(item.get("folder_exists")),
+                    _coord_bool_text(item.get("report_md")),
+                    _coord_bool_text(item.get("report_txt")),
+                    _coord_bool_text(item.get("metadata_json")),
+                    _coord_bool_text(item.get("artifact_manifest_txt")),
+                    _coord_bool_text(item.get("index_reference")),
+                    self._coord_wr021_md_cell(item.get("classification")),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "File fingerprint table:",
+                "| Source | File path | Exists | File size bytes | SHA-256 | Hash status | Classification |",
+                "|---|---|---|---|---|---|---|",
+            ]
+        )
+        for item in (
+            (data.get("source_export_file_checks") or [])
+            + (data.get("local_evidence_file_checks") or [])
+        ):
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} |".format(
+                    self._coord_wr021_md_cell(item.get("source")),
+                    self._coord_wr021_md_cell(item.get("file_path")),
+                    _coord_bool_text(item.get("exists")),
+                    self._coord_wr021_md_cell(item.get("file_size_bytes")),
+                    self._coord_wr021_md_cell(item.get("sha256")),
+                    self._coord_wr021_md_cell(item.get("hash_status")),
+                    self._coord_wr021_md_cell(item.get("classification")),
+                )
+            )
+        lines.extend(["", "Counts:"])
+        for key in [
+            "source_reports_found",
+            "source_export_folders_complete",
+            "local_evidence_files_ok",
+            "files_fingerprinted",
+            "hash_failures",
+            "missing_files_folders",
+            "parse_failures",
+            "unavailable",
+            "review_required",
+        ]:
+            lines.append("- {0}: {1}".format(key, counts.get(key, 0)))
+        lines.extend(
+            [
+                "",
+                "Dashboard result:",
+                data.get("dashboard_result"),
+                "",
+                "Recommended next action:",
+                data.get("recommended_next_action"),
+                "",
+                "Warnings:",
+            ]
+        )
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Execution status:",
+                "- Transaction opened: false",
+                "- TransactionGroup opened: false",
+                "- MoveElement called: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "",
+                "Safety:",
+                "- Local coordination handover package manifest/index only.",
+                "- Source QA exports and source local history/register/snapshot files were read but not modified.",
+                "- No ZIP file was created and no source evidence folder was copied.",
+                "- No audit, reset, rollback, apply, verification, workflow status, history append, reconciliation, advisor, bundle, integrity check, inventory audit, snapshot append, snapshot status, master status, master integrity, handover register append, handover status, handover register integrity, final handover, reload, unload, pin, unpin, selection, or correction action was run.",
+                "- No Revit model or linked-document data was modified.",
+            ]
+        )
+        return "\n".join([self._coord_wr021_safe_text(line) for line in lines])
+
+    def answer_coordination_link_handover_package_manifest_question(
+        self, prompt
+    ):
+        if not _is_coordination_link_handover_package_manifest_prompt(prompt):
+            return None
+        data = self._collect_coordination_link_handover_package_manifest(
+            prompt
+        )
+        report_text = (
+            self._format_coordination_link_handover_package_manifest_report(
+                data
+            )
+        )
+        report_header = "[COORDINATION LINK FINAL HANDOVER PACKAGE MANIFEST]"
+        report_scope = (
+            "coordination link final handover package manifest / local evidence package index"
+        )
+        data["report_header"] = report_header
+        data["report_scope"] = report_scope
+        data["report_text"] = report_text
+        active_view_type = "unavailable"
+        try:
+            active_view_type = safe_str(doc.ActiveView.ViewType)
+        except:
+            pass
+        report_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.latest_coordination_link_handover_package_manifest_state = dict(
+            data
+        )
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": report_header,
+            "report_text": report_text,
+            "report_scope": report_scope,
+            "report_timestamp": report_timestamp,
+            "created_timestamp_local": report_timestamp,
+            "feature_id": "COORD-WR-021",
+            "feature_name": "Coordination Link Final Handover Package Manifest",
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view_name"),
+            "active_view_type": active_view_type,
+            "deterministic": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "move_element_called": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "zip_created": False,
+            "source_qa_export_folders_copied": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _link_reset_advisor_document_match(self, state, active_document):
         if not state:
             return None
@@ -32321,6 +33684,11 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
+            coordination_link_package_manifest_reply = (
+                self.answer_coordination_link_handover_package_manifest_question(
+                    prompt
+                )
+            )
             coordination_link_final_handover_reply = (
                 self.answer_coordination_link_final_handover_question(prompt)
             )
@@ -32372,7 +33740,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if coordination_link_final_handover_reply is not None:
+            if coordination_link_package_manifest_reply is not None:
+                reply = coordination_link_package_manifest_reply
+                preserve_latest_report_state = True
+            elif coordination_link_final_handover_reply is not None:
                 reply = coordination_link_final_handover_reply
                 remember_report = True
             elif coordination_link_handover_integrity_reply is not None:

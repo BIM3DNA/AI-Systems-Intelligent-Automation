@@ -230,3 +230,14 @@ COORD-WR-006 prompts route deterministically before Ollama/OpenAI fallback.
 - The feature writes only local Workflow_History JSONL/CSV files.
 - Generic LLM output remains rejected as deterministic QA evidence.
 - No provider configuration was changed.
+
+## 2026-06-12 COORD-WR-016 to COORD-WR-020 Provider Boundary Note
+
+All COORD-WR-016 through COORD-WR-020 routes are deterministic and execute before Ollama/OpenAI fallback.
+
+- providers do not select evidence exports, validate files, append or deduplicate handover records, classify register status/integrity, or determine final handover readiness
+- QA index and report parsing uses fixed deterministic headers and fields
+- WR-017 local register append and duplicate prevention are deterministic filesystem operations
+- WR-018 through WR-020 are read-only for local evidence and Revit model data
+- generic LLM output remains non-exportable as deterministic evidence
+- no provider configuration was changed
