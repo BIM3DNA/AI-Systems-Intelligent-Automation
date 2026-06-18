@@ -1953,3 +1953,37 @@ MEP-RO-v1 - MEP Read-Only Action Set v1
 ### Technical Conclusion
 
 MEP-RO-v1 provides deterministic, QA-exportable MEP read-only reporting across BIM QA, piping, HVAC/ducting, and electrical workflows. It reads active-view and selected-element context only, blocks selection-changing routes for future MEP-SEL-v1, and performs no Revit model, linked-document, parameter, transaction, or UI selection mutation.
+
+## EV-AI-239 through EV-AI-247 - MEP-SEL-v1 MEP Selection-Only Action Set v1
+
+### Feature
+
+MEP-SEL-v1 - MEP Selection-Only Action Set v1
+
+### Evidence IDs
+
+- EV-AI-239: Implementation evidence. Added deterministic `[MEP SELECTION V1 REPORT]` routes for active-view MEP UI selection-only workflows in `script.py` and `prompt_catalog.json`.
+- EV-AI-240: Piping selection runtime evidence. Report `MEP-SEL-v1-20260618_123008` selected 18 active-view pipes in `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7 / TEST [FloorPlan]`; result `MEP_SEL_SELECTION_OK`, UI selection modified true, model modified false.
+- EV-AI-241: Piping connector selection defect/fix evidence. Initial `select unconnected pipe fittings` returned 84 false skipped/unreadable fittings; after connector-inspection patch report `MEP-SEL-v1-20260618_155601` checked 97 fittings, found 0 candidates, 0 skipped, and preserved selection.
+- EV-AI-242: HVAC selection runtime evidence. Reports `MEP-SEL-v1-20260618_123859` and `MEP-SEL-v1-20260618_123926` validated selection of 307 ducts and zero-candidate behavior for ducts without system assignment in Snowdon Towers Sample HVAC / L3.
+- EV-AI-243: HVAC connector selection runtime evidence. Report `MEP-SEL-v1-20260618_155850` checked 285 duct fittings, found 0 unconnected candidates, 0 skipped/unreadable elements, and exported at `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260618_155922`.
+- EV-AI-244: Electrical selection runtime evidence. Report `MEP-SEL-v1-20260618_124449` selected 499 active-view electrical fixtures/devices in Snowdon Towers Sample Electrical / `3D - PV Systems - Stripped [ThreeD]`.
+- EV-AI-245: Electrical QA-derived selection runtime evidence. Report `MEP-SEL-v1-20260618_124648` selected 29 devices without circuit/system info; export `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260618_124834`.
+- EV-AI-246: QA export evidence. Confirmed `[MEP SELECTION V1 REPORT]` exports preserve source prompt/header/document/view metadata at `20260618_124834` and `20260618_155922`.
+- EV-AI-247: Commit evidence placeholder. Commit: `<insert latest commit hash from git log -1 --oneline>`; message: `Add MEP selection-only v1 actions`.
+
+### Validation Folder
+
+`WBSO/Testing_Validation/runs/2026-06-18_mep-sel-v1-selection-only-action-set-validated/`
+
+### Daily Log
+
+`DL-2026-06-18-12`
+
+### Week
+
+`2026-W13`
+
+### Technical Conclusion
+
+MEP-SEL-v1 provides deterministic, QA-exportable Revit UI selection-only workflows for active-view MEP QA. It may modify UI selection when candidates exist, but never modifies Revit model data, linked documents, parameters, systems, connectors, views, sheets, or tags. Zero-candidate reports preserve existing selection.

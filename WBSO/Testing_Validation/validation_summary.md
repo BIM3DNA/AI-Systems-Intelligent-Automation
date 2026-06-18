@@ -707,3 +707,33 @@ MEP-RO-v1 adds deterministic read-only MEP reports for BIM QA, HVAC/ducting, pip
 ### Safety
 
 No transaction, TransactionGroup, parameter write, model mutation, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, or UI selection modification occurred.
+
+## 2026-06-18 - MEP-SEL-v1 MEP Selection-Only Action Set v1
+
+### Status
+
+Runtime validated and export/index validated.
+
+### Summary
+
+MEP-SEL-v1 adds deterministic reviewed Revit UI selection-only workflows for MEP active-view QA. It selects active-view MEP elements or QA-derived candidate sets for user inspection while preserving strict no-model-modification governance. Unlike MEP-RO-v1, MEP-SEL-v1 may modify Revit UI selection when candidates exist.
+
+### Main Findings
+
+- BUNGE piping `select all pipes in active view` selected 18 pipes and modified UI selection only.
+- Initial `select unconnected pipe fittings` produced false skipped/unreadable connector counts; connector selection was patched to align with MEP-RO-v1 behavior.
+- Patched pipe fitting selection checked 97 fittings, found 0 candidates, 0 skipped/unreadable elements, and did not clear selection.
+- Snowdon HVAC `select all ducts in active view` selected 307 ducts.
+- Snowdon HVAC `select ducts without system assignment` and `select unconnected duct fittings` returned clean zero-candidate reports without clearing selection.
+- Snowdon Electrical `select electrical fixtures/devices in active view` selected 499 devices.
+- Snowdon Electrical `select devices without circuit/system info` selected 29 devices.
+- `[MEP SELECTION V1 REPORT]` exported correctly with source prompt, document, and active view metadata.
+
+### Key Exports
+
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260618_124834`
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260618_155922`
+
+### Safety
+
+No transaction, TransactionGroup, parameter write, model mutation, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, delete, copy, mirror, connect/disconnect, join/unjoin, or model-modification action occurred. UI selection was modified only for routes with candidate count greater than zero.

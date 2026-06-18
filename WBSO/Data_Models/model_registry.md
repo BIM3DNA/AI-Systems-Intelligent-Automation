@@ -402,3 +402,22 @@ MEP-RO-v1 is deterministic read-only reporting logic for AI Workbench / ModelMin
 - guarded boundary: selection-changing routes are blocked and reserved for MEP-SEL-v1
 - QA export: latest deterministic report registration preserves original prompt, active document, and active view
 - no transaction, TransactionGroup, parameter write, model mutation, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, or UI selection modification
+
+## 2026-06-18 MEP-SEL-v1 Model Note
+
+Feature ID: MEP-SEL-v1
+Status: Runtime validated
+Evidence: EV-AI-239 through EV-AI-247
+Commit: `<insert actual commit hash from git log -1 --oneline>`
+
+MEP-SEL-v1 is deterministic Revit UI selection-only logic for AI Workbench / ModelMind MEP QA. It is intentionally separate from MEP-RO-v1 because it may modify the Revit UI selection, but it must not modify Revit model data.
+
+- report header: `[MEP SELECTION V1 REPORT]`
+- source files: `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`, `AI.extension/lib/prompt_catalog.json`
+- scope: reviewed Revit UI selection-only actions for active-view MEP QA
+- domains: piping, HVAC/ducting, electrical fixtures/devices
+- action areas: select active-view pipes/ducts/electrical devices; select unconnected pipe/duct fittings; select ducts without system assignment; select devices without circuit/system info
+- QA export: latest deterministic report registration preserves original prompt, active document, and active view
+- UI selection mutation: `UIDocument.Selection.SetElementIds` is allowed only inside MEP-SEL-v1 handlers and only when candidate count is greater than zero
+- zero-candidate behavior: existing Revit UI selection is not cleared
+- no transaction, TransactionGroup, parameter write, model mutation, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, delete, copy, mirror, connect/disconnect, join/unjoin, or alignment/model-modification action

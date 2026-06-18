@@ -250,3 +250,14 @@ MEP-RO-v1 routes are deterministic AI Workbench / pyRevit report handlers. Ollam
 - runtime handler: `mep_read_only_v1_report`
 - provider role: none for report generation, classification, safety checks, or QA export registration
 - generic LLM output remains non-authoritative and must not replace deterministic MEP-RO-v1 evidence
+
+## 2026-06-18 MEP-SEL-v1 Provider Independence
+
+MEP-SEL-v1 routes are deterministic AI Workbench / pyRevit selection-only handlers. Ollama/OpenAI providers are bypassed for the known selection prompts.
+
+- header: `[MEP SELECTION V1 REPORT]`
+- prompt source: `AI.extension/lib/prompt_catalog.json`
+- runtime handler: `mep_selection_v1_report`
+- provider role: none for candidate eligibility, UI selection execution, classification, safety checks, or QA export registration
+- `UIDocument.Selection.SetElementIds` is called only by MEP-SEL-v1 when candidate count is greater than zero
+- generic LLM output remains non-authoritative and must not replace deterministic MEP-SEL-v1 evidence

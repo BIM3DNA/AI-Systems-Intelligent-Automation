@@ -1501,6 +1501,40 @@ MEP-RO-v1 added safe level-name resolution, improved type-name fallback, display
 
 - `list ducts in active view`: `MEP-RO-v1-20260617_164406`, `MEP_RO_REPORT_OK`, 307 total ducts, 100 displayed rows, truncated true, skipped/unreadable rows 0.
 - `select all ducts`: `MEP-RO-v1-20260617_155736`, `MEP_RO_SELECTION_ACTION_BLOCKED`, UI selection modified false.
+
+## 2026-06-18 MEP-SEL-v1 Connector Selection False-Skipped Runtime Defect
+
+Issue:
+
+`select unconnected pipe fittings` initially returned `MEP_SEL_SELECTION_PARTIAL_WITH_SKIPPED_ELEMENTS` with 97 pipe fittings checked, 0 candidates, and 84 skipped/unreadable elements.
+
+Risk:
+
+The result was inconsistent with MEP-RO-v1 connector reporting, which checked the same active-view pipe fittings cleanly and found 0 unconnected fittings. The false skipped count made a clean zero-candidate selection report appear partially failed.
+
+Resolution:
+
+MEP-SEL-v1 connector selection was patched to reuse/align with MEP-RO-v1 connector inspection semantics:
+
+- try `element.MEPModel.ConnectorManager.Connectors`
+- fall back to `element.ConnectorManager.Connectors`
+- treat unavailable connector access as no readable physical connectors when consistent with MEP-RO-v1 behavior
+- count skipped/unreadable only for actual unreadable connector-set failures
+
+Runtime result:
+
+- `MEP-SEL-v1-20260618_155601`
+- result `MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT`
+- elements checked 97
+- candidate count 0
+- skipped/unreadable count 0
+- selection operation executed false
+- UI selection modified false
+- model modified false
+
+Status:
+
+Resolved / runtime validated.
 - QA exports preserved `[MEP READ ONLY V1 REPORT]` and original source prompts.
 
 No Revit transaction, model mutation, parameter write, linked-document mutation, or UI selection modification was added.

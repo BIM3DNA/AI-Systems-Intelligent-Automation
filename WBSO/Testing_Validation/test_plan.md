@@ -653,6 +653,40 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-06-18 MEP-SEL-v1 Validation Plan
+
+### Scope
+
+- Feature: `MEP-SEL-v1 - MEP Selection-Only Action Set v1`
+- Header: `[MEP SELECTION V1 REPORT]`
+- Evidence: EV-AI-239 through EV-AI-247
+- Validation folder: `WBSO/Testing_Validation/runs/2026-06-18_mep-sel-v1-selection-only-action-set-validated/`
+
+### Tests
+
+1. Validate `select all pipes in active view` in the BUNGE piping test view; expect 18 candidates selected and model modified false.
+2. Validate `select unconnected pipe fittings`; expect 97 fittings checked, zero candidates, zero skipped/unreadable after connector patch, and no selection clearing.
+3. Validate `select all ducts in active view` in Snowdon Towers Sample HVAC / L3; expect 307 ducts selected and model modified false.
+4. Validate `select ducts without system assignment`; expect zero candidates, no selection operation, and existing selection not cleared.
+5. Validate `select unconnected duct fittings`; expect 285 fittings checked, zero candidates, zero skipped/unreadable.
+6. Validate `select electrical fixtures/devices in active view`; expect 499 candidates selected in Snowdon Towers Sample Electrical / 3D electrical view.
+7. Validate `select devices without circuit/system info`; expect 29 candidates selected.
+8. Export MEP-SEL-v1 reports with `export latest QA report`; expect `[MEP SELECTION V1 REPORT]` source metadata and no model mutation.
+
+### Pass Criteria
+
+- deterministic routes do not fall through to LLM
+- `UIDocument.Selection.SetElementIds` executes only when candidate count is greater than zero
+- zero-candidate reports preserve existing selection
+- previous selection count, candidate count, selected count, skipped/unreadable count, and UI selection modified flag are reported
+- model modified false for all routes
+- no transaction, TransactionGroup, parameter write, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, delete, copy, mirror, connect/disconnect, join/unjoin, or model-modification API is executed
+- QA export/index preserves `[MEP SELECTION V1 REPORT]` header and original source prompt
+
+### Result
+
+Passed. See `WBSO/Testing_Validation/runs/2026-06-18_mep-sel-v1-selection-only-action-set-validated/`.
+
 ## 2026-06-17 MEP-RO-v1 Validation Plan
 
 ### Context

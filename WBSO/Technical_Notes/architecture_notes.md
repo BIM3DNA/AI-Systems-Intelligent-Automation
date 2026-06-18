@@ -1454,3 +1454,31 @@ MEP-RO-v1 adds a deterministic read-only report layer for AI Workbench / ModelMi
 - QA export registration uses `[MEP READ ONLY V1 REPORT]` and stores the original user prompt, document, and active view.
 
 Resolved bottlenecks included the missing `_level_name_for_element` helper, raw ElementId type-name fallback, and truncation-only classification. The feature adds no transaction, model mutation, parameter write, linked-document mutation, or UI selection modification behavior.
+
+## 2026-06-18 MEP-SEL-v1 Selection-Only Architecture
+
+MEP-SEL-v1 adds a deterministic reviewed selection-only layer for active-view MEP QA. It is separate from MEP-RO-v1 because it intentionally changes Revit UI selection when candidate elements exist.
+
+Architecture:
+
+- known MEP-SEL-v1 prompts route deterministically before generic LLM fallback
+- active-view candidates are collected by Revit category for pipes, ducts, pipe fittings, duct fittings, and electrical fixture/device categories
+- QA-derived selectors reuse MEP-RO-v1-compatible checks for connector state, system assignment, and circuit/system info
+- `UIDocument.Selection.SetElementIds` is called only when candidate count is greater than zero
+- zero-candidate reports do not clear existing selection and return `MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT`
+- reports register `[MEP SELECTION V1 REPORT]` for QA export with source prompt, document, active view, counts, warnings, and safety flags
+
+Key resolved bottlenecks:
+
+- defined a distinct safety class for UI selection-only actions
+- prevented selection clearing for zero-candidate reports
+- reported previous selection count, candidate count, selected count, and actual UI selection modification state
+- aligned connector inspection with MEP-RO-v1 so unavailable connector paths do not produce false skipped/unreadable counts
+- preserved strict no-model-modification governance while allowing controlled UI selection updates
+
+Safety boundary:
+
+- no transaction or TransactionGroup
+- no model, linked-document, parameter, reload/unload, pin/unpin, sheet/view/tag mutation
+- no delete, copy, mirror, connect/disconnect, join/unjoin, alignment, or model-modification action
+- UI selection may be modified only by MEP-SEL-v1 when candidates exist

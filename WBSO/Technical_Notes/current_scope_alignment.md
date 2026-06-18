@@ -706,3 +706,31 @@ Still out of scope:
 - connector connection/disconnection
 - circuit creation or system assignment
 - geometric volume estimation when Revit volume values are unavailable
+
+### 2026-06-18 MEP-SEL-v1 scope alignment
+
+Validated scope:
+
+- deterministic MEP UI selection-only routes
+- active-view pipe, duct, and electrical fixture/device selection
+- QA-derived active-view selection for unconnected pipe/duct fittings, ducts without system assignment, and devices without circuit/system info
+- zero-candidate selection reports that do not clear existing selection
+- previous/candidate/selected count reporting
+- QA export/index support for `[MEP SELECTION V1 REPORT]`
+- connector-inspection patch aligned with MEP-RO-v1
+
+Safety boundary:
+
+- UI selection may be modified only when candidate count is greater than zero
+- model modified remains false for all validated routes
+- no Revit transaction or TransactionGroup
+- no model, linked-document, parameter, reload/unload, pin/unpin, sheet/view/tag mutation
+- no delete, copy, mirror, connect/disconnect, join/unjoin, alignment, or model-modification action
+
+Still out of scope:
+
+- parameter writes or automatic correction
+- connector connection/disconnection
+- system assignment or circuit creation
+- selection from linked documents
+- production model changes based on selected candidates
