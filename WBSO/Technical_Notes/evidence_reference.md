@@ -1916,3 +1916,40 @@ COORD-WR-016 through COORD-WR-020 provide master evidence integrity validation, 
 ### Technical Conclusion
 
 The batch completed the coordination final-handover evidence chain. The final result was `COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE`. No Revit model, linked-document, parameter, transform, or UI selection mutation occurred; WR-017 wrote only the local Coordination_Handover_History JSONL/CSV register.
+
+## EV-AI-227 through EV-AI-238 - MEP-RO-v1 MEP Read-Only Action Set v1
+
+### Feature
+
+MEP-RO-v1 - MEP Read-Only Action Set v1
+
+### Evidence IDs
+
+- EV-AI-227: Implementation evidence. Added deterministic `[MEP READ ONLY V1 REPORT]` routes and report generation for BIM QA, HVAC/ducting, piping, and electrical active-view/selection checks in `script.py` and `prompt_catalog.json`.
+- EV-AI-228: BIM QA empty-selection runtime evidence. Reports `MEP-RO-v1-20260617_155121`, `155207`, `155224`, and `155242` returned `MEP_RO_REPORT_EMPTY_SELECTION`.
+- EV-AI-229: Selected piping runtime evidence. Twelve selected pipes validated count, length, selected category/type grouping, and missing-parameter reporting across reports `MEP-RO-v1-20260617_160954`, `161012`, `161033`, `161053`, and `161128`.
+- EV-AI-230: Mixed selection runtime evidence. Report `MEP-RO-v1-20260617_161553` validated a 36-element mixed selection health check with model, annotation, and reference-like element counts.
+- EV-AI-231: Piping active-view runtime evidence. Pipe fitting connector health and pipe system assignment checks passed in `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7 / TEST [FloorPlan]`; exports `20260617_162700` and `20260617_162913`.
+- EV-AI-232: HVAC active-view runtime evidence. Snowdon Towers HVAC / L3 validated duct count, duct list, duct fitting connector health, and duct system assignment; export `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260617_164426`.
+- EV-AI-233: HVAC selected-element runtime evidence. Selected 122 ducts validated count, length, and volume-read reporting; volume-read correctly returned partial/skipped where Revit volume values were unavailable; export `20260617_163920`.
+- EV-AI-234: Electrical runtime evidence. Snowdon Towers Electrical / `3D - PV Systems - Stripped [ThreeD]` validated fixture/device type listing and missing circuit/system info reports.
+- EV-AI-235: Guardrail runtime evidence. `select all ducts` returned `MEP_RO_SELECTION_ACTION_BLOCKED`, preserved UI selection, and exported via `[MEP READ ONLY V1 REPORT]` at `20260617_155754`.
+- EV-AI-236: Defect/fix evidence. Fixed `list ducts in active view` crash from missing `_level_name_for_element` and improved type-name fallback; after fix report `MEP-RO-v1-20260617_164406` returned OK.
+- EV-AI-237: Classification/fix evidence. Corrected list-output classification so normal 100-row truncation remains `MEP_RO_REPORT_OK` with display metadata.
+- EV-AI-238: Commit evidence placeholder. Commit: `<insert latest commit hash from git log -1 --oneline>`; message: `<insert actual commit message used>`.
+
+### Validation Folder
+
+`WBSO/Testing_Validation/runs/2026-06-17_mep-ro-v1-read-only-action-set-validated/`
+
+### Daily Log
+
+`DL-2026-06-17-11`
+
+### Week
+
+`2026-W13`
+
+### Technical Conclusion
+
+MEP-RO-v1 provides deterministic, QA-exportable MEP read-only reporting across BIM QA, piping, HVAC/ducting, and electrical workflows. It reads active-view and selected-element context only, blocks selection-changing routes for future MEP-SEL-v1, and performs no Revit model, linked-document, parameter, transaction, or UI selection mutation.

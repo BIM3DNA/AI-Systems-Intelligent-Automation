@@ -241,3 +241,12 @@ All COORD-WR-016 through COORD-WR-020 routes are deterministic and execute befor
 - WR-018 through WR-020 are read-only for local evidence and Revit model data
 - generic LLM output remains non-exportable as deterministic evidence
 - no provider configuration was changed
+## 2026-06-17 MEP-RO-v1 Provider Independence
+
+MEP-RO-v1 routes are deterministic AI Workbench / pyRevit report handlers. Ollama/OpenAI providers are bypassed for the known MEP read-only prompts and guarded selection-changing prompts.
+
+- header: `[MEP READ ONLY V1 REPORT]`
+- prompt source: `AI.extension/lib/prompt_catalog.json`
+- runtime handler: `mep_read_only_v1_report`
+- provider role: none for report generation, classification, safety checks, or QA export registration
+- generic LLM output remains non-authoritative and must not replace deterministic MEP-RO-v1 evidence

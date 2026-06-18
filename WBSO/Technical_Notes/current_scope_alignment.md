@@ -679,3 +679,30 @@ Still out of scope:
 - batch link correction
 - linked-document editing
 - production correction without explicit reviewed workflow
+
+### 2026-06-17 MEP-RO-v1 scope alignment
+
+Validated scope:
+
+- deterministic MEP read-only report routes
+- selected-element BIM QA category/type/missing-parameter reports
+- selected pipe and duct count/length reports
+- selected duct volume-read report using existing Revit values only
+- active-view duct/pipe connector and system-assignment reports
+- active-view electrical fixture/device type and missing circuit/system info reports
+- QA export/index support for `[MEP READ ONLY V1 REPORT]`
+- guarded selection-changing prompts returning `MEP_RO_SELECTION_ACTION_BLOCKED`
+
+Safety boundary:
+
+- no Revit transaction or TransactionGroup
+- no model, linked-document, parameter, reload/unload, pin/unpin, sheet/view/tag, or UI selection mutation
+- existing UI selection may be read but not changed
+
+Still out of scope:
+
+- MEP-SEL-v1 selection-changing workflows
+- parameter writes or automatic correction
+- connector connection/disconnection
+- circuit creation or system assignment
+- geometric volume estimation when Revit volume values are unavailable

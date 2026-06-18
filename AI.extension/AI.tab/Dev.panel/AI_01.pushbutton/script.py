@@ -95,6 +95,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[COORDINATION LINK FINAL HANDOVER SUMMARY]",
     "[COORDINATION LINK FINAL HANDOVER PACKAGE MANIFEST]",
     "[MEP READ ONLY V1 REPORT]",
+    "[MEP SELECTION V1 REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14203,6 +14204,40 @@ def _mep_ro_v1_action_key(prompt):
     return MEP_RO_V1_ROUTE_ACTIONS.get(normalized)
 
 
+MEP_SEL_V1_ROUTE_ACTIONS = {
+    "select all pipes in active view": "select_pipes_active_view",
+    "select active view pipes": "select_pipes_active_view",
+    "select all ducts in active view": "select_ducts_active_view",
+    "select active view ducts": "select_ducts_active_view",
+    "select all electrical fixtures in active view": "select_electrical_active_view",
+    "select all electrical devices in active view": "select_electrical_active_view",
+    "select electrical fixtures devices in active view": "select_electrical_active_view",
+    "select electrical fixtures and devices in active view": "select_electrical_active_view",
+    "select electrical fixtures/devices in active view": "select_electrical_active_view",
+    "select active view electrical devices": "select_electrical_active_view",
+    "select unconnected pipe fittings": "select_unconnected_pipe_fittings",
+    "select unconnected pipe fittings in active view": "select_unconnected_pipe_fittings",
+    "select unconnected duct fittings": "select_unconnected_duct_fittings",
+    "select unconnected duct fittings in active view": "select_unconnected_duct_fittings",
+    "select pipes without system assignment": "select_pipes_without_system",
+    "select pipes without system assignment in active view": "select_pipes_without_system",
+    "select ducts without system assignment": "select_ducts_without_system",
+    "select ducts without system assignment in active view": "select_ducts_without_system",
+    "select devices without circuit system info": "select_devices_without_circuit",
+    "select devices without circuit and system info": "select_devices_without_circuit",
+    "select devices without circuit/system info": "select_devices_without_circuit",
+    "select devices without circuit info": "select_devices_without_circuit",
+    "select electrical devices without circuit system info": "select_devices_without_circuit",
+    "select electrical devices without circuit and system info": "select_devices_without_circuit",
+    "select electrical devices without circuit/system info": "select_devices_without_circuit",
+}
+
+
+def _mep_sel_v1_action_key(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return MEP_SEL_V1_ROUTE_ACTIONS.get(normalized)
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -16267,6 +16302,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "coordination link final handover package manifest / local evidence package index"
         if header == "[MEP READ ONLY V1 REPORT]":
             return "MEP read-only reporting / active-view and selected-element QA"
+        if header == "[MEP SELECTION V1 REPORT]":
+            return "reviewed Revit UI selection-only actions for active-view MEP QA"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -28242,19 +28279,26 @@ class OllamaAIChat(forms.WPFWindow):
     def _mep_ro_v1_connector_counts(self, elem):
         connector_count = 0
         unconnected_count = 0
+        connectors = None
         try:
             connectors = elem.MEPModel.ConnectorManager.Connectors
         except:
-            connectors = None
+            try:
+                connectors = elem.ConnectorManager.Connectors
+            except:
+                connectors = None
         if connectors is None:
             return 0, 0, "unavailable"
-        for connector in connectors:
-            try:
-                connector_count += 1
-                if not connector.IsConnected:
-                    unconnected_count += 1
-            except:
-                continue
+        try:
+            for connector in connectors:
+                try:
+                    connector_count += 1
+                    if not connector.IsConnected:
+                        unconnected_count += 1
+                except:
+                    continue
+        except:
+            return 0, 0, "unreadable"
         return connector_count, unconnected_count, "read"
 
     def _mep_ro_v1_electrical_category_ids(self):
@@ -28784,6 +28828,297 @@ class OllamaAIChat(forms.WPFWindow):
             "transaction_group_opened": False,
             "linked_document_modified": False,
             "ui_selection_modified": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _mep_sel_v1_recommended_action(self, classification):
+        if classification == "MEP_SEL_SELECTION_OK":
+            return "Review the selected elements in Revit. No model data was modified."
+        if classification == "MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT":
+            return "Open the relevant MEP view or adjust view visibility/filtering and rerun."
+        if classification == "MEP_SEL_SELECTION_PARTIAL_WITH_SKIPPED_ELEMENTS":
+            return "Review skipped/unreadable elements before using the selection for follow-up QA."
+        if classification == "MEP_SEL_SELECTION_REVIEW_REQUIRED":
+            return "Review warnings and rerun after correcting view context."
+        return "Use a supported MEP-SEL-v1 selection prompt."
+
+    def _mep_sel_v1_base_data(self, prompt, action_name):
+        previous_selection_count = 0
+        try:
+            previous_selection_count = len(list(uidoc.Selection.GetElementIds()))
+        except:
+            previous_selection_count = 0
+        return {
+            "feature_id": "MEP-SEL-v1",
+            "feature_name": "MEP Selection-Only Action Set v1",
+            "report_id": "MEP-SEL-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "prompt": safe_str(prompt),
+            "action_name": action_name,
+            "document_title": _document_title(doc),
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "scope": "active view selection",
+            "classification": "MEP_SEL_SELECTION_OK",
+            "previous_selection_count": previous_selection_count,
+            "candidate_count": 0,
+            "selected_count": 0,
+            "ui_selection_modified": False,
+            "sample_selected_ids": [],
+            "summary": [],
+            "tables": [],
+            "warnings": [],
+            "skipped_count": 0,
+        }
+
+    def _mep_sel_v1_category_type_rows(self, elements):
+        groups = {}
+        for elem in elements or []:
+            category_name = self._mep_ro_v1_element_category_name(elem)
+            family_name, type_name, type_id = self._mep_ro_v1_type_info(elem)
+            key = (category_name, family_name, type_name)
+            groups.setdefault(key, []).append(self._mep_ro_v1_element_id_text(elem))
+        rows = []
+        for key in sorted(groups.keys(), key=lambda item: safe_str(item)):
+            ids = groups[key]
+            rows.append([key[0], key[1], key[2], len(ids), ", ".join(ids[:10])])
+        return rows
+
+    def _mep_sel_v1_apply_selection(self, elements, data):
+        if not elements:
+            if data.get("classification") == "MEP_SEL_SELECTION_OK":
+                data["classification"] = "MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT"
+            data["summary"].append("Selection operation executed: false")
+            return data
+        try:
+            id_list = System.Collections.Generic.List[DB.ElementId]()
+            for elem in elements:
+                try:
+                    id_list.Add(elem.Id)
+                except:
+                    data["skipped_count"] += 1
+            if id_list.Count < 1:
+                data["classification"] = "MEP_SEL_SELECTION_REVIEW_REQUIRED"
+                data["warnings"].append("No resolvable candidate ElementIds were available for selection.")
+                data["summary"].append("Selection operation executed: false")
+                return data
+            uidoc.Selection.SetElementIds(id_list)
+            data["ui_selection_modified"] = True
+            data["selected_count"] = int(id_list.Count)
+            data["sample_selected_ids"] = [safe_str(item.IntegerValue) for item in list(id_list)[:10]]
+            data["summary"].append("Selection operation executed: true")
+        except Exception as exc:
+            data["classification"] = "MEP_SEL_SELECTION_REVIEW_REQUIRED"
+            data["warnings"].append("UI selection could not be updated: {0}".format(safe_str(exc)))
+            data["summary"].append("Selection operation executed: false")
+        return data
+
+    def _mep_sel_v1_build_data(self, prompt, action_key):
+        action_names = {
+            "select_pipes_active_view": "Select all pipes in active view",
+            "select_ducts_active_view": "Select all ducts in active view",
+            "select_electrical_active_view": "Select electrical fixtures/devices in active view",
+            "select_unconnected_pipe_fittings": "Select unconnected pipe fittings in active view",
+            "select_unconnected_duct_fittings": "Select unconnected duct fittings in active view",
+            "select_pipes_without_system": "Select pipes without system assignment in active view",
+            "select_ducts_without_system": "Select ducts without system assignment in active view",
+            "select_devices_without_circuit": "Select devices without circuit/system info in active view",
+        }
+        data = self._mep_sel_v1_base_data(
+            prompt,
+            action_names.get(action_key, "MEP selection-only action"),
+        )
+        pipe_id = self._mep_ro_v1_category_id("OST_PipeCurves")
+        pipe_fitting_id = self._mep_ro_v1_category_id("OST_PipeFitting")
+        duct_id = self._mep_ro_v1_category_id("OST_DuctCurves")
+        duct_fitting_id = self._mep_ro_v1_category_id("OST_DuctFitting")
+        electrical_ids = self._mep_ro_v1_electrical_category_ids()
+        candidates = []
+        checked_count = 0
+        skipped = []
+
+        if action_key == "select_pipes_active_view":
+            candidates, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([pipe_id])
+            data["warnings"].extend(warnings)
+            checked_count = len(candidates)
+        elif action_key == "select_ducts_active_view":
+            candidates, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([duct_id])
+            data["warnings"].extend(warnings)
+            checked_count = len(candidates)
+        elif action_key == "select_electrical_active_view":
+            candidates, warnings = self._mep_ro_v1_active_view_elements_by_category_ids(electrical_ids)
+            data["warnings"].extend(warnings)
+            checked_count = len(candidates)
+        elif action_key in ["select_unconnected_pipe_fittings", "select_unconnected_duct_fittings"]:
+            category_id = pipe_fitting_id if action_key == "select_unconnected_pipe_fittings" else duct_fitting_id
+            fittings, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([category_id])
+            data["warnings"].extend(warnings)
+            checked_count = len(fittings)
+            for fitting in fittings:
+                connector_count, unconnected_count, status = self._mep_ro_v1_connector_counts(fitting)
+                if status == "unreadable":
+                    skipped.append(self._mep_ro_v1_element_id_text(fitting))
+                    continue
+                if unconnected_count > 0:
+                    candidates.append(fitting)
+        elif action_key in ["select_pipes_without_system", "select_ducts_without_system"]:
+            category_id = pipe_id if action_key == "select_pipes_without_system" else duct_id
+            elems, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([category_id])
+            data["warnings"].extend(warnings)
+            checked_count = len(elems)
+            for elem in elems:
+                try:
+                    if not self._mep_ro_v1_system_assigned(elem):
+                        candidates.append(elem)
+                except:
+                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+        elif action_key == "select_devices_without_circuit":
+            devices, warnings = self._mep_ro_v1_active_view_elements_by_category_ids(electrical_ids)
+            data["warnings"].extend(warnings)
+            checked_count = len(devices)
+            for elem in devices:
+                try:
+                    value = self._mep_ro_v1_param_value(
+                        elem,
+                        ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"],
+                    )
+                    if not value:
+                        candidates.append(elem)
+                except:
+                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+        else:
+            data["classification"] = "MEP_SEL_UNSUPPORTED_PROMPT"
+            data["warnings"].append("Unsupported MEP-SEL-v1 prompt.")
+
+        data["candidate_count"] = len(candidates)
+        data["skipped_count"] += len(skipped)
+        data["summary"].extend(
+            [
+                "Elements checked in active view: {0}".format(checked_count),
+                "Candidate count: {0}".format(len(candidates)),
+                "Skipped/unreadable count: {0}".format(data.get("skipped_count", 0)),
+            ]
+        )
+        if skipped:
+            data["warnings"].append("Skipped/unreadable element ids: {0}".format(", ".join(skipped[:10])))
+            data["classification"] = "MEP_SEL_SELECTION_PARTIAL_WITH_SKIPPED_ELEMENTS"
+        if data["classification"] != "MEP_SEL_UNSUPPORTED_PROMPT":
+            self._mep_sel_v1_apply_selection(candidates, data)
+            if skipped and data["classification"] == "MEP_SEL_SELECTION_OK":
+                data["classification"] = "MEP_SEL_SELECTION_PARTIAL_WITH_SKIPPED_ELEMENTS"
+        data["summary"].append("Selected count: {0}".format(data.get("selected_count", 0)))
+        data["summary"].append("Sample selected ids: {0}".format(", ".join(data.get("sample_selected_ids") or []) or "none"))
+        rows = self._mep_sel_v1_category_type_rows(candidates)
+        if rows:
+            data["tables"].append(("Category/type breakdown", ["Category", "Family", "Type", "Count", "Sample ids"], rows))
+        return data
+
+    def _mep_sel_v1_format_report(self, data):
+        lines = [
+            "[MEP SELECTION V1 REPORT]",
+            "",
+            "Feature ID:",
+            "MEP-SEL-v1",
+            "",
+            "Feature name:",
+            "MEP Selection-Only Action Set v1",
+            "",
+            "Report ID:",
+            data.get("report_id"),
+            "",
+            "Timestamp:",
+            data.get("timestamp"),
+            "",
+            "Action name:",
+            data.get("action_name"),
+            "",
+            "Prompt:",
+            data.get("prompt"),
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")),
+            "",
+            "Scope:",
+            data.get("scope"),
+            "",
+            "Result classification:",
+            data.get("classification"),
+            "",
+            "Previous selection count:",
+            data.get("previous_selection_count"),
+            "",
+            "Candidate count:",
+            data.get("candidate_count"),
+            "",
+            "Selected count:",
+            data.get("selected_count"),
+            "",
+            "Main summary counts:",
+        ]
+        for item in data.get("summary") or []:
+            lines.append("- {0}".format(item))
+        for title, headers, rows in data.get("tables") or []:
+            lines.extend(["", title + ":"])
+            lines.extend(self._mep_ro_v1_table(headers, rows) if rows else ["- none"])
+        lines.extend(["", "Warnings:"])
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Recommended next action:",
+                self._mep_sel_v1_recommended_action(data.get("classification")),
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: {0}".format("true" if data.get("ui_selection_modified") else "false"),
+                "",
+                "Safety:",
+                "- MEP-SEL-v1 is a reviewed Revit UI selection-only helper.",
+                "- Revit UI selection may have been changed for review.",
+                "- No transaction was opened.",
+                "- No model data was modified.",
+                "- No reload, unload, copy, mirror, delete, pin, unpin, connect, disconnect, join, unjoin, view, sheet, tag, or parameter-write action was performed.",
+            ]
+        )
+        return "\n".join([safe_str(line) for line in lines])
+
+    def answer_mep_selection_v1_question(self, prompt):
+        action_key = _mep_sel_v1_action_key(prompt)
+        if not action_key:
+            return None
+        data = self._mep_sel_v1_build_data(prompt, action_key)
+        report_text = self._mep_sel_v1_format_report(data)
+        report_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.latest_mep_selection_v1_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MEP SELECTION V1 REPORT]",
+            "report_text": report_text,
+            "report_scope": "reviewed Revit UI selection-only actions for active-view MEP QA",
+            "report_timestamp": report_timestamp,
+            "created_timestamp_local": report_timestamp,
+            "feature_id": "MEP-SEL-v1",
+            "feature_name": "MEP Selection-Only Action Set v1",
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view_name"),
+            "active_view_type": data.get("active_view_type"),
+            "deterministic": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": bool(data.get("ui_selection_modified")),
         }
         self.latest_chat_output_is_deterministic_report = True
         return report_text
@@ -34604,9 +34939,14 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
-            mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
+            mep_selection_v1_reply = self.answer_mep_selection_v1_question(
                 prompt
             )
+            mep_read_only_v1_reply = None
+            if mep_selection_v1_reply is None:
+                mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
+                    prompt
+                )
             coordination_link_package_manifest_reply = (
                 self.answer_coordination_link_handover_package_manifest_question(
                     prompt
@@ -34663,7 +35003,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if mep_read_only_v1_reply is not None:
+            if mep_selection_v1_reply is not None:
+                reply = mep_selection_v1_reply
+                preserve_latest_report_state = True
+            elif mep_read_only_v1_reply is not None:
                 reply = mep_read_only_v1_reply
                 preserve_latest_report_state = True
             elif coordination_link_package_manifest_reply is not None:

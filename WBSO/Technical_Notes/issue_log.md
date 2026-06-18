@@ -1478,3 +1478,29 @@ WR-016 added master evidence integrity checks. WR-017 added a local handover reg
 - final export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260612_171342`
 
 No Revit model mutation API was added. WR-017 wrote only the documented local handover JSONL/CSV files.
+
+---
+
+## 2026-06-17 MEP-RO-v1 Read-Only Reporting Runtime Defects
+
+**Status:** Resolved / runtime validated
+**Type:** MEP read-only reporting, helper safety, and classification semantics
+
+### Issues
+
+- `list ducts in active view` initially crashed with `global name '_level_name_for_element' is not defined`.
+- Selected element type reports could display raw `ElementId` values instead of readable type names.
+- Normal 100-row display truncation was initially classified as `MEP_RO_REPORT_REVIEW_REQUIRED`.
+- Selection-changing prompts needed to be guarded rather than implemented in a read-only package.
+
+### Resolution
+
+MEP-RO-v1 added safe level-name resolution, improved type-name fallback, display metadata for list reports, and classification logic that treats truncation as normal output limiting. Selection-changing prompts return `MEP_RO_SELECTION_ACTION_BLOCKED` and are reserved for future MEP-SEL-v1.
+
+### Runtime Result
+
+- `list ducts in active view`: `MEP-RO-v1-20260617_164406`, `MEP_RO_REPORT_OK`, 307 total ducts, 100 displayed rows, truncated true, skipped/unreadable rows 0.
+- `select all ducts`: `MEP-RO-v1-20260617_155736`, `MEP_RO_SELECTION_ACTION_BLOCKED`, UI selection modified false.
+- QA exports preserved `[MEP READ ONLY V1 REPORT]` and original source prompts.
+
+No Revit transaction, model mutation, parameter write, linked-document mutation, or UI selection modification was added.

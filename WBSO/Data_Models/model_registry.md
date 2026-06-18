@@ -385,3 +385,20 @@ The batch completes the deterministic coordination final-handover evidence model
 - WR-020: consolidated final handover closeout state
 
 The final report `COORD-WR-020-20260612_171325` returned `COORD_HANDOVER_FINAL_READY_WITH_HISTORY_SOURCE`. WR-017 is the only feature in this batch that writes local evidence files; no feature modifies Revit model data.
+
+## 2026-06-17 MEP-RO-v1 Model Note
+
+Feature ID: MEP-RO-v1
+Status: Runtime validated
+Evidence: EV-AI-227 through EV-AI-238
+Commit: `<insert latest commit hash from git log -1 --oneline>`
+
+MEP-RO-v1 is deterministic read-only reporting logic for AI Workbench / ModelMind MEP QA. It does not use an LLM provider to decide report content, actionability, or export eligibility.
+
+- report header: `[MEP READ ONLY V1 REPORT]`
+- source files: `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`, `AI.extension/lib/prompt_catalog.json`
+- scope: active-view and selected-element MEP QA reporting
+- domains: BIM QA, HVAC/ducting, piping, electrical
+- guarded boundary: selection-changing routes are blocked and reserved for MEP-SEL-v1
+- QA export: latest deterministic report registration preserves original prompt, active document, and active view
+- no transaction, TransactionGroup, parameter write, model mutation, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, or UI selection modification

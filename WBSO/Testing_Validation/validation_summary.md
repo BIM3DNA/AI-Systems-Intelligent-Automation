@@ -673,3 +673,37 @@ The batch validated master evidence integrity, durable coordination handover his
 ### Safety
 
 No Revit model, linked document, parameter, transform, or UI selection mutation occurred. WR-017 wrote only local Coordination_Handover_History JSONL/CSV evidence.
+
+## 2026-06-17 - MEP-RO-v1 MEP Read-Only Action Set v1
+
+### Status
+
+Runtime validated and export/index validated.
+
+### Summary
+
+MEP-RO-v1 adds deterministic read-only MEP reports for BIM QA, HVAC/ducting, piping, and electrical workflows. Reports use active-view and selected-element context, register `[MEP READ ONLY V1 REPORT]` for QA export, and explicitly block selection-changing routes such as `select all ducts`.
+
+### Main Findings
+
+- empty selection BIM QA reports returned `MEP_RO_REPORT_EMPTY_SELECTION`
+- selected piping count/length/category/type/missing-parameter reports returned `MEP_RO_REPORT_OK`
+- mixed 36-element selection health returned `MEP_RO_REPORT_OK`
+- active-view pipe and duct connector/system-assignment checks returned OK
+- selected duct volume-read returned partial/skipped where Revit volume values were unavailable
+- electrical fixture/device type and missing circuit/system info reports returned OK
+- the duct-list level helper defect was fixed
+- 100-row list truncation now remains OK with display metadata
+- guarded selection-changing route returned `MEP_RO_SELECTION_ACTION_BLOCKED`
+
+### Key Exports
+
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260617_155754`
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260617_162700`
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260617_162913`
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260617_163920`
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260617_164426`
+
+### Safety
+
+No transaction, TransactionGroup, parameter write, model mutation, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, or UI selection modification occurred.

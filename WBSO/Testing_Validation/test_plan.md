@@ -653,6 +653,41 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-06-17 MEP-RO-v1 Validation Plan
+
+### Context
+
+- Feature: `MEP-RO-v1 - MEP Read-Only Action Set v1`
+- Header: `[MEP READ ONLY V1 REPORT]`
+- Evidence: EV-AI-227 through EV-AI-238
+- Runtime models: BUNGE piping model, Snowdon Towers Sample HVAC, Snowdon Towers Sample Electrical
+
+### Tests
+
+1. Run BIM QA empty-selection reports for selection health, selected category/type grouping, and missing parameters; expect `MEP_RO_REPORT_EMPTY_SELECTION`.
+2. Select pipes and validate selected pipe count, total length, category/type grouping, and missing-parameter reporting.
+3. Run mixed-selection health check and verify model, annotation, pinned/reference-like counts without modifying selection.
+4. Run active-view pipe fitting connector and pipe system-assignment reports.
+5. Run active-view duct count, duct list, duct fitting connector, and duct system-assignment reports.
+6. Select ducts and validate selected duct count, selected duct length, and volume-read partial/skipped behavior.
+7. Run active-view electrical fixture/device type listing and missing circuit/system info reports.
+8. Run `select all ducts` and confirm it returns `MEP_RO_SELECTION_ACTION_BLOCKED` without UI selection modification.
+9. Export latest QA reports and confirm prompt/header metadata uses `[MEP READ ONLY V1 REPORT]`.
+
+### Pass Criteria
+
+- deterministic routes resolve before generic fallback
+- report header is `[MEP READ ONLY V1 REPORT]`
+- QA export metadata preserves original prompt, document, and active view
+- empty selection and empty active-view cases are cleanly classified
+- list truncation alone remains `MEP_RO_REPORT_OK`
+- unreadable/skipped rows classify as partial/skipped
+- no transaction, TransactionGroup, model mutation, linked-document mutation, parameter write, reload/unload, pin/unpin, creation API, or UI selection modification
+
+### Result
+
+Passed. See `WBSO/Testing_Validation/runs/2026-06-17_mep-ro-v1-read-only-action-set-validated/`.
+
 ## 2026-06-08 COORD-WR-006 Runtime Validation Plan
 
 ### A. Cross-session no-state condition

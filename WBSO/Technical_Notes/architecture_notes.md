@@ -1442,3 +1442,15 @@ MEP-ACT-001 introduces a deterministic proposal-only layer between the validated
 MEP-ACT-001 does not execute confirmation/apply behavior. It opens no transaction and performs no pipe splitting, tagging, scheduling, parameter writing, system/circuit editing, connector traversal, geometry extraction, or model mutation.
 
 Status: runtime validated.
+
+## 2026-06-17 MEP-RO-v1 Read-Only Reporting Architecture
+
+MEP-RO-v1 adds a deterministic read-only report layer for AI Workbench / ModelMind MEP QA. The architecture deliberately separates report-only operations from selection-changing operations:
+
+- MEP-RO-v1 reads active-view and selected-element context but never modifies Revit UI selection.
+- Selection prompts such as `select all ducts` are guarded and reserved for a future MEP-SEL-v1 package.
+- Reports use safe category, type, level, length, volume, connector, system-assignment, and electrical circuit/system parameter reads.
+- Active-view list outputs use display metadata (`total`, `displayed`, `truncated`) so normal row truncation is not treated as a defect.
+- QA export registration uses `[MEP READ ONLY V1 REPORT]` and stores the original user prompt, document, and active view.
+
+Resolved bottlenecks included the missing `_level_name_for_element` helper, raw ElementId type-name fallback, and truncation-only classification. The feature adds no transaction, model mutation, parameter write, linked-document mutation, or UI selection modification behavior.

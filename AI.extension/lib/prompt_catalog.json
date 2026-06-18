@@ -4310,5 +4310,43 @@
     "validation_state": "structural_only",
     "prompt_text": "report selected elements by category",
     "mode": "deterministic"
+  },
+  {
+    "id": "mep-selection-v1",
+    "title": "MEP Selection-Only Action Set v1",
+    "category": "BIM QA",
+    "group": "MEP Selection-Only Actions",
+    "discipline": "MEP",
+    "role": "selection",
+    "risk_level": "low",
+    "scope_type": "mep_selection_active_view_qa",
+    "canonical_prompt": "select all ducts in active view",
+    "planner_aliases": [
+      "select all pipes in active view",
+      "select active view pipes",
+      "select all ducts in active view",
+      "select active view ducts",
+      "select all electrical fixtures in active view",
+      "select all electrical devices in active view",
+      "select electrical fixtures/devices in active view",
+      "select active view electrical devices",
+      "select unconnected pipe fittings",
+      "select unconnected pipe fittings in active view",
+      "select unconnected duct fittings",
+      "select unconnected duct fittings in active view",
+      "select pipes without system assignment",
+      "select pipes without system assignment in active view",
+      "select ducts without system assignment",
+      "select ducts without system assignment in active view",
+      "select devices without circuit/system info",
+      "select devices without circuit info",
+      "select electrical devices without circuit/system info"
+    ],
+    "deterministic_handler": "mep_selection_v1_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "select all ducts in active view",
+    "mode": "deterministic"
   }
 ]
