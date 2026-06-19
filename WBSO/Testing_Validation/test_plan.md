@@ -653,6 +653,34 @@ The refactor should only be considered runtime-proven after the scenario set abo
 
 - all live validation targets listed above
 
+## 2026-06-19 MEP QA Workbench Evidence Pipeline Validation
+
+### Runtime Targets
+
+1. Validate MEP-RO-EXPORT-v1 structured exports for active-view pipes, ducts, electrical devices, and electrical issue candidates.
+2. Validate MEP-QA-BUNDLE-v1 active-view evidence bundle generation.
+3. Validate MEP-QA-DASHBOARD-v1 compact active-view dashboard classifications.
+4. Validate MEP-QA-VIEWSCAN-v1 multi-view floor plan scan without active-view switching.
+5. Validate MEP-QA-VIEWDETAIL-v1 named-view drilldown without active-view switching.
+6. Validate MEP-QA-VIEWEXPORT-v1 named-view issue export file schema.
+7. Validate MEP-QA-ISSUEINDEX-v1 project-level issue queue.
+8. Validate latest QA report export metadata for all report headers.
+
+### Pass Criteria
+
+- BUNGE piping issue candidates are detected across floor plan views.
+- Snowdon HVAC returns zero issue candidates across the validated duct inventory.
+- Snowdon Electrical detects devices without circuit/system metadata across floor plan views.
+- Named-view workflows do not change active view or UI selection.
+- Export/bundle workflows write only to Desktop result folders.
+- Read-only dashboard/detail/scan/index workflows write no MEP export/bundle/view-export files.
+- QA export registration preserves source prompt, report header, document, active view, and scope.
+- No Revit model data is modified.
+
+### Result
+
+Passed. See `WBSO/Testing_Validation/runs/2026-06-19_mep-qa-workbench-evidence-pipeline-validated/`.
+
 ## 2026-06-18 MEP-SEL-v1 Validation Plan
 
 ### Scope

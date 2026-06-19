@@ -1987,3 +1987,35 @@ MEP-SEL-v1 - MEP Selection-Only Action Set v1
 ### Technical Conclusion
 
 MEP-SEL-v1 provides deterministic, QA-exportable Revit UI selection-only workflows for active-view MEP QA. It may modify UI selection when candidates exist, but never modifies Revit model data, linked documents, parameters, systems, connectors, views, sheets, or tags. Zero-candidate reports preserve existing selection.
+
+## EV-AI-248 through EV-AI-258 - MEP QA Workbench Evidence Pipeline
+
+### Feature Batch
+
+MEP QA Workbench Evidence Pipeline - exports, bundles, dashboards, named-view drilldown, and project issue indexing
+
+### Date
+
+2026-06-19 / 2026-W13
+
+### Evidence IDs
+
+- EV-AI-248: Implementation batch evidence. Added MEP-RO-EXPORT-v1, MEP-QA-BUNDLE-v1, MEP-QA-DASHBOARD-v1, MEP-QA-VIEWSCAN-v1, MEP-QA-VIEWDETAIL-v1, MEP-QA-VIEWEXPORT-v1, and MEP-QA-ISSUEINDEX-v1 as a layered MEP QA evidence pipeline.
+- EV-AI-249: Structured export evidence. MEP-RO-EXPORT-v1 exported active-view pipe, duct, electrical device, and circuit/system issue rows with structured CSV/JSON schemas.
+- EV-AI-250: Active-view bundle evidence. MEP-QA-BUNDLE-v1 generated active-view QA evidence bundles for piping, HVAC, and electrical contexts.
+- EV-AI-251: Active-view dashboard evidence. MEP-QA-DASHBOARD-v1 classified BUNGE piping and Snowdon HVAC as GREEN and Snowdon Electrical as YELLOW.
+- EV-AI-252: Multi-view scan evidence. MEP-QA-VIEWSCAN-v1 scanned eligible floor plan views and produced project/view matrix results without active-view switching.
+- EV-AI-253: Named-view detail evidence. MEP-QA-VIEWDETAIL-v1 produced focused named-view drilldowns for First Floor, TEST, L3, and Model Linking - Parking.
+- EV-AI-254: Named-view issue export evidence. MEP-QA-VIEWEXPORT-v1 exported named-view issue rows, including 6 First Floor pipe fitting issues and 125 Model Linking - Parking electrical issues.
+- EV-AI-255: Project issue index evidence. MEP-QA-ISSUEINDEX-v1 produced navigable issue queues: 8 BUNGE rows, EMPTY Snowdon HVAC, and 29 Snowdon Electrical rows.
+- EV-AI-256: QA export registration evidence. Validated report headers `[MEP EXPORT V1 REPORT]`, `[MEP QA BUNDLE V1 REPORT]`, `[MEP QA DASHBOARD V1 REPORT]`, `[MEP QA VIEWSCAN V1 REPORT]`, `[MEP QA VIEWDETAIL V1 REPORT]`, `[MEP QA VIEWEXPORT V1 REPORT]`, and `[MEP QA ISSUE INDEX V1 REPORT]`.
+- EV-AI-257: Safety/governance evidence. Read-only tools opened no transactions, modified no model data, changed no UI selection, and did not switch active views; file writes were limited to explicit export/bundle commands outside the repository.
+- EV-AI-258: Commit evidence. Commits: `263796e` Add MEP structured QA export v1; `c2d9aeb` Add MEP active view QA bundle v1; `not found in local git log` Add MEP active view QA dashboard v1; `c74aa9b` Add MEP multi-view QA scan v1; `bdf7a26` Add MEP named view QA detail v1; `1073deb` Add MEP named view QA export v1; `3c3eb18` Add MEP project issue index v1.
+
+### Validation Folder
+
+`WBSO/Testing_Validation/runs/2026-06-19_mep-qa-workbench-evidence-pipeline-validated/`
+
+### Technical Conclusion
+
+The MEP QA Workbench batch converts active-view MEP diagnostics into a layered evidence pipeline covering structured exports, active-view bundles, dashboards, multi-view scans, named-view drilldowns, named-view issue exports, and project-level issue indexing while preserving strict Revit model-safety boundaries.

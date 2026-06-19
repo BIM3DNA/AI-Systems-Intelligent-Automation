@@ -737,3 +737,32 @@ MEP-SEL-v1 adds deterministic reviewed Revit UI selection-only workflows for MEP
 ### Safety
 
 No transaction, TransactionGroup, parameter write, model mutation, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, delete, copy, mirror, connect/disconnect, join/unjoin, or model-modification action occurred. UI selection was modified only for routes with candidate count greater than zero.
+
+## 2026-06-19 - MEP QA Workbench Evidence Pipeline
+
+### Status
+
+Runtime validated and export/index validated.
+
+### Summary
+
+The MEP QA Workbench batch adds a layered evidence pipeline for active-view, named-view, and project-level MEP QA. It includes structured CSV/JSON exports, active-view evidence bundles, compact dashboards, multi-view floor plan scans, named-view detail drilldowns, named-view issue exports, and project-level issue queues.
+
+### Main Findings
+
+- BUNGE piping model: 18 active-view pipe rows; 97 pipe fittings checked; dashboard GREEN; 15 floor plan views scanned; 24 unconnected pipe fitting candidates; 8 project issue-index rows.
+- Snowdon HVAC: 307 active-view duct rows; 285 duct fittings checked; dashboard GREEN; 11 floor plan views scanned; 1105 duct inventory; 0 issue candidates; issue index EMPTY.
+- Snowdon Electrical: 499 active-view electrical device rows; 29 active-view circuit/system issues; dashboard YELLOW; 30 floor plan views scanned; 3196 electrical devices; 350 issue candidates; 29 issue-index rows.
+- Named-view detail/export validated targeted drilldown without switching active Revit view.
+- QA export registration preserved source prompt, report header, document, active view, and scope metadata.
+
+### Evidence Roots
+
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports`
+- `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Exports`
+- `C:\Users\User\Desktop\Results\AI_Workbench\MEP_QA_Bundles`
+- `C:\Users\User\Desktop\Results\AI_Workbench\MEP_View_Exports`
+
+### Safety
+
+No Revit model data was modified. Read-only tools opened no transaction or TransactionGroup, did not write parameters, did not modify linked documents, did not reload/unload, did not pin/unpin, did not create sheets/views/tags, did not change UI selection, and did not switch active views. External files were written only by explicit export/bundle workflows outside the repository.

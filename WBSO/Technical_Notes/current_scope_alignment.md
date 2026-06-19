@@ -734,3 +734,34 @@ Still out of scope:
 - system assignment or circuit creation
 - selection from linked documents
 - production model changes based on selected candidates
+
+### 2026-06-19 MEP QA Workbench evidence pipeline scope alignment
+
+Validated scope:
+
+- structured active-view MEP CSV/JSON exports
+- active-view MEP QA evidence bundle generation
+- compact active-view MEP QA dashboards
+- multi-view floor plan QA scans
+- named-view QA detail reports without active-view switching
+- named-view issue exports without UI selection mutation
+- project-level issue index / QA queue generation
+- QA export/index support for all MEP QA batch report headers
+
+Safety boundary:
+
+- read-only reporting tools do not modify Revit model data
+- no transaction or TransactionGroup for read-only tools
+- no UI selection mutation except previously documented MEP-SEL-v1
+- no active-view switching for named-view detail/export/index tools
+- external files written only by explicit export/bundle routes
+- generated result folders remain outside the repository
+
+Still out of scope:
+
+- automatic correction or remediation
+- parameter writes, system assignment, or circuit creation
+- connector connect/disconnect operations
+- linked-document edits
+- active-view switching automation
+- production model mutation based on QA issue queues

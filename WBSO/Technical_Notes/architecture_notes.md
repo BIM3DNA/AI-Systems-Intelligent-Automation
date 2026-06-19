@@ -1482,3 +1482,25 @@ Safety boundary:
 - no model, linked-document, parameter, reload/unload, pin/unpin, sheet/view/tag mutation
 - no delete, copy, mirror, connect/disconnect, join/unjoin, alignment, or model-modification action
 - UI selection may be modified only by MEP-SEL-v1 when candidates exist
+
+## 2026-06-19 MEP QA Workbench Evidence Pipeline Architecture
+
+The MEP QA Workbench batch extends the read-only/selection foundation into a layered MEP QA evidence pipeline:
+
+- MEP-RO-EXPORT-v1 writes structured CSV/JSON exports for active-view MEP rows and QA issue candidates.
+- MEP-QA-BUNDLE-v1 aggregates active-view MEP QA evidence into a local bundle.
+- MEP-QA-DASHBOARD-v1 provides compact active-view health classification.
+- MEP-QA-VIEWSCAN-v1 scans eligible floor plan views using view-id collectors.
+- MEP-QA-VIEWDETAIL-v1 drills into a named view without switching the active Revit view.
+- MEP-QA-VIEWEXPORT-v1 writes named-view issue evidence files without selecting elements or switching views.
+- MEP-QA-ISSUEINDEX-v1 creates a project-level issue queue from eligible floor plan views.
+
+Key architectural decisions:
+
+- active-view and named-view contexts share connector, system-assignment, and circuit/system classifiers
+- named-view and multi-view workflows use `FilteredElementCollector(doc, view.Id)` and never assign active view
+- display truncation is separated from scan/export completeness
+- latest deterministic report registration is maintained for QA export/index evidence
+- external files are written only by explicit export/bundle commands and remain outside the repository
+
+The batch preserves no-model-modification governance: no transaction, TransactionGroup, parameter write, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, or connector/system modification.

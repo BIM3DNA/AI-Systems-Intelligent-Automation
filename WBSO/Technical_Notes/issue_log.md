@@ -1538,3 +1538,29 @@ Resolved / runtime validated.
 - QA exports preserved `[MEP READ ONLY V1 REPORT]` and original source prompts.
 
 No Revit transaction, model mutation, parameter write, linked-document mutation, or UI selection modification was added.
+
+## 2026-06-19 MEP QA Pipeline Implementation Bottlenecks
+
+Status: Resolved / runtime validated
+
+Issues:
+
+- active-view-only collectors needed to be reused safely for named-view and multi-view contexts
+- named-view detail/export workflows needed to avoid active-view switching
+- connector inspection had to remain consistent for pipe and duct fittings across reports, selection, exports, dashboards, and issue indexes
+- electrical circuit/system-info classification needed to remain stable across active-view and project-level scans
+- display truncation needed to be reported without implying incomplete scan/export processing
+- every deterministic report needed correct latest-QA-report registration for export/index evidence
+
+Resolution:
+
+- added view-id parameterized collectors for multi-view and named-view workflows
+- preserved existing connector/system/circuit classifiers through shared helper reuse
+- separated report-only workflows from explicit file-writing export/bundle workflows
+- added structured schemas for active-view and named-view evidence exports
+- added project-level issue index rows with suggested detail/export/selection follow-up commands
+- retained strict safety flags for transaction, model mutation, UI selection mutation, active view change, and external file writing boundaries
+
+Runtime result:
+
+Validated across BUNGE piping, Snowdon Towers HVAC, and Snowdon Towers Electrical sample contexts. The pipeline detected known piping and electrical issue candidates, confirmed a clean HVAC inventory, and preserved QA export metadata for latest deterministic reports.

@@ -421,3 +421,19 @@ MEP-SEL-v1 is deterministic Revit UI selection-only logic for AI Workbench / Mod
 - UI selection mutation: `UIDocument.Selection.SetElementIds` is allowed only inside MEP-SEL-v1 handlers and only when candidate count is greater than zero
 - zero-candidate behavior: existing Revit UI selection is not cleared
 - no transaction, TransactionGroup, parameter write, model mutation, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, delete, copy, mirror, connect/disconnect, join/unjoin, or alignment/model-modification action
+
+## 2026-06-19 MEP QA Workbench Evidence Pipeline
+
+Feature type: deterministic MEP QA evidence/reporting model.
+
+Validated state/model concepts:
+
+- active-view export rows for pipes, ducts, electrical devices, and issue candidates
+- active-view bundle metadata, table counts, and generated evidence files
+- active-view dashboard status classifications
+- multi-view floor plan scan rows and view status classifications
+- named-view detail target view resolution and issue groups
+- named-view issue export file/index metadata
+- project-level issue index rows with suggested follow-up commands
+
+The pipeline is provider-independent and uses deterministic Revit API reads, local filesystem writes for explicit export/bundle commands, and latest deterministic QA report registration. Named-view and multi-view models rely on view-id collection and do not change active view or UI selection.
