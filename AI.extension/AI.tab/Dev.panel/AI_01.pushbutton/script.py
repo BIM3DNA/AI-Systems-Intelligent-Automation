@@ -99,6 +99,8 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[MEP EXPORT V1 REPORT]",
     "[MEP QA BUNDLE V1 REPORT]",
     "[MEP QA DASHBOARD V1 REPORT]",
+    "[MEP QA VIEWSCAN V1 REPORT]",
+    "[MEP QA VIEWDETAIL V1 REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14304,6 +14306,53 @@ MEP_QA_DASHBOARD_V1_ROUTES = {
 }
 
 
+MEP_QA_VIEWSCAN_V1_ROUTES = {
+    "scan all floor plan views for mep qa",
+    "scan floor plan views for mep qa",
+    "scan all mep views for qa",
+    "scan project views for mep qa",
+    "run mep qa viewscan",
+    "mep qa viewscan",
+    "show mep qa viewscan",
+    "show multi view mep qa dashboard",
+    "scan all eligible views for mep qa",
+}
+
+
+MEP_QA_VIEWDETAIL_V1_ACTIVE_ROUTES = {
+    "show active view mep qa details",
+    "mep qa details for active view",
+}
+
+
+MEP_QA_VIEWDETAIL_V1_PREFIX_ROUTES = {
+    "show mep qa details for view",
+    "show mep qa detail for view",
+    "mep qa details for view",
+    "mep qa detail for view",
+    "drill into mep qa view",
+    "show issue details for view",
+    "show mep issues for view",
+    "inspect mep qa view",
+    "inspect view mep qa",
+}
+
+
+def _is_mep_qa_viewdetail_v1_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    if normalized in MEP_QA_VIEWDETAIL_V1_ACTIVE_ROUTES:
+        return True
+    for route in MEP_QA_VIEWDETAIL_V1_PREFIX_ROUTES:
+        if normalized == route or normalized.startswith(route + " "):
+            return True
+    return False
+
+
+def _is_mep_qa_viewscan_v1_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in MEP_QA_VIEWSCAN_V1_ROUTES
+
+
 def _is_mep_qa_dashboard_v1_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in MEP_QA_DASHBOARD_V1_ROUTES
@@ -16381,6 +16430,10 @@ class OllamaAIChat(forms.WPFWindow):
             return "read-only active-view MEP QA aggregation with structured external evidence files"
         if header == "[MEP QA DASHBOARD V1 REPORT]":
             return "compact read-only active-view MEP QA status report"
+        if header == "[MEP QA VIEWSCAN V1 REPORT]":
+            return "compact read-only multi-view MEP QA status scan"
+        if header == "[MEP QA VIEWDETAIL V1 REPORT]":
+            return "compact read-only named-view MEP QA drilldown"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -28328,6 +28381,34 @@ class OllamaAIChat(forms.WPFWindow):
                 )
         return elements, warnings
 
+    def _mep_ro_v1_view_elements_by_category_ids(self, view, category_ids):
+        elements = []
+        warnings = []
+        view_name = "unavailable"
+        try:
+            view_name = safe_str(view.Name)
+        except:
+            pass
+        for category_id in category_ids or []:
+            if category_id is None:
+                continue
+            try:
+                built_in_category = DB.BuiltInCategory(category_id)
+                collector = (
+                    DB.FilteredElementCollector(doc, view.Id)
+                    .OfCategory(built_in_category)
+                    .WhereElementIsNotElementType()
+                )
+                for elem in collector.ToElements():
+                    elements.append(elem)
+            except Exception as exc:
+                warnings.append(
+                    "View collector failed for {0}, category {1}: {2}".format(
+                        view_name, safe_str(category_id), safe_str(exc)
+                    )
+                )
+        return elements, warnings
+
     def _mep_ro_v1_system_assigned(self, elem):
         try:
             system = elem.MEPSystem
@@ -29431,6 +29512,71 @@ class OllamaAIChat(forms.WPFWindow):
             warnings.append("Unsupported MEP-RO-EXPORT-v1 prompt.")
         return elements, warnings, checked, skipped, qa_reason
 
+    def _mep_export_v1_elements_for_action_in_view(self, action_key, view):
+        warnings = []
+        skipped = []
+        checked = 0
+        elements = []
+        qa_reason = "viewscan"
+        pipe_id = self._mep_ro_v1_category_id("OST_PipeCurves")
+        pipe_fitting_id = self._mep_ro_v1_category_id("OST_PipeFitting")
+        duct_id = self._mep_ro_v1_category_id("OST_DuctCurves")
+        duct_fitting_id = self._mep_ro_v1_category_id("OST_DuctFitting")
+        electrical_ids = self._mep_ro_v1_electrical_category_ids()
+
+        if action_key == "export_active_view_pipes":
+            elements, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, [pipe_id])
+            checked = len(elements)
+            qa_reason = "view_pipe_inventory"
+        elif action_key == "export_active_view_ducts":
+            elements, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, [duct_id])
+            checked = len(elements)
+            qa_reason = "view_duct_inventory"
+        elif action_key == "export_active_view_electrical":
+            elements, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, electrical_ids)
+            checked = len(elements)
+            qa_reason = "view_electrical_inventory"
+        elif action_key in ["export_unconnected_pipe_fittings", "export_unconnected_duct_fittings"]:
+            category_id = pipe_fitting_id if action_key == "export_unconnected_pipe_fittings" else duct_fitting_id
+            fittings, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, [category_id])
+            checked = len(fittings)
+            qa_reason = "unconnected_connectors"
+            for fitting in fittings:
+                connector_count, unconnected_count, status = self._mep_ro_v1_connector_counts(fitting)
+                if status == "unreadable":
+                    skipped.append(self._mep_ro_v1_element_id_text(fitting))
+                    continue
+                if unconnected_count > 0:
+                    elements.append(fitting)
+        elif action_key in ["export_pipes_without_system", "export_ducts_without_system"]:
+            category_id = pipe_id if action_key == "export_pipes_without_system" else duct_id
+            source, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, [category_id])
+            checked = len(source)
+            qa_reason = "missing_system_assignment"
+            for elem in source:
+                try:
+                    if not self._mep_ro_v1_system_assigned(elem):
+                        elements.append(elem)
+                except:
+                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+        elif action_key == "export_devices_without_circuit":
+            devices, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, electrical_ids)
+            checked = len(devices)
+            qa_reason = "missing_circuit_or_system_info"
+            for elem in devices:
+                try:
+                    value = self._mep_ro_v1_param_value(
+                        elem,
+                        ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"],
+                    )
+                    if not value:
+                        elements.append(elem)
+                except:
+                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+        else:
+            warnings.append("Unsupported MEP-QA-VIEWSCAN-v1 check action.")
+        return elements, warnings, checked, skipped, qa_reason
+
     def _mep_export_v1_csv_value(self, value):
         text = safe_str(value)
         text = text.replace('"', '""')
@@ -30239,6 +30385,922 @@ class OllamaAIChat(forms.WPFWindow):
             "warnings": warnings,
             "fatal": fatal,
         }
+
+    def _mep_qa_viewscan_v1_recommended_action(self, status):
+        if status == "GREEN":
+            return "No issue candidates were found across scanned floor plan views. For evidence capture, run MEP-QA-BUNDLE-v1 on the relevant active view."
+        if status == "YELLOW":
+            return "Issue candidates were found. Open the listed views and run MEP-QA-DASHBOARD-v1, MEP-SEL-v1, or MEP-QA-BUNDLE-v1 for detailed review."
+        if status == "ORANGE":
+            return "Some views or elements were skipped/unreadable. Review warnings before using the scan as QA evidence."
+        if status == "GRAY":
+            return "No MEP inventory was found in eligible floor plan views. Check view visibility, discipline, phase, and model content."
+        return "Viewscan failed. Review error details and rerun after correcting implementation or view context."
+
+    def _mep_qa_viewscan_v1_classification(self, status):
+        if status == "GREEN":
+            return "MEP_QA_VIEWSCAN_GREEN"
+        if status == "YELLOW":
+            return "MEP_QA_VIEWSCAN_YELLOW"
+        if status == "ORANGE":
+            return "MEP_QA_VIEWSCAN_ORANGE"
+        if status == "GRAY":
+            return "MEP_QA_VIEWSCAN_GRAY_EMPTY"
+        return "MEP_QA_VIEWSCAN_FAILED"
+
+    def _mep_qa_viewscan_v1_eligible_views(self):
+        views = []
+        skipped = []
+        try:
+            collector = DB.FilteredElementCollector(doc).OfClass(DB.ViewPlan)
+            for view in collector.ToElements():
+                try:
+                    if bool(view.IsTemplate):
+                        continue
+                    if view.ViewType != DB.ViewType.FloorPlan:
+                        continue
+                    # Probe view-scoped collection support without changing the active UI view.
+                    DB.FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType()
+                    views.append(view)
+                except Exception as exc:
+                    skipped.append(
+                        {
+                            "view_name": safe_str(getattr(view, "Name", "unavailable")),
+                            "reason": safe_str(exc),
+                        }
+                    )
+        except Exception as exc:
+            skipped.append({"view_name": "all floor plan views", "reason": safe_str(exc)})
+        views = sorted(views, key=lambda item: safe_str(getattr(item, "Name", "")).lower())
+        return views, skipped
+
+    def _mep_qa_viewscan_v1_collect_check(self, view, spec):
+        label, discipline, action_key, is_issue_check, notes = spec
+        fatal = False
+        warnings = []
+        try:
+            elements, source_warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action_in_view(action_key, view)
+            warnings.extend(source_warnings or [])
+            issue_count = len(elements) if is_issue_check else 0
+            inventory_count = len(elements) if not is_issue_check else checked
+            skipped_count = len(skipped or [])
+            if skipped_count:
+                warnings.append("{0} skipped/unreadable ids: {1}".format(label, ", ".join((skipped or [])[:20])))
+        except Exception as exc:
+            checked = 0
+            issue_count = 0
+            inventory_count = 0
+            skipped_count = 0
+            fatal = True
+            warnings.append("{0} check failed: {1}".format(label, safe_str(exc)))
+        status = self._mep_qa_dashboard_v1_check_status(checked, issue_count, skipped_count, fatal)
+        return {
+            "check": label,
+            "discipline": discipline,
+            "elements_checked": checked,
+            "issue_candidates": issue_count,
+            "inventory_count": inventory_count,
+            "skipped_unreadable": skipped_count,
+            "status": status,
+            "notes": notes,
+            "warnings": warnings,
+            "fatal": fatal,
+        }
+
+    def _mep_qa_viewscan_v1_view_status(self, inventory_count, issue_count, skipped_count, fatal):
+        if fatal:
+            return "RED"
+        if skipped_count > 0:
+            return "ORANGE"
+        if inventory_count < 1:
+            return "GRAY"
+        if issue_count > 0:
+            return "YELLOW"
+        return "GREEN"
+
+    def _mep_qa_viewscan_v1_row_for_view(self, view):
+        view_name = safe_str(getattr(view, "Name", "unavailable"))
+        view_type = "FloorPlan"
+        try:
+            view_type = safe_str(view.ViewType)
+        except:
+            pass
+        row = {
+            "view_name": view_name,
+            "view_type": view_type,
+            "pipes": 0,
+            "pipe_fitting_issues": 0,
+            "pipe_system_issues": 0,
+            "ducts": 0,
+            "duct_fitting_issues": 0,
+            "duct_system_issues": 0,
+            "electrical_devices": 0,
+            "electrical_circuit_system_issues": 0,
+            "total_mep_inventory": 0,
+            "total_issues": 0,
+            "skipped_unreadable": 0,
+            "status": "GRAY",
+            "warnings": [],
+            "fatal": False,
+        }
+        checks = []
+        for spec in self._mep_qa_dashboard_v1_check_specs():
+            check = self._mep_qa_viewscan_v1_collect_check(view, spec)
+            checks.append(check)
+            row["warnings"].extend(check.get("warnings") or [])
+        for check in checks:
+            name = check.get("check")
+            if name == "Active-view pipes":
+                row["pipes"] = int(check.get("inventory_count") or 0)
+            elif name == "Unconnected pipe fittings":
+                row["pipe_fitting_issues"] = int(check.get("issue_candidates") or 0)
+            elif name == "Pipes without system assignment":
+                row["pipe_system_issues"] = int(check.get("issue_candidates") or 0)
+            elif name == "Active-view ducts":
+                row["ducts"] = int(check.get("inventory_count") or 0)
+            elif name == "Unconnected duct fittings":
+                row["duct_fitting_issues"] = int(check.get("issue_candidates") or 0)
+            elif name == "Ducts without system assignment":
+                row["duct_system_issues"] = int(check.get("issue_candidates") or 0)
+            elif name == "Active-view electrical devices":
+                row["electrical_devices"] = int(check.get("inventory_count") or 0)
+            elif name == "Devices without circuit/system info":
+                row["electrical_circuit_system_issues"] = int(check.get("issue_candidates") or 0)
+            row["skipped_unreadable"] += int(check.get("skipped_unreadable") or 0)
+            if bool(check.get("fatal")):
+                row["fatal"] = True
+        row["total_mep_inventory"] = row["pipes"] + row["ducts"] + row["electrical_devices"]
+        row["total_issues"] = (
+            row["pipe_fitting_issues"]
+            + row["pipe_system_issues"]
+            + row["duct_fitting_issues"]
+            + row["duct_system_issues"]
+            + row["electrical_circuit_system_issues"]
+        )
+        row["status"] = self._mep_qa_viewscan_v1_view_status(
+            row["total_mep_inventory"],
+            row["total_issues"],
+            row["skipped_unreadable"],
+            row["fatal"],
+        )
+        return row
+
+    def _mep_qa_viewscan_v1_build_data(self, prompt):
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        report_id = "MEP-QA-VIEWSCAN-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        data = {
+            "feature_id": "MEP-QA-VIEWSCAN-v1",
+            "feature_name": "MEP Multi-View QA Dashboard Scan v1",
+            "report_id": report_id,
+            "timestamp": timestamp,
+            "action_name": "Scan eligible views for MEP QA dashboard",
+            "prompt": safe_str(prompt),
+            "document_title": _document_title(doc),
+            "active_view": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "selection_count": 0,
+            "scope": "compact read-only multi-view MEP QA status scan",
+            "resolved_scan_scope": "eligible non-template floor plan views only",
+            "eligible_views_found": 0,
+            "views_scanned": 0,
+            "views_skipped": 0,
+            "displayed_view_rows": 0,
+            "truncated": False,
+            "classification": "MEP_QA_VIEWSCAN_GRAY_EMPTY",
+            "overall_status": "GRAY",
+            "view_rows": [],
+            "skipped_views": [],
+            "warnings": [],
+            "summary": {},
+        }
+        try:
+            data["selection_count"] = len(list(uidoc.Selection.GetElementIds()))
+        except Exception as exc:
+            data["warnings"].append("Current UI selection count could not be read: {0}".format(safe_str(exc)))
+        if not _is_mep_qa_viewscan_v1_prompt(prompt):
+            data["classification"] = "MEP_QA_VIEWSCAN_UNSUPPORTED_PROMPT"
+            data["overall_status"] = "RED"
+            data["warnings"].append("Unsupported MEP-QA-VIEWSCAN-v1 prompt.")
+            return data
+        try:
+            eligible_views, skipped_views = self._mep_qa_viewscan_v1_eligible_views()
+            data["eligible_views_found"] = len(eligible_views)
+            data["skipped_views"] = skipped_views
+            rows = []
+            for view in eligible_views:
+                rows.append(self._mep_qa_viewscan_v1_row_for_view(view))
+            data["view_rows"] = rows
+            data["views_scanned"] = len(rows)
+            data["views_skipped"] = len(skipped_views)
+            for skipped in skipped_views:
+                data["warnings"].append("Skipped view {0}: {1}".format(skipped.get("view_name"), skipped.get("reason")))
+            for row in rows:
+                for warning in row.get("warnings") or []:
+                    data["warnings"].append("{0}: {1}".format(row.get("view_name"), warning))
+            total_inventory = sum([int(row.get("total_mep_inventory") or 0) for row in rows])
+            total_issues = sum([int(row.get("total_issues") or 0) for row in rows])
+            total_skipped = sum([int(row.get("skipped_unreadable") or 0) for row in rows])
+            red_views = len([row for row in rows if row.get("status") == "RED"])
+            orange_views = len([row for row in rows if row.get("status") == "ORANGE"])
+            yellow_views = len([row for row in rows if row.get("status") == "YELLOW"])
+            green_views = len([row for row in rows if row.get("status") == "GREEN"])
+            gray_views = len([row for row in rows if row.get("status") == "GRAY"])
+            views_with_inventory = len([row for row in rows if int(row.get("total_mep_inventory") or 0) > 0])
+            if red_views > 0:
+                overall = "RED"
+            elif total_skipped > 0 or len(skipped_views) > 0 or orange_views > 0:
+                overall = "ORANGE"
+            elif total_inventory < 1:
+                overall = "GRAY"
+            elif total_issues > 0:
+                overall = "YELLOW"
+            else:
+                overall = "GREEN"
+            data["overall_status"] = overall
+            data["classification"] = self._mep_qa_viewscan_v1_classification(overall)
+            data["displayed_view_rows"] = min(len(rows), 50)
+            data["truncated"] = len(rows) > 50
+            data["summary"] = {
+                "eligible_views_found": len(eligible_views),
+                "views_scanned": len(rows),
+                "views_skipped": len(skipped_views),
+                "views_with_mep_inventory": views_with_inventory,
+                "green_views": green_views,
+                "yellow_views": yellow_views,
+                "orange_views": orange_views,
+                "gray_views": gray_views,
+                "red_views": red_views,
+                "total_mep_inventory_count": total_inventory,
+                "total_issue_candidates": total_issues,
+                "total_skipped_unreadable_count": total_skipped,
+            }
+        except Exception as exc:
+            data["overall_status"] = "RED"
+            data["classification"] = "MEP_QA_VIEWSCAN_FAILED"
+            data["warnings"].append("Viewscan failed: {0}".format(safe_str(exc)))
+        return data
+
+    def _mep_qa_viewscan_v1_top_issue_rows(self, rows):
+        severity = {"RED": 0, "ORANGE": 1, "YELLOW": 2, "GREEN": 3, "GRAY": 4}
+        candidates = [
+            row for row in rows or []
+            if row.get("status") in ["RED", "ORANGE", "YELLOW"] or int(row.get("total_issues") or 0) > 0 or int(row.get("skipped_unreadable") or 0) > 0
+        ]
+        return sorted(
+            candidates,
+            key=lambda row: (
+                severity.get(row.get("status"), 9),
+                -int(row.get("total_issues") or 0),
+                -int(row.get("skipped_unreadable") or 0),
+                safe_str(row.get("view_name")).lower(),
+            ),
+        )[:10]
+
+    def _mep_qa_viewscan_v1_format_report(self, data):
+        summary = data.get("summary") or {}
+        rows = data.get("view_rows") or []
+        displayed_rows = rows[:50]
+        lines = [
+            "[MEP QA VIEWSCAN V1 REPORT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Report ID:",
+            data.get("report_id"),
+            "",
+            "Timestamp:",
+            data.get("timestamp"),
+            "",
+            "Action name:",
+            data.get("action_name"),
+            "",
+            "Prompt:",
+            data.get("prompt"),
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view"), data.get("active_view_type")),
+            "",
+            "Current UI selection count:",
+            data.get("selection_count"),
+            "",
+            "Resolved scan scope:",
+            data.get("resolved_scan_scope"),
+            "",
+            "Eligible views found:",
+            data.get("eligible_views_found"),
+            "",
+            "Views scanned:",
+            data.get("views_scanned"),
+            "",
+            "Views skipped:",
+            data.get("views_skipped"),
+            "",
+            "Result classification:",
+            data.get("classification"),
+            "",
+            "Overall scan status:",
+            data.get("overall_status"),
+            "",
+            "Project-level summary:",
+            "- Eligible views found: {0}".format(summary.get("eligible_views_found", data.get("eligible_views_found", 0))),
+            "- Views scanned: {0}".format(summary.get("views_scanned", data.get("views_scanned", 0))),
+            "- Views skipped: {0}".format(summary.get("views_skipped", data.get("views_skipped", 0))),
+            "- Views with MEP inventory: {0}".format(summary.get("views_with_mep_inventory", 0)),
+            "- GREEN views: {0}".format(summary.get("green_views", 0)),
+            "- YELLOW views: {0}".format(summary.get("yellow_views", 0)),
+            "- ORANGE views: {0}".format(summary.get("orange_views", 0)),
+            "- GRAY views: {0}".format(summary.get("gray_views", 0)),
+            "- RED views: {0}".format(summary.get("red_views", 0)),
+            "- Total MEP inventory count: {0}".format(summary.get("total_mep_inventory_count", 0)),
+            "- Total issue candidates: {0}".format(summary.get("total_issue_candidates", 0)),
+            "- Total skipped/unreadable count: {0}".format(summary.get("total_skipped_unreadable_count", 0)),
+            "",
+            "Report display metadata:",
+            "- Total views scanned: {0}".format(data.get("views_scanned")),
+            "- Displayed view rows: {0}".format(data.get("displayed_view_rows")),
+            "- Truncated: {0}".format("true" if data.get("truncated") else "false"),
+            "",
+            "View summary table:",
+            "| View name | View type | Pipes | Pipe fitting issues | Pipe system issues | Ducts | Duct fitting issues | Duct system issues | Electrical devices | Electrical circuit/system issues | Total MEP inventory | Total issues | Skipped/unreadable | Status |",
+            "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        ]
+        for row in displayed_rows:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} | {11} | {12} | {13} |".format(
+                    safe_str(row.get("view_name")).replace("|", "\\|"),
+                    safe_str(row.get("view_type")).replace("|", "\\|"),
+                    row.get("pipes"),
+                    row.get("pipe_fitting_issues"),
+                    row.get("pipe_system_issues"),
+                    row.get("ducts"),
+                    row.get("duct_fitting_issues"),
+                    row.get("duct_system_issues"),
+                    row.get("electrical_devices"),
+                    row.get("electrical_circuit_system_issues"),
+                    row.get("total_mep_inventory"),
+                    row.get("total_issues"),
+                    row.get("skipped_unreadable"),
+                    row.get("status"),
+                )
+            )
+        if not displayed_rows:
+            lines.append("| none | none | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | GRAY |")
+        lines.extend(["", "Issue summary:"])
+        lines.append("- Unconnected pipe fittings: {0}".format(sum([int(row.get("pipe_fitting_issues") or 0) for row in rows])))
+        lines.append("- Pipes without system assignment: {0}".format(sum([int(row.get("pipe_system_issues") or 0) for row in rows])))
+        lines.append("- Unconnected duct fittings: {0}".format(sum([int(row.get("duct_fitting_issues") or 0) for row in rows])))
+        lines.append("- Ducts without system assignment: {0}".format(sum([int(row.get("duct_system_issues") or 0) for row in rows])))
+        lines.append("- Devices without circuit/system info: {0}".format(sum([int(row.get("electrical_circuit_system_issues") or 0) for row in rows])))
+        lines.extend(["", "Top issue views:"])
+        top_rows = self._mep_qa_viewscan_v1_top_issue_rows(rows)
+        if top_rows:
+            for row in top_rows:
+                lines.append(
+                    "- {0}: {1}, issues {2}, skipped/unreadable {3}. Follow-up: open view and run MEP-QA-DASHBOARD-v1 or MEP-SEL-v1.".format(
+                        row.get("view_name"),
+                        row.get("status"),
+                        row.get("total_issues"),
+                        row.get("skipped_unreadable"),
+                    )
+                )
+        else:
+            lines.append("- No issue candidate views found.")
+        lines.extend(["", "Warnings:"])
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Recommended next actions:",
+                self._mep_qa_viewscan_v1_recommended_action(data.get("overall_status")),
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: false",
+                "- external MEP export files written: false",
+                "- external MEP bundle files written: false",
+                "",
+                "Safety:",
+                "- MEP-QA-VIEWSCAN-v1 is read-only and report-only.",
+                "- It scans eligible floor plan views without changing the active view or UI selection.",
+                "- It does not write MEP_Exports or MEP_QA_Bundles files.",
+                "- Revit model data and UI selection were not modified.",
+            ]
+        )
+        return "\n".join([safe_str(line) for line in lines])
+
+    def answer_mep_qa_viewscan_v1_question(self, prompt):
+        if not _is_mep_qa_viewscan_v1_prompt(prompt):
+            return None
+        data = self._mep_qa_viewscan_v1_build_data(prompt)
+        report_text = self._mep_qa_viewscan_v1_format_report(data)
+        report_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.latest_mep_qa_viewscan_v1_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MEP QA VIEWSCAN V1 REPORT]",
+            "report_text": report_text,
+            "report_scope": "compact read-only multi-view MEP QA status scan",
+            "report_timestamp": report_timestamp,
+            "created_timestamp_local": report_timestamp,
+            "feature_id": "MEP-QA-VIEWSCAN-v1",
+            "feature_name": "MEP Multi-View QA Dashboard Scan v1",
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view"),
+            "active_view_type": data.get("active_view_type"),
+            "deterministic": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "external_mep_export_files_written": False,
+            "external_mep_bundle_files_written": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
+    def _mep_qa_viewdetail_v1_recommended_action(self, classification, status):
+        if classification == "MEP_QA_VIEWDETAIL_VIEW_NOT_FOUND":
+            return "Check the view name and rerun using an exact non-template floor plan view name."
+        if classification == "MEP_QA_VIEWDETAIL_AMBIGUOUS_VIEW":
+            return "Use the exact view name from the candidate list."
+        if status == "GREEN":
+            return "No issue candidates were found in the target view. For evidence capture, run MEP-QA-BUNDLE-v1 while the relevant view is active."
+        if status == "YELLOW":
+            return "Issue candidates were found in the target view. Open the target view and run the relevant MEP-SEL-v1 selection command or MEP-RO-EXPORT-v1 export command."
+        if status == "ORANGE":
+            return "Skipped/unreadable elements were detected. Review the warnings before using this view as QA evidence."
+        if status == "GRAY":
+            return "No MEP inventory was found in the target view. Check view visibility, discipline, phase, and model content."
+        return "Review error details and rerun after correcting view context or implementation issue."
+
+    def _mep_qa_viewdetail_v1_classification(self, status):
+        if status == "GREEN":
+            return "MEP_QA_VIEWDETAIL_GREEN"
+        if status == "YELLOW":
+            return "MEP_QA_VIEWDETAIL_YELLOW"
+        if status == "ORANGE":
+            return "MEP_QA_VIEWDETAIL_ORANGE"
+        if status == "GRAY":
+            return "MEP_QA_VIEWDETAIL_GRAY_EMPTY"
+        return "MEP_QA_VIEWDETAIL_FAILED"
+
+    def _mep_qa_viewdetail_v1_extract_target_name(self, prompt):
+        raw = safe_str(prompt).strip()
+        normalized = _normalize_deterministic_route_text(prompt)
+        if normalized in MEP_QA_VIEWDETAIL_V1_ACTIVE_ROUTES or "active view" in normalized:
+            return None, True
+        lower = raw.lower()
+        markers = [
+            "show mep qa details for view",
+            "show mep qa detail for view",
+            "mep qa details for view",
+            "mep qa detail for view",
+            "drill into mep qa view",
+            "show issue details for view",
+            "show mep issues for view",
+            "inspect mep qa view",
+            "inspect view mep qa",
+            "for view",
+            "view",
+            "for",
+        ]
+        for marker in markers:
+            idx = lower.find(marker)
+            if idx >= 0:
+                value = raw[idx + len(marker):].strip()
+                value = value.strip("'\"")
+                if value:
+                    return value, False
+        return "", False
+
+    def _mep_qa_viewdetail_v1_floor_plan_views(self):
+        views = []
+        try:
+            collector = DB.FilteredElementCollector(doc).OfClass(DB.ViewPlan)
+            for view in collector.ToElements():
+                try:
+                    if bool(view.IsTemplate):
+                        continue
+                    if view.ViewType != DB.ViewType.FloorPlan:
+                        continue
+                    views.append(view)
+                except:
+                    continue
+        except:
+            pass
+        return sorted(views, key=lambda item: safe_str(getattr(item, "Name", "")).lower())
+
+    def _mep_qa_viewdetail_v1_resolve_view(self, prompt):
+        target_name, use_active = self._mep_qa_viewdetail_v1_extract_target_name(prompt)
+        result = {
+            "target_view": None,
+            "target_view_name_request": target_name or "",
+            "used_active_view": bool(use_active),
+            "classification": None,
+            "warnings": [],
+            "candidate_view_names": [],
+        }
+        if use_active:
+            try:
+                result["target_view"] = uidoc.ActiveView
+            except:
+                try:
+                    result["target_view"] = doc.ActiveView
+                except:
+                    result["classification"] = "MEP_QA_VIEWDETAIL_FAILED"
+                    result["warnings"].append("Active view could not be read.")
+            return result
+        if not target_name:
+            result["classification"] = "MEP_QA_VIEWDETAIL_VIEW_NOT_FOUND"
+            result["warnings"].append("No target view name was provided.")
+            result["candidate_view_names"] = [safe_str(getattr(view, "Name", "")) for view in self._mep_qa_viewdetail_v1_floor_plan_views()[:10]]
+            return result
+        views = self._mep_qa_viewdetail_v1_floor_plan_views()
+        target_lower = safe_str(target_name).lower()
+        exact = [view for view in views if safe_str(getattr(view, "Name", "")).lower() == target_lower]
+        if len(exact) == 1:
+            result["target_view"] = exact[0]
+            return result
+        contains = [view for view in views if target_lower in safe_str(getattr(view, "Name", "")).lower()]
+        if len(contains) == 1:
+            result["target_view"] = contains[0]
+            return result
+        if len(contains) > 1:
+            result["classification"] = "MEP_QA_VIEWDETAIL_AMBIGUOUS_VIEW"
+            result["candidate_view_names"] = [safe_str(getattr(view, "Name", "")) for view in contains[:10]]
+            result["warnings"].append("Multiple non-template floor plan views matched the requested name.")
+            return result
+        result["classification"] = "MEP_QA_VIEWDETAIL_VIEW_NOT_FOUND"
+        result["candidate_view_names"] = [safe_str(getattr(view, "Name", "")) for view in views[:10]]
+        result["warnings"].append("No non-template floor plan view matched the requested name.")
+        return result
+
+    def _mep_qa_viewdetail_v1_type_breakdown(self, elements):
+        counts = {}
+        for elem in elements or []:
+            try:
+                category = self._mep_ro_v1_element_category_name(elem)
+                family_name, type_name, type_id = self._mep_ro_v1_type_info(elem)
+                key = "{0} / {1} / {2}".format(category, family_name, type_name)
+                counts[key] = counts.get(key, 0) + 1
+            except:
+                counts["unreadable type"] = counts.get("unreadable type", 0) + 1
+        items = sorted(counts.items(), key=lambda item: (-item[1], item[0].lower()))
+        return [{"type": key, "count": value} for key, value in items[:20]]
+
+    def _mep_qa_viewdetail_v1_group(self, view, spec, followup):
+        label, discipline, action_key, is_issue_check, notes = spec
+        elements, warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action_in_view(action_key, view)
+        issue_count = len(elements) if is_issue_check else 0
+        inventory_count = len(elements) if not is_issue_check else checked
+        ids = [self._mep_ro_v1_element_id_text(elem) for elem in elements[:25]]
+        return {
+            "name": label,
+            "discipline": discipline,
+            "elements_checked": checked,
+            "inventory_count": inventory_count,
+            "issue_count": issue_count,
+            "skipped_unreadable": len(skipped or []),
+            "sample_issue_ids": ids,
+            "displayed_issue_ids_count": len(ids),
+            "truncated": len(elements) > 25,
+            "type_breakdown": self._mep_qa_viewdetail_v1_type_breakdown(elements),
+            "warnings": warnings or [],
+            "skipped_ids": skipped or [],
+            "followup": followup,
+            "is_issue_check": is_issue_check,
+        }
+
+    def _mep_qa_viewdetail_v1_build_data(self, prompt):
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        report_id = "MEP-QA-VIEWDETAIL-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        data = {
+            "feature_id": "MEP-QA-VIEWDETAIL-v1",
+            "feature_name": "MEP Named View QA Detail v1",
+            "report_id": report_id,
+            "timestamp": timestamp,
+            "action_name": "Show MEP QA details for named view",
+            "prompt": safe_str(prompt),
+            "document_title": _document_title(doc),
+            "active_view": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "selection_count": 0,
+            "target_view_name": "unavailable",
+            "target_view_type": "unavailable",
+            "target_view_id": "unavailable",
+            "scope": "compact read-only named-view MEP QA drilldown",
+            "classification": "MEP_QA_VIEWDETAIL_FAILED",
+            "detail_status": "RED",
+            "inventory_summary": {},
+            "issue_summary": {},
+            "issue_groups": [],
+            "warnings": [],
+            "candidate_view_names": [],
+        }
+        try:
+            data["selection_count"] = len(list(uidoc.Selection.GetElementIds()))
+        except Exception as exc:
+            data["warnings"].append("Current UI selection count could not be read: {0}".format(safe_str(exc)))
+        if not _is_mep_qa_viewdetail_v1_prompt(prompt):
+            data["classification"] = "MEP_QA_VIEWDETAIL_UNSUPPORTED_PROMPT"
+            data["warnings"].append("Unsupported MEP-QA-VIEWDETAIL-v1 prompt.")
+            return data
+        resolved = self._mep_qa_viewdetail_v1_resolve_view(prompt)
+        data["candidate_view_names"] = resolved.get("candidate_view_names") or []
+        data["warnings"].extend(resolved.get("warnings") or [])
+        if resolved.get("used_active_view"):
+            data["action_name"] = "Show MEP QA details for active view"
+        view = resolved.get("target_view")
+        if view is None:
+            data["classification"] = resolved.get("classification") or "MEP_QA_VIEWDETAIL_VIEW_NOT_FOUND"
+            data["detail_status"] = "RED"
+            return data
+        try:
+            DB.FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType()
+        except Exception as exc:
+            data["classification"] = "MEP_QA_VIEWDETAIL_FAILED"
+            data["detail_status"] = "RED"
+            data["warnings"].append("Target view cannot be collected: {0}".format(safe_str(exc)))
+            return data
+        data["target_view_name"] = safe_str(getattr(view, "Name", "unavailable"))
+        try:
+            data["target_view_type"] = safe_str(view.ViewType)
+        except:
+            data["target_view_type"] = "unavailable"
+        try:
+            data["target_view_id"] = safe_str(view.Id.IntegerValue)
+        except:
+            data["target_view_id"] = "unavailable"
+        followups = {
+            "Unconnected pipe fittings": "select unconnected pipe fittings",
+            "Pipes without system assignment": "export pipes without system assignment table",
+            "Unconnected duct fittings": "select unconnected duct fittings",
+            "Ducts without system assignment": "select ducts without system assignment",
+            "Devices without circuit/system info": "select devices without circuit/system info",
+        }
+        try:
+            groups = []
+            for spec in self._mep_qa_dashboard_v1_check_specs():
+                groups.append(self._mep_qa_viewdetail_v1_group(view, spec, followups.get(spec[0], "review report")))
+            data["issue_groups"] = groups
+            for group in groups:
+                for warning in group.get("warnings") or []:
+                    data["warnings"].append("{0}: {1}".format(group.get("name"), warning))
+                if group.get("skipped_ids"):
+                    data["warnings"].append("{0} skipped/unreadable ids: {1}".format(group.get("name"), ", ".join(group.get("skipped_ids")[:20])))
+            pipes = self._mep_qa_dashboard_v1_issue_count({"checks": groups}, "Active-view pipes")
+            pipe_fittings_checked = 0
+            ducts = self._mep_qa_dashboard_v1_issue_count({"checks": groups}, "Active-view ducts")
+            duct_fittings_checked = 0
+            electrical = self._mep_qa_dashboard_v1_issue_count({"checks": groups}, "Active-view electrical devices")
+            for group in groups:
+                if group.get("name") == "Active-view pipes":
+                    pipes = int(group.get("inventory_count") or 0)
+                elif group.get("name") == "Unconnected pipe fittings":
+                    pipe_fittings_checked = int(group.get("elements_checked") or 0)
+                elif group.get("name") == "Active-view ducts":
+                    ducts = int(group.get("inventory_count") or 0)
+                elif group.get("name") == "Unconnected duct fittings":
+                    duct_fittings_checked = int(group.get("elements_checked") or 0)
+                elif group.get("name") == "Active-view electrical devices":
+                    electrical = int(group.get("inventory_count") or 0)
+            issue_counts = {
+                "unconnected_pipe_fittings": 0,
+                "pipes_without_system_assignment": 0,
+                "unconnected_duct_fittings": 0,
+                "ducts_without_system_assignment": 0,
+                "devices_without_circuit_system_info": 0,
+            }
+            for group in groups:
+                if group.get("name") == "Unconnected pipe fittings":
+                    issue_counts["unconnected_pipe_fittings"] = int(group.get("issue_count") or 0)
+                elif group.get("name") == "Pipes without system assignment":
+                    issue_counts["pipes_without_system_assignment"] = int(group.get("issue_count") or 0)
+                elif group.get("name") == "Unconnected duct fittings":
+                    issue_counts["unconnected_duct_fittings"] = int(group.get("issue_count") or 0)
+                elif group.get("name") == "Ducts without system assignment":
+                    issue_counts["ducts_without_system_assignment"] = int(group.get("issue_count") or 0)
+                elif group.get("name") == "Devices without circuit/system info":
+                    issue_counts["devices_without_circuit_system_info"] = int(group.get("issue_count") or 0)
+            total_inventory = pipes + ducts + electrical
+            total_issues = sum(issue_counts.values())
+            total_skipped = sum([int(group.get("skipped_unreadable") or 0) for group in groups])
+            if total_inventory < 1:
+                status = "GRAY"
+            elif total_skipped > 0:
+                status = "ORANGE"
+            elif total_issues > 0:
+                status = "YELLOW"
+            else:
+                status = "GREEN"
+            data["detail_status"] = status
+            data["classification"] = self._mep_qa_viewdetail_v1_classification(status)
+            data["inventory_summary"] = {
+                "pipes": pipes,
+                "pipe_fittings_checked": pipe_fittings_checked,
+                "ducts": ducts,
+                "duct_fittings_checked": duct_fittings_checked,
+                "electrical_devices": electrical,
+                "total_mep_inventory_count": total_inventory,
+            }
+            issue_counts["total_issue_candidates"] = total_issues
+            issue_counts["total_skipped_unreadable_count"] = total_skipped
+            data["issue_summary"] = issue_counts
+        except Exception as exc:
+            data["detail_status"] = "RED"
+            data["classification"] = "MEP_QA_VIEWDETAIL_FAILED"
+            data["warnings"].append("View detail failed: {0}".format(safe_str(exc)))
+        return data
+
+    def _mep_qa_viewdetail_v1_format_report(self, data):
+        inventory = data.get("inventory_summary") or {}
+        issues = data.get("issue_summary") or {}
+        lines = [
+            "[MEP QA VIEWDETAIL V1 REPORT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Report ID:",
+            data.get("report_id"),
+            "",
+            "Timestamp:",
+            data.get("timestamp"),
+            "",
+            "Action name:",
+            data.get("action_name"),
+            "",
+            "Prompt:",
+            data.get("prompt"),
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Current active view:",
+            "{0} [{1}]".format(data.get("active_view"), data.get("active_view_type")),
+            "",
+            "Current UI selection count:",
+            data.get("selection_count"),
+            "",
+            "Target view name:",
+            data.get("target_view_name"),
+            "",
+            "Target view type:",
+            data.get("target_view_type"),
+            "",
+            "Target view id:",
+            data.get("target_view_id"),
+            "",
+            "Scope:",
+            data.get("scope"),
+            "",
+            "Result classification:",
+            data.get("classification"),
+            "",
+            "View detail status:",
+            data.get("detail_status"),
+            "",
+            "Inventory summary:",
+            "- Pipes: {0}".format(inventory.get("pipes", 0)),
+            "- Pipe fittings checked: {0}".format(inventory.get("pipe_fittings_checked", 0)),
+            "- Ducts: {0}".format(inventory.get("ducts", 0)),
+            "- Duct fittings checked: {0}".format(inventory.get("duct_fittings_checked", 0)),
+            "- Electrical devices: {0}".format(inventory.get("electrical_devices", 0)),
+            "- Total MEP inventory count: {0}".format(inventory.get("total_mep_inventory_count", 0)),
+            "",
+            "Issue summary:",
+            "- Unconnected pipe fittings: {0}".format(issues.get("unconnected_pipe_fittings", 0)),
+            "- Pipes without system assignment: {0}".format(issues.get("pipes_without_system_assignment", 0)),
+            "- Unconnected duct fittings: {0}".format(issues.get("unconnected_duct_fittings", 0)),
+            "- Ducts without system assignment: {0}".format(issues.get("ducts_without_system_assignment", 0)),
+            "- Devices without circuit/system info: {0}".format(issues.get("devices_without_circuit_system_info", 0)),
+            "- Total issue candidates: {0}".format(issues.get("total_issue_candidates", 0)),
+            "- Total skipped/unreadable count: {0}".format(issues.get("total_skipped_unreadable_count", 0)),
+            "",
+            "Detailed issue groups:",
+        ]
+        for group in data.get("issue_groups") or []:
+            if not group.get("is_issue_check"):
+                continue
+            lines.extend(
+                [
+                    "",
+                    "### {0}".format(group.get("name")),
+                    "- Issue count: {0}".format(group.get("issue_count")),
+                    "- Checked count: {0}".format(group.get("elements_checked")),
+                    "- Skipped/unreadable count: {0}".format(group.get("skipped_unreadable")),
+                    "- Displayed issue ids count: {0}".format(group.get("displayed_issue_ids_count")),
+                    "- Total issue count: {0}".format(group.get("issue_count")),
+                    "- Truncated: {0}".format("true" if group.get("truncated") else "false"),
+                    "- Sample issue element ids: {0}".format(", ".join(group.get("sample_issue_ids") or []) or "none"),
+                    "- Suggested follow-up prompt: {0}".format(group.get("followup")),
+                    "- Category/type breakdown:",
+                ]
+            )
+            breakdown = group.get("type_breakdown") or []
+            if breakdown:
+                for item in breakdown:
+                    lines.append("  - {0}: {1}".format(item.get("type"), item.get("count")))
+            else:
+                lines.append("  - none")
+        lines.extend(["", "Inventory category/type breakdowns:"])
+        for group in data.get("issue_groups") or []:
+            if group.get("is_issue_check"):
+                continue
+            lines.append("- {0}:".format(group.get("name")))
+            breakdown = group.get("type_breakdown") or []
+            if breakdown:
+                for item in breakdown:
+                    lines.append("  - {0}: {1}".format(item.get("type"), item.get("count")))
+            else:
+                lines.append("  - none")
+        if data.get("candidate_view_names"):
+            lines.extend(["", "Candidate view names:"])
+            for name in data.get("candidate_view_names"):
+                lines.append("- {0}".format(name))
+        lines.extend(["", "Warnings:"])
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Recommended next actions:",
+                self._mep_qa_viewdetail_v1_recommended_action(data.get("classification"), data.get("detail_status")),
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: false",
+                "- active view changed: false",
+                "- external MEP export files written: false",
+                "- external MEP bundle files written: false",
+                "",
+                "Safety:",
+                "- MEP-QA-VIEWDETAIL-v1 is read-only and report-only.",
+                "- It inspects the target view by view id without changing the active Revit view.",
+                "- It does not select elements and does not write MEP_Exports or MEP_QA_Bundles files.",
+                "- Revit model data and UI selection were not modified.",
+            ]
+        )
+        return "\n".join([safe_str(line) for line in lines])
+
+    def answer_mep_qa_viewdetail_v1_question(self, prompt):
+        if not _is_mep_qa_viewdetail_v1_prompt(prompt):
+            return None
+        data = self._mep_qa_viewdetail_v1_build_data(prompt)
+        report_text = self._mep_qa_viewdetail_v1_format_report(data)
+        report_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.latest_mep_qa_viewdetail_v1_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MEP QA VIEWDETAIL V1 REPORT]",
+            "report_text": report_text,
+            "report_scope": "compact read-only named-view MEP QA drilldown",
+            "report_timestamp": report_timestamp,
+            "created_timestamp_local": report_timestamp,
+            "feature_id": "MEP-QA-VIEWDETAIL-v1",
+            "feature_name": "MEP Named View QA Detail v1",
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view"),
+            "active_view_type": data.get("active_view_type"),
+            "target_view_name": data.get("target_view_name"),
+            "target_view_type": data.get("target_view_type"),
+            "target_view_id": data.get("target_view_id"),
+            "deterministic": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "active_view_changed": False,
+            "external_mep_export_files_written": False,
+            "external_mep_bundle_files_written": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
 
     def _mep_qa_dashboard_v1_build_data(self, prompt):
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -36281,26 +37343,36 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
-            mep_qa_dashboard_v1_reply = self.answer_mep_qa_dashboard_v1_question(
+            mep_qa_viewdetail_v1_reply = self.answer_mep_qa_viewdetail_v1_question(
                 prompt
             )
+            mep_qa_viewscan_v1_reply = None
+            if mep_qa_viewdetail_v1_reply is None:
+                mep_qa_viewscan_v1_reply = self.answer_mep_qa_viewscan_v1_question(
+                    prompt
+                )
+            mep_qa_dashboard_v1_reply = None
+            if mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None:
+                mep_qa_dashboard_v1_reply = self.answer_mep_qa_dashboard_v1_question(
+                    prompt
+                )
             mep_qa_bundle_v1_reply = None
-            if mep_qa_dashboard_v1_reply is None:
+            if mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None:
                 mep_qa_bundle_v1_reply = self.answer_mep_qa_bundle_v1_question(
                     prompt
                 )
             mep_ro_export_v1_reply = None
-            if mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None:
+            if mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None:
                 mep_ro_export_v1_reply = self.answer_mep_ro_export_v1_question(
                     prompt
                 )
             mep_selection_v1_reply = None
-            if mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None:
+            if mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None:
                 mep_selection_v1_reply = self.answer_mep_selection_v1_question(
                     prompt
                 )
             mep_read_only_v1_reply = None
-            if mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
+            if mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -36360,7 +37432,13 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if mep_qa_dashboard_v1_reply is not None:
+            if mep_qa_viewdetail_v1_reply is not None:
+                reply = mep_qa_viewdetail_v1_reply
+                preserve_latest_report_state = True
+            elif mep_qa_viewscan_v1_reply is not None:
+                reply = mep_qa_viewscan_v1_reply
+                preserve_latest_report_state = True
+            elif mep_qa_dashboard_v1_reply is not None:
                 reply = mep_qa_dashboard_v1_reply
                 preserve_latest_report_state = True
             elif mep_qa_bundle_v1_reply is not None:

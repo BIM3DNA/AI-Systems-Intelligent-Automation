@@ -4440,5 +4440,63 @@
     "validation_state": "structural_only",
     "prompt_text": "show active view mep qa dashboard",
     "mode": "deterministic"
+  },
+  {
+    "id": "mep-qa-viewscan-v1",
+    "title": "MEP Multi-View QA Dashboard Scan v1",
+    "category": "BIM QA",
+    "group": "MEP QA Dashboards",
+    "discipline": "MEP",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "mep_multi_view_qa_dashboard_scan",
+    "canonical_prompt": "mep qa viewscan",
+    "planner_aliases": [
+      "scan all floor plan views for mep qa",
+      "scan floor plan views for mep qa",
+      "scan all mep views for qa",
+      "scan project views for mep qa",
+      "run mep qa viewscan",
+      "mep qa viewscan",
+      "show mep qa viewscan",
+      "show multi view mep qa dashboard",
+      "scan all eligible views for mep qa"
+    ],
+    "deterministic_handler": "mep_qa_viewscan_v1_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "mep qa viewscan",
+    "mode": "deterministic"
+  },
+  {
+    "id": "mep-qa-viewdetail-v1",
+    "title": "MEP Named View QA Detail v1",
+    "category": "BIM QA",
+    "group": "MEP QA Dashboards",
+    "discipline": "MEP",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "mep_named_view_qa_detail",
+    "canonical_prompt": "show mep qa details for view <view name>",
+    "planner_aliases": [
+      "show mep qa details for view",
+      "show mep qa detail for view",
+      "mep qa details for view",
+      "mep qa detail for view",
+      "drill into mep qa view",
+      "show issue details for view",
+      "show mep issues for view",
+      "inspect mep qa view",
+      "inspect view mep qa",
+      "show active view mep qa details",
+      "mep qa details for active view"
+    ],
+    "deterministic_handler": "mep_qa_viewdetail_v1_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show mep qa details for view L3",
+    "mode": "deterministic"
   }
 ]
