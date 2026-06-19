@@ -98,6 +98,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[MEP SELECTION V1 REPORT]",
     "[MEP EXPORT V1 REPORT]",
     "[MEP QA BUNDLE V1 REPORT]",
+    "[MEP QA DASHBOARD V1 REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14291,6 +14292,23 @@ def _is_mep_qa_bundle_v1_prompt(prompt):
     return normalized in MEP_QA_BUNDLE_V1_ROUTES
 
 
+MEP_QA_DASHBOARD_V1_ROUTES = {
+    "show active view mep qa dashboard",
+    "active view mep qa dashboard",
+    "show mep qa dashboard",
+    "mep qa dashboard",
+    "run active view mep qa dashboard",
+    "summarize active view mep qa",
+    "show active view mep health",
+    "mep health dashboard",
+}
+
+
+def _is_mep_qa_dashboard_v1_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in MEP_QA_DASHBOARD_V1_ROUTES
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -16361,6 +16379,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "read-only Revit model inspection with structured external file export"
         if header == "[MEP QA BUNDLE V1 REPORT]":
             return "read-only active-view MEP QA aggregation with structured external evidence files"
+        if header == "[MEP QA DASHBOARD V1 REPORT]":
+            return "compact read-only active-view MEP QA status report"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -30153,6 +30173,298 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _mep_qa_dashboard_v1_recommended_action(self, status):
+        if status == "GREEN":
+            return "No issue candidates were found in the active-view MEP dashboard. For evidence capture, run MEP-QA-BUNDLE-v1."
+        if status == "YELLOW":
+            return "Issue candidates were found. Run the relevant MEP-SEL-v1 selection command or MEP-QA-BUNDLE-v1 evidence bundle for detailed review."
+        if status == "ORANGE":
+            return "Skipped/unreadable elements were detected. Review the dashboard warnings before using this view as QA evidence."
+        if status == "GRAY":
+            return "No active-view MEP elements were found. Open a relevant MEP view or adjust visibility/filtering and rerun."
+        return "Review error details and rerun after correcting view context or implementation issue."
+
+    def _mep_qa_dashboard_v1_check_specs(self):
+        return [
+            ("Active-view pipes", "Piping", "export_active_view_pipes", False, "active-view pipe inventory"),
+            ("Unconnected pipe fittings", "Piping", "export_unconnected_pipe_fittings", True, "pipe fittings with unconnected connectors"),
+            ("Pipes without system assignment", "Piping", "export_pipes_without_system", True, "pipes missing system assignment"),
+            ("Active-view ducts", "HVAC", "export_active_view_ducts", False, "active-view duct inventory"),
+            ("Unconnected duct fittings", "HVAC", "export_unconnected_duct_fittings", True, "duct fittings with unconnected connectors"),
+            ("Ducts without system assignment", "HVAC", "export_ducts_without_system", True, "ducts missing system assignment"),
+            ("Active-view electrical devices", "Electrical", "export_active_view_electrical", False, "active-view electrical device inventory"),
+            ("Devices without circuit/system info", "Electrical", "export_devices_without_circuit", True, "devices missing circuit/system info"),
+        ]
+
+    def _mep_qa_dashboard_v1_check_status(self, elements_checked, issue_count, skipped_count, fatal):
+        if fatal:
+            return "RED"
+        if skipped_count > 0:
+            return "ORANGE"
+        if elements_checked < 1:
+            return "GRAY"
+        if issue_count > 0:
+            return "YELLOW"
+        return "GREEN"
+
+    def _mep_qa_dashboard_v1_collect_check(self, spec):
+        label, discipline, action_key, is_issue_check, notes = spec
+        fatal = False
+        warnings = []
+        try:
+            elements, source_warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action(action_key)
+            warnings.extend(source_warnings or [])
+            issue_count = len(elements) if is_issue_check else 0
+            inventory_count = len(elements) if not is_issue_check else checked
+            skipped_count = len(skipped or [])
+            if skipped_count:
+                warnings.append("{0} skipped/unreadable ids: {1}".format(label, ", ".join((skipped or [])[:20])))
+        except Exception as exc:
+            checked = 0
+            issue_count = 0
+            inventory_count = 0
+            skipped_count = 0
+            fatal = True
+            warnings.append("{0} check failed: {1}".format(label, safe_str(exc)))
+        status = self._mep_qa_dashboard_v1_check_status(checked, issue_count, skipped_count, fatal)
+        return {
+            "check": label,
+            "discipline": discipline,
+            "elements_checked": checked,
+            "issue_candidates": issue_count,
+            "inventory_count": inventory_count,
+            "skipped_unreadable": skipped_count,
+            "status": status,
+            "notes": notes,
+            "warnings": warnings,
+            "fatal": fatal,
+        }
+
+    def _mep_qa_dashboard_v1_build_data(self, prompt):
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        report_id = "MEP-QA-DASHBOARD-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        data = {
+            "feature_id": "MEP-QA-DASHBOARD-v1",
+            "feature_name": "MEP Active View QA Dashboard v1",
+            "report_id": report_id,
+            "timestamp": timestamp,
+            "action_name": "Show active view MEP QA dashboard",
+            "prompt": safe_str(prompt),
+            "document_title": _document_title(doc),
+            "active_view": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "selection_count": 0,
+            "scope": "compact read-only active-view MEP QA status report",
+            "classification": "MEP_QA_DASHBOARD_GREEN",
+            "overall_status": "GREEN",
+            "checks": [],
+            "discipline_summary": {},
+            "warnings": [],
+        }
+        try:
+            data["selection_count"] = len(list(uidoc.Selection.GetElementIds()))
+        except Exception as exc:
+            data["warnings"].append("Current UI selection count could not be read: {0}".format(safe_str(exc)))
+        if not _is_mep_qa_dashboard_v1_prompt(prompt):
+            data["classification"] = "MEP_QA_DASHBOARD_UNSUPPORTED_PROMPT"
+            data["overall_status"] = "RED"
+            data["warnings"].append("Unsupported MEP-QA-DASHBOARD-v1 prompt.")
+            return data
+        try:
+            checks = [self._mep_qa_dashboard_v1_collect_check(spec) for spec in self._mep_qa_dashboard_v1_check_specs()]
+            data["checks"] = checks
+            for check in checks:
+                data["warnings"].extend(check.get("warnings") or [])
+            total_issue_candidates = sum([int(check.get("issue_candidates") or 0) for check in checks])
+            total_skipped = sum([int(check.get("skipped_unreadable") or 0) for check in checks])
+            fatal = any([bool(check.get("fatal")) for check in checks])
+            piping_inventory = sum([int(check.get("inventory_count") or 0) for check in checks if check.get("discipline") == "Piping" and not check.get("check", "").startswith(("Unconnected", "Pipes without"))])
+            hvac_inventory = sum([int(check.get("inventory_count") or 0) for check in checks if check.get("discipline") == "HVAC" and not check.get("check", "").startswith(("Unconnected", "Ducts without"))])
+            electrical_inventory = sum([int(check.get("inventory_count") or 0) for check in checks if check.get("discipline") == "Electrical" and check.get("check") == "Active-view electrical devices"])
+            piping_issues = sum([int(check.get("issue_candidates") or 0) for check in checks if check.get("discipline") == "Piping"])
+            hvac_issues = sum([int(check.get("issue_candidates") or 0) for check in checks if check.get("discipline") == "HVAC"])
+            electrical_issues = sum([int(check.get("issue_candidates") or 0) for check in checks if check.get("discipline") == "Electrical"])
+            total_inventory = piping_inventory + hvac_inventory + electrical_inventory
+            if fatal:
+                overall = "RED"
+                classification = "MEP_QA_DASHBOARD_FAILED"
+            elif total_inventory < 1:
+                overall = "GRAY"
+                classification = "MEP_QA_DASHBOARD_GRAY_EMPTY_VIEW"
+            elif total_skipped > 0:
+                overall = "ORANGE"
+                classification = "MEP_QA_DASHBOARD_ORANGE"
+            elif total_issue_candidates > 0:
+                overall = "YELLOW"
+                classification = "MEP_QA_DASHBOARD_YELLOW"
+            else:
+                overall = "GREEN"
+                classification = "MEP_QA_DASHBOARD_GREEN"
+            data["overall_status"] = overall
+            data["classification"] = classification
+            data["discipline_summary"] = {
+                "piping_inventory_count": piping_inventory,
+                "piping_issue_count": piping_issues,
+                "hvac_duct_inventory_count": hvac_inventory,
+                "hvac_issue_count": hvac_issues,
+                "electrical_device_inventory_count": electrical_inventory,
+                "electrical_issue_count": electrical_issues,
+                "total_mep_inventory_count": total_inventory,
+                "total_issue_candidates": total_issue_candidates,
+                "total_skipped_unreadable_count": total_skipped,
+            }
+        except Exception as exc:
+            data["overall_status"] = "RED"
+            data["classification"] = "MEP_QA_DASHBOARD_FAILED"
+            data["warnings"].append("Dashboard failed: {0}".format(safe_str(exc)))
+        return data
+
+    def _mep_qa_dashboard_v1_format_report(self, data):
+        summary = data.get("discipline_summary") or {}
+        lines = [
+            "[MEP QA DASHBOARD V1 REPORT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Report ID:",
+            data.get("report_id"),
+            "",
+            "Timestamp:",
+            data.get("timestamp"),
+            "",
+            "Action name:",
+            data.get("action_name"),
+            "",
+            "Prompt:",
+            data.get("prompt"),
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view"), data.get("active_view_type")),
+            "",
+            "Current UI selection count:",
+            data.get("selection_count"),
+            "",
+            "Scope:",
+            data.get("scope"),
+            "",
+            "Result classification:",
+            data.get("classification"),
+            "",
+            "Overall dashboard status:",
+            data.get("overall_status"),
+            "",
+            "Dashboard summary table:",
+            "| Check | Discipline | Elements checked | Issue candidates | Skipped/unreadable | Status | Notes |",
+            "|---|---|---:|---:|---:|---|---|",
+        ]
+        for check in data.get("checks") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} |".format(
+                    check.get("check"),
+                    check.get("discipline"),
+                    check.get("elements_checked"),
+                    check.get("issue_candidates"),
+                    check.get("skipped_unreadable"),
+                    check.get("status"),
+                    safe_str(check.get("notes")).replace("|", "\\|"),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "Discipline summary:",
+                "- Piping inventory count: {0}".format(summary.get("piping_inventory_count", 0)),
+                "- Piping issue count: {0}".format(summary.get("piping_issue_count", 0)),
+                "- HVAC duct inventory count: {0}".format(summary.get("hvac_duct_inventory_count", 0)),
+                "- HVAC issue count: {0}".format(summary.get("hvac_issue_count", 0)),
+                "- Electrical device inventory count: {0}".format(summary.get("electrical_device_inventory_count", 0)),
+                "- Electrical issue count: {0}".format(summary.get("electrical_issue_count", 0)),
+                "- Total MEP inventory count: {0}".format(summary.get("total_mep_inventory_count", 0)),
+                "- Total issue candidates: {0}".format(summary.get("total_issue_candidates", 0)),
+                "- Total skipped/unreadable count: {0}".format(summary.get("total_skipped_unreadable_count", 0)),
+                "",
+                "Issue summary:",
+                "- Unconnected pipe fittings: {0}".format(self._mep_qa_dashboard_v1_issue_count(data, "Unconnected pipe fittings")),
+                "- Pipes without system assignment: {0}".format(self._mep_qa_dashboard_v1_issue_count(data, "Pipes without system assignment")),
+                "- Unconnected duct fittings: {0}".format(self._mep_qa_dashboard_v1_issue_count(data, "Unconnected duct fittings")),
+                "- Ducts without system assignment: {0}".format(self._mep_qa_dashboard_v1_issue_count(data, "Ducts without system assignment")),
+                "- Devices without circuit/system info: {0}".format(self._mep_qa_dashboard_v1_issue_count(data, "Devices without circuit/system info")),
+                "",
+                "Warnings:",
+            ]
+        )
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Recommended next actions:",
+                self._mep_qa_dashboard_v1_recommended_action(data.get("overall_status")),
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: false",
+                "- external MEP export files written: false",
+                "- external MEP bundle files written: false",
+                "",
+                "Safety:",
+                "- MEP-QA-DASHBOARD-v1 is read-only and report-only.",
+                "- It does not write MEP_Exports or MEP_QA_Bundles files.",
+                "- Revit model data and UI selection were not modified.",
+            ]
+        )
+        return "\n".join([safe_str(line) for line in lines])
+
+    def _mep_qa_dashboard_v1_issue_count(self, data, check_name):
+        for check in data.get("checks") or []:
+            if check.get("check") == check_name:
+                return check.get("issue_candidates", 0)
+        return 0
+
+    def answer_mep_qa_dashboard_v1_question(self, prompt):
+        if not _is_mep_qa_dashboard_v1_prompt(prompt):
+            return None
+        data = self._mep_qa_dashboard_v1_build_data(prompt)
+        report_text = self._mep_qa_dashboard_v1_format_report(data)
+        report_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.latest_mep_qa_dashboard_v1_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MEP QA DASHBOARD V1 REPORT]",
+            "report_text": report_text,
+            "report_scope": "compact read-only active-view MEP QA status report",
+            "report_timestamp": report_timestamp,
+            "created_timestamp_local": report_timestamp,
+            "feature_id": "MEP-QA-DASHBOARD-v1",
+            "feature_name": "MEP Active View QA Dashboard v1",
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view"),
+            "active_view_type": data.get("active_view_type"),
+            "deterministic": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "external_mep_export_files_written": False,
+            "external_mep_bundle_files_written": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _link_reset_advisor_document_match(self, state, active_document):
         if not state:
             return None
@@ -35969,21 +36281,26 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
-            mep_qa_bundle_v1_reply = self.answer_mep_qa_bundle_v1_question(
+            mep_qa_dashboard_v1_reply = self.answer_mep_qa_dashboard_v1_question(
                 prompt
             )
+            mep_qa_bundle_v1_reply = None
+            if mep_qa_dashboard_v1_reply is None:
+                mep_qa_bundle_v1_reply = self.answer_mep_qa_bundle_v1_question(
+                    prompt
+                )
             mep_ro_export_v1_reply = None
-            if mep_qa_bundle_v1_reply is None:
+            if mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None:
                 mep_ro_export_v1_reply = self.answer_mep_ro_export_v1_question(
                     prompt
                 )
             mep_selection_v1_reply = None
-            if mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None:
+            if mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None:
                 mep_selection_v1_reply = self.answer_mep_selection_v1_question(
                     prompt
                 )
             mep_read_only_v1_reply = None
-            if mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
+            if mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -36043,7 +36360,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if mep_qa_bundle_v1_reply is not None:
+            if mep_qa_dashboard_v1_reply is not None:
+                reply = mep_qa_dashboard_v1_reply
+                preserve_latest_report_state = True
+            elif mep_qa_bundle_v1_reply is not None:
                 reply = mep_qa_bundle_v1_reply
                 preserve_latest_report_state = True
             elif mep_ro_export_v1_reply is not None:

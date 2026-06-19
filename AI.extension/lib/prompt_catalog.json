@@ -4413,5 +4413,32 @@
     "validation_state": "structural_only",
     "prompt_text": "generate active view mep qa bundle",
     "mode": "deterministic"
+  },
+  {
+    "id": "mep-qa-dashboard-v1",
+    "title": "MEP Active View QA Dashboard v1",
+    "category": "BIM QA",
+    "group": "MEP QA Dashboards",
+    "discipline": "MEP",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "mep_active_view_qa_dashboard",
+    "canonical_prompt": "show active view mep qa dashboard",
+    "planner_aliases": [
+      "show active view mep qa dashboard",
+      "active view mep qa dashboard",
+      "show mep qa dashboard",
+      "mep qa dashboard",
+      "run active view mep qa dashboard",
+      "summarize active view mep qa",
+      "show active view mep health",
+      "mep health dashboard"
+    ],
+    "deterministic_handler": "mep_qa_dashboard_v1_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show active view mep qa dashboard",
+    "mode": "deterministic"
   }
 ]
