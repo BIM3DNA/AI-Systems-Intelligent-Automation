@@ -4526,5 +4526,33 @@
     "validation_state": "structural_only",
     "prompt_text": "export mep qa details for view L3",
     "mode": "deterministic"
+  },
+  {
+    "id": "mep-qa-issueindex-v1",
+    "title": "MEP Project Issue Index v1",
+    "category": "BIM QA",
+    "group": "MEP QA Dashboards",
+    "discipline": "MEP",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "mep_project_issue_index",
+    "canonical_prompt": "show mep project issue index",
+    "planner_aliases": [
+      "show mep project issue index",
+      "mep project issue index",
+      "show mep issue index",
+      "mep issue index",
+      "generate mep issue index",
+      "scan mep issue index",
+      "show project mep qa issue index",
+      "show mep qa issue queue",
+      "mep qa issue queue"
+    ],
+    "deterministic_handler": "mep_qa_issueindex_v1_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show mep project issue index",
+    "mode": "deterministic"
   }
 ]

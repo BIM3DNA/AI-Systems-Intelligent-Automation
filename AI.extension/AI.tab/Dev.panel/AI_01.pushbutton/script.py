@@ -102,6 +102,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[MEP QA VIEWSCAN V1 REPORT]",
     "[MEP QA VIEWDETAIL V1 REPORT]",
     "[MEP QA VIEWEXPORT V1 REPORT]",
+    "[MEP QA ISSUE INDEX V1 REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14356,6 +14357,24 @@ MEP_QA_VIEWEXPORT_V1_PREFIX_ROUTES = {
 }
 
 
+MEP_QA_ISSUEINDEX_V1_ROUTES = {
+    "show mep project issue index",
+    "mep project issue index",
+    "show mep issue index",
+    "mep issue index",
+    "generate mep issue index",
+    "scan mep issue index",
+    "show project mep qa issue index",
+    "show mep qa issue queue",
+    "mep qa issue queue",
+}
+
+
+def _is_mep_qa_issueindex_v1_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in MEP_QA_ISSUEINDEX_V1_ROUTES
+
+
 def _is_mep_qa_viewexport_v1_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     if normalized in MEP_QA_VIEWEXPORT_V1_ACTIVE_ROUTES:
@@ -16464,6 +16483,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "compact read-only named-view MEP QA drilldown"
         if header == "[MEP QA VIEWEXPORT V1 REPORT]":
             return "read-only named-view MEP QA issue export with structured external files"
+        if header == "[MEP QA ISSUE INDEX V1 REPORT]":
+            return "compact read-only project-level MEP issue index across eligible floor plan views"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -31960,6 +31981,419 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _mep_qa_issueindex_v1_recommended_action(self, classification):
+        if classification == "MEP_QA_ISSUEINDEX_EMPTY":
+            return "No MEP issue candidates were found in scanned floor plan views. For evidence capture, run MEP-QA-VIEWSCAN-v1 or MEP-QA-BUNDLE-v1 on a relevant active view."
+        if classification == "MEP_QA_ISSUEINDEX_YELLOW":
+            return "Issue candidates were found. Use the suggested detail/export commands to inspect or export named-view issue evidence."
+        if classification == "MEP_QA_ISSUEINDEX_ORANGE":
+            return "Skipped/unreadable views or elements were detected. Review warnings before using the issue index as QA evidence."
+        if classification == "MEP_QA_ISSUEINDEX_UNSUPPORTED_PROMPT":
+            return "Use a supported MEP-QA-ISSUEINDEX-v1 prompt."
+        return "Issue index generation failed. Review error details and rerun after correcting view context or implementation issue."
+
+    def _mep_qa_issueindex_v1_issue_specs(self):
+        return [
+            {
+                "name": "unconnected_pipe_fittings",
+                "label": "Unconnected pipe fittings",
+                "discipline": "Piping",
+                "action_key": "export_unconnected_pipe_fittings",
+                "inventory_key": "pipe_fittings_checked",
+                "select": "select unconnected pipe fittings",
+            },
+            {
+                "name": "pipes_without_system_assignment",
+                "label": "Pipes without system assignment",
+                "discipline": "Piping",
+                "action_key": "export_pipes_without_system",
+                "inventory_key": "pipes",
+                "select": "Open target view, then run select pipes without system assignment in active view if available; otherwise use the export command.",
+            },
+            {
+                "name": "unconnected_duct_fittings",
+                "label": "Unconnected duct fittings",
+                "discipline": "HVAC",
+                "action_key": "export_unconnected_duct_fittings",
+                "inventory_key": "duct_fittings_checked",
+                "select": "select unconnected duct fittings",
+            },
+            {
+                "name": "ducts_without_system_assignment",
+                "label": "Ducts without system assignment",
+                "discipline": "HVAC",
+                "action_key": "export_ducts_without_system",
+                "inventory_key": "ducts",
+                "select": "select ducts without system assignment",
+            },
+            {
+                "name": "devices_without_circuit_system_info",
+                "label": "Devices without circuit/system info",
+                "discipline": "Electrical",
+                "action_key": "export_devices_without_circuit",
+                "inventory_key": "electrical_devices",
+                "select": "select devices without circuit/system info",
+            },
+        ]
+
+    def _mep_qa_issueindex_v1_row_status(self, issue_count, skipped_count):
+        if int(skipped_count or 0) > 0:
+            return "ORANGE"
+        if int(issue_count or 0) > 0:
+            return "YELLOW"
+        return "GREEN"
+
+    def _mep_qa_issueindex_v1_build_data(self, prompt):
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        report_id = "MEP-QA-ISSUEINDEX-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        data = {
+            "feature_id": "MEP-QA-ISSUEINDEX-v1",
+            "feature_name": "MEP Project Issue Index v1",
+            "report_id": report_id,
+            "timestamp": timestamp,
+            "action_name": "Show MEP project issue index",
+            "prompt": safe_str(prompt),
+            "document_title": _document_title(doc),
+            "active_view": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "selection_count": 0,
+            "resolved_scan_scope": "eligible non-template floor plan views only",
+            "classification": "MEP_QA_ISSUEINDEX_FAILED",
+            "overall_status": "FAILED",
+            "eligible_views_found": 0,
+            "views_scanned": 0,
+            "views_skipped": 0,
+            "displayed_issue_index_rows": 0,
+            "truncated": False,
+            "issue_rows": [],
+            "view_totals": [],
+            "skipped_views": [],
+            "summary": {},
+            "issue_group_totals": {},
+            "warnings": [],
+        }
+        try:
+            data["selection_count"] = len(list(uidoc.Selection.GetElementIds()))
+        except Exception as exc:
+            data["warnings"].append("Current UI selection count could not be read: {0}".format(safe_str(exc)))
+        if not _is_mep_qa_issueindex_v1_prompt(prompt):
+            data["classification"] = "MEP_QA_ISSUEINDEX_UNSUPPORTED_PROMPT"
+            data["overall_status"] = "UNSUPPORTED"
+            data["warnings"].append("Unsupported MEP-QA-ISSUEINDEX-v1 prompt.")
+            return data
+        try:
+            eligible_views, skipped_views = self._mep_qa_viewscan_v1_eligible_views()
+            data["eligible_views_found"] = len(eligible_views)
+            data["skipped_views"] = skipped_views
+            data["views_skipped"] = len(skipped_views)
+            for skipped in skipped_views:
+                data["warnings"].append("Skipped view {0}: {1}".format(skipped.get("view_name"), skipped.get("reason")))
+            issue_rows = []
+            view_totals = []
+            issue_totals = {
+                "unconnected_pipe_fittings": 0,
+                "pipes_without_system_assignment": 0,
+                "unconnected_duct_fittings": 0,
+                "ducts_without_system_assignment": 0,
+                "devices_without_circuit_system_info": 0,
+            }
+            total_inventory = 0
+            total_issues = 0
+            total_skipped = 0
+            views_with_inventory = 0
+            views_with_issues = 0
+            for view in eligible_views:
+                view_name = safe_str(getattr(view, "Name", "unavailable"))
+                try:
+                    view_type = safe_str(view.ViewType)
+                except:
+                    view_type = "unavailable"
+                inventory_counts = self._mep_qa_viewexport_v1_inventory_counts(view)
+                view_inventory = int(inventory_counts.get("total_mep_inventory_count") or 0)
+                if view_inventory > 0:
+                    views_with_inventory += 1
+                view_issue_total = 0
+                view_skipped_total = 0
+                dominant = {"name": "none", "count": 0}
+                for spec in self._mep_qa_issueindex_v1_issue_specs():
+                    elements, warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action_in_view(spec["action_key"], view)
+                    data["warnings"].extend(["{0}: {1}".format(view_name, warning) for warning in (warnings or [])])
+                    issue_count = len(elements)
+                    skipped_count = len(skipped or [])
+                    issue_totals[spec["name"]] = issue_totals.get(spec["name"], 0) + issue_count
+                    view_issue_total += issue_count
+                    view_skipped_total += skipped_count
+                    total_skipped += skipped_count
+                    if issue_count > dominant["count"]:
+                        dominant = {"name": spec["label"], "count": issue_count}
+                    if skipped_count:
+                        data["warnings"].append(
+                            "{0}: {1} skipped/unreadable ids: {2}".format(
+                                view_name,
+                                spec["label"],
+                                ", ".join((skipped or [])[:20]),
+                            )
+                        )
+                    if issue_count > 0:
+                        detail_cmd = "show mep qa details for view {0}".format(view_name)
+                        export_cmd = "export mep qa details for view {0}".format(view_name)
+                        issue_rows.append(
+                            {
+                                "view_name": view_name,
+                                "view_type": view_type,
+                                "discipline": spec["discipline"],
+                                "issue_group": spec["label"],
+                                "issue_group_key": spec["name"],
+                                "issue_count": issue_count,
+                                "inventory_count": int(inventory_counts.get(spec["inventory_key"]) or checked or 0),
+                                "skipped_unreadable": skipped_count,
+                                "status": self._mep_qa_issueindex_v1_row_status(issue_count, skipped_count),
+                                "suggested_detail_command": detail_cmd,
+                                "suggested_export_command": export_cmd,
+                                "suggested_selection_command": spec["select"],
+                            }
+                        )
+                if view_issue_total > 0:
+                    views_with_issues += 1
+                total_inventory += view_inventory
+                total_issues += view_issue_total
+                view_totals.append(
+                    {
+                        "view_name": view_name,
+                        "view_type": view_type,
+                        "total_issues": view_issue_total,
+                        "total_skipped_unreadable": view_skipped_total,
+                        "total_mep_inventory": view_inventory,
+                        "dominant_issue_group": dominant["name"],
+                        "suggested_detail_command": "show mep qa details for view {0}".format(view_name),
+                        "suggested_export_command": "export mep qa details for view {0}".format(view_name),
+                    }
+                )
+            data["views_scanned"] = len(eligible_views)
+            data["issue_rows"] = issue_rows
+            data["view_totals"] = view_totals
+            data["issue_group_totals"] = issue_totals
+            data["displayed_issue_index_rows"] = min(len(issue_rows), 50)
+            data["truncated"] = len(issue_rows) > 50
+            data["summary"] = {
+                "eligible_views_found": len(eligible_views),
+                "views_scanned": len(eligible_views),
+                "views_skipped": len(skipped_views),
+                "views_with_mep_inventory": views_with_inventory,
+                "views_with_issue_candidates": views_with_issues,
+                "total_mep_inventory_count": total_inventory,
+                "total_issue_candidates": total_issues,
+                "total_skipped_unreadable_count": total_skipped,
+                "issue_index_rows": len(issue_rows),
+            }
+            if total_skipped > 0 or len(skipped_views) > 0:
+                data["classification"] = "MEP_QA_ISSUEINDEX_ORANGE"
+                data["overall_status"] = "ORANGE"
+            elif total_issues > 0:
+                data["classification"] = "MEP_QA_ISSUEINDEX_YELLOW"
+                data["overall_status"] = "YELLOW"
+            else:
+                data["classification"] = "MEP_QA_ISSUEINDEX_EMPTY"
+                data["overall_status"] = "EMPTY"
+        except Exception as exc:
+            data["classification"] = "MEP_QA_ISSUEINDEX_FAILED"
+            data["overall_status"] = "FAILED"
+            data["warnings"].append("Issue index generation failed: {0}".format(safe_str(exc)))
+        return data
+
+    def _mep_qa_issueindex_v1_top_views(self, view_totals):
+        rows = [row for row in (view_totals or []) if int(row.get("total_issues") or 0) > 0]
+        return sorted(
+            rows,
+            key=lambda row: (
+                -int(row.get("total_issues") or 0),
+                safe_str(row.get("view_name")).lower(),
+            ),
+        )[:10]
+
+    def _mep_qa_issueindex_v1_format_report(self, data):
+        summary = data.get("summary") or {}
+        totals = data.get("issue_group_totals") or {}
+        rows = data.get("issue_rows") or []
+        displayed = rows[:50]
+        lines = [
+            "[MEP QA ISSUE INDEX V1 REPORT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Report ID:",
+            data.get("report_id"),
+            "",
+            "Timestamp:",
+            data.get("timestamp"),
+            "",
+            "Action name:",
+            data.get("action_name"),
+            "",
+            "Prompt:",
+            data.get("prompt"),
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view"), data.get("active_view_type")),
+            "",
+            "Current UI selection count:",
+            data.get("selection_count"),
+            "",
+            "Resolved scan scope:",
+            data.get("resolved_scan_scope"),
+            "",
+            "Eligible views found:",
+            data.get("eligible_views_found"),
+            "",
+            "Views scanned:",
+            data.get("views_scanned"),
+            "",
+            "Views skipped:",
+            data.get("views_skipped"),
+            "",
+            "Result classification:",
+            data.get("classification"),
+            "",
+            "Overall issue-index status:",
+            data.get("overall_status"),
+            "",
+            "Project-level summary:",
+            "- Eligible views found: {0}".format(summary.get("eligible_views_found", data.get("eligible_views_found", 0))),
+            "- Views scanned: {0}".format(summary.get("views_scanned", data.get("views_scanned", 0))),
+            "- Views skipped: {0}".format(summary.get("views_skipped", data.get("views_skipped", 0))),
+            "- Views with MEP inventory: {0}".format(summary.get("views_with_mep_inventory", 0)),
+            "- Views with issue candidates: {0}".format(summary.get("views_with_issue_candidates", 0)),
+            "- Total MEP inventory count: {0}".format(summary.get("total_mep_inventory_count", 0)),
+            "- Total issue candidates: {0}".format(summary.get("total_issue_candidates", 0)),
+            "- Total skipped/unreadable count: {0}".format(summary.get("total_skipped_unreadable_count", 0)),
+            "- Issue index rows: {0}".format(summary.get("issue_index_rows", 0)),
+            "",
+            "Display truncation metadata:",
+            "- Total issue index rows: {0}".format(len(rows)),
+            "- Displayed issue index rows: {0}".format(data.get("displayed_issue_index_rows")),
+            "- Truncated: {0}".format("true" if data.get("truncated") else "false"),
+            "",
+            "Issue index table:",
+            "| View name | View type | Discipline | Issue group | Issue count | Inventory count | Skipped/unreadable | Status | Suggested detail command | Suggested export command | Suggested selection command |",
+            "|---|---|---|---|---:|---:|---:|---|---|---|---|",
+        ]
+        for row in displayed:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} | {7} | {8} | {9} | {10} |".format(
+                    safe_str(row.get("view_name")).replace("|", "\\|"),
+                    safe_str(row.get("view_type")).replace("|", "\\|"),
+                    row.get("discipline"),
+                    row.get("issue_group"),
+                    row.get("issue_count"),
+                    row.get("inventory_count"),
+                    row.get("skipped_unreadable"),
+                    row.get("status"),
+                    safe_str(row.get("suggested_detail_command")).replace("|", "\\|"),
+                    safe_str(row.get("suggested_export_command")).replace("|", "\\|"),
+                    safe_str(row.get("suggested_selection_command")).replace("|", "\\|"),
+                )
+            )
+        if not displayed:
+            lines.append("| none | none | none | none | 0 | 0 | 0 | EMPTY | none | none | none |")
+        lines.extend(["", "Top issue views:"])
+        top_views = self._mep_qa_issueindex_v1_top_views(data.get("view_totals"))
+        if top_views:
+            for row in top_views:
+                lines.append(
+                    "- {0}: {1} issue candidates; dominant issue group: {2}; detail: {3}; export: {4}".format(
+                        row.get("view_name"),
+                        row.get("total_issues"),
+                        row.get("dominant_issue_group"),
+                        row.get("suggested_detail_command"),
+                        row.get("suggested_export_command"),
+                    )
+                )
+        else:
+            lines.append("- No MEP issue candidates found in scanned floor plan views.")
+        lines.extend(
+            [
+                "",
+                "Issue group totals:",
+                "- Unconnected pipe fittings: {0}".format(totals.get("unconnected_pipe_fittings", 0)),
+                "- Pipes without system assignment: {0}".format(totals.get("pipes_without_system_assignment", 0)),
+                "- Unconnected duct fittings: {0}".format(totals.get("unconnected_duct_fittings", 0)),
+                "- Ducts without system assignment: {0}".format(totals.get("ducts_without_system_assignment", 0)),
+                "- Devices without circuit/system info: {0}".format(totals.get("devices_without_circuit_system_info", 0)),
+                "",
+                "Warnings:",
+            ]
+        )
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Recommended next actions:",
+                self._mep_qa_issueindex_v1_recommended_action(data.get("classification")),
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: false",
+                "- active view changed: false",
+                "- external MEP export files written: false",
+                "- external MEP bundle files written: false",
+                "- external MEP view export files written: false",
+                "",
+                "Safety:",
+                "- MEP-QA-ISSUEINDEX-v1 is read-only and report-only.",
+                "- It scans eligible floor plan views without changing the active view or UI selection.",
+                "- It does not write MEP_Exports, MEP_QA_Bundles, or MEP_View_Exports files.",
+                "- Revit model data and UI selection were not modified.",
+            ]
+        )
+        return "\n".join([safe_str(line) for line in lines])
+
+    def answer_mep_qa_issueindex_v1_question(self, prompt):
+        if not _is_mep_qa_issueindex_v1_prompt(prompt):
+            return None
+        data = self._mep_qa_issueindex_v1_build_data(prompt)
+        report_text = self._mep_qa_issueindex_v1_format_report(data)
+        report_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.latest_mep_qa_issueindex_v1_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MEP QA ISSUE INDEX V1 REPORT]",
+            "report_text": report_text,
+            "report_scope": "compact read-only project-level MEP issue index across eligible floor plan views",
+            "report_timestamp": report_timestamp,
+            "created_timestamp_local": report_timestamp,
+            "feature_id": "MEP-QA-ISSUEINDEX-v1",
+            "feature_name": "MEP Project Issue Index v1",
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view"),
+            "active_view_type": data.get("active_view_type"),
+            "deterministic": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "active_view_changed": False,
+            "external_mep_export_files_written": False,
+            "external_mep_bundle_files_written": False,
+            "external_mep_view_export_files_written": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _mep_qa_dashboard_v1_build_data(self, prompt):
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         report_id = "MEP-QA-DASHBOARD-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
@@ -38001,41 +38435,46 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
-            mep_qa_viewexport_v1_reply = self.answer_mep_qa_viewexport_v1_question(
+            mep_qa_issueindex_v1_reply = self.answer_mep_qa_issueindex_v1_question(
                 prompt
             )
+            mep_qa_viewexport_v1_reply = None
+            if mep_qa_issueindex_v1_reply is None:
+                mep_qa_viewexport_v1_reply = self.answer_mep_qa_viewexport_v1_question(
+                    prompt
+                )
             mep_qa_viewdetail_v1_reply = None
-            if mep_qa_viewexport_v1_reply is None:
+            if mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None:
                 mep_qa_viewdetail_v1_reply = self.answer_mep_qa_viewdetail_v1_question(
                     prompt
                 )
             mep_qa_viewscan_v1_reply = None
-            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None:
+            if mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None:
                 mep_qa_viewscan_v1_reply = self.answer_mep_qa_viewscan_v1_question(
                     prompt
                 )
             mep_qa_dashboard_v1_reply = None
-            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None:
+            if mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None:
                 mep_qa_dashboard_v1_reply = self.answer_mep_qa_dashboard_v1_question(
                     prompt
                 )
             mep_qa_bundle_v1_reply = None
-            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None:
+            if mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None:
                 mep_qa_bundle_v1_reply = self.answer_mep_qa_bundle_v1_question(
                     prompt
                 )
             mep_ro_export_v1_reply = None
-            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None:
+            if mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None:
                 mep_ro_export_v1_reply = self.answer_mep_ro_export_v1_question(
                     prompt
                 )
             mep_selection_v1_reply = None
-            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None:
+            if mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None:
                 mep_selection_v1_reply = self.answer_mep_selection_v1_question(
                     prompt
                 )
             mep_read_only_v1_reply = None
-            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
+            if mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -38095,7 +38534,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if mep_qa_viewexport_v1_reply is not None:
+            if mep_qa_issueindex_v1_reply is not None:
+                reply = mep_qa_issueindex_v1_reply
+                preserve_latest_report_state = True
+            elif mep_qa_viewexport_v1_reply is not None:
                 reply = mep_qa_viewexport_v1_reply
                 preserve_latest_report_state = True
             elif mep_qa_viewdetail_v1_reply is not None:
