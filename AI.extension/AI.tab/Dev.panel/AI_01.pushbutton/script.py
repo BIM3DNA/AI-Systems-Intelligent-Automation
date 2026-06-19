@@ -96,6 +96,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[COORDINATION LINK FINAL HANDOVER PACKAGE MANIFEST]",
     "[MEP READ ONLY V1 REPORT]",
     "[MEP SELECTION V1 REPORT]",
+    "[MEP EXPORT V1 REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14238,6 +14239,42 @@ def _mep_sel_v1_action_key(prompt):
     return MEP_SEL_V1_ROUTE_ACTIONS.get(normalized)
 
 
+MEP_RO_EXPORT_V1_ROUTE_ACTIONS = {
+    "export selected elements table": "export_selected_elements",
+    "export selected elements to csv": "export_selected_elements",
+    "export selected mep elements table": "export_selected_elements",
+    "export selected mep elements to csv": "export_selected_elements",
+    "export active view pipes table": "export_active_view_pipes",
+    "export active view pipes to csv": "export_active_view_pipes",
+    "export active view ducts table": "export_active_view_ducts",
+    "export active view ducts to csv": "export_active_view_ducts",
+    "export active view electrical devices table": "export_active_view_electrical",
+    "export active view electrical fixtures devices table": "export_active_view_electrical",
+    "export active view electrical fixtures and devices table": "export_active_view_electrical",
+    "export active view electrical fixtures/devices table": "export_active_view_electrical",
+    "export active view electrical devices to csv": "export_active_view_electrical",
+    "export unconnected pipe fittings table": "export_unconnected_pipe_fittings",
+    "export unconnected pipe fittings to csv": "export_unconnected_pipe_fittings",
+    "export unconnected duct fittings table": "export_unconnected_duct_fittings",
+    "export unconnected duct fittings to csv": "export_unconnected_duct_fittings",
+    "export pipes without system assignment table": "export_pipes_without_system",
+    "export pipes without system assignment to csv": "export_pipes_without_system",
+    "export ducts without system assignment table": "export_ducts_without_system",
+    "export ducts without system assignment to csv": "export_ducts_without_system",
+    "export devices without circuit system info table": "export_devices_without_circuit",
+    "export devices without circuit and system info table": "export_devices_without_circuit",
+    "export devices without circuit/system info table": "export_devices_without_circuit",
+    "export devices without circuit system info to csv": "export_devices_without_circuit",
+    "export devices without circuit and system info to csv": "export_devices_without_circuit",
+    "export devices without circuit/system info to csv": "export_devices_without_circuit",
+}
+
+
+def _mep_ro_export_v1_action_key(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return MEP_RO_EXPORT_V1_ROUTE_ACTIONS.get(normalized)
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -16304,6 +16341,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "MEP read-only reporting / active-view and selected-element QA"
         if header == "[MEP SELECTION V1 REPORT]":
             return "reviewed Revit UI selection-only actions for active-view MEP QA"
+        if header == "[MEP EXPORT V1 REPORT]":
+            return "read-only Revit model inspection with structured external file export"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -29123,6 +29162,583 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _mep_export_v1_recommended_action(self, classification):
+        if classification == "MEP_EXPORT_OK":
+            return "Open the generated CSV/JSON export for external QA review. Revit model data was not modified."
+        if classification == "MEP_EXPORT_EMPTY_RESULT":
+            return "No matching elements were found for this export scope. Revit model data and UI selection were not modified."
+        if classification == "MEP_EXPORT_PARTIAL_WITH_SKIPPED_ELEMENTS":
+            return "Review skipped/unreadable elements and inspect the exported file before using it as evidence."
+        if classification == "MEP_EXPORT_FAILED":
+            return "Review export error details and rerun after correcting file path or view context."
+        return "Use a supported MEP-RO-EXPORT-v1 export prompt."
+
+    def _mep_export_v1_action_names(self):
+        return {
+            "export_selected_elements": "Export selected elements table",
+            "export_active_view_pipes": "Export active view pipes table",
+            "export_active_view_ducts": "Export active view ducts table",
+            "export_active_view_electrical": "Export active view electrical devices table",
+            "export_unconnected_pipe_fittings": "Export unconnected pipe fittings table",
+            "export_unconnected_duct_fittings": "Export unconnected duct fittings table",
+            "export_pipes_without_system": "Export pipes without system assignment table",
+            "export_ducts_without_system": "Export ducts without system assignment table",
+            "export_devices_without_circuit": "Export devices without circuit/system info table",
+        }
+
+    def _mep_export_v1_slug(self, action_name):
+        slug = re.sub(r"[^a-z0-9]+", "_", safe_str(action_name).lower()).strip("_")
+        return slug or "mep_export"
+
+    def _mep_export_v1_root(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+        return os.path.join(user_profile, "Desktop", "Results", "AI_Workbench", "MEP_Exports")
+
+    def _mep_export_v1_columns(self):
+        return [
+            "row_index",
+            "element_id",
+            "unique_id",
+            "category",
+            "family",
+            "type",
+            "name",
+            "level",
+            "workset",
+            "design_option",
+            "phase_created",
+            "phase_demolished",
+            "document_title",
+            "active_view",
+            "active_view_type",
+            "export_scope",
+            "qa_reason",
+            "system_name",
+            "system_type",
+            "diameter",
+            "width",
+            "height",
+            "length_ft",
+            "length_m",
+            "volume_ft3",
+            "volume_m3",
+            "offset",
+            "mark",
+            "type_mark",
+            "panel",
+            "circuit_number",
+            "electrical_system_name",
+            "apparent_load",
+            "connector_count",
+            "unconnected_connector_count",
+        ]
+
+    def _mep_export_v1_workset_name(self, elem):
+        try:
+            workset_id = elem.WorksetId
+            workset = doc.GetWorksetTable().GetWorkset(workset_id)
+            return safe_str(workset.Name)
+        except:
+            return ""
+
+    def _mep_export_v1_design_option_name(self, elem):
+        try:
+            option = elem.DesignOption
+            if option:
+                return get_elem_name(option) or safe_str(option.Name)
+        except:
+            pass
+        try:
+            option_id = elem.DesignOptionId
+            option = doc.GetElement(option_id)
+            if option:
+                return get_elem_name(option) or safe_str(option.Name)
+        except:
+            pass
+        return ""
+
+    def _mep_export_v1_phase_name(self, phase_id):
+        try:
+            if phase_id and int(phase_id.IntegerValue) > 0:
+                phase = doc.GetElement(phase_id)
+                if phase:
+                    return get_elem_name(phase) or safe_str(phase.Name)
+        except:
+            pass
+        return ""
+
+    def _mep_export_v1_param(self, elem, names):
+        return self._mep_ro_v1_param_value(elem, names) or ""
+
+    def _mep_export_v1_row(self, elem, row_index, export_scope, qa_reason):
+        family_name, type_name, type_id = self._mep_ro_v1_type_info(elem)
+        length_ft, length_source = self._mep_ro_v1_length_ft(elem)
+        volume_ft3 = self._mep_ro_v1_volume_ft3(elem)
+        connector_count, unconnected_count, connector_status = self._mep_ro_v1_connector_counts(elem)
+        try:
+            created_phase = self._mep_export_v1_phase_name(elem.CreatedPhaseId)
+        except:
+            created_phase = ""
+        try:
+            demolished_phase = self._mep_export_v1_phase_name(elem.DemolishedPhaseId)
+        except:
+            demolished_phase = ""
+        return {
+            "row_index": row_index,
+            "element_id": self._mep_ro_v1_element_id_text(elem),
+            "unique_id": safe_str(getattr(elem, "UniqueId", "")),
+            "category": self._mep_ro_v1_element_category_name(elem),
+            "family": family_name,
+            "type": type_name,
+            "name": get_elem_name(elem) or safe_str(getattr(elem, "Name", "")),
+            "level": self._mep_ro_v1_level_name(elem),
+            "workset": self._mep_export_v1_workset_name(elem),
+            "design_option": self._mep_export_v1_design_option_name(elem),
+            "phase_created": created_phase,
+            "phase_demolished": demolished_phase,
+            "document_title": _document_title(doc),
+            "active_view": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "export_scope": export_scope,
+            "qa_reason": qa_reason,
+            "system_name": self._mep_export_v1_param(elem, ["System Name"]),
+            "system_type": self._mep_export_v1_param(elem, ["System Type", "System Classification"]),
+            "diameter": self._mep_export_v1_param(elem, ["Diameter"]),
+            "width": self._mep_export_v1_param(elem, ["Width"]),
+            "height": self._mep_export_v1_param(elem, ["Height"]),
+            "length_ft": "" if length_ft is None else "{0:.6f}".format(length_ft),
+            "length_m": "" if length_ft is None else "{0:.6f}".format(length_ft * 0.3048),
+            "volume_ft3": "" if volume_ft3 is None else "{0:.6f}".format(volume_ft3),
+            "volume_m3": "" if volume_ft3 is None else "{0:.6f}".format(volume_ft3 * 0.028316846592),
+            "offset": self._mep_export_v1_param(elem, ["Offset", "Middle Elevation"]),
+            "mark": self._mep_export_v1_param(elem, ["Mark"]),
+            "type_mark": self._mep_export_v1_param(elem, ["Type Mark"]),
+            "panel": self._mep_export_v1_param(elem, ["Panel"]),
+            "circuit_number": self._mep_export_v1_param(elem, ["Circuit Number"]),
+            "electrical_system_name": self._mep_export_v1_param(elem, ["Electrical System", "Electrical System Name"]),
+            "apparent_load": self._mep_export_v1_param(elem, ["Apparent Load", "Load", "Load Name"]),
+            "connector_count": connector_count if connector_status != "unavailable" else "",
+            "unconnected_connector_count": unconnected_count if connector_status != "unavailable" else "",
+        }
+
+    def _mep_export_v1_selected_elements(self):
+        elements, warnings = self._mep_ro_v1_selected_elements()
+        return elements, warnings, len(elements)
+
+    def _mep_export_v1_elements_for_action(self, action_key):
+        warnings = []
+        skipped = []
+        checked = 0
+        elements = []
+        qa_reason = "export"
+        pipe_id = self._mep_ro_v1_category_id("OST_PipeCurves")
+        pipe_fitting_id = self._mep_ro_v1_category_id("OST_PipeFitting")
+        duct_id = self._mep_ro_v1_category_id("OST_DuctCurves")
+        duct_fitting_id = self._mep_ro_v1_category_id("OST_DuctFitting")
+        electrical_ids = self._mep_ro_v1_electrical_category_ids()
+
+        if action_key == "export_selected_elements":
+            elements, warnings, checked = self._mep_export_v1_selected_elements()
+            qa_reason = "selected_element"
+        elif action_key == "export_active_view_pipes":
+            elements, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([pipe_id])
+            checked = len(elements)
+            qa_reason = "active_view_pipe_inventory"
+        elif action_key == "export_active_view_ducts":
+            elements, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([duct_id])
+            checked = len(elements)
+            qa_reason = "active_view_duct_inventory"
+        elif action_key == "export_active_view_electrical":
+            elements, warnings = self._mep_ro_v1_active_view_elements_by_category_ids(electrical_ids)
+            checked = len(elements)
+            qa_reason = "active_view_electrical_inventory"
+        elif action_key in ["export_unconnected_pipe_fittings", "export_unconnected_duct_fittings"]:
+            category_id = pipe_fitting_id if action_key == "export_unconnected_pipe_fittings" else duct_fitting_id
+            fittings, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([category_id])
+            checked = len(fittings)
+            qa_reason = "unconnected_connectors"
+            for fitting in fittings:
+                connector_count, unconnected_count, status = self._mep_ro_v1_connector_counts(fitting)
+                if status == "unreadable":
+                    skipped.append(self._mep_ro_v1_element_id_text(fitting))
+                    continue
+                if unconnected_count > 0:
+                    elements.append(fitting)
+        elif action_key in ["export_pipes_without_system", "export_ducts_without_system"]:
+            category_id = pipe_id if action_key == "export_pipes_without_system" else duct_id
+            source, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([category_id])
+            checked = len(source)
+            qa_reason = "missing_system_assignment"
+            for elem in source:
+                try:
+                    if not self._mep_ro_v1_system_assigned(elem):
+                        elements.append(elem)
+                except:
+                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+        elif action_key == "export_devices_without_circuit":
+            devices, warnings = self._mep_ro_v1_active_view_elements_by_category_ids(electrical_ids)
+            checked = len(devices)
+            qa_reason = "missing_circuit_or_system_info"
+            for elem in devices:
+                try:
+                    value = self._mep_ro_v1_param_value(
+                        elem,
+                        ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"],
+                    )
+                    if not value:
+                        elements.append(elem)
+                except:
+                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+        else:
+            warnings.append("Unsupported MEP-RO-EXPORT-v1 prompt.")
+        return elements, warnings, checked, skipped, qa_reason
+
+    def _mep_export_v1_csv_value(self, value):
+        text = safe_str(value)
+        text = text.replace('"', '""')
+        return '"{0}"'.format(text)
+
+    def _mep_export_v1_write_csv(self, path, columns, rows):
+        stream = codecs.open(path, "w", "utf-8")
+        try:
+            stream.write(",".join([self._mep_export_v1_csv_value(col) for col in columns]))
+            stream.write("\n")
+            for row in rows:
+                stream.write(",".join([self._mep_export_v1_csv_value(row.get(col, "")) for col in columns]))
+                stream.write("\n")
+        finally:
+            stream.close()
+
+    def _mep_export_v1_write_json(self, path, payload):
+        stream = codecs.open(path, "w", "utf-8")
+        try:
+            stream.write(json.dumps(payload, indent=2, sort_keys=True))
+        finally:
+            stream.close()
+
+    def _mep_export_v1_write_text(self, path, lines):
+        stream = codecs.open(path, "w", "utf-8")
+        try:
+            stream.write("\n".join([safe_str(line) for line in lines]))
+            stream.write("\n")
+        finally:
+            stream.close()
+
+    def _mep_export_v1_update_index(self, root, record):
+        fields = [
+            "timestamp",
+            "feature_id",
+            "action_name",
+            "prompt",
+            "document_title",
+            "active_view",
+            "active_view_type",
+            "export_folder",
+            "row_count",
+            "elements_checked",
+            "skipped_unreadable_count",
+            "classification",
+        ]
+        jsonl_path = os.path.join(root, "mep_export_index.jsonl")
+        csv_path = os.path.join(root, "mep_export_index.csv")
+        latest_path = os.path.join(root, "latest_mep_export.json")
+        stream = codecs.open(jsonl_path, "a", "utf-8")
+        try:
+            stream.write(json.dumps(record, sort_keys=True))
+            stream.write("\n")
+        finally:
+            stream.close()
+        csv_exists = os.path.exists(csv_path)
+        stream = codecs.open(csv_path, "a", "utf-8")
+        try:
+            if not csv_exists:
+                stream.write(",".join([self._mep_export_v1_csv_value(field) for field in fields]))
+                stream.write("\n")
+            stream.write(",".join([self._mep_export_v1_csv_value(record.get(field, "")) for field in fields]))
+            stream.write("\n")
+        finally:
+            stream.close()
+        self._mep_export_v1_write_json(latest_path, record)
+        return [jsonl_path, csv_path, latest_path]
+
+    def _mep_export_v1_category_type_rows(self, rows):
+        groups = {}
+        for row in rows or []:
+            key = (row.get("category", ""), row.get("family", ""), row.get("type", ""))
+            groups.setdefault(key, 0)
+            groups[key] += 1
+        return [[key[0], key[1], key[2], groups[key]] for key in sorted(groups.keys(), key=lambda item: safe_str(item))]
+
+    def _mep_export_v1_build_data(self, prompt, action_key):
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        folder_stamp = time.strftime("%Y%m%d_%H%M%S")
+        action_name = self._mep_export_v1_action_names().get(action_key, "MEP structured QA export")
+        root = self._mep_export_v1_root()
+        export_folder = os.path.join(root, "{0}_{1}".format(folder_stamp, self._mep_export_v1_slug(action_name)))
+        data = {
+            "feature_id": "MEP-RO-EXPORT-v1",
+            "feature_name": "MEP Structured QA Export v1",
+            "report_id": "MEP-RO-EXPORT-v1-{0}".format(folder_stamp),
+            "timestamp": timestamp,
+            "action_name": action_name,
+            "prompt": safe_str(prompt),
+            "document_title": _document_title(doc),
+            "active_view": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "scope": "read-only Revit model inspection with structured external file export",
+            "classification": "MEP_EXPORT_OK",
+            "export_folder": export_folder,
+            "generated_files": [],
+            "elements_checked": 0,
+            "row_count": 0,
+            "skipped_unreadable_count": 0,
+            "sample_exported_element_ids": [],
+            "warnings": [],
+            "rows": [],
+            "category_type_rows": [],
+            "external_files_written": False,
+        }
+        if not action_key:
+            data["classification"] = "MEP_EXPORT_UNSUPPORTED_PROMPT"
+            data["warnings"].append("Unsupported MEP-RO-EXPORT-v1 prompt.")
+            return data
+        try:
+            elements, warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action(action_key)
+            data["warnings"].extend(warnings)
+            data["elements_checked"] = checked
+            data["skipped_unreadable_count"] = len(skipped)
+            columns = self._mep_export_v1_columns()
+            rows = []
+            for elem in elements:
+                try:
+                    rows.append(self._mep_export_v1_row(elem, len(rows) + 1, data["scope"], qa_reason))
+                except Exception as exc:
+                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+                    data["warnings"].append("Element row could not be exported: {0}".format(safe_str(exc)))
+            data["skipped_unreadable_count"] = len(skipped)
+            if skipped:
+                data["warnings"].append("Skipped/unreadable element ids: {0}".format(", ".join(skipped[:20])))
+            data["rows"] = rows
+            data["row_count"] = len(rows)
+            data["sample_exported_element_ids"] = [row.get("element_id") for row in rows[:10]]
+            data["category_type_rows"] = self._mep_export_v1_category_type_rows(rows)
+            if skipped:
+                data["classification"] = "MEP_EXPORT_PARTIAL_WITH_SKIPPED_ELEMENTS"
+            elif not rows:
+                data["classification"] = "MEP_EXPORT_EMPTY_RESULT"
+            if not os.path.exists(export_folder):
+                os.makedirs(export_folder)
+            csv_path = os.path.join(export_folder, "export.csv")
+            json_path = os.path.join(export_folder, "export.json")
+            metadata_path = os.path.join(export_folder, "metadata.json")
+            manifest_path = os.path.join(export_folder, "artifact_manifest.txt")
+            summary_path = os.path.join(export_folder, "summary.txt")
+            payload = {
+                "feature_id": data["feature_id"],
+                "feature_name": data["feature_name"],
+                "action_name": data["action_name"],
+                "prompt": data["prompt"],
+                "timestamp": timestamp,
+                "document_title": data["document_title"],
+                "active_view": data["active_view"],
+                "active_view_type": data["active_view_type"],
+                "row_count": data["row_count"],
+                "rows": rows,
+            }
+            metadata = dict(payload)
+            metadata.update(
+                {
+                    "report_header": "[MEP EXPORT V1 REPORT]",
+                    "export_folder": export_folder,
+                    "generated_files": ["export.csv", "export.json", "metadata.json", "artifact_manifest.txt", "summary.txt"],
+                    "elements_checked": checked,
+                    "skipped_unreadable_count": data["skipped_unreadable_count"],
+                    "classification": data["classification"],
+                    "transaction_opened": False,
+                    "transaction_group_opened": False,
+                    "model_modified": False,
+                    "linked_document_modified": False,
+                    "ui_selection_modified": False,
+                    "external_files_written": True,
+                }
+            )
+            self._mep_export_v1_write_csv(csv_path, columns, rows)
+            self._mep_export_v1_write_json(json_path, payload)
+            self._mep_export_v1_write_json(metadata_path, metadata)
+            self._mep_export_v1_write_text(
+                summary_path,
+                [
+                    "[MEP EXPORT V1 SUMMARY]",
+                    "Feature ID: {0}".format(data["feature_id"]),
+                    "Action name: {0}".format(data["action_name"]),
+                    "Prompt: {0}".format(data["prompt"]),
+                    "Timestamp: {0}".format(timestamp),
+                    "Document: {0}".format(data["document_title"]),
+                    "Active view: {0} [{1}]".format(data["active_view"], data["active_view_type"]),
+                    "Elements checked: {0}".format(checked),
+                    "Rows exported: {0}".format(data["row_count"]),
+                    "Skipped/unreadable count: {0}".format(data["skipped_unreadable_count"]),
+                    "Classification: {0}".format(data["classification"]),
+                    "Model modified: false",
+                    "UI selection modified: false",
+                ],
+            )
+            self._mep_export_v1_write_text(
+                manifest_path,
+                [
+                    "filename | purpose | row_count | created_timestamp",
+                    "export.csv | UTF-8 CSV structured export | {0} | {1}".format(data["row_count"], timestamp),
+                    "export.json | JSON structured export | {0} | {1}".format(data["row_count"], timestamp),
+                    "metadata.json | export metadata and safety flags | {0} | {1}".format(data["row_count"], timestamp),
+                    "artifact_manifest.txt | generated file manifest | {0} | {1}".format(data["row_count"], timestamp),
+                    "summary.txt | plain-text export summary | {0} | {1}".format(data["row_count"], timestamp),
+                ],
+            )
+            data["generated_files"] = ["export.csv", "export.json", "metadata.json", "artifact_manifest.txt", "summary.txt"]
+            data["external_files_written"] = True
+            record = {
+                "timestamp": timestamp,
+                "feature_id": data["feature_id"],
+                "feature_name": data["feature_name"],
+                "action_name": data["action_name"],
+                "prompt": data["prompt"],
+                "document_title": data["document_title"],
+                "active_view": data["active_view"],
+                "active_view_type": data["active_view_type"],
+                "export_folder": export_folder,
+                "row_count": data["row_count"],
+                "elements_checked": checked,
+                "skipped_unreadable_count": data["skipped_unreadable_count"],
+                "classification": data["classification"],
+                "generated_files": data["generated_files"],
+            }
+            self._mep_export_v1_update_index(root, record)
+        except Exception as exc:
+            data["classification"] = "MEP_EXPORT_FAILED"
+            data["warnings"].append("Export failed: {0}".format(safe_str(exc)))
+        return data
+
+    def _mep_export_v1_format_report(self, data):
+        lines = [
+            "[MEP EXPORT V1 REPORT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Report ID:",
+            data.get("report_id"),
+            "",
+            "Timestamp:",
+            data.get("timestamp"),
+            "",
+            "Action name:",
+            data.get("action_name"),
+            "",
+            "Prompt:",
+            data.get("prompt"),
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view"), data.get("active_view_type")),
+            "",
+            "Scope:",
+            data.get("scope"),
+            "",
+            "Result classification:",
+            data.get("classification"),
+            "",
+            "Export folder:",
+            data.get("export_folder"),
+            "",
+            "Generated files:",
+        ]
+        if data.get("generated_files"):
+            for item in data.get("generated_files"):
+                lines.append("- {0}".format(item))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Main summary counts:",
+                "- Elements checked: {0}".format(data.get("elements_checked")),
+                "- Rows exported: {0}".format(data.get("row_count")),
+                "- Skipped/unreadable count: {0}".format(data.get("skipped_unreadable_count")),
+                "- Sample exported element ids: {0}".format(", ".join(data.get("sample_exported_element_ids") or []) or "none"),
+                "",
+                "Category/type breakdown:",
+            ]
+        )
+        if data.get("category_type_rows"):
+            lines.extend(self._mep_ro_v1_table(["Category", "Family", "Type", "Count"], data.get("category_type_rows")[:25]))
+        else:
+            lines.append("- none")
+        lines.extend(["", "Warnings:"])
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Recommended next action:",
+                self._mep_export_v1_recommended_action(data.get("classification")),
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: false",
+                "- external files written: {0}".format("true" if data.get("external_files_written") else "false"),
+                "",
+                "Safety:",
+                "- MEP-RO-EXPORT-v1 reads Revit model data and writes external CSV/JSON evidence files only.",
+                "- No transaction was opened.",
+                "- Revit model data was not modified.",
+                "- Revit UI selection was not modified.",
+                "- No reload, unload, pin, unpin, sheet/view/tag creation, delete, copy, mirror, connect, disconnect, join, unjoin, or parameter-write action was performed.",
+            ]
+        )
+        return "\n".join([safe_str(line) for line in lines])
+
+    def answer_mep_ro_export_v1_question(self, prompt):
+        action_key = _mep_ro_export_v1_action_key(prompt)
+        if not action_key:
+            return None
+        data = self._mep_export_v1_build_data(prompt, action_key)
+        report_text = self._mep_export_v1_format_report(data)
+        report_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.latest_mep_ro_export_v1_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MEP EXPORT V1 REPORT]",
+            "report_text": report_text,
+            "report_scope": "read-only Revit model inspection with structured external file export",
+            "report_timestamp": report_timestamp,
+            "created_timestamp_local": report_timestamp,
+            "feature_id": "MEP-RO-EXPORT-v1",
+            "feature_name": "MEP Structured QA Export v1",
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view"),
+            "active_view_type": data.get("active_view_type"),
+            "deterministic": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "external_files_written": bool(data.get("external_files_written")),
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _link_reset_advisor_document_match(self, state, active_document):
         if not state:
             return None
@@ -34939,11 +35555,16 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
-            mep_selection_v1_reply = self.answer_mep_selection_v1_question(
+            mep_ro_export_v1_reply = self.answer_mep_ro_export_v1_question(
                 prompt
             )
+            mep_selection_v1_reply = None
+            if mep_ro_export_v1_reply is None:
+                mep_selection_v1_reply = self.answer_mep_selection_v1_question(
+                    prompt
+                )
             mep_read_only_v1_reply = None
-            if mep_selection_v1_reply is None:
+            if mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -35003,7 +35624,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if mep_selection_v1_reply is not None:
+            if mep_ro_export_v1_reply is not None:
+                reply = mep_ro_export_v1_reply
+                preserve_latest_report_state = True
+            elif mep_selection_v1_reply is not None:
                 reply = mep_selection_v1_reply
                 preserve_latest_report_state = True
             elif mep_read_only_v1_reply is not None:
