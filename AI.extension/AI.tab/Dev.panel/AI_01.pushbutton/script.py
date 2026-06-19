@@ -97,6 +97,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[MEP READ ONLY V1 REPORT]",
     "[MEP SELECTION V1 REPORT]",
     "[MEP EXPORT V1 REPORT]",
+    "[MEP QA BUNDLE V1 REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14275,6 +14276,21 @@ def _mep_ro_export_v1_action_key(prompt):
     return MEP_RO_EXPORT_V1_ROUTE_ACTIONS.get(normalized)
 
 
+MEP_QA_BUNDLE_V1_ROUTES = {
+    "generate active view mep qa bundle",
+    "create active view mep qa bundle",
+    "export active view mep qa bundle",
+    "generate mep qa bundle",
+    "create mep qa evidence bundle",
+    "export mep qa evidence bundle",
+}
+
+
+def _is_mep_qa_bundle_v1_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in MEP_QA_BUNDLE_V1_ROUTES
+
+
 def _is_split_apply_source_state_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     routes = [
@@ -16343,6 +16359,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "reviewed Revit UI selection-only actions for active-view MEP QA"
         if header == "[MEP EXPORT V1 REPORT]":
             return "read-only Revit model inspection with structured external file export"
+        if header == "[MEP QA BUNDLE V1 REPORT]":
+            return "read-only active-view MEP QA aggregation with structured external evidence files"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -29739,6 +29757,402 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _mep_qa_bundle_v1_root(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+        return os.path.join(user_profile, "Desktop", "Results", "AI_Workbench", "MEP_QA_Bundles")
+
+    def _mep_qa_bundle_v1_recommended_action(self, classification):
+        if classification == "MEP_QA_BUNDLE_OK":
+            return "Open the generated MEP QA bundle folder and review the CSV/JSON evidence files. Revit model data and UI selection were not modified."
+        if classification == "MEP_QA_BUNDLE_EMPTY_VIEW":
+            return "No active-view MEP elements were found. Open a relevant MEP view or adjust visibility/filtering and rerun."
+        if classification == "MEP_QA_BUNDLE_PARTIAL_WITH_SKIPPED_ELEMENTS":
+            return "Review skipped/unreadable elements before using the bundle as QA evidence."
+        if classification == "MEP_QA_BUNDLE_FAILED":
+            return "Review the error details and rerun after correcting file path or view context."
+        return "Use a supported MEP-QA-BUNDLE-v1 prompt."
+
+    def _mep_qa_bundle_v1_table_specs(self):
+        return [
+            ("active_view_pipes", "Piping", "active-view pipe inventory", "export_active_view_pipes", "active_view_pipes.csv", "active_view_pipes.json"),
+            ("unconnected_pipe_fittings", "Piping", "unconnected pipe fittings", "export_unconnected_pipe_fittings", "unconnected_pipe_fittings.csv", "unconnected_pipe_fittings.json"),
+            ("pipes_without_system_assignment", "Piping", "pipes missing system assignment", "export_pipes_without_system", "pipes_without_system_assignment.csv", "pipes_without_system_assignment.json"),
+            ("active_view_ducts", "HVAC", "active-view duct inventory", "export_active_view_ducts", "active_view_ducts.csv", "active_view_ducts.json"),
+            ("unconnected_duct_fittings", "HVAC", "unconnected duct fittings", "export_unconnected_duct_fittings", "unconnected_duct_fittings.csv", "unconnected_duct_fittings.json"),
+            ("ducts_without_system_assignment", "HVAC", "ducts missing system assignment", "export_ducts_without_system", "ducts_without_system_assignment.csv", "ducts_without_system_assignment.json"),
+            ("active_view_electrical_devices", "Electrical", "active-view electrical device inventory", "export_active_view_electrical", "active_view_electrical_devices.csv", "active_view_electrical_devices.json"),
+            ("devices_without_circuit_system_info", "Electrical", "devices missing circuit/system info", "export_devices_without_circuit", "devices_without_circuit_system_info.csv", "devices_without_circuit_system_info.json"),
+        ]
+
+    def _mep_qa_bundle_v1_table_payload(self, prompt, spec):
+        name, discipline, scope, action_key, csv_name, json_name = spec
+        elements, warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action(action_key)
+        rows = []
+        row_warnings = list(warnings or [])
+        skipped_ids = list(skipped or [])
+        for elem in elements:
+            try:
+                rows.append(self._mep_export_v1_row(elem, len(rows) + 1, scope, qa_reason))
+            except Exception as exc:
+                skipped_ids.append(self._mep_ro_v1_element_id_text(elem))
+                row_warnings.append("Element row could not be exported for {0}: {1}".format(name, safe_str(exc)))
+        if skipped_ids:
+            row_warnings.append("Skipped/unreadable element ids for {0}: {1}".format(name, ", ".join(skipped_ids[:20])))
+        if skipped_ids:
+            result = "PARTIAL"
+        elif rows:
+            result = "OK"
+        else:
+            result = "EMPTY"
+        return {
+            "name": name,
+            "discipline": discipline,
+            "scope": scope,
+            "action_key": action_key,
+            "csv": csv_name,
+            "json": json_name,
+            "elements_checked": checked,
+            "rows_exported": len(rows),
+            "skipped_unreadable_count": len(skipped_ids),
+            "result": result,
+            "rows": rows,
+            "warnings": row_warnings,
+            "sample_element_ids": [row.get("element_id") for row in rows[:10]],
+        }
+
+    def _mep_qa_bundle_v1_write_inventory_csv(self, path, tables):
+        fields = [
+            "table_name",
+            "discipline",
+            "scope",
+            "elements_checked",
+            "rows_exported",
+            "skipped_unreadable_count",
+            "csv_file",
+            "json_file",
+            "result",
+            "notes",
+        ]
+        stream = codecs.open(path, "w", "utf-8")
+        try:
+            stream.write(",".join([self._mep_export_v1_csv_value(field) for field in fields]))
+            stream.write("\n")
+            for table in tables:
+                values = [
+                    table.get("name"),
+                    table.get("discipline"),
+                    table.get("scope"),
+                    table.get("elements_checked"),
+                    table.get("rows_exported"),
+                    table.get("skipped_unreadable_count"),
+                    table.get("csv"),
+                    table.get("json"),
+                    table.get("result"),
+                    "; ".join(table.get("warnings") or []),
+                ]
+                stream.write(",".join([self._mep_export_v1_csv_value(value) for value in values]))
+                stream.write("\n")
+        finally:
+            stream.close()
+
+    def _mep_qa_bundle_v1_build_data(self, prompt):
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        folder_stamp = time.strftime("%Y%m%d_%H%M%S")
+        action_name = "Generate active view MEP QA bundle"
+        root = self._mep_qa_bundle_v1_root()
+        bundle_folder = os.path.join(root, "{0}_{1}".format(folder_stamp, self._mep_export_v1_slug(action_name)))
+        data = {
+            "feature_id": "MEP-QA-BUNDLE-v1",
+            "feature_name": "MEP Active View QA Bundle v1",
+            "report_id": "MEP-QA-BUNDLE-v1-{0}".format(folder_stamp),
+            "timestamp": timestamp,
+            "action_name": action_name,
+            "prompt": safe_str(prompt),
+            "document_title": _document_title(doc),
+            "active_view": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "scope": "read-only active-view MEP QA aggregation with structured external evidence files",
+            "classification": "MEP_QA_BUNDLE_OK",
+            "bundle_folder": bundle_folder,
+            "generated_files": [],
+            "total_files_generated": 0,
+            "total_elements_checked": 0,
+            "total_rows_exported": 0,
+            "skipped_unreadable_count": 0,
+            "table_counts": [],
+            "warnings": [],
+            "external_files_written": False,
+        }
+        if not _is_mep_qa_bundle_v1_prompt(prompt):
+            data["classification"] = "MEP_QA_BUNDLE_UNSUPPORTED_PROMPT"
+            data["warnings"].append("Unsupported MEP-QA-BUNDLE-v1 prompt.")
+            return data
+        try:
+            if not os.path.exists(bundle_folder):
+                os.makedirs(bundle_folder)
+            columns = self._mep_export_v1_columns()
+            table_payloads = []
+            generated = []
+            for spec in self._mep_qa_bundle_v1_table_specs():
+                table = self._mep_qa_bundle_v1_table_payload(prompt, spec)
+                table_payloads.append(table)
+                csv_path = os.path.join(bundle_folder, table.get("csv"))
+                json_path = os.path.join(bundle_folder, table.get("json"))
+                self._mep_export_v1_write_csv(csv_path, columns, table.get("rows") or [])
+                self._mep_export_v1_write_json(
+                    json_path,
+                    {
+                        "feature_id": data["feature_id"],
+                        "feature_name": data["feature_name"],
+                        "table_name": table.get("name"),
+                        "prompt": data["prompt"],
+                        "timestamp": timestamp,
+                        "document_title": data["document_title"],
+                        "active_view": data["active_view"],
+                        "active_view_type": data["active_view_type"],
+                        "row_count": table.get("rows_exported"),
+                        "elements_checked": table.get("elements_checked"),
+                        "skipped_unreadable_count": table.get("skipped_unreadable_count"),
+                        "rows": table.get("rows") or [],
+                    },
+                )
+                generated.extend([table.get("csv"), table.get("json")])
+                data["warnings"].extend(table.get("warnings") or [])
+            data["total_elements_checked"] = sum([int(table.get("elements_checked") or 0) for table in table_payloads])
+            data["total_rows_exported"] = sum([int(table.get("rows_exported") or 0) for table in table_payloads])
+            data["skipped_unreadable_count"] = sum([int(table.get("skipped_unreadable_count") or 0) for table in table_payloads])
+            data["table_counts"] = table_payloads
+            if data["skipped_unreadable_count"] > 0:
+                data["classification"] = "MEP_QA_BUNDLE_PARTIAL_WITH_SKIPPED_ELEMENTS"
+            elif data["total_rows_exported"] == 0:
+                data["classification"] = "MEP_QA_BUNDLE_EMPTY_VIEW"
+            else:
+                data["classification"] = "MEP_QA_BUNDLE_OK"
+            index_payload = {
+                "feature_id": data["feature_id"],
+                "feature_name": data["feature_name"],
+                "prompt": data["prompt"],
+                "timestamp": timestamp,
+                "document_title": data["document_title"],
+                "active_view": data["active_view"],
+                "active_view_type": data["active_view_type"],
+                "bundle_folder": bundle_folder,
+                "tables": [
+                    {
+                        "name": table.get("name"),
+                        "csv": table.get("csv"),
+                        "json": table.get("json"),
+                        "elements_checked": table.get("elements_checked"),
+                        "rows_exported": table.get("rows_exported"),
+                        "skipped_unreadable_count": table.get("skipped_unreadable_count"),
+                        "result": table.get("result"),
+                    }
+                    for table in table_payloads
+                ],
+            }
+            metadata = dict(index_payload)
+            metadata.update(
+                {
+                    "report_header": "[MEP QA BUNDLE V1 REPORT]",
+                    "action_name": action_name,
+                    "generated_files": [],
+                    "total_files_generated": 0,
+                    "total_elements_checked": data["total_elements_checked"],
+                    "total_rows_exported": data["total_rows_exported"],
+                    "skipped_unreadable_count": data["skipped_unreadable_count"],
+                    "table_counts": index_payload.get("tables"),
+                    "transaction_opened": False,
+                    "transaction_group_opened": False,
+                    "model_modified": False,
+                    "linked_document_modified": False,
+                    "ui_selection_modified": False,
+                    "external_files_written": True,
+                    "classification": data["classification"],
+                }
+            )
+            inventory_path = os.path.join(bundle_folder, "inventory_summary.csv")
+            bundle_index_path = os.path.join(bundle_folder, "bundle_index.json")
+            metadata_path = os.path.join(bundle_folder, "metadata.json")
+            summary_path = os.path.join(bundle_folder, "summary.txt")
+            manifest_path = os.path.join(bundle_folder, "artifact_manifest.txt")
+            self._mep_qa_bundle_v1_write_inventory_csv(inventory_path, table_payloads)
+            self._mep_export_v1_write_json(bundle_index_path, index_payload)
+            generated.extend(["inventory_summary.csv", "bundle_index.json"])
+            metadata["generated_files"] = ["summary.txt", "metadata.json", "artifact_manifest.txt"] + generated
+            metadata["total_files_generated"] = len(metadata["generated_files"])
+            self._mep_export_v1_write_json(metadata_path, metadata)
+            self._mep_export_v1_write_text(
+                summary_path,
+                [
+                    "[MEP QA BUNDLE V1 SUMMARY]",
+                    "Feature ID: {0}".format(data["feature_id"]),
+                    "Action name: {0}".format(action_name),
+                    "Prompt: {0}".format(data["prompt"]),
+                    "Timestamp: {0}".format(timestamp),
+                    "Document: {0}".format(data["document_title"]),
+                    "Active view: {0} [{1}]".format(data["active_view"], data["active_view_type"]),
+                    "Result classification: {0}".format(data["classification"]),
+                    "Bundle folder: {0}".format(bundle_folder),
+                    "Total elements checked: {0}".format(data["total_elements_checked"]),
+                    "Total rows exported: {0}".format(data["total_rows_exported"]),
+                    "Skipped/unreadable count: {0}".format(data["skipped_unreadable_count"]),
+                    "Model modified: false",
+                    "UI selection modified: false",
+                ],
+            )
+            manifest_lines = ["filename | purpose | row_count | created_timestamp"]
+            manifest_lines.append("summary.txt | human-readable bundle summary | {0} | {1}".format(data["total_rows_exported"], timestamp))
+            manifest_lines.append("metadata.json | machine-readable bundle metadata | {0} | {1}".format(data["total_rows_exported"], timestamp))
+            manifest_lines.append("artifact_manifest.txt | generated file manifest | {0} | {1}".format(data["total_rows_exported"], timestamp))
+            manifest_lines.append("bundle_index.json | structured table index | {0} | {1}".format(len(table_payloads), timestamp))
+            manifest_lines.append("inventory_summary.csv | table inventory summary | {0} | {1}".format(len(table_payloads), timestamp))
+            for table in table_payloads:
+                manifest_lines.append("{0} | {1} CSV table | {2} | {3}".format(table.get("csv"), table.get("name"), table.get("rows_exported"), timestamp))
+                manifest_lines.append("{0} | {1} JSON table | {2} | {3}".format(table.get("json"), table.get("name"), table.get("rows_exported"), timestamp))
+            self._mep_export_v1_write_text(manifest_path, manifest_lines)
+            data["generated_files"] = metadata["generated_files"]
+            data["total_files_generated"] = len(data["generated_files"])
+            data["external_files_written"] = True
+        except Exception as exc:
+            data["classification"] = "MEP_QA_BUNDLE_FAILED"
+            data["warnings"].append("Bundle creation failed: {0}".format(safe_str(exc)))
+        return data
+
+    def _mep_qa_bundle_v1_format_report(self, data):
+        lines = [
+            "[MEP QA BUNDLE V1 REPORT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Report ID:",
+            data.get("report_id"),
+            "",
+            "Timestamp:",
+            data.get("timestamp"),
+            "",
+            "Action name:",
+            data.get("action_name"),
+            "",
+            "Prompt:",
+            data.get("prompt"),
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view"), data.get("active_view_type")),
+            "",
+            "Scope:",
+            data.get("scope"),
+            "",
+            "Result classification:",
+            data.get("classification"),
+            "",
+            "Bundle folder:",
+            data.get("bundle_folder"),
+            "",
+            "Generated files count:",
+            data.get("total_files_generated"),
+            "",
+            "Main generated files:",
+        ]
+        for item in (data.get("generated_files") or [])[:30]:
+            lines.append("- {0}".format(item))
+        if not data.get("generated_files"):
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Table summary counts:",
+                "| Table | Elements checked | Rows exported | Skipped/unreadable | Result | Sample exported ids |",
+                "|---|---:|---:|---:|---|---|",
+            ]
+        )
+        for table in data.get("table_counts") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} |".format(
+                    table.get("name"),
+                    table.get("elements_checked"),
+                    table.get("rows_exported"),
+                    table.get("skipped_unreadable_count"),
+                    table.get("result"),
+                    ", ".join(table.get("sample_element_ids") or []) or "none",
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "Main summary counts:",
+                "- Total elements checked: {0}".format(data.get("total_elements_checked")),
+                "- Total rows exported: {0}".format(data.get("total_rows_exported")),
+                "- Total skipped/unreadable count: {0}".format(data.get("skipped_unreadable_count")),
+                "",
+                "Warnings:",
+            ]
+        )
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Recommended next action:",
+                self._mep_qa_bundle_v1_recommended_action(data.get("classification")),
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: false",
+                "- external files written: {0}".format("true" if data.get("external_files_written") else "false"),
+                "",
+                "Safety:",
+                "- MEP-QA-BUNDLE-v1 reads active-view Revit model data and writes external QA evidence files only.",
+                "- No transaction was opened.",
+                "- Revit model data was not modified.",
+                "- Revit UI selection was not modified.",
+                "- No reload, unload, pin, unpin, sheet/view/tag creation, delete, copy, mirror, connect, disconnect, join, unjoin, or parameter-write action was performed.",
+            ]
+        )
+        return "\n".join([safe_str(line) for line in lines])
+
+    def answer_mep_qa_bundle_v1_question(self, prompt):
+        if not _is_mep_qa_bundle_v1_prompt(prompt):
+            return None
+        data = self._mep_qa_bundle_v1_build_data(prompt)
+        report_text = self._mep_qa_bundle_v1_format_report(data)
+        report_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.latest_mep_qa_bundle_v1_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MEP QA BUNDLE V1 REPORT]",
+            "report_text": report_text,
+            "report_scope": "read-only active-view MEP QA aggregation with structured external evidence files",
+            "report_timestamp": report_timestamp,
+            "created_timestamp_local": report_timestamp,
+            "feature_id": "MEP-QA-BUNDLE-v1",
+            "feature_name": "MEP Active View QA Bundle v1",
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view"),
+            "active_view_type": data.get("active_view_type"),
+            "deterministic": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "external_files_written": bool(data.get("external_files_written")),
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _link_reset_advisor_document_match(self, state, active_document):
         if not state:
             return None
@@ -35555,16 +35969,21 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
-            mep_ro_export_v1_reply = self.answer_mep_ro_export_v1_question(
+            mep_qa_bundle_v1_reply = self.answer_mep_qa_bundle_v1_question(
                 prompt
             )
+            mep_ro_export_v1_reply = None
+            if mep_qa_bundle_v1_reply is None:
+                mep_ro_export_v1_reply = self.answer_mep_ro_export_v1_question(
+                    prompt
+                )
             mep_selection_v1_reply = None
-            if mep_ro_export_v1_reply is None:
+            if mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None:
                 mep_selection_v1_reply = self.answer_mep_selection_v1_question(
                     prompt
                 )
             mep_read_only_v1_reply = None
-            if mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
+            if mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -35624,7 +36043,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if mep_ro_export_v1_reply is not None:
+            if mep_qa_bundle_v1_reply is not None:
+                reply = mep_qa_bundle_v1_reply
+                preserve_latest_report_state = True
+            elif mep_ro_export_v1_reply is not None:
                 reply = mep_ro_export_v1_reply
                 preserve_latest_report_state = True
             elif mep_selection_v1_reply is not None:

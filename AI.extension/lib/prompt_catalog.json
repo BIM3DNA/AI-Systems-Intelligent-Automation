@@ -4388,5 +4388,30 @@
     "validation_state": "structural_only",
     "prompt_text": "export active view ducts table",
     "mode": "deterministic"
+  },
+  {
+    "id": "mep-qa-bundle-v1",
+    "title": "MEP Active View QA Bundle v1",
+    "category": "BIM QA",
+    "group": "MEP QA Evidence Bundles",
+    "discipline": "MEP",
+    "role": "read_export",
+    "risk_level": "low",
+    "scope_type": "mep_active_view_qa_bundle",
+    "canonical_prompt": "generate active view mep qa bundle",
+    "planner_aliases": [
+      "generate active view mep qa bundle",
+      "create active view mep qa bundle",
+      "export active view mep qa bundle",
+      "generate mep qa bundle",
+      "create mep qa evidence bundle",
+      "export mep qa evidence bundle"
+    ],
+    "deterministic_handler": "mep_qa_bundle_v1_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "generate active view mep qa bundle",
+    "mode": "deterministic"
   }
 ]
