@@ -101,6 +101,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[MEP QA DASHBOARD V1 REPORT]",
     "[MEP QA VIEWSCAN V1 REPORT]",
     "[MEP QA VIEWDETAIL V1 REPORT]",
+    "[MEP QA VIEWEXPORT V1 REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14338,6 +14339,33 @@ MEP_QA_VIEWDETAIL_V1_PREFIX_ROUTES = {
 }
 
 
+MEP_QA_VIEWEXPORT_V1_ACTIVE_ROUTES = {
+    "export active view mep qa details",
+    "export active view mep issues",
+}
+
+
+MEP_QA_VIEWEXPORT_V1_PREFIX_ROUTES = {
+    "export mep qa details for view",
+    "export mep qa detail for view",
+    "export mep issues for view",
+    "export issue candidates for view",
+    "export qa issues for view",
+    "export named view mep qa",
+    "export view mep qa",
+}
+
+
+def _is_mep_qa_viewexport_v1_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    if normalized in MEP_QA_VIEWEXPORT_V1_ACTIVE_ROUTES:
+        return True
+    for route in MEP_QA_VIEWEXPORT_V1_PREFIX_ROUTES:
+        if normalized == route or normalized.startswith(route + " "):
+            return True
+    return False
+
+
 def _is_mep_qa_viewdetail_v1_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     if normalized in MEP_QA_VIEWDETAIL_V1_ACTIVE_ROUTES:
@@ -16434,6 +16462,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "compact read-only multi-view MEP QA status scan"
         if header == "[MEP QA VIEWDETAIL V1 REPORT]":
             return "compact read-only named-view MEP QA drilldown"
+        if header == "[MEP QA VIEWEXPORT V1 REPORT]":
+            return "read-only named-view MEP QA issue export with structured external files"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -31302,6 +31332,634 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _mep_qa_viewexport_v1_root(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+        return os.path.join(user_profile, "Desktop", "Results", "AI_Workbench", "MEP_View_Exports")
+
+    def _mep_qa_viewexport_v1_slug(self, value):
+        slug = re.sub(r"[^a-z0-9]+", "_", safe_str(value).lower()).strip("_")
+        return slug or "mep_view_export"
+
+    def _mep_qa_viewexport_v1_columns(self):
+        columns = list(self._mep_export_v1_columns())
+        insert_at = columns.index("export_scope") if "export_scope" in columns else len(columns)
+        for col in ["target_view", "target_view_type", "target_view_id", "issue_group"]:
+            if col not in columns:
+                columns.insert(insert_at, col)
+                insert_at += 1
+        return columns
+
+    def _mep_qa_viewexport_v1_issue_specs(self):
+        return [
+            {
+                "name": "unconnected_pipe_fittings",
+                "label": "Unconnected pipe fittings",
+                "discipline": "Piping",
+                "action_key": "export_unconnected_pipe_fittings",
+                "followup": "select unconnected pipe fittings",
+                "notes": "Pipe fittings with one or more unconnected physical connectors.",
+            },
+            {
+                "name": "pipes_without_system_assignment",
+                "label": "Pipes without system assignment",
+                "discipline": "Piping",
+                "action_key": "export_pipes_without_system",
+                "followup": "export pipes without system assignment table",
+                "notes": "Pipes classified as missing or unassigned system assignment.",
+            },
+            {
+                "name": "unconnected_duct_fittings",
+                "label": "Unconnected duct fittings",
+                "discipline": "HVAC",
+                "action_key": "export_unconnected_duct_fittings",
+                "followup": "select unconnected duct fittings",
+                "notes": "Duct fittings with one or more unconnected physical connectors.",
+            },
+            {
+                "name": "ducts_without_system_assignment",
+                "label": "Ducts without system assignment",
+                "discipline": "HVAC",
+                "action_key": "export_ducts_without_system",
+                "followup": "select ducts without system assignment",
+                "notes": "Ducts classified as missing or unassigned system assignment.",
+            },
+            {
+                "name": "devices_without_circuit_system_info",
+                "label": "Devices without circuit/system info",
+                "discipline": "Electrical",
+                "action_key": "export_devices_without_circuit",
+                "followup": "select devices without circuit/system info",
+                "notes": "Electrical devices missing circuit/system-like information.",
+            },
+        ]
+
+    def _mep_qa_viewexport_v1_recommended_action(self, classification):
+        if classification == "MEP_QA_VIEWEXPORT_OK":
+            return "Open the generated named-view issue export folder and review the CSV/JSON issue files. Revit model data and UI selection were not modified."
+        if classification == "MEP_QA_VIEWEXPORT_EMPTY":
+            return "No issue candidates were found in the target view. Revit model data and UI selection were not modified."
+        if classification == "MEP_QA_VIEWEXPORT_PARTIAL_WITH_SKIPPED_ELEMENTS":
+            return "Review skipped/unreadable elements and inspect the exported files before using them as QA evidence."
+        if classification == "MEP_QA_VIEWEXPORT_VIEW_NOT_FOUND":
+            return "Check the view name and rerun using an exact non-template floor plan view name."
+        if classification == "MEP_QA_VIEWEXPORT_AMBIGUOUS_VIEW":
+            return "Use the exact view name from the candidate list."
+        if classification == "MEP_QA_VIEWEXPORT_UNSUPPORTED_PROMPT":
+            return "Use a supported MEP-QA-VIEWEXPORT-v1 export prompt."
+        return "Review export error details and rerun after correcting file path or view context."
+
+    def _mep_qa_viewexport_v1_extract_target_name(self, prompt):
+        raw = safe_str(prompt).strip()
+        normalized = _normalize_deterministic_route_text(prompt)
+        if normalized in MEP_QA_VIEWEXPORT_V1_ACTIVE_ROUTES or "active view" in normalized:
+            return None, True
+        lower = raw.lower()
+        markers = [
+            "export mep qa details for view",
+            "export mep qa detail for view",
+            "export mep issues for view",
+            "export issue candidates for view",
+            "export qa issues for view",
+            "export named view mep qa",
+            "export view mep qa",
+            "for view",
+            "view",
+            "for",
+        ]
+        for marker in markers:
+            idx = lower.find(marker)
+            if idx >= 0:
+                value = raw[idx + len(marker):].strip()
+                value = value.strip("'\"")
+                if value:
+                    return value, False
+        return "", False
+
+    def _mep_qa_viewexport_v1_resolve_view(self, prompt):
+        target_name, use_active = self._mep_qa_viewexport_v1_extract_target_name(prompt)
+        if use_active:
+            try:
+                return {
+                    "target_view": uidoc.ActiveView,
+                    "used_active_view": True,
+                    "classification": None,
+                    "warnings": [],
+                    "candidate_view_names": [],
+                    "target_view_name_request": "",
+                }
+            except Exception as exc:
+                return {
+                    "target_view": None,
+                    "used_active_view": True,
+                    "classification": "MEP_QA_VIEWEXPORT_FAILED",
+                    "warnings": ["Active view could not be read: {0}".format(safe_str(exc))],
+                    "candidate_view_names": [],
+                    "target_view_name_request": "",
+                }
+        result = {
+            "target_view": None,
+            "target_view_name_request": target_name or "",
+            "used_active_view": False,
+            "classification": None,
+            "warnings": [],
+            "candidate_view_names": [],
+        }
+        views = self._mep_qa_viewdetail_v1_floor_plan_views()
+        if not target_name:
+            result["classification"] = "MEP_QA_VIEWEXPORT_VIEW_NOT_FOUND"
+            result["warnings"].append("No target view name was provided.")
+            result["candidate_view_names"] = [safe_str(getattr(view, "Name", "")) for view in views[:10]]
+            return result
+        target_lower = safe_str(target_name).lower()
+        exact = [view for view in views if safe_str(getattr(view, "Name", "")).lower() == target_lower]
+        if len(exact) == 1:
+            result["target_view"] = exact[0]
+            return result
+        contains = [view for view in views if target_lower in safe_str(getattr(view, "Name", "")).lower()]
+        if len(contains) == 1:
+            result["target_view"] = contains[0]
+            return result
+        if len(contains) > 1:
+            result["classification"] = "MEP_QA_VIEWEXPORT_AMBIGUOUS_VIEW"
+            result["candidate_view_names"] = [safe_str(getattr(view, "Name", "")) for view in contains[:10]]
+            result["warnings"].append("Multiple non-template floor plan views matched the requested name.")
+            return result
+        result["classification"] = "MEP_QA_VIEWEXPORT_VIEW_NOT_FOUND"
+        result["candidate_view_names"] = [safe_str(getattr(view, "Name", "")) for view in views[:10]]
+        result["warnings"].append("No non-template floor plan view matched the requested name.")
+        return result
+
+    def _mep_qa_viewexport_v1_row(self, elem, row_index, target_view, issue_group, qa_reason):
+        row = self._mep_export_v1_row(
+            elem,
+            row_index,
+            "named_view_mep_qa_issue_export",
+            qa_reason,
+        )
+        row["target_view"] = safe_str(getattr(target_view, "Name", "unavailable"))
+        try:
+            row["target_view_type"] = safe_str(target_view.ViewType)
+        except:
+            row["target_view_type"] = ""
+        try:
+            row["target_view_id"] = safe_str(target_view.Id.IntegerValue)
+        except:
+            row["target_view_id"] = ""
+        row["issue_group"] = issue_group
+        return row
+
+    def _mep_qa_viewexport_v1_inventory_counts(self, view):
+        counts = {
+            "pipes": 0,
+            "pipe_fittings_checked": 0,
+            "ducts": 0,
+            "duct_fittings_checked": 0,
+            "electrical_devices": 0,
+        }
+        try:
+            pipes, warnings = self._mep_export_v1_elements_for_action_in_view("export_active_view_pipes", view)[:2]
+            counts["pipes"] = len(pipes)
+        except:
+            pass
+        try:
+            pipe_fittings, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, [self._mep_ro_v1_category_id("OST_PipeFitting")])
+            counts["pipe_fittings_checked"] = len(pipe_fittings)
+        except:
+            pass
+        try:
+            ducts, warnings = self._mep_export_v1_elements_for_action_in_view("export_active_view_ducts", view)[:2]
+            counts["ducts"] = len(ducts)
+        except:
+            pass
+        try:
+            duct_fittings, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, [self._mep_ro_v1_category_id("OST_DuctFitting")])
+            counts["duct_fittings_checked"] = len(duct_fittings)
+        except:
+            pass
+        try:
+            devices, warnings = self._mep_export_v1_elements_for_action_in_view("export_active_view_electrical", view)[:2]
+            counts["electrical_devices"] = len(devices)
+        except:
+            pass
+        counts["total_mep_inventory_count"] = counts["pipes"] + counts["ducts"] + counts["electrical_devices"]
+        return counts
+
+    def _mep_qa_viewexport_v1_write_manifest(self, export_folder, generated_files):
+        path = os.path.join(export_folder, "artifact_manifest.txt")
+        lines = [
+            "MEP-QA-VIEWEXPORT-v1 artifacts",
+            "Generated files:",
+        ]
+        for item in generated_files:
+            lines.append("- {0}".format(item))
+        self._mep_export_v1_write_text(path, lines)
+        return path
+
+    def _mep_qa_viewexport_v1_build_data(self, prompt):
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        timestamp_slug = time.strftime("%Y%m%d_%H%M%S")
+        report_id = "MEP-QA-VIEWEXPORT-v1-{0}".format(timestamp_slug)
+        data = {
+            "feature_id": "MEP-QA-VIEWEXPORT-v1",
+            "feature_name": "MEP Named View QA Export v1",
+            "report_id": report_id,
+            "timestamp": timestamp,
+            "action_name": "Export MEP QA issues for named view",
+            "prompt": safe_str(prompt),
+            "document_title": _document_title(doc),
+            "active_view": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "selection_count": 0,
+            "target_view_name": "unavailable",
+            "target_view_type": "unavailable",
+            "target_view_id": "unavailable",
+            "scope": "read-only named-view MEP QA issue export with structured external files",
+            "classification": "MEP_QA_VIEWEXPORT_FAILED",
+            "export_folder": "",
+            "generated_files": [],
+            "total_files_generated": 0,
+            "total_issue_rows_exported": 0,
+            "total_elements_checked": 0,
+            "skipped_unreadable_count": 0,
+            "issue_group_counts": [],
+            "inventory_counts": {},
+            "warnings": [],
+            "candidate_view_names": [],
+            "external_files_written": False,
+        }
+        try:
+            data["selection_count"] = len(list(uidoc.Selection.GetElementIds()))
+        except Exception as exc:
+            data["warnings"].append("Current UI selection count could not be read: {0}".format(safe_str(exc)))
+        if not _is_mep_qa_viewexport_v1_prompt(prompt):
+            data["classification"] = "MEP_QA_VIEWEXPORT_UNSUPPORTED_PROMPT"
+            data["warnings"].append("Unsupported MEP-QA-VIEWEXPORT-v1 prompt.")
+            return data
+        resolved = self._mep_qa_viewexport_v1_resolve_view(prompt)
+        data["candidate_view_names"] = resolved.get("candidate_view_names") or []
+        data["warnings"].extend(resolved.get("warnings") or [])
+        if resolved.get("used_active_view"):
+            data["action_name"] = "Export MEP QA issues for active view"
+        view = resolved.get("target_view")
+        if view is None:
+            data["classification"] = resolved.get("classification") or "MEP_QA_VIEWEXPORT_VIEW_NOT_FOUND"
+            return data
+        try:
+            DB.FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType()
+        except Exception as exc:
+            data["classification"] = "MEP_QA_VIEWEXPORT_FAILED"
+            data["warnings"].append("Target view cannot be collected: {0}".format(safe_str(exc)))
+            return data
+        data["target_view_name"] = safe_str(getattr(view, "Name", "unavailable"))
+        try:
+            data["target_view_type"] = safe_str(view.ViewType)
+        except:
+            data["target_view_type"] = "unavailable"
+        try:
+            data["target_view_id"] = safe_str(view.Id.IntegerValue)
+        except:
+            data["target_view_id"] = "unavailable"
+        try:
+            root = self._mep_qa_viewexport_v1_root()
+            action_slug = self._mep_qa_viewexport_v1_slug("{0}_{1}".format(data["action_name"], data["target_view_name"]))
+            export_folder = os.path.join(root, "{0}_{1}".format(timestamp_slug, action_slug))
+            if not os.path.isdir(root):
+                os.makedirs(root)
+            if not os.path.isdir(export_folder):
+                os.makedirs(export_folder)
+            data["export_folder"] = export_folder
+            columns = self._mep_qa_viewexport_v1_columns()
+            summary_rows = []
+            issue_index_groups = []
+            generated_files = []
+            total_rows = 0
+            total_checked = 0
+            total_skipped = 0
+            data["inventory_counts"] = self._mep_qa_viewexport_v1_inventory_counts(view)
+            for spec in self._mep_qa_viewexport_v1_issue_specs():
+                elements, warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action_in_view(spec["action_key"], view)
+                data["warnings"].extend(warnings or [])
+                rows = []
+                for idx, elem in enumerate(elements, 1):
+                    try:
+                        rows.append(self._mep_qa_viewexport_v1_row(elem, idx, view, spec["name"], qa_reason))
+                    except:
+                        skipped.append(self._mep_ro_v1_element_id_text(elem))
+                result = "PARTIAL" if skipped else ("OK" if rows else "EMPTY")
+                csv_name = spec["name"] + ".csv"
+                json_name = spec["name"] + ".json"
+                csv_path = os.path.join(export_folder, csv_name)
+                json_path = os.path.join(export_folder, json_name)
+                self._mep_export_v1_write_csv(csv_path, columns, rows)
+                self._mep_export_v1_write_json(
+                    json_path,
+                    {
+                        "feature_id": "MEP-QA-VIEWEXPORT-v1",
+                        "feature_name": "MEP Named View QA Export v1",
+                        "issue_group": spec["name"],
+                        "prompt": safe_str(prompt),
+                        "timestamp": timestamp,
+                        "document_title": data["document_title"],
+                        "active_view": data["active_view"],
+                        "target_view_name": data["target_view_name"],
+                        "target_view_id": data["target_view_id"],
+                        "row_count": len(rows),
+                        "rows": rows,
+                    },
+                )
+                generated_files.extend([csv_name, json_name])
+                total_rows += len(rows)
+                total_checked += int(checked or 0)
+                total_skipped += len(skipped or [])
+                group_record = {
+                    "name": spec["name"],
+                    "discipline": spec["discipline"],
+                    "elements_checked": int(checked or 0),
+                    "rows_exported": len(rows),
+                    "skipped_unreadable_count": len(skipped or []),
+                    "csv": csv_name,
+                    "json": json_name,
+                    "result": result,
+                    "suggested_followup_prompt": spec["followup"],
+                    "notes": spec["notes"],
+                }
+                data["issue_group_counts"].append(group_record)
+                issue_index_groups.append(group_record)
+                summary_rows.append(group_record)
+            issue_summary_columns = [
+                "issue_group",
+                "discipline",
+                "elements_checked",
+                "rows_exported",
+                "skipped_unreadable_count",
+                "csv_file",
+                "json_file",
+                "result",
+                "suggested_followup_prompt",
+                "notes",
+            ]
+            issue_summary_rows = []
+            for item in summary_rows:
+                issue_summary_rows.append(
+                    {
+                        "issue_group": item.get("name"),
+                        "discipline": item.get("discipline"),
+                        "elements_checked": item.get("elements_checked"),
+                        "rows_exported": item.get("rows_exported"),
+                        "skipped_unreadable_count": item.get("skipped_unreadable_count"),
+                        "csv_file": item.get("csv"),
+                        "json_file": item.get("json"),
+                        "result": item.get("result"),
+                        "suggested_followup_prompt": item.get("suggested_followup_prompt"),
+                        "notes": item.get("notes"),
+                    }
+                )
+            self._mep_export_v1_write_csv(os.path.join(export_folder, "issue_summary.csv"), issue_summary_columns, issue_summary_rows)
+            generated_files.append("issue_summary.csv")
+            self._mep_export_v1_write_json(
+                os.path.join(export_folder, "issue_index.json"),
+                {
+                    "feature_id": "MEP-QA-VIEWEXPORT-v1",
+                    "feature_name": "MEP Named View QA Export v1",
+                    "prompt": safe_str(prompt),
+                    "timestamp": timestamp,
+                    "document_title": data["document_title"],
+                    "current_active_view": data["active_view"],
+                    "target_view_name": data["target_view_name"],
+                    "target_view_id": data["target_view_id"],
+                    "export_folder": export_folder,
+                    "issue_groups": issue_index_groups,
+                },
+            )
+            generated_files.append("issue_index.json")
+            summary_lines = [
+                "[MEP QA VIEWEXPORT V1 SUMMARY]",
+                "Report ID: {0}".format(report_id),
+                "Document: {0}".format(data["document_title"]),
+                "Current active view: {0} [{1}]".format(data["active_view"], data["active_view_type"]),
+                "Target view: {0} [{1}]".format(data["target_view_name"], data["target_view_type"]),
+                "Total issue rows exported: {0}".format(total_rows),
+                "Total elements checked: {0}".format(total_checked),
+                "Total skipped/unreadable count: {0}".format(total_skipped),
+            ]
+            self._mep_export_v1_write_text(os.path.join(export_folder, "summary.txt"), summary_lines)
+            generated_files.append("summary.txt")
+            metadata = {
+                "feature_id": "MEP-QA-VIEWEXPORT-v1",
+                "feature_name": "MEP Named View QA Export v1",
+                "report_header": "[MEP QA VIEWEXPORT V1 REPORT]",
+                "action_name": data["action_name"],
+                "prompt": safe_str(prompt),
+                "timestamp": timestamp,
+                "document_title": data["document_title"],
+                "current_active_view": data["active_view"],
+                "current_active_view_type": data["active_view_type"],
+                "target_view_name": data["target_view_name"],
+                "target_view_type": data["target_view_type"],
+                "target_view_id": data["target_view_id"],
+                "export_folder": export_folder,
+                "generated_files": generated_files,
+                "total_files_generated": len(generated_files) + 2,
+                "total_issue_rows_exported": total_rows,
+                "total_elements_checked": total_checked,
+                "skipped_unreadable_count": total_skipped,
+                "issue_group_counts": data["issue_group_counts"],
+                "inventory_counts": data["inventory_counts"],
+                "transaction_opened": False,
+                "transaction_group_opened": False,
+                "model_modified": False,
+                "linked_document_modified": False,
+                "ui_selection_modified": False,
+                "active_view_changed": False,
+                "external_files_written": True,
+            }
+            self._mep_export_v1_write_json(os.path.join(export_folder, "metadata.json"), metadata)
+            generated_files.append("metadata.json")
+            self._mep_qa_viewexport_v1_write_manifest(export_folder, generated_files + ["artifact_manifest.txt"])
+            generated_files.append("artifact_manifest.txt")
+            data["generated_files"] = generated_files
+            data["total_files_generated"] = len(generated_files)
+            data["total_issue_rows_exported"] = total_rows
+            data["total_elements_checked"] = total_checked
+            data["skipped_unreadable_count"] = total_skipped
+            data["external_files_written"] = True
+            if total_skipped > 0:
+                data["classification"] = "MEP_QA_VIEWEXPORT_PARTIAL_WITH_SKIPPED_ELEMENTS"
+            elif total_rows > 0:
+                data["classification"] = "MEP_QA_VIEWEXPORT_OK"
+            else:
+                data["classification"] = "MEP_QA_VIEWEXPORT_EMPTY"
+        except Exception as exc:
+            data["classification"] = "MEP_QA_VIEWEXPORT_FAILED"
+            data["warnings"].append("Named-view issue export failed: {0}".format(safe_str(exc)))
+        return data
+
+    def _mep_qa_viewexport_v1_format_report(self, data):
+        inventory = data.get("inventory_counts") or {}
+        lines = [
+            "[MEP QA VIEWEXPORT V1 REPORT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "",
+            "Feature name:",
+            data.get("feature_name"),
+            "",
+            "Report ID:",
+            data.get("report_id"),
+            "",
+            "Timestamp:",
+            data.get("timestamp"),
+            "",
+            "Action name:",
+            data.get("action_name"),
+            "",
+            "Prompt:",
+            data.get("prompt"),
+            "",
+            "Active document title:",
+            data.get("document_title"),
+            "",
+            "Current active view:",
+            "{0} [{1}]".format(data.get("active_view"), data.get("active_view_type")),
+            "",
+            "Current UI selection count:",
+            data.get("selection_count"),
+            "",
+            "Target view name:",
+            data.get("target_view_name"),
+            "",
+            "Target view type:",
+            data.get("target_view_type"),
+            "",
+            "Target view id:",
+            data.get("target_view_id"),
+            "",
+            "Scope:",
+            data.get("scope"),
+            "",
+            "Result classification:",
+            data.get("classification"),
+            "",
+            "Export folder:",
+            data.get("export_folder") or "not created",
+            "",
+            "Generated files count:",
+            data.get("total_files_generated"),
+            "",
+            "Main generated files list:",
+        ]
+        for item in data.get("generated_files") or []:
+            lines.append("- {0}".format(item))
+        if not data.get("generated_files"):
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Inventory summary:",
+                "- Pipes: {0}".format(inventory.get("pipes", 0)),
+                "- Pipe fittings checked: {0}".format(inventory.get("pipe_fittings_checked", 0)),
+                "- Ducts: {0}".format(inventory.get("ducts", 0)),
+                "- Duct fittings checked: {0}".format(inventory.get("duct_fittings_checked", 0)),
+                "- Electrical devices: {0}".format(inventory.get("electrical_devices", 0)),
+                "- Total MEP inventory count: {0}".format(inventory.get("total_mep_inventory_count", 0)),
+                "",
+                "Issue export summary table:",
+                "| Issue group | Discipline | Elements checked | Rows exported | Skipped/unreadable | Result | Suggested follow-up prompt |",
+                "|---|---|---:|---:|---:|---|---|",
+            ]
+        )
+        for item in data.get("issue_group_counts") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} |".format(
+                    item.get("name"),
+                    item.get("discipline"),
+                    item.get("elements_checked"),
+                    item.get("rows_exported"),
+                    item.get("skipped_unreadable_count"),
+                    item.get("result"),
+                    safe_str(item.get("suggested_followup_prompt")).replace("|", "\\|"),
+                )
+            )
+        if not data.get("issue_group_counts"):
+            lines.append("| none | none | 0 | 0 | 0 | none | none |")
+        lines.extend(
+            [
+                "",
+                "Main summary counts:",
+                "- Total issue rows exported: {0}".format(data.get("total_issue_rows_exported")),
+                "- Total elements checked: {0}".format(data.get("total_elements_checked")),
+                "- Total skipped/unreadable count: {0}".format(data.get("skipped_unreadable_count")),
+            ]
+        )
+        if data.get("candidate_view_names"):
+            lines.extend(["", "Candidate view names:"])
+            for name in data.get("candidate_view_names"):
+                lines.append("- {0}".format(name))
+        lines.extend(["", "Warnings:"])
+        if data.get("warnings"):
+            for warning in data.get("warnings"):
+                lines.append("- {0}".format(warning))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Recommended next actions:",
+                self._mep_qa_viewexport_v1_recommended_action(data.get("classification")),
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: false",
+                "- active view changed: false",
+                "- external files written: {0}".format("true" if data.get("external_files_written") else "false"),
+                "",
+                "Safety:",
+                "- MEP-QA-VIEWEXPORT-v1 reads target-view Revit model data and writes external issue export files only.",
+                "- It does not change the active view and does not select elements.",
+                "- Revit model data and UI selection were not modified.",
+            ]
+        )
+        return "\n".join([safe_str(line) for line in lines])
+
+    def answer_mep_qa_viewexport_v1_question(self, prompt):
+        if not _is_mep_qa_viewexport_v1_prompt(prompt):
+            return None
+        data = self._mep_qa_viewexport_v1_build_data(prompt)
+        report_text = self._mep_qa_viewexport_v1_format_report(data)
+        report_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.latest_mep_qa_viewexport_v1_state = dict(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MEP QA VIEWEXPORT V1 REPORT]",
+            "report_text": report_text,
+            "report_scope": "read-only named-view MEP QA issue export with structured external files",
+            "report_timestamp": report_timestamp,
+            "created_timestamp_local": report_timestamp,
+            "feature_id": "MEP-QA-VIEWEXPORT-v1",
+            "feature_name": "MEP Named View QA Export v1",
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view"),
+            "active_view_type": data.get("active_view_type"),
+            "target_view_name": data.get("target_view_name"),
+            "target_view_type": data.get("target_view_type"),
+            "target_view_id": data.get("target_view_id"),
+            "export_folder": data.get("export_folder"),
+            "deterministic": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "active_view_changed": False,
+            "external_files_written": bool(data.get("external_files_written")),
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _mep_qa_dashboard_v1_build_data(self, prompt):
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         report_id = "MEP-QA-DASHBOARD-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
@@ -37343,36 +38001,41 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
-            mep_qa_viewdetail_v1_reply = self.answer_mep_qa_viewdetail_v1_question(
+            mep_qa_viewexport_v1_reply = self.answer_mep_qa_viewexport_v1_question(
                 prompt
             )
+            mep_qa_viewdetail_v1_reply = None
+            if mep_qa_viewexport_v1_reply is None:
+                mep_qa_viewdetail_v1_reply = self.answer_mep_qa_viewdetail_v1_question(
+                    prompt
+                )
             mep_qa_viewscan_v1_reply = None
-            if mep_qa_viewdetail_v1_reply is None:
+            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None:
                 mep_qa_viewscan_v1_reply = self.answer_mep_qa_viewscan_v1_question(
                     prompt
                 )
             mep_qa_dashboard_v1_reply = None
-            if mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None:
+            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None:
                 mep_qa_dashboard_v1_reply = self.answer_mep_qa_dashboard_v1_question(
                     prompt
                 )
             mep_qa_bundle_v1_reply = None
-            if mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None:
+            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None:
                 mep_qa_bundle_v1_reply = self.answer_mep_qa_bundle_v1_question(
                     prompt
                 )
             mep_ro_export_v1_reply = None
-            if mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None:
+            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None:
                 mep_ro_export_v1_reply = self.answer_mep_ro_export_v1_question(
                     prompt
                 )
             mep_selection_v1_reply = None
-            if mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None:
+            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None:
                 mep_selection_v1_reply = self.answer_mep_selection_v1_question(
                     prompt
                 )
             mep_read_only_v1_reply = None
-            if mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
+            if mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -37432,7 +38095,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if mep_qa_viewdetail_v1_reply is not None:
+            if mep_qa_viewexport_v1_reply is not None:
+                reply = mep_qa_viewexport_v1_reply
+                preserve_latest_report_state = True
+            elif mep_qa_viewdetail_v1_reply is not None:
                 reply = mep_qa_viewdetail_v1_reply
                 preserve_latest_report_state = True
             elif mep_qa_viewscan_v1_reply is not None:

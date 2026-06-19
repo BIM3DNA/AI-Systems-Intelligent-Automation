@@ -4498,5 +4498,33 @@
     "validation_state": "structural_only",
     "prompt_text": "show mep qa details for view L3",
     "mode": "deterministic"
+  },
+  {
+    "id": "mep-qa-viewexport-v1",
+    "title": "MEP Named View QA Export v1",
+    "category": "BIM QA",
+    "group": "MEP QA Evidence Exports",
+    "discipline": "MEP",
+    "role": "read_export",
+    "risk_level": "low",
+    "scope_type": "mep_named_view_qa_issue_export",
+    "canonical_prompt": "export mep qa details for view <view name>",
+    "planner_aliases": [
+      "export mep qa details for view",
+      "export mep qa detail for view",
+      "export mep issues for view",
+      "export issue candidates for view",
+      "export qa issues for view",
+      "export named view mep qa",
+      "export view mep qa",
+      "export active view mep qa details",
+      "export active view mep issues"
+    ],
+    "deterministic_handler": "mep_qa_viewexport_v1_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "export mep qa details for view L3",
+    "mode": "deterministic"
   }
 ]
