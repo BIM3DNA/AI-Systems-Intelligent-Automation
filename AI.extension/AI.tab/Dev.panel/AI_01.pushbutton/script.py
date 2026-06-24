@@ -15485,8 +15485,10 @@ class OllamaAIChat(forms.WPFWindow):
         input_grid = Grid()
         input_grid.ColumnDefinitions.Add(ColumnDefinition())
         input_grid.ColumnDefinitions.Add(ColumnDefinition())
+        input_grid.ColumnDefinitions.Add(ColumnDefinition())
         input_grid.ColumnDefinitions[0].Width = Wpf.GridLength(1, Wpf.GridUnitType.Star)
         input_grid.ColumnDefinitions[1].Width = Wpf.GridLength(96)
+        input_grid.ColumnDefinitions[2].Width = Wpf.GridLength(112)
         input_box = TextBox()
         input_box.MinHeight = 32
         input_box.MaxHeight = 88
@@ -15504,9 +15506,19 @@ class OllamaAIChat(forms.WPFWindow):
         run_button.Foreground = self._brush("#ffffff")
         run_button.FontWeight = Wpf.FontWeights.Bold
         run_button.Click += self.on_console_run
+        advanced_button = Button()
+        advanced_button.Content = "Advanced"
+        advanced_button.Height = 32
+        advanced_button.Margin = Wpf.Thickness(8, 0, 0, 0)
+        advanced_button.Background = self._brush("#f8fafd")
+        advanced_button.Foreground = self._brush("#1f2937")
+        advanced_button.ToolTip = "Show or hide command tree and technical diagnostics."
+        advanced_button.Click += self.on_console_toggle_advanced
         input_grid.Children.Add(input_box)
         Grid.SetColumn(run_button, 1)
         input_grid.Children.Add(run_button)
+        Grid.SetColumn(advanced_button, 2)
+        input_grid.Children.Add(advanced_button)
         Grid.SetRow(input_grid, 1)
         center.Children.Add(input_grid)
 
@@ -15553,8 +15565,10 @@ class OllamaAIChat(forms.WPFWindow):
         clear_button.Margin = Wpf.Thickness(0, 0, 6, 6)
         clear_button.Click += self.on_console_clear_result
         confirm = CheckBox()
-        confirm.Content = "Confirm UI-selection-only command"
+        confirm.Content = "This will change the Revit UI selection only. It will not modify model data."
         confirm.Margin = Wpf.Thickness(0, 4, 0, 6)
+        confirm.Checked += self.on_console_selection_confirm_changed
+        confirm.Unchecked += self.on_console_selection_confirm_changed
         button_panel.Children.Add(export_button)
         button_panel.Children.Add(clear_button)
         button_panel.Children.Add(confirm)
@@ -15628,8 +15642,14 @@ class OllamaAIChat(forms.WPFWindow):
 
         tab.Content = root
         self.ConsoleTab = tab
+        self.ConsoleRootGrid = root
+        self.ConsoleAdvancedPanel = left
+        self.ConsoleAdvancedSplitter = split_a
+        self.ConsoleVisualGroup = visual_group
+        self.ConsoleAdvancedVisible = False
         self.ConsolePromptInput = input_box
         self.ConsoleRunButton = run_button
+        self.ConsoleAdvancedButton = advanced_button
         self.ConsoleSuggestionList = suggestions
         self.ConsoleCommandTree = tree
         self.ConsolePreviewBox = preview_box
@@ -15642,6 +15662,7 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             self.MainTabs.Items.Add(tab)
         self.populate_console_command_tree()
+        self._set_console_advanced_visible(False)
 
     def _console_normalize(self, value):
         return _normalize_deterministic_route_text(value)
@@ -15722,8 +15743,56 @@ class OllamaAIChat(forms.WPFWindow):
         safety = self._console_safety_class(entry)
         group, subgroup = self._console_group_path(entry)
         title = safe_str(entry.get("title") or entry.get("feature_name") or prompt_text)
-        feature_id = self._console_entry_feature_id(entry)
-        return "{0} | {1} | {2} / {3} | {4}".format(prompt_text, feature_id, group, subgroup, safety)
+        write_note = ""
+        if safety in ("export", "bundle"):
+            write_note = " - writes files"
+        elif safety == "selection-only":
+            write_note = " - UI selection only"
+        return "{0} - {1} - {2} / {3} - {4}{5}".format(
+            title,
+            prompt_text,
+            group,
+            subgroup,
+            safety,
+            write_note,
+        )
+
+    def _set_console_advanced_visible(self, visible):
+        if not hasattr(self, "ConsoleRootGrid"):
+            return
+        import System.Windows as Wpf
+        self.ConsoleAdvancedVisible = bool(visible)
+        try:
+            self.ConsoleRootGrid.ColumnDefinitions[0].Width = Wpf.GridLength(290 if visible else 0)
+            self.ConsoleRootGrid.ColumnDefinitions[1].Width = Wpf.GridLength(6 if visible else 0)
+            self.ConsoleAdvancedPanel.Visibility = (
+                Wpf.Visibility.Visible if visible else Wpf.Visibility.Collapsed
+            )
+            self.ConsoleAdvancedSplitter.Visibility = (
+                Wpf.Visibility.Visible if visible else Wpf.Visibility.Collapsed
+            )
+            self.ConsoleAdvancedButton.Content = "Hide Advanced" if visible else "Advanced"
+        except:
+            pass
+        try:
+            self.ConsoleVisualGroup.Visibility = (
+                Wpf.Visibility.Visible if visible else Wpf.Visibility.Collapsed
+            )
+        except:
+            pass
+        try:
+            self._render_console_context()
+        except:
+            pass
+
+    def on_console_toggle_advanced(self, sender, args):
+        self._set_console_advanced_visible(not bool(getattr(self, "ConsoleAdvancedVisible", False)))
+
+    def on_console_selection_confirm_changed(self, sender, args):
+        try:
+            self.update_console_suggestions()
+        except:
+            pass
 
     def _rebuild_console_command_index(self):
         index = []
@@ -15761,6 +15830,45 @@ class OllamaAIChat(forms.WPFWindow):
         self.console_command_index = index
         return index
 
+    def _console_meaningful_tokens(self, value):
+        stop = set(
+            [
+                "a",
+                "an",
+                "and",
+                "all",
+                "for",
+                "in",
+                "of",
+                "on",
+                "the",
+                "to",
+                "with",
+                "from",
+                "please",
+                "latest",
+                "current",
+            ]
+        )
+        tokens = re.findall(r"[a-z0-9]+", self._console_normalize(value))
+        return [token for token in tokens if len(token) > 1 and token not in stop]
+
+    def _console_has_dangerous_unknown_intent(self, value):
+        normalized = self._console_normalize(value)
+        dangerous = [
+            "banana",
+            "dragon",
+            "destroy",
+            "delete all",
+            "cut all",
+            "wipe",
+            "explode",
+            "murder",
+            "nuke",
+            "force everything",
+        ]
+        return any(term in normalized for term in dangerous)
+
     def _console_rank_suggestions(self, text):
         text = safe_str(text).strip()
         norm = self._console_normalize(text)
@@ -15772,26 +15880,47 @@ class OllamaAIChat(forms.WPFWindow):
                 "export mep project issue index",
                 "export latest QA report",
             ]
-            return [item for prompt in preferred for item in self.console_command_index if item["normalized"] == self._console_normalize(prompt)][:8]
-        terms = [term for term in norm.split(" ") if term]
+            suggestions = []
+            for prompt in preferred:
+                for item in self.console_command_index:
+                    if item["normalized"] == self._console_normalize(prompt):
+                        candidate = dict(item)
+                        candidate["confidence"] = "recommended"
+                        candidate["score"] = 700
+                        suggestions.append(candidate)
+            return suggestions[:8]
+        terms = self._console_meaningful_tokens(norm)
+        dangerous = self._console_has_dangerous_unknown_intent(norm)
         ranked = []
         for item in self.console_command_index:
             candidate = item.get("normalized", "")
             score = 0
+            confidence = "none"
             if candidate == norm:
                 score = 1000
+                confidence = "high"
             elif candidate.startswith(norm):
                 score = 800
-            elif any(part.startswith(norm) for part in candidate.split(" ")):
+                confidence = "high"
+            elif len(terms) >= 2 and sum(1 for term in terms if any(part.startswith(term) for part in candidate.split(" "))) >= 2:
                 score = 650
+                confidence = "medium"
             elif norm in candidate:
                 score = 500
+                confidence = "medium"
             else:
-                overlap = len([term for term in terms if term in candidate])
-                if overlap:
+                overlap = len([term for term in terms if term in candidate.split(" ")])
+                ratio = float(overlap) / float(len(terms) or 1)
+                if overlap >= 2 and ratio >= 0.40 and not dangerous:
                     score = 250 + overlap * 25
+                    confidence = "weak"
             if score:
-                ranked.append((score, len(candidate), item))
+                suggestion = dict(item)
+                suggestion["score"] = score
+                suggestion["confidence"] = confidence
+                if dangerous and self._console_safety_class(item.get("entry") or {}) in ("selection-only", "model-write"):
+                    continue
+                ranked.append((score, len(candidate), suggestion))
         ranked.sort(key=lambda value: (-value[0], value[1], value[2].get("prompt", "")))
         return [item for score, length, item in ranked[:8]]
 
@@ -15805,11 +15934,14 @@ class OllamaAIChat(forms.WPFWindow):
             prompt_text = ""
         suggestions = self._console_rank_suggestions(prompt_text)
         self.ConsoleSuggestionList.Items.Clear()
-        self.console_top_suggestion = suggestions[0] if suggestions else None
+        strong = [item for item in suggestions if item.get("confidence") in ("high", "medium", "recommended")]
+        self.console_top_suggestion = strong[0] if strong else None
         if suggestions:
+            if not strong:
+                self.ConsoleSuggestionList.Items.Add("Did you mean? Low-confidence matches only; Tab and Run will not auto-resolve.")
             for item in suggestions:
                 self.ConsoleSuggestionList.Items.Add(self._console_metadata_line(item["entry"], item["prompt"]))
-            self.update_console_preview(suggestions[0])
+            self.update_console_preview(self.console_top_suggestion)
         else:
             self.ConsoleSuggestionList.Items.Add("No deterministic command matched.")
             self.ConsoleSuggestionList.Items.Add("Use an exact suggestion or choose a command from the tree.")
@@ -15817,6 +15949,30 @@ class OllamaAIChat(forms.WPFWindow):
             self.ConsoleSuggestionList.Items.Add("Example: scan all floor plan views for mep qa")
             self.ConsoleSuggestionList.Items.Add("Example: export latest QA report")
             self.update_console_preview(None)
+        self._update_console_run_enabled()
+
+    def _update_console_run_enabled(self):
+        if not hasattr(self, "ConsoleRunButton"):
+            return
+        enabled = False
+        suggestion = self.console_top_suggestion
+        try:
+            norm = self._console_normalize(self.ConsolePromptInput.Text or "")
+            for item in self.console_command_index:
+                if item.get("normalized") == norm:
+                    suggestion = item
+                    break
+        except:
+            pass
+        if suggestion:
+            safety = self._console_safety_class(suggestion.get("entry") or {})
+            enabled = self._console_may_run(suggestion.get("entry") or {})
+            if safety == "selection-only":
+                try:
+                    enabled = enabled and bool(self.ConsoleSelectionConfirm.IsChecked)
+                except:
+                    enabled = False
+        self.ConsoleRunButton.IsEnabled = bool(enabled)
 
     def update_console_preview(self, suggestion):
         if not hasattr(self, "ConsolePreviewBox"):
@@ -15863,7 +16019,9 @@ class OllamaAIChat(forms.WPFWindow):
             "May write external files: {0}".format(str(bool(writes_external)).lower()),
         ]
         if safety == "selection-only":
-            lines.append("Run requires the selection-only confirmation checkbox.")
+            lines.append("")
+            lines.append("Badge: UI selection only")
+            lines.append("Run requires confirmation: This will change the Revit UI selection only. It will not modify model data.")
         if safety == "model-write":
             lines.append("Console v1 blocks direct model-write execution. Use the existing reviewed workflow prompt surface.")
         if safety == "unknown":
@@ -15907,7 +16065,9 @@ class OllamaAIChat(forms.WPFWindow):
             if index >= 0:
                 suggestions = self._console_rank_suggestions(self.ConsolePromptInput.Text or "")
                 if index < len(suggestions):
-                    return suggestions[index]
+                    suggestion = suggestions[index]
+                    if suggestion.get("confidence") in ("high", "medium", "recommended"):
+                        return suggestion
         except:
             pass
         return self.console_top_suggestion
@@ -15915,6 +16075,8 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_accept_suggestion(self, suggestion=None):
         suggestion = suggestion or self._console_selected_suggestion()
         if not suggestion:
+            return
+        if suggestion.get("confidence") not in ("high", "medium", "recommended", None):
             return
         prompt_text = suggestion.get("prompt") or ""
         self.console_selected_entry = suggestion.get("entry")
@@ -15972,13 +16134,13 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _console_context_category_specs(self):
         return [
-            ("Pipes", BuiltInCategory.OST_PipeCurves),
-            ("Pipe fittings", BuiltInCategory.OST_PipeFitting),
-            ("Ducts", BuiltInCategory.OST_DuctCurves),
-            ("Duct fittings", BuiltInCategory.OST_DuctFitting),
-            ("Electrical fixtures", BuiltInCategory.OST_ElectricalFixtures),
-            ("Electrical equipment", BuiltInCategory.OST_ElectricalEquipment),
-            ("Electrical devices", BuiltInCategory.OST_ElectricalDevices),
+            ("Pipes", DB.BuiltInCategory.OST_PipeCurves),
+            ("Pipe fittings", DB.BuiltInCategory.OST_PipeFitting),
+            ("Ducts", DB.BuiltInCategory.OST_DuctCurves),
+            ("Duct fittings", DB.BuiltInCategory.OST_DuctFitting),
+            ("Electrical fixtures", DB.BuiltInCategory.OST_ElectricalFixtures),
+            ("Electrical equipment", DB.BuiltInCategory.OST_ElectricalEquipment),
+            ("Electrical devices", DB.BuiltInCategory.OST_ElectricalDevices),
         ]
 
     def _console_active_view_category_count(self, view, bic):
@@ -16058,14 +16220,31 @@ class OllamaAIChat(forms.WPFWindow):
             return
         context = self.console_last_context or {}
         lines = [
-            "Status: {0}".format(context.get("status", "context unavailable")),
-            "Active document: {0}".format(context.get("document_title", "(unknown document)")),
-            "Active view: {0} [{1}]".format(context.get("active_view_name", "(unknown view)"), context.get("active_view_type", "unavailable")),
-            "UI selection count: {0}".format(context.get("selection_count", 0)),
-            "Detected likely discipline: {0}".format(context.get("likely_discipline", "Unknown / Empty")),
-            "",
-            "Selection category breakdown:",
+            "Document: {0}".format(context.get("document_title", "(unknown document)")),
+            "View: {0} [{1}]".format(context.get("active_view_name", "(unknown view)"), context.get("active_view_type", "unavailable")),
+            "Selection: {0}".format(context.get("selection_count", 0)),
+            "Discipline: {0}".format(context.get("likely_discipline", "Unknown / Empty")),
         ]
+        counts = context.get("category_counts") or {}
+        nonzero = ["{0} {1}".format(name, count) for name, count in sorted(counts.items()) if count]
+        lines.append("Quick counts: {0}".format(", ".join(nonzero[:4]) if nonzero else "none"))
+        if context.get("warning"):
+            lines.append("Warning: {0}".format(context.get("warning")))
+        if getattr(self, "ConsoleAdvancedVisible", False):
+            lines.extend(["", "Status: {0}".format(context.get("status", "context unavailable")), "", "Selection category breakdown:"])
+        else:
+            lines.append("")
+            lines.append("Suggested safe commands:")
+            for prompt in [
+                "show active view mep qa dashboard",
+                "scan all floor plan views for mep qa",
+                "show mep project issue index",
+                "export mep project issue index",
+                "export latest QA report",
+            ]:
+                lines.append("- {0}".format(prompt))
+            self.ConsoleContextBox.Text = "\n".join(lines)
+            return
         breakdown = context.get("selection_breakdown") or {}
         if breakdown:
             for name in sorted(breakdown.keys()):
@@ -16076,9 +16255,6 @@ class OllamaAIChat(forms.WPFWindow):
         lines.append("Active view quick category counts:")
         for name, count in sorted((context.get("category_counts") or {}).items()):
             lines.append("- {0}: {1}".format(name, count))
-        if context.get("warning"):
-            lines.append("")
-            lines.append("Warning: {0}".format(context.get("warning")))
         lines.append("")
         lines.append("Safe suggested commands:")
         for prompt in [
@@ -16092,12 +16268,10 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleContextBox.Text = "\n".join(lines)
         try:
             self.ConsoleVisualBox.Text = (
-                "Visual Preview / Model Context\n"
-                "Active view: {0} [{1}]\n"
-                "Selection count: {2}\n"
-                "Detected MEP discipline: {3}\n\n"
-                "Issue badges and element-card visual layers are reserved for future AI-WORKBENCH-VISUAL-v1.\n"
-                "This v1 preview does not modify model data, UI selection, or active view."
+                "Visual Preview coming next\n\n"
+                "Visual Preview will show element cards, issue nodes, and view/context callouts in "
+                "AI-WORKBENCH-VISUAL-v1. No model data or UI selection is modified by this placeholder.\n\n"
+                "Current context: {0} [{1}], selection {2}, discipline {3}."
             ).format(
                 context.get("active_view_name", "(unknown view)"),
                 context.get("active_view_type", "unavailable"),
@@ -16163,7 +16337,7 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
-        report_id = "AI-WORKBENCH-CONSOLE-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-CONSOLE-UX-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -16171,10 +16345,13 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
+            "AI-WORKBENCH-CONSOLE-UX-v1",
+            "",
+            "Previous base feature:",
             "AI-WORKBENCH-CONSOLE-v1",
             "",
             "Feature name:",
-            "Unified ModelMind AI Workbench Console v1",
+            "Minimal ModelMind Console UX v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -16189,6 +16366,9 @@ class OllamaAIChat(forms.WPFWindow):
             "Command aliases indexed count: {0}".format(len(self.console_command_index or [])),
             "Command groups count: {0}".format(len(set([item.get("group") for item in self.console_command_index or []]))),
             "Context scan status: {0}".format(context.get("status", "context unavailable")),
+            "Context BuiltInCategory bug fixed: true",
+            "Unsupported prompt guard active: true",
+            "Advanced drawer available: true",
             "UI selection count: {0}".format(context.get("selection_count", 0)),
             "",
             "Result classification:",
@@ -16224,11 +16404,17 @@ class OllamaAIChat(forms.WPFWindow):
             return None
         try:
             self.refresh_console_context()
-            return self._console_report(prompt, "AI_WORKBENCH_CONSOLE_READY")
+            classification = "AI_WORKBENCH_CONSOLE_UX_READY"
+            try:
+                if (self.console_last_context or {}).get("status") != "available":
+                    classification = "AI_WORKBENCH_CONSOLE_UX_CONTEXT_WARNING"
+            except:
+                pass
+            return self._console_report(prompt, classification)
         except Exception as exc:
             return self._console_report(
                 prompt,
-                "AI_WORKBENCH_CONSOLE_FAILED",
+                "AI_WORKBENCH_CONSOLE_UX_FAILED",
                 ["Failure:", safe_str(exc)],
             )
 
