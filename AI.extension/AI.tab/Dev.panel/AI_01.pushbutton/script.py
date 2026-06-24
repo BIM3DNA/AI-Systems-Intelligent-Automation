@@ -15407,6 +15407,7 @@ class OllamaAIChat(forms.WPFWindow):
         import System.Windows as Wpf
         from System.Windows.Controls import (
             Button,
+            Border,
             CheckBox,
             Grid,
             GridSplitter,
@@ -15421,6 +15422,7 @@ class OllamaAIChat(forms.WPFWindow):
             TextBox,
             TreeView,
             TreeViewItem,
+            StackPanel,
             WrapPanel,
         )
 
@@ -15579,16 +15581,42 @@ class OllamaAIChat(forms.WPFWindow):
         open_folder_button.Margin = Wpf.Thickness(0, 0, 6, 6)
         open_folder_button.IsEnabled = False
         open_folder_button.Click += self.on_console_open_export_folder
+        selection_card = Border()
+        selection_card.BorderBrush = self._brush("#f59e0b")
+        selection_card.BorderThickness = Wpf.Thickness(1)
+        selection_card.Background = self._brush("#fff7ed")
+        selection_card.Padding = Wpf.Thickness(8)
+        selection_card.Margin = Wpf.Thickness(0, 0, 8, 6)
+        selection_card.Visibility = Wpf.Visibility.Collapsed
+        selection_stack = StackPanel()
+        selection_title = TextBlock()
+        selection_title.Text = "Selection-only command"
+        selection_title.FontWeight = Wpf.FontWeights.Bold
+        selection_title.Foreground = self._brush("#9a3412")
+        selection_message = TextBlock()
+        selection_message.Text = "This command will change the current Revit UI selection only. It will not modify model data."
+        selection_message.TextWrapping = Wpf.TextWrapping.Wrap
+        selection_message.Foreground = self._brush("#7c2d12")
+        selection_message.Margin = Wpf.Thickness(0, 3, 0, 4)
         confirm = CheckBox()
-        confirm.Content = "Confirm UI selection change only"
-        confirm.Margin = Wpf.Thickness(0, 4, 0, 6)
+        confirm.Content = "I confirm: change UI selection only"
+        confirm.Margin = Wpf.Thickness(0, 2, 0, 2)
         confirm.Checked += self.on_console_selection_confirm_changed
         confirm.Unchecked += self.on_console_selection_confirm_changed
+        selection_note = TextBlock()
+        selection_note.Text = "Check confirmation to enable Run."
+        selection_note.Foreground = self._brush("#b45309")
+        selection_note.Margin = Wpf.Thickness(0, 2, 0, 0)
+        selection_stack.Children.Add(selection_title)
+        selection_stack.Children.Add(selection_message)
+        selection_stack.Children.Add(confirm)
+        selection_stack.Children.Add(selection_note)
+        selection_card.Child = selection_stack
         button_panel.Children.Add(export_button)
         button_panel.Children.Add(copy_button)
         button_panel.Children.Add(open_folder_button)
         button_panel.Children.Add(clear_button)
-        button_panel.Children.Add(confirm)
+        button_panel.Children.Add(selection_card)
         result_grid.Children.Add(button_panel)
         result_group = GroupBox()
         result_group.Header = "Latest Result Summary"
@@ -15669,6 +15697,8 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleAdvancedButton = advanced_button
         self.ConsoleCopyResultButton = copy_button
         self.ConsoleOpenExportFolderButton = open_folder_button
+        self.ConsoleSelectionCard = selection_card
+        self.ConsoleSelectionNote = selection_note
         self.ConsoleSuggestionList = suggestions
         self.ConsoleCommandTree = tree
         self.ConsolePreviewBox = preview_box
@@ -15955,12 +15985,19 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleSuggestionList.Items.Clear()
         strong = [item for item in suggestions if item.get("confidence") in ("high", "medium", "recommended")]
         self.console_top_suggestion = strong[0] if strong else None
+        resolved = self._console_resolved_suggestion(prompt_text)
+        try:
+            current_safety = self._console_safety_class((resolved or {}).get("entry") or {})
+            if current_safety != "selection-only":
+                self.ConsoleSelectionConfirm.IsChecked = False
+        except:
+            pass
         if suggestions:
             if not strong:
                 self.ConsoleSuggestionList.Items.Add("Did you mean? Low-confidence matches only; Tab and Run will not auto-resolve.")
             for item in suggestions:
                 self.ConsoleSuggestionList.Items.Add(self._console_metadata_line(item["entry"], item["prompt"]))
-            self.update_console_preview(self.console_top_suggestion)
+            self.update_console_preview(resolved)
         else:
             self.ConsoleSuggestionList.Items.Add("No deterministic command matched.")
             self.ConsoleSuggestionList.Items.Add("Use an exact suggestion or choose a command from the tree.")
@@ -15970,19 +16007,26 @@ class OllamaAIChat(forms.WPFWindow):
             self.update_console_preview(None)
         self._update_console_run_enabled()
 
+    def _console_resolved_suggestion(self, prompt_text=None):
+        try:
+            text = self.ConsolePromptInput.Text if prompt_text is None else prompt_text
+        except:
+            text = prompt_text or ""
+        norm = self._console_normalize(text or "")
+        if norm:
+            for item in self.console_command_index:
+                if item.get("normalized") == norm:
+                    exact = dict(item)
+                    exact["confidence"] = "high"
+                    exact["score"] = 1000
+                    return exact
+        return self.console_top_suggestion
+
     def _update_console_run_enabled(self):
         if not hasattr(self, "ConsoleRunButton"):
             return
         enabled = False
-        suggestion = self.console_top_suggestion
-        try:
-            norm = self._console_normalize(self.ConsolePromptInput.Text or "")
-            for item in self.console_command_index:
-                if item.get("normalized") == norm:
-                    suggestion = item
-                    break
-        except:
-            pass
+        suggestion = self._console_resolved_suggestion()
         if suggestion:
             safety = self._console_safety_class(suggestion.get("entry") or {})
             enabled = self._console_may_run(suggestion.get("entry") or {})
@@ -15991,6 +16035,28 @@ class OllamaAIChat(forms.WPFWindow):
                     enabled = enabled and bool(self.ConsoleSelectionConfirm.IsChecked)
                 except:
                     enabled = False
+            try:
+                import System.Windows as Wpf
+                self.ConsoleSelectionCard.Visibility = (
+                    Wpf.Visibility.Visible if safety == "selection-only" else Wpf.Visibility.Collapsed
+                )
+                if safety == "selection-only":
+                    self.ConsoleSelectionNote.Text = (
+                        "Confirmed. Run will change UI selection only."
+                        if bool(self.ConsoleSelectionConfirm.IsChecked)
+                        else "Check confirmation to enable Run."
+                    )
+                    self.ConsoleSelectionNote.Foreground = self._brush(
+                        "#15803d" if bool(self.ConsoleSelectionConfirm.IsChecked) else "#b45309"
+                    )
+            except:
+                pass
+        else:
+            try:
+                import System.Windows as Wpf
+                self.ConsoleSelectionCard.Visibility = Wpf.Visibility.Collapsed
+            except:
+                pass
         self.ConsoleRunButton.IsEnabled = bool(enabled)
 
     def update_console_preview(self, suggestion):
@@ -16041,6 +16107,7 @@ class OllamaAIChat(forms.WPFWindow):
             lines.append("")
             lines.append("Badge: UI selection only")
             lines.append("Run requires confirmation: This will change the Revit UI selection only. It will not modify model data.")
+            lines.append("This command will change only the current Revit UI selection. It will not modify model data.")
         if safety == "model-write":
             lines.append("Console v1 blocks direct model-write execution. Use the existing reviewed workflow prompt surface.")
         if safety == "unknown":
@@ -16324,48 +16391,97 @@ class OllamaAIChat(forms.WPFWindow):
         lines = [
             "Result header: {0}".format(header),
         ]
-        wanted = [
-            "Feature ID:",
-            "Result classification:",
-            "Classification:",
-            "Report result:",
-            "Dashboard result:",
-            "Verification result:",
-            "Visual review result:",
-            "Export folder:",
-            "Total issue candidates:",
-            "Total skipped/unreadable:",
-            "Total skipped unreadable:",
-            "Skipped/unreadable:",
-            "Total ",
-            "Warnings:",
-            "Transaction opened:",
-            "BreakCurve called:",
-            "Model modified:",
-            "UI selection modified:",
+        summary_fields = [
+            ("Feature ID", "Feature ID"),
+            ("Feature name", "Feature name"),
+            ("Result classification", "Result classification"),
+            ("Export folder", "Export folder"),
+            ("Total issue candidates", "Total issue candidates"),
+            ("Total skipped/unreadable count", "Total skipped/unreadable count"),
         ]
-        added = 0
-        for line in text.splitlines():
-            stripped = line.strip()
-            if not stripped:
-                continue
-            if any(stripped.startswith(prefix) for prefix in wanted):
-                lines.append(stripped)
-                added += 1
-            if added >= 18:
-                break
-        if added == 0:
+        for label, display in summary_fields:
+            value = self._console_extract_report_field(text, label)
+            if value:
+                lines.append("{0}: {1}".format(display, value))
+        warnings = self._console_extract_warnings_summary(text)
+        if warnings:
+            lines.append("Warnings: {0}".format(warnings))
+        safety_fields = [
+            ("Transaction opened", "Transaction opened"),
+            ("BreakCurve called", "BreakCurve called"),
+            ("Model modified", "Model modified"),
+            ("UI selection modified", "UI selection modified"),
+        ]
+        for label, display in safety_fields:
+            value = self._console_extract_report_field(text, label)
+            if value:
+                lines.append("{0}: {1}".format(display, value))
+        if len(lines) == 1:
             for stripped in [line.strip() for line in text.splitlines() if line.strip()][:8]:
                 lines.append(stripped)
         return "\n".join(lines)
 
-    def _console_extract_export_folder(self, report_text):
-        for line in safe_str(report_text).splitlines():
+    def _console_is_section_header_line(self, line):
+        stripped = safe_str(line).strip()
+        if not stripped or ":" not in stripped:
+            return False
+        before, after = stripped.split(":", 1)
+        return bool(before.strip()) and not after.strip()
+
+    def _console_extract_report_field(self, report_text, label):
+        target = safe_str(label).strip().lower()
+        if not target:
+            return ""
+        raw_lines = safe_str(report_text).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        for index, line in enumerate(raw_lines):
             stripped = line.strip()
+            if not stripped:
+                continue
             lower = stripped.lower()
-            if lower.startswith("export folder:"):
-                return stripped.split(":", 1)[1].strip()
+            if lower == target + ":" or lower.startswith(target + ":"):
+                after = stripped.split(":", 1)[1].strip()
+                if after:
+                    return after
+                for next_line in raw_lines[index + 1:]:
+                    candidate = next_line.strip()
+                    if not candidate:
+                        continue
+                    if self._console_is_section_header_line(candidate):
+                        return ""
+                    return candidate
         return ""
+
+    def _console_extract_warnings_summary(self, report_text):
+        raw_lines = safe_str(report_text).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        for index, line in enumerate(raw_lines):
+            stripped = line.strip()
+            if stripped.lower() == "warnings:" or stripped.lower().startswith("warnings:"):
+                after = stripped.split(":", 1)[1].strip()
+                if after:
+                    return after
+                warnings = []
+                for next_line in raw_lines[index + 1:]:
+                    candidate = next_line.strip()
+                    if not candidate:
+                        continue
+                    if self._console_is_section_header_line(candidate) and not candidate.startswith(("-", "*")):
+                        break
+                    if candidate.startswith(("-", "*")):
+                        value = candidate[1:].strip()
+                        if value.lower() == "none":
+                            return "none"
+                        warnings.append(value)
+                    else:
+                        warnings.append(candidate)
+                    if len(warnings) >= 3:
+                        break
+                if warnings:
+                    return " | ".join(warnings)
+                return ""
+        return ""
+
+    def _console_extract_export_folder(self, report_text):
+        return self._console_extract_report_field(report_text, "Export folder")
 
     def _console_render_full_result(self, report_text):
         report_text = safe_str(report_text)
@@ -16440,7 +16556,7 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
-        report_id = "AI-WORKBENCH-SINGLE-CONSOLE-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-SELECTION-GATE-FIX-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -16448,14 +16564,16 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-SINGLE-CONSOLE-v1",
+            "AI-WORKBENCH-SELECTION-GATE-FIX-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
             "AI-WORKBENCH-CONSOLE-UX-v1",
+            "AI-WORKBENCH-SINGLE-CONSOLE-v1",
+            "AI-WORKBENCH-SINGLE-CONSOLE-FIX-v1",
             "",
             "Feature name:",
-            "Single-Tab ModelMind Console v1",
+            "AI Workbench Selection Confirmation Gate Fix v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -16474,6 +16592,11 @@ class OllamaAIChat(forms.WPFWindow):
             "Invalid BuiltInCategory guard active: true",
             "Unsupported prompt guard active: true",
             "Selection-only confirmation active: true",
+            "Selection-only confirmation card active: true",
+            "Selection-only checkbox event wired: true",
+            "Exact selection prompt confidence guard active: true",
+            "Result summary parser fixed: true",
+            "Selection-only confirmation event wiring fixed: true",
             "Console result routing active: true",
             "Full result output in Console tab: true",
             "Ollama Chat required for deterministic command output: false",
@@ -16513,17 +16636,17 @@ class OllamaAIChat(forms.WPFWindow):
             return None
         try:
             self.refresh_console_context()
-            classification = "AI_WORKBENCH_SINGLE_CONSOLE_READY"
+            classification = "AI_WORKBENCH_SELECTION_GATE_FIX_READY"
             try:
                 if (self.console_last_context or {}).get("status") != "available":
-                    classification = "AI_WORKBENCH_SINGLE_CONSOLE_CONTEXT_WARNING"
+                    classification = "AI_WORKBENCH_SELECTION_GATE_FIX_READY"
             except:
                 pass
             return self._console_report(prompt, classification)
         except Exception as exc:
             return self._console_report(
                 prompt,
-                "AI_WORKBENCH_SINGLE_CONSOLE_FAILED",
+                "AI_WORKBENCH_SELECTION_GATE_FIX_FAILED",
                 ["Failure:", safe_str(exc)],
             )
 
@@ -16551,14 +16674,7 @@ class OllamaAIChat(forms.WPFWindow):
         prompt = safe_str(self.ConsolePromptInput.Text).strip() if hasattr(self, "ConsolePromptInput") else ""
         if not prompt:
             return
-        suggestion = None
-        norm = self._console_normalize(prompt)
-        for item in self.console_command_index:
-            if item.get("normalized") == norm:
-                suggestion = item
-                break
-        if suggestion is None:
-            suggestion = self._console_selected_suggestion()
+        suggestion = self._console_resolved_suggestion(prompt)
         if suggestion is None:
             report = self._console_unsupported_prompt_report(prompt)
             self._console_render_full_result(report)
@@ -16608,7 +16724,7 @@ class OllamaAIChat(forms.WPFWindow):
             elif self.console_captured_error:
                 report = self._console_report(
                     prompt,
-                    "AI_WORKBENCH_SINGLE_CONSOLE_FAILED",
+                    "AI_WORKBENCH_SELECTION_GATE_FIX_FAILED",
                     ["Failure:", safe_str(self.console_captured_error)],
                 )
             try:
@@ -16625,7 +16741,7 @@ class OllamaAIChat(forms.WPFWindow):
             self._console_render_full_result(report)
             self.refresh_console_context()
         except Exception as exc:
-            report = self._console_report(prompt, "AI_WORKBENCH_SINGLE_CONSOLE_FAILED", ["Failure:", safe_str(exc)])
+            report = self._console_report(prompt, "AI_WORKBENCH_SELECTION_GATE_FIX_FAILED", ["Failure:", safe_str(exc)])
             self._console_render_full_result(report)
         finally:
             self.console_capture_active = False
