@@ -15289,6 +15289,10 @@ class OllamaAIChat(forms.WPFWindow):
         self.console_selected_entry = None
         self.console_last_context = {}
         self.console_last_report = ""
+        self.console_last_export_folder = ""
+        self.console_capture_active = False
+        self.console_captured_reply = None
+        self.console_captured_error = None
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -15564,12 +15568,25 @@ class OllamaAIChat(forms.WPFWindow):
         clear_button.Height = 26
         clear_button.Margin = Wpf.Thickness(0, 0, 6, 6)
         clear_button.Click += self.on_console_clear_result
+        copy_button = Button()
+        copy_button.Content = "Copy result"
+        copy_button.Height = 26
+        copy_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        copy_button.Click += self.on_console_copy_result
+        open_folder_button = Button()
+        open_folder_button.Content = "Open export folder"
+        open_folder_button.Height = 26
+        open_folder_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        open_folder_button.IsEnabled = False
+        open_folder_button.Click += self.on_console_open_export_folder
         confirm = CheckBox()
-        confirm.Content = "This will change the Revit UI selection only. It will not modify model data."
+        confirm.Content = "Confirm UI selection change only"
         confirm.Margin = Wpf.Thickness(0, 4, 0, 6)
         confirm.Checked += self.on_console_selection_confirm_changed
         confirm.Unchecked += self.on_console_selection_confirm_changed
         button_panel.Children.Add(export_button)
+        button_panel.Children.Add(copy_button)
+        button_panel.Children.Add(open_folder_button)
         button_panel.Children.Add(clear_button)
         button_panel.Children.Add(confirm)
         result_grid.Children.Add(button_panel)
@@ -15650,6 +15667,8 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsolePromptInput = input_box
         self.ConsoleRunButton = run_button
         self.ConsoleAdvancedButton = advanced_button
+        self.ConsoleCopyResultButton = copy_button
+        self.ConsoleOpenExportFolderButton = open_folder_button
         self.ConsoleSuggestionList = suggestions
         self.ConsoleCommandTree = tree
         self.ConsolePreviewBox = preview_box
@@ -16133,15 +16152,26 @@ class OllamaAIChat(forms.WPFWindow):
             pass
 
     def _console_context_category_specs(self):
-        return [
-            ("Pipes", DB.BuiltInCategory.OST_PipeCurves),
-            ("Pipe fittings", DB.BuiltInCategory.OST_PipeFitting),
-            ("Ducts", DB.BuiltInCategory.OST_DuctCurves),
-            ("Duct fittings", DB.BuiltInCategory.OST_DuctFitting),
-            ("Electrical fixtures", DB.BuiltInCategory.OST_ElectricalFixtures),
-            ("Electrical equipment", DB.BuiltInCategory.OST_ElectricalEquipment),
-            ("Electrical devices", DB.BuiltInCategory.OST_ElectricalDevices),
+        def safe_bic(name):
+            try:
+                return getattr(DB.BuiltInCategory, name, None)
+            except:
+                return None
+
+        specs = [
+            ("Pipes", safe_bic("OST_PipeCurves")),
+            ("Pipe fittings", safe_bic("OST_PipeFitting")),
+            ("Ducts", safe_bic("OST_DuctCurves")),
+            ("Duct fittings", safe_bic("OST_DuctFitting")),
+            ("Electrical fixtures", safe_bic("OST_ElectricalFixtures")),
+            ("Electrical equipment", safe_bic("OST_ElectricalEquipment")),
+            ("Lighting fixtures", safe_bic("OST_LightingFixtures")),
+            ("Data devices", safe_bic("OST_DataDevices")),
+            ("Fire alarm devices", safe_bic("OST_FireAlarmDevices")),
+            ("Security devices", safe_bic("OST_SecurityDevices")),
+            ("Communication devices", safe_bic("OST_CommunicationDevices")),
         ]
+        return [(label, bic) for label, bic in specs if bic is not None]
 
     def _console_active_view_category_count(self, view, bic):
         try:
@@ -16197,7 +16227,11 @@ class OllamaAIChat(forms.WPFWindow):
             electrical = (
                 category_counts.get("Electrical fixtures", 0)
                 + category_counts.get("Electrical equipment", 0)
-                + category_counts.get("Electrical devices", 0)
+                + category_counts.get("Lighting fixtures", 0)
+                + category_counts.get("Data devices", 0)
+                + category_counts.get("Fire alarm devices", 0)
+                + category_counts.get("Security devices", 0)
+                + category_counts.get("Communication devices", 0)
             )
             active_disciplines = len([value for value in (piping, hvac, electrical) if value > 0])
             if active_disciplines > 1:
@@ -16299,6 +16333,10 @@ class OllamaAIChat(forms.WPFWindow):
             "Verification result:",
             "Visual review result:",
             "Export folder:",
+            "Total issue candidates:",
+            "Total skipped/unreadable:",
+            "Total skipped unreadable:",
+            "Skipped/unreadable:",
             "Total ",
             "Warnings:",
             "Transaction opened:",
@@ -16321,12 +16359,77 @@ class OllamaAIChat(forms.WPFWindow):
                 lines.append(stripped)
         return "\n".join(lines)
 
+    def _console_extract_export_folder(self, report_text):
+        for line in safe_str(report_text).splitlines():
+            stripped = line.strip()
+            lower = stripped.lower()
+            if lower.startswith("export folder:"):
+                return stripped.split(":", 1)[1].strip()
+        return ""
+
+    def _console_render_full_result(self, report_text):
+        report_text = safe_str(report_text)
+        self.console_last_report = report_text
+        self.console_last_export_folder = self._console_extract_export_folder(report_text)
+        summary = self._console_extract_result_summary(report_text)
+        rendered = "{0}\n\n--- Full Result Output ---\n{1}".format(summary, report_text)
+        try:
+            self.ConsoleResultBox.Text = rendered
+        except:
+            pass
+        try:
+            self.ConsoleOpenExportFolderButton.IsEnabled = bool(self.console_last_export_folder)
+        except:
+            pass
+
     def on_console_clear_result(self, sender, args):
         try:
             self.ConsoleResultBox.Text = ""
             self.console_last_report = ""
+            self.console_last_export_folder = ""
+            self.ConsoleOpenExportFolderButton.IsEnabled = False
         except:
             pass
+
+    def on_console_copy_result(self, sender, args):
+        try:
+            text = self.console_last_report or self.ConsoleResultBox.Text or ""
+            if not text:
+                self.ConsoleResultBox.Text = "No console result is available to copy."
+                return
+            import System.Windows as Wpf
+            Wpf.Clipboard.SetText(text)
+        except Exception as exc:
+            try:
+                self.ConsoleResultBox.Text = "Copy result failed: {0}".format(safe_str(exc))
+            except:
+                pass
+
+    def on_console_open_export_folder(self, sender, args):
+        folder = safe_str(getattr(self, "console_last_export_folder", "")).strip()
+        if not folder:
+            try:
+                self.ConsoleResultBox.Text = "No export folder path was detected in the latest console result."
+            except:
+                pass
+            return
+        if not os.path.isdir(folder):
+            try:
+                self.ConsoleResultBox.Text = "Export folder is unavailable or no longer exists:\n{0}".format(folder)
+            except:
+                pass
+            return
+        try:
+            if hasattr(os, "startfile"):
+                os.startfile(folder)
+            else:
+                import System.Diagnostics as Diagnostics
+                Diagnostics.Process.Start(folder)
+        except Exception as exc:
+            try:
+                self.ConsoleResultBox.Text = "Open export folder failed: {0}".format(safe_str(exc))
+            except:
+                pass
 
     def on_console_export_latest(self, sender, args):
         try:
@@ -16337,7 +16440,7 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
-        report_id = "AI-WORKBENCH-CONSOLE-UX-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-SINGLE-CONSOLE-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -16345,13 +16448,14 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
+            "AI-WORKBENCH-SINGLE-CONSOLE-v1",
+            "",
+            "Previous console layers:",
+            "AI-WORKBENCH-CONSOLE-v1",
             "AI-WORKBENCH-CONSOLE-UX-v1",
             "",
-            "Previous base feature:",
-            "AI-WORKBENCH-CONSOLE-v1",
-            "",
             "Feature name:",
-            "Minimal ModelMind Console UX v1",
+            "Single-Tab ModelMind Console v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -16367,7 +16471,12 @@ class OllamaAIChat(forms.WPFWindow):
             "Command groups count: {0}".format(len(set([item.get("group") for item in self.console_command_index or []]))),
             "Context scan status: {0}".format(context.get("status", "context unavailable")),
             "Context BuiltInCategory bug fixed: true",
+            "Invalid BuiltInCategory guard active: true",
             "Unsupported prompt guard active: true",
+            "Selection-only confirmation active: true",
+            "Console result routing active: true",
+            "Full result output in Console tab: true",
+            "Ollama Chat required for deterministic command output: false",
             "Advanced drawer available: true",
             "UI selection count: {0}".format(context.get("selection_count", 0)),
             "",
@@ -16404,17 +16513,17 @@ class OllamaAIChat(forms.WPFWindow):
             return None
         try:
             self.refresh_console_context()
-            classification = "AI_WORKBENCH_CONSOLE_UX_READY"
+            classification = "AI_WORKBENCH_SINGLE_CONSOLE_READY"
             try:
                 if (self.console_last_context or {}).get("status") != "available":
-                    classification = "AI_WORKBENCH_CONSOLE_UX_CONTEXT_WARNING"
+                    classification = "AI_WORKBENCH_SINGLE_CONSOLE_CONTEXT_WARNING"
             except:
                 pass
             return self._console_report(prompt, classification)
         except Exception as exc:
             return self._console_report(
                 prompt,
-                "AI_WORKBENCH_CONSOLE_UX_FAILED",
+                "AI_WORKBENCH_SINGLE_CONSOLE_FAILED",
                 ["Failure:", safe_str(exc)],
             )
 
@@ -16452,11 +16561,7 @@ class OllamaAIChat(forms.WPFWindow):
             suggestion = self._console_selected_suggestion()
         if suggestion is None:
             report = self._console_unsupported_prompt_report(prompt)
-            self.console_last_report = report
-            try:
-                self.ConsoleResultBox.Text = self._console_extract_result_summary(report)
-            except:
-                pass
+            self._console_render_full_result(report)
             return
         entry = suggestion.get("entry") or {}
         prompt = suggestion.get("prompt") or prompt
@@ -16472,7 +16577,7 @@ class OllamaAIChat(forms.WPFWindow):
                             "This command changes UI selection only. No model data will be modified.",
                         ],
                     )
-                    self.ConsoleResultBox.Text = self._console_extract_result_summary(report)
+                    self._console_render_full_result(report)
                     return
             except:
                 pass
@@ -16485,19 +16590,30 @@ class OllamaAIChat(forms.WPFWindow):
                     "Model-write and unknown commands are not run directly through the console wrapper.",
                 ],
             )
-            self.ConsoleResultBox.Text = self._console_extract_result_summary(report)
+            self._console_render_full_result(report)
             return
         self.update_window_status("executing", "Console command")
         self._set_thinking("Thinking (Console)...")
         self.show_busy()
         self._pump_ui()
         try:
+            self.console_capture_active = True
+            self.console_captured_reply = None
+            self.console_captured_error = None
             self.ChatInput.Text = prompt
             self.on_send_chat(sender, args)
             report = ""
+            if self.console_captured_reply is not None:
+                report = safe_str(self.console_captured_reply)
+            elif self.console_captured_error:
+                report = self._console_report(
+                    prompt,
+                    "AI_WORKBENCH_SINGLE_CONSOLE_FAILED",
+                    ["Failure:", safe_str(self.console_captured_error)],
+                )
             try:
                 latest = self.latest_deterministic_report or {}
-                report = latest.get("report_text") or ""
+                report = report or latest.get("report_text") or ""
             except:
                 report = ""
             if not report:
@@ -16506,17 +16622,17 @@ class OllamaAIChat(forms.WPFWindow):
                     "AI_WORKBENCH_CONSOLE_CONTEXT_WARNING",
                     ["Command completed but no exportable deterministic report was registered."],
                 )
-            self.console_last_report = report
-            self.ConsoleResultBox.Text = self._console_extract_result_summary(report)
+            self._console_render_full_result(report)
             self.refresh_console_context()
         except Exception as exc:
-            report = self._console_report(prompt, "AI_WORKBENCH_CONSOLE_FAILED", ["Failure:", safe_str(exc)])
-            self.console_last_report = report
+            report = self._console_report(prompt, "AI_WORKBENCH_SINGLE_CONSOLE_FAILED", ["Failure:", safe_str(exc)])
+            self._console_render_full_result(report)
+        finally:
+            self.console_capture_active = False
             try:
-                self.ConsoleResultBox.Text = self._console_extract_result_summary(report)
+                self.ChatInput.Text = ""
             except:
                 pass
-        finally:
             self.hide_busy()
             self._set_thinking("Thinking...")
             self.update_window_status("idle")
@@ -40173,6 +40289,7 @@ class OllamaAIChat(forms.WPFWindow):
         prompt = self.ChatInput.Text.strip()
         if not prompt:
             return
+        console_capture = bool(getattr(self, "console_capture_active", False))
 
         self.update_window_status("executing", "Ollama Chat request")
         self._set_thinking("Thinking (Chat)...")
@@ -40505,10 +40622,16 @@ class OllamaAIChat(forms.WPFWindow):
                 self.remember_latest_deterministic_report(prompt, reply)
             elif not preserve_latest_report_state:
                 self.latest_chat_output_is_deterministic_report = False
-            self.append_chat_turn(prompt, reply, "AI")
-            self.ChatInput.Text = ""
+            if console_capture:
+                self.console_captured_reply = reply
+            else:
+                self.append_chat_turn(prompt, reply, "AI")
+                self.ChatInput.Text = ""
         except Exception as e:
-            self.append_chat_notice("CHAT ERROR", str(e))
+            if console_capture:
+                self.console_captured_error = str(e)
+            else:
+                self.append_chat_notice("CHAT ERROR", str(e))
         finally:
             self.hide_busy()
             self._set_thinking("Thinking...")
