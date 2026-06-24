@@ -4554,5 +4554,32 @@
     "validation_state": "structural_only",
     "prompt_text": "show mep project issue index",
     "mode": "deterministic"
+  },
+  {
+    "id": "mep-qa-issueindex-export-v1",
+    "title": "MEP Project Issue Index Export v1",
+    "category": "BIM QA",
+    "group": "MEP QA Evidence Exports",
+    "discipline": "MEP",
+    "role": "read_export",
+    "risk_level": "low",
+    "scope_type": "mep_project_issue_index_export",
+    "canonical_prompt": "export mep project issue index",
+    "planner_aliases": [
+      "export mep project issue index",
+      "export mep issue index",
+      "export project mep qa issue index",
+      "export mep qa issue queue",
+      "export mep project issue queue",
+      "export project issue index",
+      "export issue index",
+      "export mep qa index"
+    ],
+    "deterministic_handler": "mep_qa_issueindex_export_v1_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "export mep project issue index",
+    "mode": "deterministic"
   }
 ]
