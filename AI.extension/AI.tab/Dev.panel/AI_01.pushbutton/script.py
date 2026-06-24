@@ -104,6 +104,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[MEP QA VIEWEXPORT V1 REPORT]",
     "[MEP QA ISSUE INDEX V1 REPORT]",
     "[MEP QA ISSUE INDEX EXPORT V1 REPORT]",
+    "[AI WORKBENCH CONSOLE V1 REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14388,6 +14389,21 @@ def _is_mep_qa_issueindex_export_v1_prompt(prompt):
     return normalized in MEP_QA_ISSUEINDEX_EXPORT_V1_ROUTES
 
 
+AI_WORKBENCH_CONSOLE_V1_ROUTES = {
+    "open ai workbench console",
+    "ai workbench console",
+    "open modelmind console",
+    "modelmind console",
+    "show ai workbench console status",
+    "ai console status",
+}
+
+
+def _is_ai_workbench_console_v1_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in AI_WORKBENCH_CONSOLE_V1_ROUTES
+
+
 def _is_mep_qa_issueindex_v1_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in MEP_QA_ISSUEINDEX_V1_ROUTES
@@ -15268,6 +15284,11 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_coordination_link_handover_integrity_state = None
         self.latest_coordination_link_final_handover_state = None
         self.latest_coordination_link_handover_package_manifest_state = None
+        self.console_command_index = []
+        self.console_top_suggestion = None
+        self.console_selected_entry = None
+        self.console_last_context = {}
+        self.console_last_report = ""
 
         self.populate_model_selector()
         self.ModelSelector.SelectionChanged += self.on_model_selected
@@ -15357,6 +15378,962 @@ class OllamaAIChat(forms.WPFWindow):
         self.set_agent_status(self.agent_session.status)
         self.update_prompt_details(None)
         self.load_bootstrap_project_context()
+        self.initialize_ai_workbench_console()
+
+    def initialize_ai_workbench_console(self):
+        try:
+            self._rebuild_console_command_index()
+            self._build_ai_workbench_console_tab()
+            self.refresh_console_context()
+            self.update_console_suggestions()
+            self.update_console_preview(None)
+            try:
+                self.MainTabs.SelectedItem = self.ConsoleTab
+            except:
+                pass
+        except Exception as exc:
+            try:
+                self.append_chat_notice("AI WORKBENCH CONSOLE INIT WARNING", safe_str(exc))
+            except:
+                pass
+
+    def _build_ai_workbench_console_tab(self):
+        if hasattr(self, "ConsoleTab"):
+            return
+        import System.Windows as Wpf
+        from System.Windows.Controls import (
+            Button,
+            CheckBox,
+            Grid,
+            GridSplitter,
+            GroupBox,
+            ListBox,
+            RowDefinition,
+            ColumnDefinition,
+            ScrollViewer,
+            ScrollBarVisibility,
+            TabItem,
+            TextBlock,
+            TextBox,
+            TreeView,
+            TreeViewItem,
+            WrapPanel,
+        )
+
+        tab = TabItem()
+        tab.Header = "Console"
+        tab.ToolTip = "Unified ModelMind AI Workbench console. Autocomplete, preview, context, and safe dispatch."
+        root = Grid()
+        root.Margin = Wpf.Thickness(10)
+        for width in ("290", "6", "*", "6", "330"):
+            col = ColumnDefinition()
+            if width == "*":
+                col.Width = Wpf.GridLength(1, Wpf.GridUnitType.Star)
+            elif width == "6":
+                col.Width = Wpf.GridLength(6)
+            else:
+                col.Width = Wpf.GridLength(float(width))
+            root.ColumnDefinitions.Add(col)
+
+        left = Grid()
+        left.RowDefinitions.Add(RowDefinition())
+        left.RowDefinitions.Add(RowDefinition())
+        left.RowDefinitions[0].Height = Wpf.GridLength(1, Wpf.GridUnitType.Auto)
+        left.RowDefinitions[1].Height = Wpf.GridLength(1, Wpf.GridUnitType.Star)
+        title = TextBlock()
+        title.Text = "Command Tree"
+        title.FontWeight = Wpf.FontWeights.Bold
+        title.Margin = Wpf.Thickness(0, 0, 0, 6)
+        left.Children.Add(title)
+        tree_group = GroupBox()
+        tree_group.Header = "Deterministic Commands"
+        tree = TreeView()
+        tree.BorderThickness = Wpf.Thickness(0)
+        tree.SelectedItemChanged += self.on_console_tree_selected
+        tree.MouseDoubleClick += self.on_console_tree_doubleclick
+        tree_group.Content = tree
+        Grid.SetRow(tree_group, 1)
+        left.Children.Add(tree_group)
+        Grid.SetColumn(left, 0)
+        root.Children.Add(left)
+
+        split_a = GridSplitter()
+        split_a.Width = 6
+        split_a.HorizontalAlignment = Wpf.HorizontalAlignment.Stretch
+        split_a.VerticalAlignment = Wpf.VerticalAlignment.Stretch
+        split_a.Background = self._brush("#dbeafe")
+        Grid.SetColumn(split_a, 1)
+        root.Children.Add(split_a)
+
+        center = Grid()
+        for height in ("Auto", "120", "Auto", "*"):
+            row = RowDefinition()
+            if height == "*":
+                row.Height = Wpf.GridLength(1, Wpf.GridUnitType.Star)
+            elif height == "Auto":
+                row.Height = Wpf.GridLength(1, Wpf.GridUnitType.Auto)
+            else:
+                row.Height = Wpf.GridLength(float(height))
+            center.RowDefinitions.Add(row)
+
+        prompt_label = TextBlock()
+        prompt_label.Text = "Ask ModelMind..."
+        prompt_label.FontWeight = Wpf.FontWeights.Bold
+        prompt_label.Margin = Wpf.Thickness(0, 0, 0, 4)
+        center.Children.Add(prompt_label)
+
+        input_grid = Grid()
+        input_grid.ColumnDefinitions.Add(ColumnDefinition())
+        input_grid.ColumnDefinitions.Add(ColumnDefinition())
+        input_grid.ColumnDefinitions[0].Width = Wpf.GridLength(1, Wpf.GridUnitType.Star)
+        input_grid.ColumnDefinitions[1].Width = Wpf.GridLength(96)
+        input_box = TextBox()
+        input_box.MinHeight = 32
+        input_box.MaxHeight = 88
+        input_box.AcceptsReturn = True
+        input_box.TextWrapping = Wpf.TextWrapping.Wrap
+        input_box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        input_box.ToolTip = "Type an exact deterministic prompt or pick a suggestion. No LLM calls are made while typing."
+        input_box.TextChanged += self.on_console_input_changed
+        input_box.KeyDown += self.on_console_input_keydown
+        run_button = Button()
+        run_button.Content = "Run"
+        run_button.Height = 32
+        run_button.Margin = Wpf.Thickness(8, 0, 0, 0)
+        run_button.Background = self._brush("#00b894")
+        run_button.Foreground = self._brush("#ffffff")
+        run_button.FontWeight = Wpf.FontWeights.Bold
+        run_button.Click += self.on_console_run
+        input_grid.Children.Add(input_box)
+        Grid.SetColumn(run_button, 1)
+        input_grid.Children.Add(run_button)
+        Grid.SetRow(input_grid, 1)
+        center.Children.Add(input_grid)
+
+        suggestion_group = GroupBox()
+        suggestion_group.Header = "Autocomplete Suggestions"
+        suggestions = ListBox()
+        suggestions.MouseDoubleClick += self.on_console_suggestion_doubleclick
+        suggestions.KeyDown += self.on_console_suggestion_keydown
+        suggestion_group.Content = suggestions
+        Grid.SetRow(suggestion_group, 2)
+        center.Children.Add(suggestion_group)
+
+        lower = Grid()
+        lower.ColumnDefinitions.Add(ColumnDefinition())
+        lower.ColumnDefinitions.Add(ColumnDefinition())
+        lower.ColumnDefinitions[0].Width = Wpf.GridLength(1, Wpf.GridUnitType.Star)
+        lower.ColumnDefinitions[1].Width = Wpf.GridLength(1, Wpf.GridUnitType.Star)
+        preview_group = GroupBox()
+        preview_group.Header = "Command Preview / Safety"
+        preview_box = TextBox()
+        preview_box.IsReadOnly = True
+        preview_box.AcceptsReturn = True
+        preview_box.TextWrapping = Wpf.TextWrapping.Wrap
+        preview_box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        preview_box.BorderThickness = Wpf.Thickness(0)
+        preview_box.Background = self._brush("#f8fafd")
+        preview_group.Content = preview_box
+        lower.Children.Add(preview_group)
+
+        result_grid = Grid()
+        result_grid.RowDefinitions.Add(RowDefinition())
+        result_grid.RowDefinitions.Add(RowDefinition())
+        result_grid.RowDefinitions[0].Height = Wpf.GridLength(1, Wpf.GridUnitType.Auto)
+        result_grid.RowDefinitions[1].Height = Wpf.GridLength(1, Wpf.GridUnitType.Star)
+        button_panel = WrapPanel()
+        export_button = Button()
+        export_button.Content = "Export latest QA report"
+        export_button.Height = 26
+        export_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        export_button.Click += self.on_console_export_latest
+        clear_button = Button()
+        clear_button.Content = "Clear result"
+        clear_button.Height = 26
+        clear_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        clear_button.Click += self.on_console_clear_result
+        confirm = CheckBox()
+        confirm.Content = "Confirm UI-selection-only command"
+        confirm.Margin = Wpf.Thickness(0, 4, 0, 6)
+        button_panel.Children.Add(export_button)
+        button_panel.Children.Add(clear_button)
+        button_panel.Children.Add(confirm)
+        result_grid.Children.Add(button_panel)
+        result_group = GroupBox()
+        result_group.Header = "Latest Result Summary"
+        result_box = TextBox()
+        result_box.IsReadOnly = True
+        result_box.AcceptsReturn = True
+        result_box.TextWrapping = Wpf.TextWrapping.Wrap
+        result_box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        result_box.BorderThickness = Wpf.Thickness(0)
+        result_box.Background = self._brush("#f8fafd")
+        result_group.Content = result_box
+        Grid.SetRow(result_group, 1)
+        result_grid.Children.Add(result_group)
+        Grid.SetColumn(result_grid, 1)
+        lower.Children.Add(result_grid)
+        Grid.SetRow(lower, 3)
+        center.Children.Add(lower)
+        Grid.SetColumn(center, 2)
+        root.Children.Add(center)
+
+        split_b = GridSplitter()
+        split_b.Width = 6
+        split_b.HorizontalAlignment = Wpf.HorizontalAlignment.Stretch
+        split_b.VerticalAlignment = Wpf.VerticalAlignment.Stretch
+        split_b.Background = self._brush("#dbeafe")
+        Grid.SetColumn(split_b, 3)
+        root.Children.Add(split_b)
+
+        right = Grid()
+        right.RowDefinitions.Add(RowDefinition())
+        right.RowDefinitions.Add(RowDefinition())
+        right.RowDefinitions.Add(RowDefinition())
+        right.RowDefinitions[0].Height = Wpf.GridLength(1, Wpf.GridUnitType.Auto)
+        right.RowDefinitions[1].Height = Wpf.GridLength(1, Wpf.GridUnitType.Star)
+        right.RowDefinitions[2].Height = Wpf.GridLength(1, Wpf.GridUnitType.Star)
+        refresh_button = Button()
+        refresh_button.Content = "Refresh Context"
+        refresh_button.Height = 28
+        refresh_button.Margin = Wpf.Thickness(0, 0, 0, 8)
+        refresh_button.Click += self.on_console_refresh_context
+        right.Children.Add(refresh_button)
+        context_group = GroupBox()
+        context_group.Header = "Live Revit Context"
+        context_box = TextBox()
+        context_box.IsReadOnly = True
+        context_box.AcceptsReturn = True
+        context_box.TextWrapping = Wpf.TextWrapping.Wrap
+        context_box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        context_box.BorderThickness = Wpf.Thickness(0)
+        context_box.Background = self._brush("#f8fafd")
+        context_group.Content = context_box
+        Grid.SetRow(context_group, 1)
+        right.Children.Add(context_group)
+        visual_group = GroupBox()
+        visual_group.Header = "Visual Preview / Model Context"
+        visual_box = TextBox()
+        visual_box.IsReadOnly = True
+        visual_box.AcceptsReturn = True
+        visual_box.TextWrapping = Wpf.TextWrapping.Wrap
+        visual_box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        visual_box.BorderThickness = Wpf.Thickness(0)
+        visual_box.Background = self._brush("#f8fafd")
+        visual_group.Content = visual_box
+        Grid.SetRow(visual_group, 2)
+        right.Children.Add(visual_group)
+        Grid.SetColumn(right, 4)
+        root.Children.Add(right)
+
+        tab.Content = root
+        self.ConsoleTab = tab
+        self.ConsolePromptInput = input_box
+        self.ConsoleRunButton = run_button
+        self.ConsoleSuggestionList = suggestions
+        self.ConsoleCommandTree = tree
+        self.ConsolePreviewBox = preview_box
+        self.ConsoleResultBox = result_box
+        self.ConsoleContextBox = context_box
+        self.ConsoleVisualBox = visual_box
+        self.ConsoleSelectionConfirm = confirm
+        try:
+            self.MainTabs.Items.Insert(0, tab)
+        except:
+            self.MainTabs.Items.Add(tab)
+        self.populate_console_command_tree()
+
+    def _console_normalize(self, value):
+        return _normalize_deterministic_route_text(value)
+
+    def _console_entry_feature_id(self, entry):
+        return safe_str(entry.get("id") or entry.get("feature_id") or entry.get("deterministic_handler") or "unknown")
+
+    def _console_group_path(self, entry):
+        feature_id = self._console_entry_feature_id(entry).lower()
+        prompt = safe_str(entry.get("canonical_prompt") or entry.get("prompt_text") or "").lower()
+        handler = safe_str(entry.get("deterministic_handler") or "").lower()
+        if feature_id.startswith("mep-ro-export") or "mep_ro_export" in handler:
+            return ("MEP QA", "Exports")
+        if feature_id.startswith("mep-ro") or "mep_read_only" in handler:
+            return ("MEP QA", "Reports")
+        if feature_id.startswith("mep-sel") or "mep_selection" in handler or prompt.startswith("select "):
+            return ("MEP QA", "Selection")
+        if feature_id.startswith("mep-qa-bundle"):
+            return ("MEP QA", "Bundles")
+        if feature_id.startswith("mep-qa-issueindex"):
+            return ("MEP QA", "Project Index")
+        if feature_id.startswith("mep-qa-viewexport"):
+            return ("MEP QA", "Exports")
+        if feature_id.startswith("mep-qa"):
+            return ("MEP QA", "Reports")
+        if feature_id.startswith("coord-wr") or "link_" in handler or "coordination" in prompt:
+            return ("Coordination", "Link Reset / Handover")
+        if "scope" in prompt:
+            return ("Scope Modifier", "Utilities")
+        if "sheet" in prompt:
+            return ("Sheets", "Sheets / Views")
+        if "export latest qa report" in prompt or "qa export" in prompt or "evidence snapshot" in prompt:
+            return ("Utilities / QA Export", "QA Export")
+        if "ai workbench console" in feature_id or "console" in prompt:
+            return ("AI / ModelMind", "Console")
+        return (safe_str(entry.get("category") or "AI / ModelMind"), safe_str(entry.get("group") or "Utilities"))
+
+    def _console_safety_class(self, entry):
+        if not entry:
+            return "unknown"
+        explicit = safe_str(entry.get("safety_class") or "")
+        if explicit:
+            return explicit
+        feature_id = self._console_entry_feature_id(entry).lower()
+        prompt = safe_str(entry.get("canonical_prompt") or entry.get("prompt_text") or "").lower()
+        handler = safe_str(entry.get("deterministic_handler") or "").lower()
+        role = safe_str(entry.get("role") or "").lower()
+        if feature_id.startswith("mep-sel") or "mep_selection" in handler or prompt.startswith("select "):
+            return "selection-only"
+        if (
+            feature_id.startswith("mep-ro-export")
+            or feature_id.startswith("mep-qa-viewexport")
+            or feature_id.startswith("mep-qa-issueindex-export")
+            or "export latest qa report" in prompt
+            or "export" in handler
+        ):
+            return "export"
+        if feature_id.startswith("mep-qa-bundle"):
+            return "bundle"
+        if (
+            feature_id.startswith("mep-ro")
+            or feature_id.startswith("mep-qa-dashboard")
+            or feature_id.startswith("mep-qa-viewscan")
+            or feature_id.startswith("mep-qa-viewdetail")
+            or feature_id.startswith("mep-qa-issueindex")
+            or "read_only" in handler
+        ):
+            return "report-only"
+        if feature_id.startswith("coord-wr") or role == "modify" or entry.get("requires_confirmation"):
+            return "model-write"
+        return "unknown"
+
+    def _console_may_run(self, entry):
+        safety = self._console_safety_class(entry)
+        return safety in ("report-only", "export", "bundle", "selection-only")
+
+    def _console_metadata_line(self, entry, prompt_text):
+        safety = self._console_safety_class(entry)
+        group, subgroup = self._console_group_path(entry)
+        title = safe_str(entry.get("title") or entry.get("feature_name") or prompt_text)
+        feature_id = self._console_entry_feature_id(entry)
+        return "{0} | {1} | {2} / {3} | {4}".format(prompt_text, feature_id, group, subgroup, safety)
+
+    def _rebuild_console_command_index(self):
+        index = []
+        seen = set()
+        try:
+            entries = self.catalog.get_enabled_entries()
+        except:
+            entries = []
+        for entry in entries:
+            prompts = []
+            for key in ("canonical_prompt", "prompt_text", "title"):
+                value = safe_str(entry.get(key) or "").strip()
+                if value:
+                    prompts.append(value)
+            for alias in (entry.get("aliases") or entry.get("planner_aliases") or []):
+                alias = safe_str(alias).strip()
+                if alias:
+                    prompts.append(alias)
+            for prompt_text in prompts:
+                norm = self._console_normalize(prompt_text)
+                if not norm or norm in seen:
+                    continue
+                seen.add(norm)
+                item = {
+                    "prompt": prompt_text,
+                    "normalized": norm,
+                    "entry": entry,
+                    "feature_id": self._console_entry_feature_id(entry),
+                    "safety_class": self._console_safety_class(entry),
+                    "group": self._console_group_path(entry)[0],
+                    "subgroup": self._console_group_path(entry)[1],
+                    "description": safe_str(entry.get("description") or entry.get("summary") or self._derive_prompt_purpose(entry)),
+                }
+                index.append(item)
+        self.console_command_index = index
+        return index
+
+    def _console_rank_suggestions(self, text):
+        text = safe_str(text).strip()
+        norm = self._console_normalize(text)
+        if not norm:
+            preferred = [
+                "show active view mep qa dashboard",
+                "scan all floor plan views for mep qa",
+                "show mep project issue index",
+                "export mep project issue index",
+                "export latest QA report",
+            ]
+            return [item for prompt in preferred for item in self.console_command_index if item["normalized"] == self._console_normalize(prompt)][:8]
+        terms = [term for term in norm.split(" ") if term]
+        ranked = []
+        for item in self.console_command_index:
+            candidate = item.get("normalized", "")
+            score = 0
+            if candidate == norm:
+                score = 1000
+            elif candidate.startswith(norm):
+                score = 800
+            elif any(part.startswith(norm) for part in candidate.split(" ")):
+                score = 650
+            elif norm in candidate:
+                score = 500
+            else:
+                overlap = len([term for term in terms if term in candidate])
+                if overlap:
+                    score = 250 + overlap * 25
+            if score:
+                ranked.append((score, len(candidate), item))
+        ranked.sort(key=lambda value: (-value[0], value[1], value[2].get("prompt", "")))
+        return [item for score, length, item in ranked[:8]]
+
+    def update_console_suggestions(self):
+        if not hasattr(self, "ConsoleSuggestionList"):
+            return
+        prompt_text = ""
+        try:
+            prompt_text = self.ConsolePromptInput.Text or ""
+        except:
+            prompt_text = ""
+        suggestions = self._console_rank_suggestions(prompt_text)
+        self.ConsoleSuggestionList.Items.Clear()
+        self.console_top_suggestion = suggestions[0] if suggestions else None
+        if suggestions:
+            for item in suggestions:
+                self.ConsoleSuggestionList.Items.Add(self._console_metadata_line(item["entry"], item["prompt"]))
+            self.update_console_preview(suggestions[0])
+        else:
+            self.ConsoleSuggestionList.Items.Add("No deterministic command matched.")
+            self.ConsoleSuggestionList.Items.Add("Use an exact suggestion or choose a command from the tree.")
+            self.ConsoleSuggestionList.Items.Add("Example: show active view mep qa dashboard")
+            self.ConsoleSuggestionList.Items.Add("Example: scan all floor plan views for mep qa")
+            self.ConsoleSuggestionList.Items.Add("Example: export latest QA report")
+            self.update_console_preview(None)
+
+    def update_console_preview(self, suggestion):
+        if not hasattr(self, "ConsolePreviewBox"):
+            return
+        if not suggestion:
+            self.ConsolePreviewBox.Text = (
+                "Resolved command: none\n"
+                "Result classification: AI_WORKBENCH_CONSOLE_UNSUPPORTED_PROMPT\n\n"
+                "No deterministic command matched.\n"
+                "Use an exact suggestion or choose a command from the tree.\n\n"
+                "No model data will be modified.\n"
+                "No UI selection will be modified.\n"
+                "No active view will be changed.\n"
+                "No external files will be written."
+            )
+            return
+        entry = suggestion.get("entry") or {}
+        safety = self._console_safety_class(entry)
+        group, subgroup = self._console_group_path(entry)
+        prompt_text = suggestion.get("prompt") or entry.get("canonical_prompt") or entry.get("prompt_text") or ""
+        modifies_model = safety == "model-write"
+        modifies_selection = safety == "selection-only"
+        writes_external = safety in ("export", "bundle")
+        lines = [
+            "Resolved command: {0}".format(prompt_text),
+            "Feature ID: {0}".format(self._console_entry_feature_id(entry)),
+            "Feature name: {0}".format(entry.get("title") or entry.get("feature_name") or "(catalog command)"),
+            "Group: {0} / {1}".format(group, subgroup),
+            "Safety class: {0}".format(safety),
+            "",
+            "What it will do:",
+            "- Dispatch the resolved deterministic command through the existing AI Workbench command engine.",
+            "- Reuse existing report/export/selection behavior without duplicating business logic.",
+            "",
+            "What it will not do from preview:",
+            "- No Revit transaction.",
+            "- No model mutation.",
+            "- No active view switch.",
+            "- No LLM call while typing.",
+            "",
+            "May modify model: {0}".format(str(bool(modifies_model)).lower()),
+            "May modify UI selection: {0}".format(str(bool(modifies_selection)).lower()),
+            "May change active view: false",
+            "May write external files: {0}".format(str(bool(writes_external)).lower()),
+        ]
+        if safety == "selection-only":
+            lines.append("Run requires the selection-only confirmation checkbox.")
+        if safety == "model-write":
+            lines.append("Console v1 blocks direct model-write execution. Use the existing reviewed workflow prompt surface.")
+        if safety == "unknown":
+            lines.append("Console v1 blocks unknown commands.")
+        self.ConsolePreviewBox.Text = "\n".join(lines)
+
+    def populate_console_command_tree(self):
+        if not hasattr(self, "ConsoleCommandTree"):
+            return
+        from System.Windows.Controls import TreeViewItem
+        self.ConsoleCommandTree.Items.Clear()
+        grouped = {}
+        for item in self.console_command_index:
+            entry = item.get("entry") or {}
+            canonical = safe_str(entry.get("canonical_prompt") or entry.get("prompt_text") or item.get("prompt"))
+            if item.get("prompt") != canonical:
+                continue
+            group = item.get("group") or "AI / ModelMind"
+            subgroup = item.get("subgroup") or "Commands"
+            grouped.setdefault(group, {}).setdefault(subgroup, []).append(item)
+        for group_name in sorted(grouped.keys()):
+            group_node = TreeViewItem()
+            group_node.Header = group_name
+            group_node.IsExpanded = group_name in ("MEP QA", "Utilities / QA Export", "AI / ModelMind")
+            for subgroup_name in sorted(grouped[group_name].keys()):
+                subgroup_node = TreeViewItem()
+                subgroup_node.Header = subgroup_name
+                subgroup_node.IsExpanded = group_node.IsExpanded
+                for item in sorted(grouped[group_name][subgroup_name], key=lambda i: i.get("prompt", "")):
+                    leaf = TreeViewItem()
+                    leaf.Header = "{0} [{1}]".format(item.get("prompt"), item.get("safety_class"))
+                    leaf.Tag = item
+                    leaf.ToolTip = item.get("description", "")
+                    subgroup_node.Items.Add(leaf)
+                group_node.Items.Add(subgroup_node)
+            self.ConsoleCommandTree.Items.Add(group_node)
+
+    def _console_selected_suggestion(self):
+        try:
+            index = int(self.ConsoleSuggestionList.SelectedIndex)
+            if index >= 0:
+                suggestions = self._console_rank_suggestions(self.ConsolePromptInput.Text or "")
+                if index < len(suggestions):
+                    return suggestions[index]
+        except:
+            pass
+        return self.console_top_suggestion
+
+    def _console_accept_suggestion(self, suggestion=None):
+        suggestion = suggestion or self._console_selected_suggestion()
+        if not suggestion:
+            return
+        prompt_text = suggestion.get("prompt") or ""
+        self.console_selected_entry = suggestion.get("entry")
+        self.ConsolePromptInput.Text = prompt_text
+        self.ConsolePromptInput.CaretIndex = len(prompt_text)
+        self.update_console_preview(suggestion)
+
+    def on_console_input_changed(self, sender, args):
+        self.update_console_suggestions()
+
+    def on_console_input_keydown(self, sender, args):
+        import System.Windows.Input as wpfInput
+        if args.Key == wpfInput.Key.Tab:
+            self._console_accept_suggestion()
+            args.Handled = True
+        elif args.Key == wpfInput.Key.Enter:
+            self.on_console_run(sender, args)
+            args.Handled = True
+        elif args.Key == wpfInput.Key.Escape:
+            try:
+                if self.ConsolePromptInput.Text:
+                    self.ConsolePromptInput.Text = ""
+                else:
+                    self.Close()
+            except:
+                pass
+            args.Handled = True
+
+    def on_console_suggestion_doubleclick(self, sender, args):
+        self._console_accept_suggestion()
+
+    def on_console_suggestion_keydown(self, sender, args):
+        import System.Windows.Input as wpfInput
+        if args.Key in (wpfInput.Key.Enter, wpfInput.Key.Tab):
+            self._console_accept_suggestion()
+            args.Handled = True
+
+    def on_console_tree_selected(self, sender, args):
+        try:
+            selected = self.ConsoleCommandTree.SelectedItem
+            item = selected.Tag if selected is not None and hasattr(selected, "Tag") else None
+            if isinstance(item, dict):
+                self.update_console_preview(item)
+        except:
+            pass
+
+    def on_console_tree_doubleclick(self, sender, args):
+        try:
+            selected = self.ConsoleCommandTree.SelectedItem
+            item = selected.Tag if selected is not None and hasattr(selected, "Tag") else None
+            if isinstance(item, dict):
+                self._console_accept_suggestion(item)
+        except:
+            pass
+
+    def _console_context_category_specs(self):
+        return [
+            ("Pipes", BuiltInCategory.OST_PipeCurves),
+            ("Pipe fittings", BuiltInCategory.OST_PipeFitting),
+            ("Ducts", BuiltInCategory.OST_DuctCurves),
+            ("Duct fittings", BuiltInCategory.OST_DuctFitting),
+            ("Electrical fixtures", BuiltInCategory.OST_ElectricalFixtures),
+            ("Electrical equipment", BuiltInCategory.OST_ElectricalEquipment),
+            ("Electrical devices", BuiltInCategory.OST_ElectricalDevices),
+        ]
+
+    def _console_active_view_category_count(self, view, bic):
+        try:
+            return (
+                DB.FilteredElementCollector(doc, view.Id)
+                .OfCategory(bic)
+                .WhereElementIsNotElementType()
+                .GetElementCount()
+            )
+        except:
+            return 0
+
+    def _console_selection_breakdown(self):
+        breakdown = {}
+        count = 0
+        try:
+            ids = list(uidoc.Selection.GetElementIds())
+            count = len(ids)
+            for elem_id in ids:
+                elem = doc.GetElement(elem_id)
+                name = _category_name(elem) if elem is not None else "(missing)"
+                breakdown[name] = breakdown.get(name, 0) + 1
+        except:
+            count = 0
+        return count, breakdown
+
+    def refresh_console_context(self):
+        context = {
+            "status": "available",
+            "document_title": _document_title(doc),
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": "unavailable",
+            "selection_count": 0,
+            "selection_breakdown": {},
+            "category_counts": {},
+            "likely_discipline": "Unknown / Empty",
+            "warning": "",
+        }
+        try:
+            active_view = getattr(uidoc, "ActiveView", None)
+            if active_view is None:
+                active_view = doc.ActiveView
+            context["active_view_type"] = safe_str(getattr(active_view, "ViewType", "unavailable"))
+            selection_count, selection_breakdown = self._console_selection_breakdown()
+            context["selection_count"] = selection_count
+            context["selection_breakdown"] = selection_breakdown
+            category_counts = {}
+            for label, bic in self._console_context_category_specs():
+                category_counts[label] = self._console_active_view_category_count(active_view, bic)
+            context["category_counts"] = category_counts
+            piping = category_counts.get("Pipes", 0) + category_counts.get("Pipe fittings", 0)
+            hvac = category_counts.get("Ducts", 0) + category_counts.get("Duct fittings", 0)
+            electrical = (
+                category_counts.get("Electrical fixtures", 0)
+                + category_counts.get("Electrical equipment", 0)
+                + category_counts.get("Electrical devices", 0)
+            )
+            active_disciplines = len([value for value in (piping, hvac, electrical) if value > 0])
+            if active_disciplines > 1:
+                context["likely_discipline"] = "Mixed MEP"
+            elif piping > 0:
+                context["likely_discipline"] = "Piping"
+            elif hvac > 0:
+                context["likely_discipline"] = "HVAC"
+            elif electrical > 0:
+                context["likely_discipline"] = "Electrical"
+        except Exception as exc:
+            context["status"] = "context unavailable"
+            context["warning"] = safe_str(exc)
+        self.console_last_context = context
+        self._render_console_context()
+        return context
+
+    def _render_console_context(self):
+        if not hasattr(self, "ConsoleContextBox"):
+            return
+        context = self.console_last_context or {}
+        lines = [
+            "Status: {0}".format(context.get("status", "context unavailable")),
+            "Active document: {0}".format(context.get("document_title", "(unknown document)")),
+            "Active view: {0} [{1}]".format(context.get("active_view_name", "(unknown view)"), context.get("active_view_type", "unavailable")),
+            "UI selection count: {0}".format(context.get("selection_count", 0)),
+            "Detected likely discipline: {0}".format(context.get("likely_discipline", "Unknown / Empty")),
+            "",
+            "Selection category breakdown:",
+        ]
+        breakdown = context.get("selection_breakdown") or {}
+        if breakdown:
+            for name in sorted(breakdown.keys()):
+                lines.append("- {0}: {1}".format(name, breakdown[name]))
+        else:
+            lines.append("- none")
+        lines.append("")
+        lines.append("Active view quick category counts:")
+        for name, count in sorted((context.get("category_counts") or {}).items()):
+            lines.append("- {0}: {1}".format(name, count))
+        if context.get("warning"):
+            lines.append("")
+            lines.append("Warning: {0}".format(context.get("warning")))
+        lines.append("")
+        lines.append("Safe suggested commands:")
+        for prompt in [
+            "show active view mep qa dashboard",
+            "scan all floor plan views for mep qa",
+            "show mep project issue index",
+            "export mep project issue index",
+            "export latest QA report",
+        ]:
+            lines.append("- {0}".format(prompt))
+        self.ConsoleContextBox.Text = "\n".join(lines)
+        try:
+            self.ConsoleVisualBox.Text = (
+                "Visual Preview / Model Context\n"
+                "Active view: {0} [{1}]\n"
+                "Selection count: {2}\n"
+                "Detected MEP discipline: {3}\n\n"
+                "Issue badges and element-card visual layers are reserved for future AI-WORKBENCH-VISUAL-v1.\n"
+                "This v1 preview does not modify model data, UI selection, or active view."
+            ).format(
+                context.get("active_view_name", "(unknown view)"),
+                context.get("active_view_type", "unavailable"),
+                context.get("selection_count", 0),
+                context.get("likely_discipline", "Unknown / Empty"),
+            )
+        except:
+            pass
+
+    def on_console_refresh_context(self, sender, args):
+        self.refresh_console_context()
+
+    def _console_extract_result_summary(self, report_text):
+        text = safe_str(report_text)
+        header = self._extract_report_header(text) or "(no report header)"
+        lines = [
+            "Result header: {0}".format(header),
+        ]
+        wanted = [
+            "Feature ID:",
+            "Result classification:",
+            "Classification:",
+            "Report result:",
+            "Dashboard result:",
+            "Verification result:",
+            "Visual review result:",
+            "Export folder:",
+            "Total ",
+            "Warnings:",
+            "Transaction opened:",
+            "BreakCurve called:",
+            "Model modified:",
+            "UI selection modified:",
+        ]
+        added = 0
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if any(stripped.startswith(prefix) for prefix in wanted):
+                lines.append(stripped)
+                added += 1
+            if added >= 18:
+                break
+        if added == 0:
+            for stripped in [line.strip() for line in text.splitlines() if line.strip()][:8]:
+                lines.append(stripped)
+        return "\n".join(lines)
+
+    def on_console_clear_result(self, sender, args):
+        try:
+            self.ConsoleResultBox.Text = ""
+            self.console_last_report = ""
+        except:
+            pass
+
+    def on_console_export_latest(self, sender, args):
+        try:
+            self.ConsolePromptInput.Text = "export latest QA report"
+            self.on_console_run(sender, args)
+        except Exception as exc:
+            self.ConsoleResultBox.Text = "Export request failed: {0}".format(safe_str(exc))
+
+    def _console_report(self, prompt, classification, extra_lines=None):
+        context = self.console_last_context or self.refresh_console_context()
+        report_id = "AI-WORKBENCH-CONSOLE-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        lines = [
+            "[AI WORKBENCH CONSOLE V1 REPORT]",
+            "",
+            "Console Report ID:",
+            report_id,
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-CONSOLE-v1",
+            "",
+            "Feature name:",
+            "Unified ModelMind AI Workbench Console v1",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Active document:",
+            context.get("document_title", _document_title(doc)),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(context.get("active_view_name", _active_view_title(doc, uidoc)), context.get("active_view_type", "unavailable")),
+            "",
+            "Prompt catalog loaded: {0}".format(str(bool(self.console_command_index)).lower()),
+            "Command aliases indexed count: {0}".format(len(self.console_command_index or [])),
+            "Command groups count: {0}".format(len(set([item.get("group") for item in self.console_command_index or []]))),
+            "Context scan status: {0}".format(context.get("status", "context unavailable")),
+            "UI selection count: {0}".format(context.get("selection_count", 0)),
+            "",
+            "Result classification:",
+            classification,
+            "",
+        ]
+        if extra_lines:
+            lines.extend(extra_lines)
+            lines.append("")
+        lines.extend(
+            [
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+                "",
+                "Safety:",
+                "- Console status, preview, and autocomplete are UI wrapper operations only.",
+                "- No Revit collectors run while typing.",
+                "- Unsupported prompts are not dispatched to LLM fallback from the console.",
+            ]
+        )
+        report = "\n".join(lines)
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def answer_ai_workbench_console_v1_question(self, prompt):
+        if not _is_ai_workbench_console_v1_prompt(prompt):
+            return None
+        try:
+            self.refresh_console_context()
+            return self._console_report(prompt, "AI_WORKBENCH_CONSOLE_READY")
+        except Exception as exc:
+            return self._console_report(
+                prompt,
+                "AI_WORKBENCH_CONSOLE_FAILED",
+                ["Failure:", safe_str(exc)],
+            )
+
+    def _console_unsupported_prompt_report(self, prompt):
+        examples = [
+            "show active view mep qa dashboard",
+            "scan all floor plan views for mep qa",
+            "show mep project issue index",
+            "export mep project issue index",
+            "export latest QA report",
+        ]
+        return self._console_report(
+            prompt,
+            "AI_WORKBENCH_CONSOLE_UNSUPPORTED_PROMPT",
+            [
+                "No deterministic command matched.",
+                "Use an exact suggestion or choose a command from the tree.",
+                "",
+                "Safe example prompts:",
+            ]
+            + ["- {0}".format(example) for example in examples],
+        )
+
+    def on_console_run(self, sender, args):
+        prompt = safe_str(self.ConsolePromptInput.Text).strip() if hasattr(self, "ConsolePromptInput") else ""
+        if not prompt:
+            return
+        suggestion = None
+        norm = self._console_normalize(prompt)
+        for item in self.console_command_index:
+            if item.get("normalized") == norm:
+                suggestion = item
+                break
+        if suggestion is None:
+            suggestion = self._console_selected_suggestion()
+        if suggestion is None:
+            report = self._console_unsupported_prompt_report(prompt)
+            self.console_last_report = report
+            try:
+                self.ConsoleResultBox.Text = self._console_extract_result_summary(report)
+            except:
+                pass
+            return
+        entry = suggestion.get("entry") or {}
+        prompt = suggestion.get("prompt") or prompt
+        safety = self._console_safety_class(entry)
+        if safety == "selection-only":
+            try:
+                if not bool(self.ConsoleSelectionConfirm.IsChecked):
+                    report = self._console_report(
+                        prompt,
+                        "AI_WORKBENCH_CONSOLE_UNSUPPORTED_PROMPT",
+                        [
+                            "Selection-only command requires explicit console confirmation.",
+                            "This command changes UI selection only. No model data will be modified.",
+                        ],
+                    )
+                    self.ConsoleResultBox.Text = self._console_extract_result_summary(report)
+                    return
+            except:
+                pass
+        if not self._console_may_run(entry):
+            report = self._console_report(
+                prompt,
+                "AI_WORKBENCH_CONSOLE_UNSUPPORTED_PROMPT",
+                [
+                    "Console v1 blocked this command safety class: {0}".format(safety),
+                    "Model-write and unknown commands are not run directly through the console wrapper.",
+                ],
+            )
+            self.ConsoleResultBox.Text = self._console_extract_result_summary(report)
+            return
+        self.update_window_status("executing", "Console command")
+        self._set_thinking("Thinking (Console)...")
+        self.show_busy()
+        self._pump_ui()
+        try:
+            self.ChatInput.Text = prompt
+            self.on_send_chat(sender, args)
+            report = ""
+            try:
+                latest = self.latest_deterministic_report or {}
+                report = latest.get("report_text") or ""
+            except:
+                report = ""
+            if not report:
+                report = self._console_report(
+                    prompt,
+                    "AI_WORKBENCH_CONSOLE_CONTEXT_WARNING",
+                    ["Command completed but no exportable deterministic report was registered."],
+                )
+            self.console_last_report = report
+            self.ConsoleResultBox.Text = self._console_extract_result_summary(report)
+            self.refresh_console_context()
+        except Exception as exc:
+            report = self._console_report(prompt, "AI_WORKBENCH_CONSOLE_FAILED", ["Failure:", safe_str(exc)])
+            self.console_last_report = report
+            try:
+                self.ConsoleResultBox.Text = self._console_extract_result_summary(report)
+            except:
+                pass
+        finally:
+            self.hide_busy()
+            self._set_thinking("Thinking...")
+            self.update_window_status("idle")
 
     def _set_thinking(self, text):
         try:
@@ -16505,6 +17482,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "compact read-only project-level MEP issue index across eligible floor plan views"
         if header == "[MEP QA ISSUE INDEX EXPORT V1 REPORT]":
             return "read-only project-level MEP issue index export across eligible floor plan views"
+        if header == "[AI WORKBENCH CONSOLE V1 REPORT]":
+            return "AI Workbench console status / UI wrapper and read-only context preview"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -39017,9 +39996,17 @@ class OllamaAIChat(forms.WPFWindow):
         try:
             remember_report = False
             preserve_latest_report_state = False
-            mep_qa_issueindex_export_v1_reply = self.answer_mep_qa_issueindex_export_v1_question(
+            ai_workbench_console_v1_reply = self.answer_ai_workbench_console_v1_question(
                 prompt
             )
+            if ai_workbench_console_v1_reply is not None:
+                reply = ai_workbench_console_v1_reply
+                preserve_latest_report_state = True
+            else:
+                reply = None
+            mep_qa_issueindex_export_v1_reply = self.answer_mep_qa_issueindex_export_v1_question(
+                prompt
+            ) if ai_workbench_console_v1_reply is None else None
             mep_qa_issueindex_v1_reply = None
             if mep_qa_issueindex_export_v1_reply is None:
                 mep_qa_issueindex_v1_reply = self.answer_mep_qa_issueindex_v1_question(
@@ -39121,7 +40108,10 @@ class OllamaAIChat(forms.WPFWindow):
             link_workflow_history_reply = self.answer_link_reset_workflow_history_question(prompt)
             link_workflow_status_reply = self.answer_link_reset_workflow_status_question(prompt)
             index_reply = self.answer_qa_export_index_question(prompt)
-            if mep_qa_issueindex_export_v1_reply is not None:
+            if ai_workbench_console_v1_reply is not None:
+                reply = ai_workbench_console_v1_reply
+                preserve_latest_report_state = True
+            elif mep_qa_issueindex_export_v1_reply is not None:
                 reply = mep_qa_issueindex_export_v1_reply
                 preserve_latest_report_state = True
             elif mep_qa_issueindex_v1_reply is not None:

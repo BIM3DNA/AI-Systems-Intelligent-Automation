@@ -4581,5 +4581,38 @@
     "validation_state": "structural_only",
     "prompt_text": "export mep project issue index",
     "mode": "deterministic"
+  },
+  {
+    "id": "ai-workbench-console-v1",
+    "title": "Unified ModelMind AI Workbench Console v1",
+    "category": "AI / ModelMind",
+    "group": "Console",
+    "discipline": "General",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "ai_workbench_console_status",
+    "canonical_prompt": "show ai workbench console status",
+    "planner_aliases": [
+      "open ai workbench console",
+      "ai workbench console",
+      "open modelmind console",
+      "modelmind console",
+      "show ai workbench console status",
+      "ai console status"
+    ],
+    "deterministic_handler": "ai_workbench_console_v1_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show ai workbench console status",
+    "mode": "deterministic",
+    "feature_id": "AI-WORKBENCH-CONSOLE-v1",
+    "feature_name": "Unified ModelMind AI Workbench Console v1",
+    "description": "Deterministic console status and read-only context preview for the unified AI Workbench command surface.",
+    "safety_class": "report-only",
+    "writes_external_files": false,
+    "modifies_model": false,
+    "modifies_ui_selection": false,
+    "changes_active_view": false
   }
 ]
