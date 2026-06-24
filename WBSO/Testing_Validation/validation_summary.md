@@ -766,3 +766,34 @@ The MEP QA Workbench batch adds a layered evidence pipeline for active-view, nam
 ### Safety
 
 No Revit model data was modified. Read-only tools opened no transaction or TransactionGroup, did not write parameters, did not modify linked documents, did not reload/unload, did not pin/unpin, did not create sheets/views/tags, did not change UI selection, and did not switch active views. External files were written only by explicit export/bundle workflows outside the repository.
+
+## 2026-06-24/25 - AI Workbench Console Layer and Issue Index Export
+
+### Status
+
+Runtime validated and export/index validated.
+
+### Summary
+
+This batch adds the project-level MEP issue-index export and the next ModelMind console layer: deterministic command autocomplete, command confidence gating, unsupported prompt blocking, one-tab deterministic result routing, result-summary parsing, copy/open-folder controls, context panel fixes, and a guarded selection-only confirmation UI.
+
+### Main Findings
+
+- BUNGE issue-index export scanned 15 eligible views, found 24 issue candidates, and exported 8 issue-index rows.
+- Snowdon HVAC issue-index export generated empty CSV/JSON traceability evidence with 0 issue candidates.
+- Snowdon Electrical issue-index export scanned 30 views, found 350 issue candidates, and exported 29 issue-index rows.
+- Console autocomplete surfaces deterministic MEP export/index suggestions and accepts high-confidence suggestions with Tab.
+- Unsupported prompt `banana cut all pipes with dragon` is blocked and does not dispatch a command.
+- Deterministic command output now appears inside the Console tab instead of requiring the Ollama Chat tab.
+- Summary parsing extracts report header, feature metadata, classification, export folder, issue counts, skipped/unreadable counts, and warnings.
+- The context panel no longer fails on invalid `OST_ElectricalDevices`.
+- The selection-only confirmation gate works, but confirmed `select all pipes` currently returns `MEP_RO_SELECTION_ACTION_BLOCKED`; backend dispatch to MEP-SEL-v1 remains a future integration task.
+
+### Evidence Roots
+
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports`
+- `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports`
+
+### Safety
+
+Console preview and context scanning do not open transactions, do not modify model data, do not change active view, and do not modify UI selection. Unsupported prompts are blocked. Selection-only prompts require explicit confirmation. Export commands write external evidence only through existing export command routes.

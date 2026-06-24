@@ -1504,3 +1504,25 @@ Key architectural decisions:
 - external files are written only by explicit export/bundle commands and remain outside the repository
 
 The batch preserves no-model-modification governance: no transaction, TransactionGroup, parameter write, linked-document mutation, reload/unload, pin/unpin, sheet/view/tag creation, or connector/system modification.
+
+## 2026-06-24/25 AI Workbench Console Layer Architecture
+
+This batch extends the deterministic MEP QA command engine with a user-facing ModelMind console layer:
+
+- MEP-QA-ISSUEINDEX-EXPORT-v1 writes project-level issue-index CSV/JSON evidence under `MEP_Issue_Index_Exports`.
+- AI-WORKBENCH-CONSOLE-v1 exposes the prompt catalog through deterministic autocomplete and command suggestion ranking.
+- AI-WORKBENCH-CONSOLE-UX-v1 adds prompt preview, safety preview, and a compact Revit context panel.
+- AI-WORKBENCH-SINGLE-CONSOLE-v1 routes deterministic command results into the Console tab instead of the Ollama Chat tab.
+- AI-WORKBENCH-SINGLE-CONSOLE-FIX-v1 improves result summary parsing, including label/value pairs where the value appears on the next line.
+- AI-WORKBENCH-SELECTION-GATE-FIX-v1 adds a selection-only confirmation card before enabling selection-changing command execution.
+
+The architecture deliberately keeps command discovery and preview separate from model mutation. Unsupported or low-confidence prompts are blocked instead of being routed into arbitrary deterministic commands. Selection-only prompts require explicit UI confirmation, but runtime validation shows confirmed `select all pipes` still reaches the MEP-RO guard rather than the MEP-SEL-v1 dispatcher. This is documented as the next R&D integration boundary, not as a completed selection-mutation workflow.
+
+Safety boundary:
+
+- no transaction or TransactionGroup from console preview/context scan
+- no model data mutation
+- no active-view change
+- no UI selection mutation during preview or unsupported prompt blocking
+- external file writes only through explicit export routes
+- model-write commands remain blocked or guarded

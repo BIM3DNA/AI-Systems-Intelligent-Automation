@@ -765,3 +765,33 @@ Still out of scope:
 - linked-document edits
 - active-view switching automation
 - production model mutation based on QA issue queues
+
+### 2026-06-24/25 AI Workbench console layer scope alignment
+
+Validated scope:
+
+- project-level MEP issue-index export to local CSV/JSON evidence
+- deterministic command autocomplete from `prompt_catalog.json`
+- local suggestion ranking and high-confidence Tab acceptance
+- unsupported prompt blocking before command dispatch
+- console prompt preview and safety preview
+- compact Revit context panel with valid category handling
+- one-tab deterministic result routing to Console
+- result summary parsing for report headers, feature metadata, result classification, export folder, issue counts, skipped/unreadable counts, and warnings
+- Copy result and Open export folder controls
+- selection-only confirmation card and Run-enable gate
+
+Safety boundary:
+
+- console preview/context scanning does not open transactions or mutate model data
+- unsupported prompts do not dispatch commands
+- selection-only prompts require explicit confirmation
+- export file writes occur only through explicit export command routes
+- Ollama Chat remains separate from deterministic console execution
+
+Still out of scope:
+
+- confirmed selection-only dispatch from Console to MEP-SEL-v1
+- automatic model correction or parameter writes
+- model-write action execution without reviewed workflow controls
+- final visual design polish for the dark theme

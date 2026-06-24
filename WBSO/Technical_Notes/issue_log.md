@@ -1564,3 +1564,34 @@ Resolution:
 Runtime result:
 
 Validated across BUNGE piping, Snowdon Towers HVAC, and Snowdon Towers Electrical sample contexts. The pipeline detected known piping and electrical issue candidates, confirmed a clean HVAC inventory, and preserved QA export metadata for latest deterministic reports.
+
+## 2026-06-24/25 AI Workbench Console Integration Bottlenecks
+
+Status: Partially resolved / next R&D task identified
+
+Issues:
+
+- the deterministic MEP QA backend required exact prompts and exposed results in a developer-oriented multi-tab workflow
+- users could accidentally type unsupported prompts that needed to be blocked before unsafe or incorrect command dispatch
+- deterministic command results needed to appear in the Console tab rather than the Ollama Chat tab
+- Revit context preview failed on invalid electrical category lookup
+- selection-only commands needed an explicit confirmation gate
+- confirmed selection-only commands currently still dispatch to the MEP-RO guard instead of MEP-SEL-v1
+
+Resolution:
+
+- added deterministic autocomplete, suggestion confidence gating, prompt preview, safety preview, one-tab result routing, summary parsing, Copy result, Open export folder, and context panel category fixes
+- added selection-only confirmation UI that disables Run until the user confirms UI-selection-only behavior
+- preserved MEP-RO guard behavior when confirmed selection-only dispatch is not yet connected to MEP-SEL-v1
+
+Runtime result:
+
+- `export mep` suggestions and Tab acceptance validated
+- unsupported prompt `banana cut all pipes with dragon` was blocked and did not mutate model data or UI selection
+- deterministic results render inside Console
+- `select all pipes` shows confirmation and enables Run after confirmation
+- confirmed `select all pipes` returns `[MEP READ ONLY V1 REPORT]` with `MEP_RO_SELECTION_ACTION_BLOCKED`
+
+Next R&D task:
+
+`AI-WORKBENCH-SELECTION-DISPATCH-v1` should route confirmed selection-only console commands to MEP-SEL-v1 while preserving the confirmation gate and model-safety boundaries.

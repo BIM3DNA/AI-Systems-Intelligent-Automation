@@ -2012,6 +2012,29 @@ MEP QA Workbench Evidence Pipeline - exports, bundles, dashboards, named-view dr
 - EV-AI-257: Safety/governance evidence. Read-only tools opened no transactions, modified no model data, changed no UI selection, and did not switch active views; file writes were limited to explicit export/bundle commands outside the repository.
 - EV-AI-258: Commit evidence. Commits: `263796e` Add MEP structured QA export v1; `c2d9aeb` Add MEP active view QA bundle v1; `not found in local git log` Add MEP active view QA dashboard v1; `c74aa9b` Add MEP multi-view QA scan v1; `bdf7a26` Add MEP named view QA detail v1; `1073deb` Add MEP named view QA export v1; `3c3eb18` Add MEP project issue index v1.
 
+## EV-AI-259 through EV-AI-268 - AI Workbench Console Layer and MEP Issue Index Export
+
+Status: Runtime validated
+
+Date: 2026-06-24 / 2026-06-25
+
+Week: `2026-W14`
+
+Validation folder: `WBSO/Testing_Validation/runs/2026-06-25_ai-workbench-console-layer-and-issue-index-export-validated/`
+
+- EV-AI-259: MEP-QA-ISSUEINDEX-EXPORT-v1 implementation and BUNGE runtime validation. `export mep project issue index` returned `[MEP QA ISSUE INDEX EXPORT V1 REPORT]`, `MEP_QA_ISSUEINDEX_EXPORT_OK`, 15 eligible views scanned, 24 issue candidates, 8 issue-index rows exported, and model/UI selection modified false.
+- EV-AI-260: Snowdon HVAC empty issue-index export validation. The export returned `MEP_QA_ISSUEINDEX_EXPORT_EMPTY`, scanned 11 views, counted 1105 MEP inventory items, found 0 issue candidates, and generated empty CSV/JSON evidence for traceability.
+- EV-AI-261: Snowdon Electrical issue-index export validation. The export returned `MEP_QA_ISSUEINDEX_EXPORT_OK`, scanned 30 views, counted 3196 MEP inventory items, found 350 issue candidates, and exported 29 issue-index rows.
+- EV-AI-262: QA export/index validation for `[MEP QA ISSUE INDEX EXPORT V1 REPORT]`. `export latest QA report` preserved source prompt `export mep project issue index`, source header, source document, active view, and model-modified false.
+- EV-AI-263: AI-WORKBENCH-CONSOLE-v1 deterministic command autocomplete validation. The console became the default user-facing interface, `export mep` surfaced deterministic MEP suggestions, and Tab accepted a high-confidence suggestion.
+- EV-AI-264: Unsupported prompt blocking validation. Prompt `banana cut all pipes with dragon` was blocked, did not resolve to `select all pipes`, did not run, and did not modify model data or UI selection.
+- EV-AI-265: AI-WORKBENCH-SINGLE-CONSOLE-v1 result routing validation. Deterministic command output now appears inside the Console tab while Ollama Chat remains available separately.
+- EV-AI-266: Console result summary and UX validation. The summary parser extracted report header, feature ID/name, result classification, export folder, total issue candidates, skipped/unreadable count, and warnings; Copy result and Open export folder controls were added.
+- EV-AI-267: Revit context panel and selection-gate validation. The context panel no longer fails on invalid `OST_ElectricalDevices`; `select all pipes` resolves as selection-only, displays the confirmation card, and enables Run after confirmation.
+- EV-AI-268: Remaining selection dispatch bottleneck evidence. Confirmed selection-only execution currently returns `[MEP READ ONLY V1 REPORT]` with `MEP_RO_SELECTION_ACTION_BLOCKED`, so the UI gate is validated but backend dispatch to MEP-SEL-v1 remains future work. Commit evidence: `51a907e` issue-index export, `95e052a` console v1, `f1dd511` console UX, `546b843` single-tab routing, `134106d` selection gate; result-summary parser exact commit message was not found and is documented as included in later console integration.
+
+Technical conclusion: the batch adds a deterministic ModelMind console layer for command discovery, safety preview, one-tab deterministic result output, and issue-index export evidence. It preserves no-model-modification governance. Selection-only execution from the console remains a documented integration bottleneck rather than a completed selection mutation path.
+
 ### Validation Folder
 
 `WBSO/Testing_Validation/runs/2026-06-19_mep-qa-workbench-evidence-pipeline-validated/`

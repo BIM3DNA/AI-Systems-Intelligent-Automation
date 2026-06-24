@@ -437,3 +437,40 @@ Validated state/model concepts:
 - project-level issue index rows with suggested follow-up commands
 
 The pipeline is provider-independent and uses deterministic Revit API reads, local filesystem writes for explicit export/bundle commands, and latest deterministic QA report registration. Named-view and multi-view models rely on view-id collection and do not change active view or UI selection.
+
+## 2026-06-24/25 AI Workbench Console Layer Model Note
+
+Feature IDs:
+
+- MEP-QA-ISSUEINDEX-EXPORT-v1
+- AI-WORKBENCH-CONSOLE-v1
+- AI-WORKBENCH-CONSOLE-UX-v1
+- AI-WORKBENCH-SINGLE-CONSOLE-v1
+- AI-WORKBENCH-SINGLE-CONSOLE-FIX-v1
+- AI-WORKBENCH-SELECTION-GATE-FIX-v1
+
+Status: Runtime validated
+
+Evidence: EV-AI-259 through EV-AI-268
+
+The batch adds deterministic console state and UI-facing command metadata on top of the existing prompt catalog and QA report state:
+
+- prompt-catalog aliases and local suggestion ranking for autocomplete
+- command confidence gating for unsupported prompt blocking
+- prompt preview and safety preview metadata
+- active Revit context summary using safe document/view/selection/category reads
+- single Console-tab result routing for deterministic command output
+- parsed result summary state for header, feature ID/name, result classification, export folder, issue counts, skipped/unreadable counts, and warnings
+- selection-only confirmation state before enabling Run
+- project issue-index export metadata for `MEP_Issue_Index_Exports`
+
+The model is provider-independent for deterministic command routing. It does not use Ollama/OpenAI to decide whether known console commands may execute. Confirmed selection-only execution still returns the MEP-RO guard and is not yet a completed MEP-SEL-v1 dispatch path.
+
+Commit evidence:
+
+- `51a907e` - Add MEP project issue index export v1
+- `95e052a` - Add unified AI Workbench console v1
+- `f1dd511` - Improve AI Workbench console UX v1
+- `546b843` - Route AI Workbench console results to single tab v1
+- `134106d` - Fix AI Workbench selection confirmation gate v1
+- `commit included in later console integration commit` - Fix AI Workbench console result summary parser v1

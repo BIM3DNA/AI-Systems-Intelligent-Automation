@@ -1631,6 +1631,43 @@ Passed. See `WBSO/Testing_Validation/runs/2026-06-11_coord-wr-007-to-015-coordin
 
 Passed. See `WBSO/Testing_Validation/runs/2026-06-12_coord-wr-016-to-020-coordination-link-final-handover-validated/`.
 
+## 2026-06-24/25 AI Workbench Console Layer and Issue Index Export Validation Plan
+
+### Context
+
+- Evidence: EV-AI-259 through EV-AI-268
+- Primary documents: BUNGE piping, Snowdon Towers Sample HVAC, Snowdon Towers Sample Electrical
+- Module: AI Workbench / ModelMind console and MEP QA automation
+
+### Tests
+
+1. Export the project issue index in BUNGE TEST; expect `[MEP QA ISSUE INDEX EXPORT V1 REPORT]`, `MEP_QA_ISSUEINDEX_EXPORT_OK`, 15 scanned views, 24 issue candidates, and 8 exported rows.
+2. Export the project issue index in Snowdon HVAC; expect `MEP_QA_ISSUEINDEX_EXPORT_EMPTY`, 11 scanned views, 1105 inventory count, and empty CSV/JSON evidence.
+3. Export the project issue index in Snowdon Electrical; expect `MEP_QA_ISSUEINDEX_EXPORT_OK`, 30 scanned views, 350 issue candidates, and 29 exported rows.
+4. Export the latest QA report after issue-index export; expect source prompt/header/document/view preserved.
+5. Validate Console autocomplete for `export mep`; expect deterministic MEP export/index suggestions and Tab acceptance.
+6. Validate unsupported prompt blocking with `banana cut all pipes with dragon`; expect no dispatch and no model/UI selection mutation.
+7. Validate one-tab deterministic result routing; expect command output visible in Console tab.
+8. Validate summary parser, Copy result, and Open export folder controls.
+9. Validate Revit context panel category handling.
+10. Validate `select all pipes` confirmation card; expect Run disabled before confirmation and enabled after confirmation.
+11. Record selection dispatch bottleneck; confirmed execution currently returns `MEP_RO_SELECTION_ACTION_BLOCKED`.
+
+### Pass Criteria
+
+- deterministic command discovery works without generic LLM routing
+- unsupported prompts are blocked safely
+- console output appears in the Console tab
+- result summary parser extracts key deterministic report fields
+- issue-index export writes external evidence only
+- no model data mutation from console preview or unsupported prompt handling
+- selection-only confirmation gate works
+- remaining selection dispatch bottleneck is documented without overclaiming selection mutation
+
+### Result
+
+Passed with known integration bottleneck. See `WBSO/Testing_Validation/runs/2026-06-25_ai-workbench-console-layer-and-issue-index-export-validated/`.
+
 ## 2026-04-20 Runtime Targets for Stable-Baseline ModelMind Catalog Usability
 
 ### Catalog usability
