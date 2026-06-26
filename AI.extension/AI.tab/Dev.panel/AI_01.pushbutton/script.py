@@ -15290,6 +15290,11 @@ class OllamaAIChat(forms.WPFWindow):
         self.console_last_context = {}
         self.console_last_report = ""
         self.console_last_export_folder = ""
+        self.console_last_history_record = {}
+        self.console_last_history_timestamp = ""
+        self.console_last_history_classification = ""
+        self.console_last_history_feature_id = ""
+        self.console_last_result_txt_path = ""
         self.console_capture_active = False
         self.console_captured_reply = None
         self.console_captured_error = None
@@ -15581,6 +15586,22 @@ class OllamaAIChat(forms.WPFWindow):
         open_folder_button.Margin = Wpf.Thickness(0, 0, 6, 6)
         open_folder_button.IsEnabled = False
         open_folder_button.Click += self.on_console_open_export_folder
+        open_history_button = Button()
+        open_history_button.Content = "Open history folder"
+        open_history_button.Height = 26
+        open_history_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        open_history_button.Click += self.on_console_open_history_folder
+        open_latest_button = Button()
+        open_latest_button.Content = "Open latest result"
+        open_latest_button.Height = 26
+        open_latest_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        open_latest_button.IsEnabled = False
+        open_latest_button.Click += self.on_console_open_latest_result
+        history_label = TextBlock()
+        history_label.Text = "History folder: {0}".format(self._console_history_root())
+        history_label.TextWrapping = Wpf.TextWrapping.Wrap
+        history_label.Foreground = self._brush("#334155")
+        history_label.Margin = Wpf.Thickness(0, 4, 8, 6)
         selection_card = Border()
         selection_card.BorderBrush = self._brush("#f59e0b")
         selection_card.BorderThickness = Wpf.Thickness(1)
@@ -15615,7 +15636,10 @@ class OllamaAIChat(forms.WPFWindow):
         button_panel.Children.Add(export_button)
         button_panel.Children.Add(copy_button)
         button_panel.Children.Add(open_folder_button)
+        button_panel.Children.Add(open_history_button)
+        button_panel.Children.Add(open_latest_button)
         button_panel.Children.Add(clear_button)
+        button_panel.Children.Add(history_label)
         button_panel.Children.Add(selection_card)
         result_grid.Children.Add(button_panel)
         result_group = GroupBox()
@@ -15697,6 +15721,9 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleAdvancedButton = advanced_button
         self.ConsoleCopyResultButton = copy_button
         self.ConsoleOpenExportFolderButton = open_folder_button
+        self.ConsoleOpenHistoryFolderButton = open_history_button
+        self.ConsoleOpenLatestResultButton = open_latest_button
+        self.ConsoleHistoryLabel = history_label
         self.ConsoleSelectionCard = selection_card
         self.ConsoleSelectionNote = selection_note
         self.ConsoleSuggestionList = suggestions
@@ -15787,6 +15814,48 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_may_run(self, entry):
         safety = self._console_safety_class(entry)
         return safety in ("report-only", "export", "bundle", "selection-only")
+
+    def _console_confirmed_selection_dispatch_prompt(self, prompt, entry):
+        """Map confirmed console selection aliases to existing MEP-SEL-v1 prompts."""
+        original = safe_str(prompt).strip()
+        if _mep_sel_v1_action_key(original):
+            return original
+        normalized = self._console_normalize(original)
+        alias_map = {
+            "select all pipes": "select all pipes in active view",
+            "select active view pipes": "select active view pipes",
+            "select all ducts": "select all ducts in active view",
+            "select active view ducts": "select active view ducts",
+            "select electrical fixtures and devices": "select electrical fixtures and devices in active view",
+            "select electrical fixtures devices": "select electrical fixtures and devices in active view",
+            "select electrical fixtures/devices": "select electrical fixtures and devices in active view",
+            "select active view electrical devices": "select active view electrical devices",
+            "select unconnected pipe fittings": "select unconnected pipe fittings",
+            "select unconnected duct fittings": "select unconnected duct fittings",
+            "select pipes without system assignment": "select pipes without system assignment",
+            "select ducts without system assignment": "select ducts without system assignment",
+            "select devices without circuit/system info": "select devices without circuit/system info",
+            "select devices without circuit system info": "select devices without circuit/system info",
+            "select devices without circuit and system info": "select devices without circuit/system info",
+        }
+        mapped = alias_map.get(normalized)
+        if mapped and _mep_sel_v1_action_key(mapped):
+            return mapped
+        try:
+            candidates = []
+            canonical = safe_str(entry.get("canonical_prompt") or entry.get("prompt_text") or "").strip()
+            if canonical:
+                candidates.append(canonical)
+            for alias in entry.get("aliases") or []:
+                alias_text = safe_str(alias).strip()
+                if alias_text:
+                    candidates.append(alias_text)
+            for candidate in candidates:
+                if _mep_sel_v1_action_key(candidate):
+                    return candidate
+        except:
+            pass
+        return original
 
     def _console_metadata_line(self, entry, prompt_text):
         safety = self._console_safety_class(entry)
@@ -16483,6 +16552,184 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_extract_export_folder(self, report_text):
         return self._console_extract_report_field(report_text, "Export folder")
 
+    def _console_history_root(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+        return os.path.join(user_profile, "Desktop", "Results", "AI_Workbench", "Console_History")
+
+    def _console_history_paths(self):
+        root = self._console_history_root()
+        return {
+            "root": root,
+            "jsonl": os.path.join(root, "console_history.jsonl"),
+            "csv": os.path.join(root, "console_history.csv"),
+            "latest_txt": os.path.join(root, "latest_console_result.txt"),
+            "latest_json": os.path.join(root, "latest_console_result.json"),
+            "latest_md": os.path.join(root, "latest_console_result.md"),
+        }
+
+    def _console_extract_field_anywhere(self, report_text, label):
+        value = self._console_extract_report_field(report_text, label)
+        if value:
+            return value
+        target = safe_str(label).strip().lower()
+        for line in safe_str(report_text).replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+            stripped = line.strip()
+            if stripped.startswith(("-", "*")):
+                stripped = stripped[1:].strip()
+            lower = stripped.lower()
+            if lower == target + ":" or lower.startswith(target + ":"):
+                return stripped.split(":", 1)[1].strip()
+        return ""
+
+    def _console_extract_first_field(self, report_text, labels):
+        for label in labels or []:
+            value = self._console_extract_field_anywhere(report_text, label)
+            if value:
+                return value
+        return ""
+
+    def _console_bool_text(self, value):
+        normalized = safe_str(value).strip().lower()
+        if normalized in ("true", "yes", "1", "modified", "changed"):
+            return "true"
+        if normalized in ("false", "no", "0", "none", "not modified", "unchanged"):
+            return "false"
+        return normalized or "unknown"
+
+    def _console_context_selection_count(self):
+        try:
+            return int((self.console_last_context or {}).get("selection_count", 0))
+        except:
+            return 0
+
+    def _console_history_metadata(self, source_prompt, resolved_prompt, report_text, selection_before, selection_after):
+        text = safe_str(report_text)
+        timestamp_now = time.strftime("%Y-%m-%d %H:%M:%S")
+        active_view = self._console_extract_first_field(text, ["Active view", "Active view name"])
+        if not active_view:
+            active_view = "{0} [{1}]".format(_active_view_title(doc, uidoc), self._safe_active_view_type())
+        record = {
+            "timestamp": timestamp_now,
+            "source_prompt": safe_str(source_prompt),
+            "resolved_prompt": safe_str(resolved_prompt),
+            "normalized_prompt": self._console_normalize(resolved_prompt),
+            "result_header": self._extract_report_header(text) or "",
+            "feature_id": self._console_extract_first_field(text, ["Feature ID", "Feature"]),
+            "feature_name": self._console_extract_first_field(text, ["Feature name"]),
+            "report_id": self._console_extract_first_field(text, ["Report ID", "Console Report ID", "Dashboard ID", "Export ID", "Bundle ID", "Issue Index Export ID", "Visual Review ID", "Verification ID"]),
+            "action_name": self._console_extract_first_field(text, ["Action name", "Request"]),
+            "result_classification": self._console_extract_first_field(text, ["Result classification", "Dashboard result", "Export result", "Visual review result", "Verification result", "Reset result"]),
+            "active_document_title": self._console_extract_first_field(text, ["Active document title", "Active document"]) or _document_title(doc),
+            "active_view": active_view,
+            "previous_selection_count": self._console_extract_first_field(text, ["Previous selection count"]) or safe_str(selection_before),
+            "current_ui_selection_count": safe_str(selection_after),
+            "selected_count": self._console_extract_first_field(text, ["Selected count", "Selected elements count", "Elements selected"]),
+            "candidate_count": self._console_extract_first_field(text, ["Candidate count", "Candidate split points"]),
+            "total_issue_candidates": self._console_extract_first_field(text, ["Total issue candidates"]),
+            "total_skipped_unreadable_count": self._console_extract_first_field(text, ["Total skipped/unreadable count", "Skipped/unreadable count"]),
+            "export_folder": self._console_extract_export_folder(text),
+            "generated_files_count": self._console_extract_first_field(text, ["Generated files count"]),
+            "warnings": self._console_extract_warnings_summary(text),
+            "transaction_opened": self._console_bool_text(self._console_extract_first_field(text, ["Transaction opened"])),
+            "transaction_group_opened": self._console_bool_text(self._console_extract_first_field(text, ["Transaction group opened"])),
+            "model_modified": self._console_bool_text(self._console_extract_first_field(text, ["Model modified"])),
+            "linked_document_modified": self._console_bool_text(self._console_extract_first_field(text, ["Linked document modified"])),
+            "ui_selection_modified": self._console_bool_text(self._console_extract_first_field(text, ["UI selection modified"])),
+            "active_view_changed": self._console_bool_text(self._console_extract_first_field(text, ["Active view changed"])),
+            "external_files_written": self._console_bool_text(self._console_extract_first_field(text, ["External files written"])),
+            "history_version": "AI-WORKBENCH-CONSOLE-HISTORY-v1",
+        }
+        if not record["result_classification"]:
+            record["result_classification"] = "unavailable"
+        if not record["feature_id"]:
+            record["feature_id"] = "unavailable"
+        if not record["feature_name"]:
+            record["feature_name"] = "unavailable"
+        try:
+            record["full_result_sha256"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        except:
+            record["full_result_sha256"] = ""
+        return record
+
+    def _console_latest_result_markdown(self, record, report_text):
+        lines = [
+            "# AI Workbench Console Latest Result",
+            "",
+            "- Timestamp: {0}".format(record.get("timestamp")),
+            "- Source prompt: {0}".format(record.get("source_prompt")),
+            "- Resolved prompt: {0}".format(record.get("resolved_prompt")),
+            "- Feature ID: {0}".format(record.get("feature_id")),
+            "- Feature name: {0}".format(record.get("feature_name")),
+            "- Result classification: {0}".format(record.get("result_classification")),
+            "- Result header: {0}".format(record.get("result_header")),
+            "- Active document: {0}".format(record.get("active_document_title")),
+            "- Active view: {0}".format(record.get("active_view")),
+            "- UI selection modified: {0}".format(record.get("ui_selection_modified")),
+            "- Model modified: {0}".format(record.get("model_modified")),
+            "- External files written: {0}".format(record.get("external_files_written")),
+        ]
+        if record.get("export_folder"):
+            lines.append("- Export folder: {0}".format(record.get("export_folder")))
+        lines.extend(["", "## Full Report", "", "```text", safe_str(report_text), "```", ""])
+        return "\n".join(lines)
+
+    def _console_write_history_record(self, source_prompt, resolved_prompt, report_text, selection_before, selection_after):
+        paths = self._console_history_paths()
+        root = paths.get("root")
+        if not os.path.exists(root):
+            os.makedirs(root)
+        record = self._console_history_metadata(source_prompt, resolved_prompt, report_text, selection_before, selection_after)
+        record["latest_result_txt_path"] = paths.get("latest_txt")
+        record["latest_result_md_path"] = paths.get("latest_md")
+        record["latest_result_json_path"] = paths.get("latest_json")
+        self._write_utf8_file(paths.get("latest_txt"), report_text)
+        self._write_utf8_file(paths.get("latest_md"), self._console_latest_result_markdown(record, report_text))
+        self._write_utf8_file(paths.get("latest_json"), json.dumps(record, indent=2, sort_keys=True))
+        stream = codecs.open(paths.get("jsonl"), "a", "utf-8")
+        try:
+            stream.write(json.dumps(record, sort_keys=True))
+            stream.write("\n")
+        finally:
+            stream.close()
+        csv_fields = [
+            "timestamp", "source_prompt", "resolved_prompt", "result_header", "feature_id", "feature_name",
+            "report_id", "action_name", "result_classification", "active_document_title", "active_view",
+            "previous_selection_count", "current_ui_selection_count", "selected_count", "candidate_count",
+            "total_issue_candidates", "total_skipped_unreadable_count", "export_folder", "generated_files_count",
+            "warnings", "transaction_opened", "transaction_group_opened", "model_modified",
+            "linked_document_modified", "ui_selection_modified", "active_view_changed", "external_files_written",
+            "latest_result_txt_path",
+        ]
+        csv_exists = os.path.exists(paths.get("csv"))
+        csv_stream = codecs.open(paths.get("csv"), "a", "utf-8")
+        try:
+            if not csv_exists:
+                csv_stream.write(self._qa_index_csv_row(csv_fields))
+                csv_stream.write("\n")
+            csv_stream.write(self._qa_index_csv_row([record.get(field) for field in csv_fields]))
+            csv_stream.write("\n")
+        finally:
+            csv_stream.close()
+        self.console_last_history_record = dict(record)
+        self.console_last_history_timestamp = safe_str(record.get("timestamp"))
+        self.console_last_history_classification = safe_str(record.get("result_classification"))
+        self.console_last_history_feature_id = safe_str(record.get("feature_id"))
+        self.console_last_result_txt_path = paths.get("latest_txt")
+        try:
+            self.ConsoleOpenLatestResultButton.IsEnabled = bool(paths.get("latest_txt") and os.path.exists(paths.get("latest_txt")))
+        except:
+            pass
+        try:
+            self.ConsoleHistoryLabel.Text = "History folder: {0}\nLast logged result: {1} | {2} | {3}".format(
+                root,
+                self.console_last_history_timestamp,
+                self.console_last_history_feature_id,
+                self.console_last_history_classification,
+            )
+        except:
+            pass
+        return record
+
     def _console_render_full_result(self, report_text):
         report_text = safe_str(report_text)
         self.console_last_report = report_text
@@ -16547,6 +16794,41 @@ class OllamaAIChat(forms.WPFWindow):
             except:
                 pass
 
+    def on_console_open_history_folder(self, sender, args):
+        folder = self._console_history_root()
+        try:
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+            if hasattr(os, "startfile"):
+                os.startfile(folder)
+            else:
+                import System.Diagnostics as Diagnostics
+                Diagnostics.Process.Start(folder)
+        except Exception as exc:
+            try:
+                self.ConsoleResultBox.Text = "Open history folder failed: {0}".format(safe_str(exc))
+            except:
+                pass
+
+    def on_console_open_latest_result(self, sender, args):
+        path = safe_str(getattr(self, "console_last_result_txt_path", "")).strip()
+        try:
+            if not path:
+                path = self._console_history_paths().get("latest_txt")
+            if not path or not os.path.exists(path):
+                self.ConsoleResultBox.Text = "Latest console result file is unavailable."
+                return
+            if hasattr(os, "startfile"):
+                os.startfile(path)
+            else:
+                import System.Diagnostics as Diagnostics
+                Diagnostics.Process.Start(path)
+        except Exception as exc:
+            try:
+                self.ConsoleResultBox.Text = "Open latest result failed: {0}".format(safe_str(exc))
+            except:
+                pass
+
     def on_console_export_latest(self, sender, args):
         try:
             self.ConsolePromptInput.Text = "export latest QA report"
@@ -16556,7 +16838,8 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
-        report_id = "AI-WORKBENCH-SELECTION-GATE-FIX-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        history_paths = self._console_history_paths()
+        report_id = "AI-WORKBENCH-CONSOLE-HISTORY-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -16564,16 +16847,18 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-SELECTION-GATE-FIX-v1",
+            "AI-WORKBENCH-CONSOLE-HISTORY-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
             "AI-WORKBENCH-CONSOLE-UX-v1",
             "AI-WORKBENCH-SINGLE-CONSOLE-v1",
             "AI-WORKBENCH-SINGLE-CONSOLE-FIX-v1",
+            "AI-WORKBENCH-SELECTION-GATE-FIX-v1",
+            "AI-WORKBENCH-SELECTION-DISPATCH-v1",
             "",
             "Feature name:",
-            "AI Workbench Selection Confirmation Gate Fix v1",
+            "AI Workbench Console History v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -16594,6 +16879,14 @@ class OllamaAIChat(forms.WPFWindow):
             "Selection-only confirmation active: true",
             "Selection-only confirmation card active: true",
             "Selection-only checkbox event wired: true",
+            "Confirmed selection dispatch target: MEP-SEL-v1",
+            "Selection dispatch target: MEP-SEL-v1",
+            "MEP-RO guard preserved: true",
+            "Console history enabled: true",
+            "History root: {0}".format(history_paths.get("root")),
+            "JSONL history path: {0}".format(history_paths.get("jsonl")),
+            "CSV history path: {0}".format(history_paths.get("csv")),
+            "Latest result txt path: {0}".format(history_paths.get("latest_txt")),
             "Exact selection prompt confidence guard active: true",
             "Result summary parser fixed: true",
             "Selection-only confirmation event wiring fixed: true",
@@ -16636,17 +16929,17 @@ class OllamaAIChat(forms.WPFWindow):
             return None
         try:
             self.refresh_console_context()
-            classification = "AI_WORKBENCH_SELECTION_GATE_FIX_READY"
+            classification = "AI_WORKBENCH_CONSOLE_HISTORY_READY"
             try:
                 if (self.console_last_context or {}).get("status") != "available":
-                    classification = "AI_WORKBENCH_SELECTION_GATE_FIX_READY"
+                    classification = "AI_WORKBENCH_CONSOLE_HISTORY_READY"
             except:
                 pass
             return self._console_report(prompt, classification)
         except Exception as exc:
             return self._console_report(
                 prompt,
-                "AI_WORKBENCH_SELECTION_GATE_FIX_FAILED",
+                "AI_WORKBENCH_CONSOLE_HISTORY_FAILED",
                 ["Failure:", safe_str(exc)],
             )
 
@@ -16674,6 +16967,7 @@ class OllamaAIChat(forms.WPFWindow):
         prompt = safe_str(self.ConsolePromptInput.Text).strip() if hasattr(self, "ConsolePromptInput") else ""
         if not prompt:
             return
+        source_prompt = prompt
         suggestion = self._console_resolved_suggestion(prompt)
         if suggestion is None:
             report = self._console_unsupported_prompt_report(prompt)
@@ -16695,6 +16989,7 @@ class OllamaAIChat(forms.WPFWindow):
                     )
                     self._console_render_full_result(report)
                     return
+                prompt = self._console_confirmed_selection_dispatch_prompt(prompt, entry)
             except:
                 pass
         if not self._console_may_run(entry):
@@ -16712,6 +17007,7 @@ class OllamaAIChat(forms.WPFWindow):
         self._set_thinking("Thinking (Console)...")
         self.show_busy()
         self._pump_ui()
+        selection_before = self._console_context_selection_count()
         try:
             self.console_capture_active = True
             self.console_captured_reply = None
@@ -16724,7 +17020,7 @@ class OllamaAIChat(forms.WPFWindow):
             elif self.console_captured_error:
                 report = self._console_report(
                     prompt,
-                    "AI_WORKBENCH_SELECTION_GATE_FIX_FAILED",
+                    "AI_WORKBENCH_CONSOLE_HISTORY_FAILED",
                     ["Failure:", safe_str(self.console_captured_error)],
                 )
             try:
@@ -16738,10 +17034,21 @@ class OllamaAIChat(forms.WPFWindow):
                     "AI_WORKBENCH_CONSOLE_CONTEXT_WARNING",
                     ["Command completed but no exportable deterministic report was registered."],
                 )
+            try:
+                self.refresh_console_context()
+            except:
+                pass
+            selection_after = self._console_context_selection_count()
+            try:
+                self._console_write_history_record(source_prompt, prompt, report, selection_before, selection_after)
+            except Exception as history_exc:
+                try:
+                    report = "{0}\n\nConsole history warning:\n- {1}".format(report, safe_str(history_exc))
+                except:
+                    pass
             self._console_render_full_result(report)
-            self.refresh_console_context()
         except Exception as exc:
-            report = self._console_report(prompt, "AI_WORKBENCH_SELECTION_GATE_FIX_FAILED", ["Failure:", safe_str(exc)])
+            report = self._console_report(prompt, "AI_WORKBENCH_CONSOLE_HISTORY_FAILED", ["Failure:", safe_str(exc)])
             self._console_render_full_result(report)
         finally:
             self.console_capture_active = False
