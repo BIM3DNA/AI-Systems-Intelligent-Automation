@@ -105,6 +105,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[MEP QA ISSUE INDEX V1 REPORT]",
     "[MEP QA ISSUE INDEX EXPORT V1 REPORT]",
     "[AI WORKBENCH CONSOLE V1 REPORT]",
+    "[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14419,6 +14420,14 @@ AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_ROUTES = {
     "export console session summary",
 }
 
+AI_WORKBENCH_CONTEXT_SUGGESTIONS_ROUTES = {
+    "suggest next ai workbench actions",
+    "show ai workbench recommended commands",
+    "show recommended console commands",
+    "show context suggestions",
+    "what should i run next",
+}
+
 
 def _ai_workbench_console_history_viewer_route_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
@@ -14429,6 +14438,11 @@ def _ai_workbench_console_history_viewer_route_kind(prompt):
     if normalized in AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_ROUTES:
         return "export"
     return None
+
+
+def _is_ai_workbench_context_suggestions_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in AI_WORKBENCH_CONTEXT_SUGGESTIONS_ROUTES
 
 
 def _is_mep_qa_issueindex_v1_prompt(prompt):
@@ -15634,6 +15648,11 @@ class OllamaAIChat(forms.WPFWindow):
         show_latest_button.Height = 26
         show_latest_button.Margin = Wpf.Thickness(0, 0, 6, 6)
         show_latest_button.Click += self.on_console_show_latest_result
+        suggest_button = Button()
+        suggest_button.Content = "Suggest next actions"
+        suggest_button.Height = 26
+        suggest_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        suggest_button.Click += self.on_console_suggest_next_actions
         export_summary_button = Button()
         export_summary_button.Content = "Export session summary"
         export_summary_button.Height = 26
@@ -15682,6 +15701,7 @@ class OllamaAIChat(forms.WPFWindow):
         button_panel.Children.Add(open_latest_button)
         button_panel.Children.Add(show_history_button)
         button_panel.Children.Add(show_latest_button)
+        button_panel.Children.Add(suggest_button)
         button_panel.Children.Add(export_summary_button)
         button_panel.Children.Add(clear_button)
         button_panel.Children.Add(history_label)
@@ -15770,6 +15790,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleOpenLatestResultButton = open_latest_button
         self.ConsoleShowHistoryButton = show_history_button
         self.ConsoleShowLatestResultButton = show_latest_button
+        self.ConsoleSuggestNextActionsButton = suggest_button
         self.ConsoleExportSessionSummaryButton = export_summary_button
         self.ConsoleHistoryLabel = history_label
         self.ConsoleSelectionCard = selection_card
@@ -17039,6 +17060,301 @@ class OllamaAIChat(forms.WPFWindow):
             return self._console_session_summary_export_report(prompt)
         return None
 
+    def _console_catalog_item_for_prompt(self, prompt):
+        normalized = self._console_normalize(prompt)
+        if not normalized:
+            return None
+        for item in self.console_command_index or []:
+            if item.get("normalized") == normalized:
+                return item
+        return None
+
+    def _console_first_available_prompt(self, prompts):
+        for prompt in prompts or []:
+            item = self._console_catalog_item_for_prompt(prompt)
+            if item:
+                return prompt, item
+        return "", None
+
+    def _console_latest_result_metadata(self):
+        paths = self._console_history_paths()
+        json_path = paths.get("latest_json")
+        if not json_path or not os.path.exists(json_path):
+            return {}, "missing"
+        try:
+            stream = codecs.open(json_path, "r", "utf-8")
+            try:
+                loaded = json.loads(stream.read())
+                if isinstance(loaded, dict):
+                    return loaded, "available"
+            finally:
+                stream.close()
+        except:
+            return {}, "unreadable"
+        return {}, "unreadable"
+
+    def _console_add_context_suggestion(self, suggestions, prompts, reason, expected_output, uses_current_context):
+        prompt, item = self._console_first_available_prompt(prompts)
+        if not prompt or not item:
+            return False
+        normalized = self._console_normalize(prompt)
+        for suggestion in suggestions:
+            if suggestion.get("normalized") == normalized:
+                return False
+        suggestions.append(
+            {
+                "prompt": prompt,
+                "normalized": normalized,
+                "reason": reason,
+                "safety_class": self._console_safety_class(item.get("entry") or {}),
+                "expected_output": expected_output,
+                "uses_current_context": uses_current_context,
+            }
+        )
+        return True
+
+    def _console_context_suggestions(self, context, latest_result, history_records):
+        suggestions = []
+        counts = context.get("category_counts") or {}
+        latest_classification = safe_str(latest_result.get("result_classification"))
+        latest_export_folder = safe_str(latest_result.get("export_folder"))
+        recent_prompt = ""
+        if history_records:
+            recent_prompt = safe_str(history_records[-1].get("source_prompt") or history_records[-1].get("resolved_prompt"))
+
+        def add(prompts, reason, expected_output, uses_current_context):
+            return self._console_add_context_suggestion(suggestions, prompts, reason, expected_output, uses_current_context)
+
+        add(["show active view mep qa dashboard"], "Baseline read-only active-view MEP status.", "MEP QA dashboard report", "yes")
+        add(["show ai workbench console history", "show console history"], "Review recent deterministic Console commands.", "Console history viewer report", "no")
+        add(["show latest console result"], "Inspect the latest Console result metadata and full report.", "Latest console result report", "no")
+
+        piping = counts.get("Pipes", 0) + counts.get("Pipe fittings", 0)
+        if piping > 0:
+            add(["show active view mep qa dashboard"], "Active view contains pipe inventory.", "MEP QA dashboard report", "yes")
+            add(["select all pipes in active view", "select all pipes"], "Active view contains pipes; selection command requires confirmation and changes UI selection only.", "MEP selection-only report", "yes")
+            add(["select unconnected pipe fittings", "select unconnected pipe fittings in active view"], "Active view contains pipe fittings; inspect unconnected fitting candidates.", "MEP selection-only report", "yes")
+            add(["export mep project issue index"], "Create broader MEP issue evidence across eligible project views.", "MEP project issue index export", "yes")
+
+        hvac = counts.get("Ducts", 0) + counts.get("Duct fittings", 0)
+        if hvac > 0:
+            add(["show active view mep qa dashboard"], "Active view contains duct inventory.", "MEP QA dashboard report", "yes")
+            add(["select all ducts in active view", "select all ducts"], "Active view contains ducts; selection command requires confirmation and changes UI selection only.", "MEP selection-only report", "yes")
+            add(["select unconnected duct fittings", "select unconnected duct fittings in active view"], "Active view contains duct fittings; inspect unconnected fitting candidates.", "MEP selection-only report", "yes")
+            add(["export mep project issue index"], "Create broader MEP issue evidence across eligible project views.", "MEP project issue index export", "yes")
+
+        electrical = (
+            counts.get("Electrical fixtures", 0)
+            + counts.get("Electrical equipment", 0)
+            + counts.get("Lighting fixtures", 0)
+            + counts.get("Data devices", 0)
+            + counts.get("Fire alarm devices", 0)
+            + counts.get("Security devices", 0)
+            + counts.get("Communication devices", 0)
+        )
+        if electrical > 0:
+            add(["show active view mep qa dashboard"], "Active view contains electrical fixtures/devices.", "MEP QA dashboard report", "yes")
+            add(
+                [
+                    "select electrical fixtures and devices in active view",
+                    "select electrical fixtures/devices in active view",
+                    "select active view electrical devices",
+                ],
+                "Active view contains electrical devices; selection command requires confirmation and changes UI selection only.",
+                "MEP selection-only report",
+                "yes",
+            )
+            add(["select devices without circuit/system info", "select electrical devices without circuit/system info"], "Find electrical devices missing circuit/system metadata.", "MEP selection-only report", "yes")
+            add(["export mep project issue index"], "Create broader MEP issue evidence across eligible project views.", "MEP project issue index export", "yes")
+
+        if latest_classification == "MEP_QA_DASHBOARD_GREEN":
+            add(["export latest QA report"], "Latest dashboard is green; export QA evidence if needed.", "QA report export", "no")
+            add(["export mep project issue index"], "Run broader project evidence export after a clean active-view dashboard.", "MEP project issue index export", "yes")
+        elif latest_classification == "MEP_QA_ISSUEINDEX_EXPORT_OK":
+            add(["show ai workbench console history", "show console history"], "Issue index export completed; review recent command chain.", "Console history viewer report", "no")
+            add(["export ai workbench console session summary", "export console session summary"], "Export a local Console session summary for evidence traceability.", "Console session summary export", "no")
+        elif latest_classification == "MEP_SEL_SELECTION_OK":
+            add(["show active view mep qa dashboard"], "Latest selection command succeeded; run read-only dashboard for current view status.", "MEP QA dashboard report", "yes")
+            add(["export latest QA report"], "Export latest deterministic QA evidence if needed.", "QA report export", "no")
+        elif latest_classification == "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK":
+            add(["show ai workbench console history", "show console history"], "Session summary export completed; review recent command history.", "Console history viewer report", "no")
+            add(["show active view mep qa dashboard"], "Continue with active-view MEP QA dashboard.", "MEP QA dashboard report", "yes")
+
+        if len(history_records or []) > 3:
+            add(["export ai workbench console session summary", "export console session summary"], "More than three Console history entries exist; export a session summary if evidence is needed.", "Console session summary export", "no")
+
+        if suggestions and recent_prompt:
+            recent_norm = self._console_normalize(recent_prompt)
+            if suggestions[0].get("normalized") == recent_norm and len(suggestions) > 1:
+                suggestions.append(suggestions.pop(0))
+
+        return suggestions[:10], latest_export_folder
+
+    def _console_recommendation_table(self, suggestions):
+        lines = [
+            "| Rank | Suggested prompt | Reason | Safety class | Expected output | Uses current context |",
+            "| ---: | ---------------- | ------ | ------------ | --------------- | -------------------- |",
+        ]
+        for index, suggestion in enumerate(suggestions or [], 1):
+            row = [
+                safe_str(index),
+                suggestion.get("prompt"),
+                suggestion.get("reason"),
+                suggestion.get("safety_class"),
+                suggestion.get("expected_output"),
+                suggestion.get("uses_current_context"),
+            ]
+            lines.append("| {0} |".format(" | ".join([safe_str(value).replace("|", "\\|") for value in row])))
+        if not suggestions:
+            lines.append("| 0 | none | No catalog-backed suggestion could be generated. | report-only | none | no |")
+        return lines
+
+    def _console_context_suggestions_report(self, prompt):
+        context = self.refresh_console_context()
+        records, malformed, history_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        suggestions, latest_export_folder = self._console_context_suggestions(context, latest_result, records)
+        warnings = []
+        if context.get("warning"):
+            warnings.append("Context warning: {0}".format(context.get("warning")))
+        if malformed:
+            warnings.append("Malformed Console history lines skipped: {0}".format(malformed))
+        if latest_status == "unreadable":
+            warnings.append("Latest console result JSON could not be read.")
+        if not suggestions:
+            classification = "AI_WORKBENCH_CONTEXT_SUGGESTIONS_EMPTY"
+        elif warnings:
+            classification = "AI_WORKBENCH_CONTEXT_SUGGESTIONS_OK_WITH_WARNINGS"
+        else:
+            classification = "AI_WORKBENCH_CONTEXT_SUGGESTIONS_OK"
+        counts = context.get("category_counts") or {}
+        nonzero_counts = ["- {0}: {1}".format(name, counts.get(name)) for name in sorted(counts.keys()) if counts.get(name)]
+        latest_summary = [
+            "- Latest result source status: {0}".format(latest_status),
+            "- Latest feature ID: {0}".format(latest_result.get("feature_id", "unavailable")),
+            "- Latest result classification: {0}".format(latest_result.get("result_classification", "unavailable")),
+            "- Latest prompt: {0}".format(latest_result.get("source_prompt", "unavailable")),
+            "- Latest export folder: {0}".format(latest_export_folder or latest_result.get("export_folder", "unavailable")),
+        ]
+        lines = [
+            "[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Context Suggestions v1",
+            "",
+            "Action name:",
+            "Show context-aware recommended commands",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            classification,
+            "",
+            "Active document title:",
+            context.get("document_title", _document_title(doc)),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(context.get("active_view_name", _active_view_title(doc, uidoc)), context.get("active_view_type", "unavailable")),
+            "",
+            "Current UI selection count:",
+            context.get("selection_count", 0),
+            "",
+            "Detected context discipline:",
+            context.get("likely_discipline", "Unknown / Empty"),
+            "",
+            "Active-view quick counts:",
+        ]
+        lines.extend(nonzero_counts or ["- none"])
+        lines.extend(
+            [
+                "",
+                "Latest console result summary:",
+            ]
+        )
+        lines.extend(latest_summary)
+        lines.extend(
+            [
+                "",
+                "Recent history count:",
+                len(records),
+                "Recent history source status:",
+                history_status,
+                "",
+                "Suggestions displayed count:",
+                len(suggestions),
+                "",
+                "Recommendation table:",
+            ]
+        )
+        lines.extend(self._console_recommendation_table(suggestions))
+        lines.extend(["", "Warnings:"])
+        lines.extend(["- {0}".format(item) for item in warnings] or ["- none"])
+        lines.extend(
+            [
+                "",
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+                "",
+                "Safety:",
+                "- Context suggestions are read-only recommendations.",
+                "- Suggested commands are not executed by this report.",
+                "- Prompt catalog commands are only recommended when available in the local catalog.",
+            ]
+        )
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def answer_ai_workbench_context_suggestions_question(self, prompt):
+        if not _is_ai_workbench_context_suggestions_prompt(prompt):
+            return None
+        try:
+            return self._console_context_suggestions_report(prompt)
+        except Exception as exc:
+            lines = [
+                "[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]",
+                "",
+                "Feature ID:",
+                "AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1",
+                "",
+                "Feature name:",
+                "AI Workbench Context Suggestions v1",
+                "",
+                "Action name:",
+                "Show context-aware recommended commands",
+                "",
+                "Prompt:",
+                safe_str(prompt),
+                "",
+                "Result classification:",
+                "AI_WORKBENCH_CONTEXT_SUGGESTIONS_FAILED",
+                "",
+                "Warnings:",
+                "- {0}".format(safe_str(exc)),
+                "",
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+            ]
+            report = "\n".join([safe_str(line) for line in lines])
+            self.remember_latest_deterministic_report(prompt, report)
+            return report
+
     def _console_extract_field_anywhere(self, report_text, label):
         value = self._console_extract_report_field(report_text, label)
         if value:
@@ -17329,10 +17645,17 @@ class OllamaAIChat(forms.WPFWindow):
         except Exception as exc:
             self.ConsoleResultBox.Text = "Export session summary failed: {0}".format(safe_str(exc))
 
+    def on_console_suggest_next_actions(self, sender, args):
+        try:
+            self.ConsolePromptInput.Text = "suggest next ai workbench actions"
+            self.on_console_run(sender, args)
+        except Exception as exc:
+            self.ConsoleResultBox.Text = "Suggest next actions failed: {0}".format(safe_str(exc))
+
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -17340,7 +17663,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
+            "AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -17350,9 +17673,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-SELECTION-GATE-FIX-v1",
             "AI-WORKBENCH-SELECTION-DISPATCH-v1",
             "AI-WORKBENCH-CONSOLE-HISTORY-v1",
+            "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
             "",
             "Feature name:",
-            "AI Workbench Console History Viewer v1",
+            "AI Workbench Context Suggestions v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -17378,6 +17702,7 @@ class OllamaAIChat(forms.WPFWindow):
             "MEP-RO guard preserved: true",
             "Console history enabled: true",
             "Console history viewer enabled: true",
+            "Context suggestions enabled: true",
             "Console session summary export enabled: true",
             "History root: {0}".format(history_paths.get("root")),
             "Session summaries root: {0}".format(self._console_session_summaries_root()),
@@ -18708,6 +19033,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "read-only project-level MEP issue index export across eligible floor plan views"
         if header == "[AI WORKBENCH CONSOLE V1 REPORT]":
             return "AI Workbench console status / UI wrapper and read-only context preview"
+        if header == "[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]":
+            return "AI Workbench context suggestions / read-only next-action recommendations"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -41234,11 +41561,16 @@ class OllamaAIChat(forms.WPFWindow):
                 ai_workbench_console_history_viewer_reply = self.answer_ai_workbench_console_history_viewer_question(
                     prompt
                 )
+            ai_workbench_context_suggestions_reply = None
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None:
+                ai_workbench_context_suggestions_reply = self.answer_ai_workbench_context_suggestions_question(
+                    prompt
+                )
             mep_qa_issueindex_export_v1_reply = self.answer_mep_qa_issueindex_export_v1_question(
                 prompt
-            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None else None
+            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None else None
             mep_qa_issueindex_v1_reply = None
-            if mep_qa_issueindex_export_v1_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_context_suggestions_reply is None:
                 mep_qa_issueindex_v1_reply = self.answer_mep_qa_issueindex_v1_question(
                     prompt
                 )
@@ -41343,6 +41675,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif ai_workbench_console_history_viewer_reply is not None:
                 reply = ai_workbench_console_history_viewer_reply
+                preserve_latest_report_state = True
+            elif ai_workbench_context_suggestions_reply is not None:
+                reply = ai_workbench_context_suggestions_reply
                 preserve_latest_report_state = True
             elif mep_qa_issueindex_export_v1_reply is not None:
                 reply = mep_qa_issueindex_export_v1_reply
