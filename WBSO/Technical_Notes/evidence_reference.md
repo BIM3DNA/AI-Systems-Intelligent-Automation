@@ -2042,3 +2042,42 @@ Technical conclusion: the batch adds a deterministic ModelMind console layer for
 ### Technical Conclusion
 
 The MEP QA Workbench batch converts active-view MEP diagnostics into a layered evidence pipeline covering structured exports, active-view bundles, dashboards, multi-view scans, named-view drilldowns, named-view issue exports, and project-level issue indexing while preserving strict Revit model-safety boundaries.
+## EV-AI-289 through EV-AI-307 - AI Workbench Guided Console Workflow
+
+Status: Runtime validated
+
+Date range: 2026-06-25 to 2026-06-29
+
+Week: `2026-W14`
+
+Daily log references:
+
+- DL-2026-06-25-02 - Selection dispatch fix and runtime validation
+- DL-2026-06-26-01 - Console history and history file validation
+- DL-2026-06-29-01 - History viewer, context suggestions, recipe planner, navigator, guided start, guided coach, and layout polish validation
+
+Validation folder: `WBSO/Testing_Validation/runs/2026-06-29_ai-workbench-guided-console-workflow-validated/`
+
+- EV-AI-289: AI-WORKBENCH-SELECTION-DISPATCH-v1 implementation evidence. Confirmed selection-only console prompts normalize to existing MEP-SEL-v1 aliases before dispatch while the MEP-RO guard remains preserved for unconfirmed or unsafe paths.
+- EV-AI-290: Selection dispatch runtime validation. Prompt `select all pipes` with confirmation checked returned `[MEP SELECTION V1 REPORT]`, feature `MEP-SEL-v1`, classification `MEP_SEL_SELECTION_OK`, selected 18 pipes, UI selection modified true, model modified false, transaction opened false.
+- EV-AI-291: Selection dispatch negative/regression validation. `select unconnected pipe fittings` returned a clean MEP-SEL empty result with 0 candidates and no MEP-RO guard; unsupported prompt `banana cut all pipes with dragon` remained blocked; report/export regressions passed.
+- EV-AI-292: AI-WORKBENCH-CONSOLE-HISTORY-v1 implementation evidence. Executed console commands now write local command history under `C:\Users\User\Desktop\Results\AI_Workbench\Console_History`.
+- EV-AI-293: Console history runtime validation. `console_history.jsonl`, `console_history.csv`, `latest_console_result.txt`, `latest_console_result.json`, and `latest_console_result.md` were generated; unsupported no-match prompt was not logged.
+- EV-AI-294: AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1 implementation evidence. Added history viewer, latest result viewer, and session summary export routes and controls.
+- EV-AI-295: History viewer/session summary runtime validation. `[AI WORKBENCH CONSOLE HISTORY VIEWER REPORT]`, `[AI WORKBENCH LATEST CONSOLE RESULT REPORT]`, and `[AI WORKBENCH CONSOLE SESSION SUMMARY EXPORT REPORT]` were validated with no malformed history lines and model/UI safety preserved.
+- EV-AI-296: AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1 implementation evidence. Added context-aware next-action recommendations from active context, latest result, recent history, and prompt catalog availability.
+- EV-AI-297: Context suggestions runtime validation. Prompt `suggest next ai workbench actions` returned `[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]`, classification `AI_WORKBENCH_CONTEXT_SUGGESTIONS_OK`, detected Piping context, 97 fittings, 18 pipes, and eight suggestions without automatic execution.
+- EV-AI-298: AI-WORKBENCH-RECIPE-PLANNER-v1 implementation evidence. Added deterministic QA evidence workflow recipe planning.
+- EV-AI-299: Recipe planner runtime validation. Prompt `create mep qa evidence recipe` returned four baseline steps, two optional piping review steps, execute automatically false for every step, model modified false, and UI selection modified false.
+- EV-AI-300: AI-WORKBENCH-RECIPE-NAVIGATOR-v1 implementation evidence. Added safe prompt-loading controls for Load next, Load recipe step, Load QA start, Clear loaded, and navigator status.
+- EV-AI-301: Recipe navigator runtime validation. Navigator buttons loaded prompts only, did not execute commands, preserved selection confirmation requirements, and kept unsupported prompts blocked.
+- EV-AI-302: AI-WORKBENCH-GUIDED-START-v1 implementation evidence. Added beginner-facing Start Here guided workflow panel and deterministic help report.
+- EV-AI-303: Guided Start runtime validation. Start, Next, Plan, Evidence, Review, and Help buttons loaded prompts only; `[AI WORKBENCH GUIDED START HELP REPORT]` was returned; model/UI safety preserved.
+- EV-AI-304: AI-WORKBENCH-GUIDED-COACH-v1 implementation evidence. Added Guided Coach panel for result interpretation and next recommended prompt.
+- EV-AI-305: Guided Coach runtime validation. Dashboard GREEN recommended issue-index export, issue-index export OK recommended latest QA export, QA export complete recommended session summary export, and Load recommended next loaded prompt only.
+- EV-AI-306: AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1 implementation evidence. Added compact/collapsible Guided Start and Guided Coach panels, grouped controls, hidden mini labels, and result summary minimum height.
+- EV-AI-307: Layout polish runtime validation. Collapsible panels restored correctly, Result/History/Guidance/Maintenance controls remained functional, result summary readability improved, dashboard/export/QA export regressions passed, selection confirmation remained required, banana prompt remained blocked, and no model modification or active-view switching occurred.
+
+Commit evidence: `not found in local git log` selection dispatch; `b38f488` console history; `7d07e07` history viewer; `b14867a` context suggestions; `ec771d7` recipe planner; `70f56ac` recipe navigator; `9a98076` guided start; `c366708` guided coach; `f037b07` layout polish.
+
+Technical conclusion: the guided console workflow batch converts ModelMind from a deterministic command surface into a guided workflow environment for command traceability, recommendations, recipe planning, prompt-loading navigation, guided onboarding, result coaching, and compact layout. It preserves no-model-modification governance; UI selection mutation remains isolated to confirmed MEP-SEL-v1 routes.

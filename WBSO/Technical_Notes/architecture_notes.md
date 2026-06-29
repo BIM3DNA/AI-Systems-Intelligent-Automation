@@ -1526,3 +1526,28 @@ Safety boundary:
 - no UI selection mutation during preview or unsupported prompt blocking
 - external file writes only through explicit export routes
 - model-write commands remain blocked or guarded
+## 2026-06-25/29 AI Workbench Guided Console Workflow Architecture
+
+This batch extends the ModelMind console into a guided deterministic workflow environment:
+
+- AI-WORKBENCH-SELECTION-DISPATCH-v1 routes confirmed selection-only console commands to existing MEP-SEL-v1 aliases while preserving the MEP-RO guard for unsafe or unconfirmed paths.
+- AI-WORKBENCH-CONSOLE-HISTORY-v1 records executed console commands to local JSONL/CSV/latest-result history files under `Console_History`.
+- AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1 exposes command history, latest result, and session summary export inside the Console.
+- AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1 computes deterministic next-command suggestions from active context, latest result, recent history, and prompt catalog availability.
+- AI-WORKBENCH-RECIPE-PLANNER-v1 creates non-executing deterministic workflow recipes for MEP QA evidence collection.
+- AI-WORKBENCH-RECIPE-NAVIGATOR-v1 loads planned or suggested prompts into the input without running them.
+- AI-WORKBENCH-GUIDED-START-v1 adds beginner-oriented prompt-loading entry points and help.
+- AI-WORKBENCH-GUIDED-COACH-v1 interprets the latest result and recommends a next prompt without dispatching it.
+- AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1 compacts and collapses guided panels, groups utility controls, and increases result-summary usability.
+
+The architecture keeps guidance, preview, prompt loading, and result interpretation separate from command execution. Guided buttons and navigator/coach controls never run commands automatically. Selection mutation is still isolated to explicit MEP-SEL-v1 execution after confirmation.
+
+Safety boundary:
+
+- no transaction or TransactionGroup from guided console features
+- no model data mutation
+- no active-view switching
+- no linked-document mutation
+- no parameter writes
+- no automatic command execution from guided/navigator/coach buttons
+- UI selection mutation only through confirmed MEP-SEL-v1 routes

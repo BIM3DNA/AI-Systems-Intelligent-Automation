@@ -474,3 +474,46 @@ Commit evidence:
 - `546b843` - Route AI Workbench console results to single tab v1
 - `134106d` - Fix AI Workbench selection confirmation gate v1
 - `commit included in later console integration commit` - Fix AI Workbench console result summary parser v1
+## 2026-06-25/29 AI Workbench Guided Console Workflow Model Note
+
+Feature IDs:
+
+- AI-WORKBENCH-SELECTION-DISPATCH-v1
+- AI-WORKBENCH-CONSOLE-HISTORY-v1
+- AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1
+- AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1
+- AI-WORKBENCH-RECIPE-PLANNER-v1
+- AI-WORKBENCH-RECIPE-NAVIGATOR-v1
+- AI-WORKBENCH-GUIDED-START-v1
+- AI-WORKBENCH-GUIDED-COACH-v1
+- AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1
+
+Status: Runtime validated
+
+Evidence: EV-AI-289 through EV-AI-307
+
+The batch adds guided workflow state and local evidence metadata on top of the existing deterministic Console:
+
+- confirmed selection-only dispatch normalization to MEP-SEL-v1 aliases
+- local command history files for executed Console commands
+- latest result and session summary report/export state
+- context suggestion state derived from active context, latest result, history, and prompt catalog entries
+- recipe planner state for non-executing baseline and optional workflow steps
+- recipe navigator state for loaded prompts and prompt-loading actions
+- Guided Start prompt-loading state
+- Guided Coach interpretation and recommended next-prompt state
+- layout visibility state for collapsible Guided Start and Guided Coach panels
+
+The model remains provider-independent for deterministic command routing and guidance. Ollama/OpenAI are not used to decide whether known guided console controls execute; guided controls do not execute commands at all.
+
+Commit evidence:
+
+- `not found in local git log` - Route confirmed AI Workbench selection commands to MEP-SEL v1
+- `b38f488` - Add AI Workbench console command history
+- `7d07e07` - Add AI Workbench console history viewer
+- `b14867a` - Add AI Workbench context suggestions
+- `ec771d7` - Add AI Workbench recipe planner
+- `70f56ac` - Add AI Worbench recipe navigator
+- `9a98076` - Add AI Workbench guided start
+- `c366708` - Add AI Workbench guided coach
+- `f037b07` - Polish AI Workbench console layout

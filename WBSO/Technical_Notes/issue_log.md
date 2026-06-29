@@ -1595,3 +1595,39 @@ Runtime result:
 Next R&D task:
 
 `AI-WORKBENCH-SELECTION-DISPATCH-v1` should route confirmed selection-only console commands to MEP-SEL-v1 while preserving the confirmation gate and model-safety boundaries.
+## 2026-06-25/29 AI Workbench Guided Console Workflow Bottlenecks
+
+Status: Resolved / runtime validated, with one future UX bottleneck
+
+Issues:
+
+- confirmed selection-only console commands needed to reach MEP-SEL-v1 instead of the MEP-RO guard
+- console command execution needed local traceability
+- history files needed to be visible and exportable from the Console
+- users needed deterministic next-action guidance based on the active Revit context
+- users needed repeatable non-executing QA workflow recipes
+- recipe/suggestion steps needed prompt-loading navigation without automatic execution
+- beginner users needed a visible Start Here flow
+- users needed result interpretation and safe next-step recommendations after reports
+- guided panels made the result summary area too small
+
+Resolution:
+
+- routed confirmed selection prompts to existing MEP-SEL-v1 aliases
+- added local Console_History files and history/session-summary viewers
+- added context suggestions, recipe planner, recipe navigator, Guided Start, Guided Coach, and compact/collapsible guided layout
+- grouped Console utility controls and increased Latest Result Summary minimum height
+- preserved explicit Run as the only execution boundary for loaded prompts
+
+Runtime result:
+
+- `select all pipes` selected 18 active-view pipes through MEP-SEL-v1 after confirmation
+- context suggestions detected 97 fittings and 18 pipes in BUNGE TEST
+- recipe planner produced four baseline and two optional review steps, all non-executing
+- guided/navigator/coach controls loaded prompts only
+- dashboard/export/QA export regressions passed
+- unsupported prompt `banana cut all pipes with dragon` remained blocked
+
+Future bottleneck:
+
+`AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1` should compact the selection-only confirmation card. The current card is functionally correct but consumes too much vertical space when active.

@@ -261,3 +261,14 @@ MEP-SEL-v1 routes are deterministic AI Workbench / pyRevit selection-only handle
 - provider role: none for candidate eligibility, UI selection execution, classification, safety checks, or QA export registration
 - `UIDocument.Selection.SetElementIds` is called only by MEP-SEL-v1 when candidate count is greater than zero
 - generic LLM output remains non-authoritative and must not replace deterministic MEP-SEL-v1 evidence
+## 2026-06-25/29 AI Workbench Guided Console Workflow Provider Note
+
+The guided console workflow batch is provider-independent for deterministic routing and guidance:
+
+- confirmed selection dispatch uses local deterministic route normalization before any LLM fallback
+- console history, history viewer, context suggestions, recipe planner, recipe navigator, Guided Start, Guided Coach, and layout polish do not use Ollama/OpenAI to decide execution
+- guided/navigator/coach buttons load prompts only and do not execute commands automatically
+- unsupported prompts remain blocked rather than being interpreted as deterministic commands
+- QA evidence export remains tied to existing deterministic report registration
+
+Status: runtime validated. Evidence: EV-AI-289 through EV-AI-307.

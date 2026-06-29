@@ -1710,3 +1710,38 @@ Passed with known integration bottleneck. See `WBSO/Testing_Validation/runs/2026
 ### Live checks not executed in this pass
 
 - all live validation targets listed above
+## 2026-06-25/29 AI Workbench Guided Console Workflow Validation Plan
+
+### Context
+
+- Evidence: EV-AI-289 through EV-AI-307
+- Validation model: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- Active view: `TEST [FloorPlan]`
+- Module: AI Workbench / ModelMind / Revit MEP QA automation
+
+### Tests
+
+1. Validate confirmed `select all pipes`; expect `[MEP SELECTION V1 REPORT]`, `MEP_SEL_SELECTION_OK`, 18 selected, UI selection modified true, model modified false.
+2. Validate negative/regression dispatch: `select unconnected pipe fittings` returns clean MEP-SEL empty result, and `banana cut all pipes with dragon` remains blocked.
+3. Validate Console history file generation under `Console_History`; expected JSONL, CSV, latest-result TXT/JSON/MD files.
+4. Validate history viewer routes: `show ai workbench console history`, `show latest console result`, and `export ai workbench console session summary`.
+5. Validate context suggestions; expect Piping context, 97 fittings, 18 pipes, eight suggestions, and no automatic command execution.
+6. Validate recipe planner; expect four baseline QA evidence steps and two optional piping review steps with execute automatically false.
+7. Validate recipe navigator controls; expect prompt loading only and no automatic execution.
+8. Validate Guided Start controls; expect Start/Next/Plan/Evidence/Review/Help buttons load prompts only and help report renders.
+9. Validate Guided Coach sequence; expect dashboard/export/history interpretation and prompt-loading only.
+10. Validate layout polish; expect collapsible Guided Start/Coach panels, grouped controls, result summary minimum height, and regression pass for dashboard/export/selection confirmation/unsupported prompt.
+
+### Pass Criteria
+
+- deterministic route ownership remains intact
+- guided/navigator/coach controls never execute commands automatically
+- selection mutation occurs only through confirmed MEP-SEL-v1 route
+- unsupported prompts remain blocked
+- console history and session summaries write only to approved AI_Workbench folders
+- no model mutation, transaction, parameter write, linked-document mutation, or active-view switching is introduced
+- layout polish improves result-summary usability without hiding guidance permanently
+
+### Result
+
+Passed. See `WBSO/Testing_Validation/runs/2026-06-29_ai-workbench-guided-console-workflow-validated/`.

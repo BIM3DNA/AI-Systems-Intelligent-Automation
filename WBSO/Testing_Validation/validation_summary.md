@@ -797,3 +797,37 @@ This batch adds the project-level MEP issue-index export and the next ModelMind 
 ### Safety
 
 Console preview and context scanning do not open transactions, do not modify model data, do not change active view, and do not modify UI selection. Unsupported prompts are blocked. Selection-only prompts require explicit confirmation. Export commands write external evidence only through existing export command routes.
+## 2026-06-25/29 - AI Workbench Guided Console Workflow
+
+### Status
+
+Runtime validated.
+
+### Summary
+
+This batch extends the AI Workbench / ModelMind Console from deterministic command execution into a guided workflow environment. It covers confirmed selection dispatch to MEP-SEL-v1, local console history, history viewing and session summary export, context-aware suggestions, deterministic QA evidence recipes, prompt-loading recipe navigation, beginner Guided Start onboarding, Guided Coach result interpretation, and compact guided layout polish.
+
+### Main Findings
+
+- Confirmed `select all pipes` now returns `[MEP SELECTION V1 REPORT]`, selects 18 pipes, modifies UI selection only, and keeps model modified false.
+- Console history files are generated under `C:\Users\User\Desktop\Results\AI_Workbench\Console_History`.
+- History viewer and latest-result reports are visible inside the Console; session summary export writes to `Console_History\Session_Summaries`.
+- Context suggestions detected Piping context with 97 pipe fittings and 18 pipes and returned eight safe suggestions without execution.
+- Recipe planner generated four baseline MEP QA evidence steps and two optional piping review steps, all non-executing.
+- Recipe navigator and guided controls load prompts only and preserve explicit Run as the execution boundary.
+- Guided Coach interpreted dashboard/export/history results and recommended the next prompt without auto-running it.
+- Layout polish made Guided Start and Guided Coach collapsible, grouped result/history/guidance/maintenance controls, and improved result summary readability.
+
+### Evidence Roots
+
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports`
+- `C:\Users\User\Desktop\Results\AI_Workbench\Console_History`
+- `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries`
+
+### Safety
+
+No Revit transaction, TransactionGroup, model mutation, parameter write, active-view switching, linked-document mutation, or automatic command execution from guided/navigator/coach buttons occurred. Selection mutation remains isolated to confirmed MEP-SEL-v1 routes. Unsupported prompt `banana cut all pipes with dragon` remains blocked.
+
+### Known Follow-Up
+
+`AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1` remains a future UX bottleneck. The confirmation card is functionally correct but should be made more compact without weakening explicit confirmation.

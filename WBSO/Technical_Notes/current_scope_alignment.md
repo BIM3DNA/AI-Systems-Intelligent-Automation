@@ -795,3 +795,32 @@ Still out of scope:
 - automatic model correction or parameter writes
 - model-write action execution without reviewed workflow controls
 - final visual design polish for the dark theme
+### 2026-06-25/29 AI Workbench guided console workflow scope alignment
+
+Validated scope:
+
+- confirmed selection-only dispatch from Console to MEP-SEL-v1
+- local console command history files
+- history viewer, latest-result viewer, and session summary export
+- context-aware next-action suggestions
+- deterministic MEP QA evidence recipe planning
+- prompt-loading recipe navigator controls
+- beginner Guided Start prompt-loading workflow
+- Guided Coach result interpretation and next-prompt recommendation
+- compact/collapsible guided panels and grouped Console controls
+
+Safety boundary:
+
+- guided/navigator/coach buttons load prompts only and do not dispatch commands
+- explicit Run remains required for execution
+- selection mutation remains isolated to confirmed MEP-SEL-v1 routes
+- unsupported prompts remain blocked
+- no Revit model data mutation, transaction, TransactionGroup, parameter write, linked-document mutation, or active-view switching is introduced
+- local history/session-summary files write only to approved AI_Workbench result folders
+
+Still out of scope:
+
+- compact selection confirmation UI (`AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1`)
+- automatic model correction or parameter writes
+- automatic execution of recommended recipe/coach steps
+- making selection confirmation permanently active by default
