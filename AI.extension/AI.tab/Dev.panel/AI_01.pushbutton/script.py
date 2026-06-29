@@ -106,6 +106,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[MEP QA ISSUE INDEX EXPORT V1 REPORT]",
     "[AI WORKBENCH CONSOLE V1 REPORT]",
     "[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]",
+    "[AI WORKBENCH RECIPE PLANNER REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14428,6 +14429,16 @@ AI_WORKBENCH_CONTEXT_SUGGESTIONS_ROUTES = {
     "what should i run next",
 }
 
+AI_WORKBENCH_RECIPE_PLANNER_ROUTES = {
+    "create ai workbench recipe",
+    "create modelmind recipe",
+    "create mep qa evidence recipe",
+    "show mep qa workflow recipe",
+    "plan mep qa workflow",
+    "plan qa evidence workflow",
+    "what is the workflow for this view",
+}
+
 
 def _ai_workbench_console_history_viewer_route_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
@@ -14443,6 +14454,11 @@ def _ai_workbench_console_history_viewer_route_kind(prompt):
 def _is_ai_workbench_context_suggestions_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in AI_WORKBENCH_CONTEXT_SUGGESTIONS_ROUTES
+
+
+def _is_ai_workbench_recipe_planner_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in AI_WORKBENCH_RECIPE_PLANNER_ROUTES
 
 
 def _is_mep_qa_issueindex_v1_prompt(prompt):
@@ -15653,6 +15669,11 @@ class OllamaAIChat(forms.WPFWindow):
         suggest_button.Height = 26
         suggest_button.Margin = Wpf.Thickness(0, 0, 6, 6)
         suggest_button.Click += self.on_console_suggest_next_actions
+        recipe_button = Button()
+        recipe_button.Content = "Create recipe"
+        recipe_button.Height = 26
+        recipe_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        recipe_button.Click += self.on_console_create_recipe
         export_summary_button = Button()
         export_summary_button.Content = "Export session summary"
         export_summary_button.Height = 26
@@ -15702,6 +15723,7 @@ class OllamaAIChat(forms.WPFWindow):
         button_panel.Children.Add(show_history_button)
         button_panel.Children.Add(show_latest_button)
         button_panel.Children.Add(suggest_button)
+        button_panel.Children.Add(recipe_button)
         button_panel.Children.Add(export_summary_button)
         button_panel.Children.Add(clear_button)
         button_panel.Children.Add(history_label)
@@ -15791,6 +15813,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleShowHistoryButton = show_history_button
         self.ConsoleShowLatestResultButton = show_latest_button
         self.ConsoleSuggestNextActionsButton = suggest_button
+        self.ConsoleCreateRecipeButton = recipe_button
         self.ConsoleExportSessionSummaryButton = export_summary_button
         self.ConsoleHistoryLabel = history_label
         self.ConsoleSelectionCard = selection_card
@@ -17355,6 +17378,348 @@ class OllamaAIChat(forms.WPFWindow):
             self.remember_latest_deterministic_report(prompt, report)
             return report
 
+    def _console_history_prompt_status(self, prompt, records):
+        normalized = self._console_normalize(prompt)
+        if not normalized:
+            return "not started"
+        for record in reversed(records or []):
+            source = self._console_normalize(record.get("source_prompt") or "")
+            resolved = self._console_normalize(record.get("resolved_prompt") or "")
+            if normalized in (source, resolved):
+                return "recently executed"
+        return "not started"
+
+    def _console_add_recipe_step(self, steps, warnings, records, prompts, purpose, expected_output, optional=False):
+        prompt, item = self._console_first_available_prompt(prompts)
+        if not prompt or not item:
+            skipped = prompts[0] if prompts else "(empty prompt)"
+            warnings.append("Planned prompt skipped because it is not present in prompt_catalog.json: {0}".format(skipped))
+            return False
+        entry = item.get("entry") or {}
+        safety = self._console_safety_class(entry)
+        steps.append(
+            {
+                "prompt": prompt,
+                "purpose": purpose,
+                "safety_class": safety,
+                "requires_confirmation": "true" if safety == "selection-only" else "false",
+                "expected_output": expected_output,
+                "execute_automatically": "false",
+                "history_status": self._console_history_prompt_status(prompt, records),
+                "optional": bool(optional),
+            }
+        )
+        return True
+
+    def _console_recipe_steps(self, context, records):
+        warnings = []
+        steps = []
+        optional_steps = []
+        self._console_add_recipe_step(
+            steps,
+            warnings,
+            records,
+            ["show active view mep qa dashboard"],
+            "Read-only active-view QA status check.",
+            "[MEP QA DASHBOARD V1 REPORT]",
+        )
+        self._console_add_recipe_step(
+            steps,
+            warnings,
+            records,
+            ["export mep project issue index"],
+            "Generate structured project-level issue evidence across eligible MEP views.",
+            "[MEP QA ISSUE INDEX EXPORT V1 REPORT]",
+        )
+        self._console_add_recipe_step(
+            steps,
+            warnings,
+            records,
+            ["export latest QA report"],
+            "Export the latest report as QA evidence with metadata and manifest.",
+            "[QA REPORT EXPORT COMPLETE]",
+        )
+        self._console_add_recipe_step(
+            steps,
+            warnings,
+            records,
+            ["export ai workbench console session summary", "export console session summary"],
+            "Export a compact Console session summary for traceability.",
+            "[AI WORKBENCH CONSOLE SESSION SUMMARY EXPORT REPORT]",
+        )
+        counts = context.get("category_counts") or {}
+        piping = counts.get("Pipes", 0) + counts.get("Pipe fittings", 0)
+        if piping > 0:
+            self._console_add_recipe_step(
+                optional_steps,
+                warnings,
+                records,
+                ["select all pipes in active view", "select all pipes"],
+                "Select all active-view pipes for visual review.",
+                "[MEP SELECTION V1 REPORT]",
+                optional=True,
+            )
+            self._console_add_recipe_step(
+                optional_steps,
+                warnings,
+                records,
+                ["select unconnected pipe fittings", "select unconnected pipe fittings in active view"],
+                "Select active-view unconnected pipe fitting candidates for visual review.",
+                "[MEP SELECTION V1 REPORT]",
+                optional=True,
+            )
+        hvac = counts.get("Ducts", 0) + counts.get("Duct fittings", 0)
+        if hvac > 0:
+            self._console_add_recipe_step(
+                optional_steps,
+                warnings,
+                records,
+                ["select all ducts in active view", "select all ducts"],
+                "Select all active-view ducts for visual review.",
+                "[MEP SELECTION V1 REPORT]",
+                optional=True,
+            )
+            self._console_add_recipe_step(
+                optional_steps,
+                warnings,
+                records,
+                ["select unconnected duct fittings", "select unconnected duct fittings in active view"],
+                "Select active-view unconnected duct fitting candidates for visual review.",
+                "[MEP SELECTION V1 REPORT]",
+                optional=True,
+            )
+        electrical = (
+            counts.get("Electrical fixtures", 0)
+            + counts.get("Electrical equipment", 0)
+            + counts.get("Lighting fixtures", 0)
+            + counts.get("Data devices", 0)
+            + counts.get("Fire alarm devices", 0)
+            + counts.get("Security devices", 0)
+            + counts.get("Communication devices", 0)
+        )
+        if electrical > 0:
+            self._console_add_recipe_step(
+                optional_steps,
+                warnings,
+                records,
+                [
+                    "select electrical fixtures and devices in active view",
+                    "select electrical fixtures/devices in active view",
+                    "select active view electrical devices",
+                ],
+                "Select active-view electrical fixtures and devices for visual review.",
+                "[MEP SELECTION V1 REPORT]",
+                optional=True,
+            )
+            self._console_add_recipe_step(
+                optional_steps,
+                warnings,
+                records,
+                ["select devices without circuit/system info", "select electrical devices without circuit/system info"],
+                "Select electrical devices missing circuit/system info for visual review.",
+                "[MEP SELECTION V1 REPORT]",
+                optional=True,
+            )
+        self._console_mark_recipe_next_step(steps)
+        self._console_mark_recipe_next_step(optional_steps)
+        return steps, optional_steps, warnings
+
+    def _console_mark_recipe_next_step(self, steps):
+        for step in steps or []:
+            if step.get("history_status") == "not started":
+                step["history_status"] = "recommended next"
+                return
+
+    def _console_recipe_step_table(self, steps):
+        lines = [
+            "| Step | Prompt | Purpose | Safety class | Requires confirmation | Expected report/output | Execute automatically | Status |",
+            "| ---: | ------ | ------- | ------------ | --------------------- | ---------------------- | --------------------- | ------ |",
+        ]
+        for index, step in enumerate(steps or [], 1):
+            row = [
+                safe_str(index),
+                step.get("prompt"),
+                step.get("purpose"),
+                step.get("safety_class"),
+                step.get("requires_confirmation"),
+                step.get("expected_output"),
+                step.get("execute_automatically"),
+                step.get("history_status"),
+            ]
+            lines.append("| {0} |".format(" | ".join([safe_str(value).replace("|", "\\|") for value in row])))
+        if not steps:
+            lines.append("| 0 | none | No catalog-backed recipe steps were available. | report-only | false | none | false | not started |")
+        return lines
+
+    def _console_latest_result_interpretation(self, latest_result, latest_status):
+        classification = safe_str(latest_result.get("result_classification"))
+        if latest_status == "missing":
+            return "No latest Console result metadata is available."
+        if latest_status == "unreadable":
+            return "Latest Console result metadata exists but could not be read."
+        if classification == "MEP_QA_DASHBOARD_GREEN":
+            return "Dashboard is green; continue with project issue-index export and QA export."
+        if classification == "MEP_QA_ISSUEINDEX_EXPORT_OK":
+            return "Issue-index export completed; export latest QA report and then export Console session summary."
+        if classification == "MEP_SEL_SELECTION_OK":
+            return "Selection completed; run dashboard again or export QA report after visual review."
+        if classification == "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK":
+            return "Console session summary export completed; start a new QA cycle or review the generated summary folder."
+        return "Latest result does not change the baseline recipe."
+
+    def _console_recipe_planner_report(self, prompt):
+        context = self.refresh_console_context()
+        records, malformed, history_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        steps, optional_steps, warnings = self._console_recipe_steps(context, records)
+        if malformed:
+            warnings.append("Malformed Console history lines skipped: {0}".format(malformed))
+        if context.get("warning"):
+            warnings.append("Context warning: {0}".format(context.get("warning")))
+        if latest_status == "unreadable":
+            warnings.append("Latest console result JSON could not be read.")
+        if not steps and not optional_steps:
+            classification = "AI_WORKBENCH_RECIPE_PLANNER_EMPTY"
+        elif warnings:
+            classification = "AI_WORKBENCH_RECIPE_PLANNER_OK_WITH_WARNINGS"
+        else:
+            classification = "AI_WORKBENCH_RECIPE_PLANNER_OK"
+        counts = context.get("category_counts") or {}
+        nonzero_counts = ["- {0}: {1}".format(name, counts.get(name)) for name in sorted(counts.keys()) if counts.get(name)]
+        recipe_name = "Active View MEP QA Evidence Recipe"
+        recipe_intent = "Plan a safe deterministic QA/evidence workflow for the current active view."
+        latest_interpretation = self._console_latest_result_interpretation(latest_result, latest_status)
+        lines = [
+            "[AI WORKBENCH RECIPE PLANNER REPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-RECIPE-PLANNER-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Recipe Planner v1",
+            "",
+            "Action name:",
+            "Create deterministic ModelMind workflow recipe",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            classification,
+            "",
+            "Active document title:",
+            context.get("document_title", _document_title(doc)),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(context.get("active_view_name", _active_view_title(doc, uidoc)), context.get("active_view_type", "unavailable")),
+            "",
+            "Current UI selection count:",
+            context.get("selection_count", 0),
+            "",
+            "Detected context discipline:",
+            context.get("likely_discipline", "Unknown / Empty"),
+            "",
+            "Active-view quick counts:",
+        ]
+        lines.extend(nonzero_counts or ["- none"])
+        lines.extend(
+            [
+                "",
+                "Latest console result summary:",
+                "- Latest result source status: {0}".format(latest_status),
+                "- Latest feature ID: {0}".format(latest_result.get("feature_id", "unavailable")),
+                "- Latest result classification: {0}".format(latest_result.get("result_classification", "unavailable")),
+                "- Latest prompt: {0}".format(latest_result.get("source_prompt", "unavailable")),
+                "- Latest export folder: {0}".format(latest_result.get("export_folder", "unavailable")),
+                "",
+                "Latest result interpretation:",
+                latest_interpretation,
+                "",
+                "Recent history count:",
+                len(records),
+                "Recent history source status:",
+                history_status,
+                "",
+                "Recipe name:",
+                recipe_name,
+                "Recipe intent:",
+                recipe_intent,
+                "Recipe safety level:",
+                "read-only planning; planned selection steps require explicit confirmation when run later",
+                "Planned steps count:",
+                len(steps),
+                "",
+                "Step table:",
+            ]
+        )
+        lines.extend(self._console_recipe_step_table(steps))
+        lines.extend(["", "Optional review steps:"])
+        lines.extend(self._console_recipe_step_table(optional_steps) if optional_steps else ["- none"])
+        lines.extend(["", "Warnings:"])
+        lines.extend(["- {0}".format(item) for item in warnings] or ["- none"])
+        lines.extend(
+            [
+                "",
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+                "",
+                "Safety:",
+                "- Recipe planner output is a deterministic plan only.",
+                "- Planned commands are not executed by this report.",
+                "- Execute automatically is false for every planned step.",
+                "- Selection-only planned steps require explicit Console confirmation if run later.",
+            ]
+        )
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def answer_ai_workbench_recipe_planner_question(self, prompt):
+        if not _is_ai_workbench_recipe_planner_prompt(prompt):
+            return None
+        try:
+            return self._console_recipe_planner_report(prompt)
+        except Exception as exc:
+            lines = [
+                "[AI WORKBENCH RECIPE PLANNER REPORT]",
+                "",
+                "Feature ID:",
+                "AI-WORKBENCH-RECIPE-PLANNER-v1",
+                "",
+                "Feature name:",
+                "AI Workbench Recipe Planner v1",
+                "",
+                "Action name:",
+                "Create deterministic ModelMind workflow recipe",
+                "",
+                "Prompt:",
+                safe_str(prompt),
+                "",
+                "Result classification:",
+                "AI_WORKBENCH_RECIPE_PLANNER_FAILED",
+                "",
+                "Warnings:",
+                "- {0}".format(safe_str(exc)),
+                "",
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+            ]
+            report = "\n".join([safe_str(line) for line in lines])
+            self.remember_latest_deterministic_report(prompt, report)
+            return report
+
     def _console_extract_field_anywhere(self, report_text, label):
         value = self._console_extract_report_field(report_text, label)
         if value:
@@ -17652,10 +18017,17 @@ class OllamaAIChat(forms.WPFWindow):
         except Exception as exc:
             self.ConsoleResultBox.Text = "Suggest next actions failed: {0}".format(safe_str(exc))
 
+    def on_console_create_recipe(self, sender, args):
+        try:
+            self.ConsolePromptInput.Text = "create mep qa evidence recipe"
+            self.on_console_run(sender, args)
+        except Exception as exc:
+            self.ConsoleResultBox.Text = "Create recipe failed: {0}".format(safe_str(exc))
+
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-RECIPE-PLANNER-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -17663,7 +18035,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1",
+            "AI-WORKBENCH-RECIPE-PLANNER-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -17674,9 +18046,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-SELECTION-DISPATCH-v1",
             "AI-WORKBENCH-CONSOLE-HISTORY-v1",
             "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
+            "AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1",
             "",
             "Feature name:",
-            "AI Workbench Context Suggestions v1",
+            "AI Workbench Recipe Planner v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -17703,6 +18076,7 @@ class OllamaAIChat(forms.WPFWindow):
             "Console history enabled: true",
             "Console history viewer enabled: true",
             "Context suggestions enabled: true",
+            "Recipe planner enabled: true",
             "Console session summary export enabled: true",
             "History root: {0}".format(history_paths.get("root")),
             "Session summaries root: {0}".format(self._console_session_summaries_root()),
@@ -19035,6 +19409,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "AI Workbench console status / UI wrapper and read-only context preview"
         if header == "[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]":
             return "AI Workbench context suggestions / read-only next-action recommendations"
+        if header == "[AI WORKBENCH RECIPE PLANNER REPORT]":
+            return "AI Workbench recipe planner / read-only deterministic workflow plan"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -41566,11 +41942,16 @@ class OllamaAIChat(forms.WPFWindow):
                 ai_workbench_context_suggestions_reply = self.answer_ai_workbench_context_suggestions_question(
                     prompt
                 )
+            ai_workbench_recipe_planner_reply = None
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None:
+                ai_workbench_recipe_planner_reply = self.answer_ai_workbench_recipe_planner_question(
+                    prompt
+                )
             mep_qa_issueindex_export_v1_reply = self.answer_mep_qa_issueindex_export_v1_question(
                 prompt
-            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None else None
+            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None else None
             mep_qa_issueindex_v1_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_context_suggestions_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None:
                 mep_qa_issueindex_v1_reply = self.answer_mep_qa_issueindex_v1_question(
                     prompt
                 )
@@ -41678,6 +42059,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif ai_workbench_context_suggestions_reply is not None:
                 reply = ai_workbench_context_suggestions_reply
+                preserve_latest_report_state = True
+            elif ai_workbench_recipe_planner_reply is not None:
+                reply = ai_workbench_recipe_planner_reply
                 preserve_latest_report_state = True
             elif mep_qa_issueindex_export_v1_reply is not None:
                 reply = mep_qa_issueindex_export_v1_reply
