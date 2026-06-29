@@ -15578,7 +15578,7 @@ class OllamaAIChat(forms.WPFWindow):
         root.Children.Add(split_a)
 
         center = Grid()
-        for height in ("Auto", "120", "Auto", "*"):
+        for height in ("Auto", "Auto", "Auto", "*"):
             row = RowDefinition()
             if height == "*":
                 row.Height = Wpf.GridLength(1, Wpf.GridUnitType.Star)
@@ -15589,12 +15589,17 @@ class OllamaAIChat(forms.WPFWindow):
             center.RowDefinitions.Add(row)
 
         header_stack = StackPanel()
+        guided_toggle_button = Button()
+        guided_toggle_button.Content = "Hide Guided Start"
+        guided_toggle_button.Height = 22
+        guided_toggle_button.Margin = Wpf.Thickness(0, 0, 0, 4)
+        guided_toggle_button.Click += self.on_console_toggle_guided_start
         guided_border = Border()
         guided_border.BorderBrush = self._brush("#bae6fd")
         guided_border.BorderThickness = Wpf.Thickness(1)
         guided_border.Background = self._brush("#f0f9ff")
-        guided_border.Padding = Wpf.Thickness(8)
-        guided_border.Margin = Wpf.Thickness(0, 0, 0, 8)
+        guided_border.Padding = Wpf.Thickness(6)
+        guided_border.Margin = Wpf.Thickness(0, 0, 0, 5)
         guided_stack = StackPanel()
         guided_title = TextBlock()
         guided_title.Text = "Start Here - Guided AI Workbench Flow"
@@ -15604,7 +15609,7 @@ class OllamaAIChat(forms.WPFWindow):
         guided_text.Text = "1. Check this view  2. Get recommended next actions  3. Create a QA evidence recipe  4. Export evidence only when ready  5. Review history"
         guided_text.TextWrapping = Wpf.TextWrapping.Wrap
         guided_text.Foreground = self._brush("#0f172a")
-        guided_text.Margin = Wpf.Thickness(0, 3, 0, 6)
+        guided_text.Margin = Wpf.Thickness(0, 2, 0, 4)
         guided_buttons = WrapPanel()
         guided_start_button = Button()
         guided_start_button.Content = "Start: Check this view"
@@ -15649,19 +15654,32 @@ class OllamaAIChat(forms.WPFWindow):
         guided_status.Text = "Guided Start: idle."
         guided_status.TextWrapping = Wpf.TextWrapping.Wrap
         guided_status.Foreground = self._brush("#075985")
-        guided_status.Margin = Wpf.Thickness(0, 2, 0, 0)
+        guided_status.Margin = Wpf.Thickness(0, 1, 0, 0)
+        guided_mini = TextBlock()
+        guided_mini.Text = "Guided Start hidden. Use Show Guided Start to restore."
+        guided_mini.TextWrapping = Wpf.TextWrapping.Wrap
+        guided_mini.Foreground = self._brush("#075985")
+        guided_mini.Margin = Wpf.Thickness(0, 0, 0, 5)
+        guided_mini.Visibility = Wpf.Visibility.Collapsed
         guided_stack.Children.Add(guided_title)
         guided_stack.Children.Add(guided_text)
         guided_stack.Children.Add(guided_buttons)
         guided_stack.Children.Add(guided_status)
         guided_border.Child = guided_stack
+        header_stack.Children.Add(guided_toggle_button)
         header_stack.Children.Add(guided_border)
+        header_stack.Children.Add(guided_mini)
+        coach_toggle_button = Button()
+        coach_toggle_button.Content = "Hide Guided Coach"
+        coach_toggle_button.Height = 22
+        coach_toggle_button.Margin = Wpf.Thickness(0, 0, 0, 4)
+        coach_toggle_button.Click += self.on_console_toggle_guided_coach
         coach_border = Border()
         coach_border.BorderBrush = self._brush("#bbf7d0")
         coach_border.BorderThickness = Wpf.Thickness(1)
         coach_border.Background = self._brush("#f0fdf4")
-        coach_border.Padding = Wpf.Thickness(8)
-        coach_border.Margin = Wpf.Thickness(0, 0, 0, 8)
+        coach_border.Padding = Wpf.Thickness(6)
+        coach_border.Margin = Wpf.Thickness(0, 0, 0, 5)
         coach_stack = StackPanel()
         coach_title = TextBlock()
         coach_title.Text = "Guided Coach"
@@ -15669,16 +15687,16 @@ class OllamaAIChat(forms.WPFWindow):
         coach_title.Foreground = self._brush("#166534")
         coach_text = TextBlock()
         coach_text.Text = (
-            "Last result: none\n"
+            "Last: none\n"
             "Meaning: Start with the current Revit view.\n"
-            "Recommended next: show active view mep qa dashboard\n"
+            "Next: show active view mep qa dashboard\n"
             "Why: This is the safest first check.\n"
             "Safety: Report-only; no model data is modified.\n"
             "Status: Click Load recommended next to place the prompt in the input. Then review and click Run manually."
         )
         coach_text.TextWrapping = Wpf.TextWrapping.Wrap
         coach_text.Foreground = self._brush("#14532d")
-        coach_text.Margin = Wpf.Thickness(0, 3, 0, 6)
+        coach_text.Margin = Wpf.Thickness(0, 2, 0, 4)
         coach_button = Button()
         coach_button.Content = "Load recommended next"
         coach_button.Height = 26
@@ -15688,7 +15706,15 @@ class OllamaAIChat(forms.WPFWindow):
         coach_stack.Children.Add(coach_text)
         coach_stack.Children.Add(coach_button)
         coach_border.Child = coach_stack
+        coach_mini = TextBlock()
+        coach_mini.Text = "Guided Coach hidden. Use Show Guided Coach to restore."
+        coach_mini.TextWrapping = Wpf.TextWrapping.Wrap
+        coach_mini.Foreground = self._brush("#166534")
+        coach_mini.Margin = Wpf.Thickness(0, 0, 0, 5)
+        coach_mini.Visibility = Wpf.Visibility.Collapsed
+        header_stack.Children.Add(coach_toggle_button)
         header_stack.Children.Add(coach_border)
+        header_stack.Children.Add(coach_mini)
         prompt_label = TextBlock()
         prompt_label.Text = "Ask ModelMind..."
         prompt_label.FontWeight = Wpf.FontWeights.Bold
@@ -15705,7 +15731,7 @@ class OllamaAIChat(forms.WPFWindow):
         input_grid.ColumnDefinitions[2].Width = Wpf.GridLength(112)
         input_box = TextBox()
         input_box.MinHeight = 32
-        input_box.MaxHeight = 88
+        input_box.MaxHeight = 64
         input_box.AcceptsReturn = True
         input_box.TextWrapping = Wpf.TextWrapping.Wrap
         input_box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
@@ -15767,7 +15793,7 @@ class OllamaAIChat(forms.WPFWindow):
         result_grid.RowDefinitions.Add(RowDefinition())
         result_grid.RowDefinitions[0].Height = Wpf.GridLength(1, Wpf.GridUnitType.Auto)
         result_grid.RowDefinitions[1].Height = Wpf.GridLength(1, Wpf.GridUnitType.Star)
-        button_panel = WrapPanel()
+        button_panel = StackPanel()
         export_button = Button()
         export_button.Content = "Export latest QA report"
         export_button.Height = 26
@@ -15886,21 +15912,29 @@ class OllamaAIChat(forms.WPFWindow):
         selection_stack.Children.Add(confirm)
         selection_stack.Children.Add(selection_note)
         selection_card.Child = selection_stack
-        button_panel.Children.Add(export_button)
-        button_panel.Children.Add(copy_button)
-        button_panel.Children.Add(open_folder_button)
-        button_panel.Children.Add(open_history_button)
-        button_panel.Children.Add(open_latest_button)
-        button_panel.Children.Add(show_history_button)
-        button_panel.Children.Add(show_latest_button)
-        button_panel.Children.Add(suggest_button)
-        button_panel.Children.Add(recipe_button)
-        button_panel.Children.Add(load_next_button)
-        button_panel.Children.Add(load_recipe_button)
-        button_panel.Children.Add(load_start_button)
-        button_panel.Children.Add(clear_loaded_button)
-        button_panel.Children.Add(export_summary_button)
-        button_panel.Children.Add(clear_button)
+        def add_button_section(title_text, buttons):
+            label = TextBlock()
+            label.Text = title_text
+            label.FontWeight = Wpf.FontWeights.Bold
+            label.Foreground = self._brush("#334155")
+            label.Margin = Wpf.Thickness(0, 2, 0, 2)
+            row = WrapPanel()
+            row.Margin = Wpf.Thickness(0, 0, 0, 2)
+            for button in buttons:
+                row.Children.Add(button)
+            button_panel.Children.Add(label)
+            button_panel.Children.Add(row)
+
+        add_button_section("Result", [export_button, copy_button, open_folder_button])
+        add_button_section(
+            "History",
+            [open_history_button, open_latest_button, show_history_button, show_latest_button, export_summary_button],
+        )
+        add_button_section(
+            "Guidance",
+            [suggest_button, recipe_button, load_next_button, load_recipe_button, load_start_button, clear_loaded_button],
+        )
+        add_button_section("Maintenance", [clear_button])
         button_panel.Children.Add(history_label)
         button_panel.Children.Add(navigator_label)
         button_panel.Children.Add(selection_card)
@@ -15910,6 +15944,7 @@ class OllamaAIChat(forms.WPFWindow):
         result_box = TextBox()
         result_box.IsReadOnly = True
         result_box.AcceptsReturn = True
+        result_box.MinHeight = 220
         result_box.TextWrapping = Wpf.TextWrapping.Wrap
         result_box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         result_box.BorderThickness = Wpf.Thickness(0)
@@ -15982,6 +16017,12 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsolePromptInput = input_box
         self.ConsoleRunButton = run_button
         self.ConsoleAdvancedButton = advanced_button
+        self.ConsoleGuidedStartPanel = guided_border
+        self.ConsoleGuidedStartToggleButton = guided_toggle_button
+        self.ConsoleGuidedStartMiniLabel = guided_mini
+        self.ConsoleGuidedCoachPanel = coach_border
+        self.ConsoleGuidedCoachToggleButton = coach_toggle_button
+        self.ConsoleGuidedCoachMiniLabel = coach_mini
         self.ConsoleGuidedStartButton = guided_start_button
         self.ConsoleGuidedNextButton = guided_next_button
         self.ConsoleGuidedPlanButton = guided_plan_button
@@ -16187,6 +16228,40 @@ class OllamaAIChat(forms.WPFWindow):
 
     def on_console_toggle_advanced(self, sender, args):
         self._set_console_advanced_visible(not bool(getattr(self, "ConsoleAdvancedVisible", False)))
+
+    def _set_console_guided_start_visible(self, visible):
+        import System.Windows as Wpf
+        try:
+            self.ConsoleGuidedStartPanel.Visibility = Wpf.Visibility.Visible if visible else Wpf.Visibility.Collapsed
+            self.ConsoleGuidedStartMiniLabel.Visibility = Wpf.Visibility.Collapsed if visible else Wpf.Visibility.Visible
+            self.ConsoleGuidedStartToggleButton.Content = "Hide Guided Start" if visible else "Show Guided Start"
+        except:
+            pass
+
+    def _set_console_guided_coach_visible(self, visible):
+        import System.Windows as Wpf
+        try:
+            self.ConsoleGuidedCoachPanel.Visibility = Wpf.Visibility.Visible if visible else Wpf.Visibility.Collapsed
+            self.ConsoleGuidedCoachMiniLabel.Visibility = Wpf.Visibility.Collapsed if visible else Wpf.Visibility.Visible
+            self.ConsoleGuidedCoachToggleButton.Content = "Hide Guided Coach" if visible else "Show Guided Coach"
+        except:
+            pass
+
+    def on_console_toggle_guided_start(self, sender, args):
+        try:
+            import System.Windows as Wpf
+            currently_visible = self.ConsoleGuidedStartPanel.Visibility == Wpf.Visibility.Visible
+            self._set_console_guided_start_visible(not currently_visible)
+        except:
+            pass
+
+    def on_console_toggle_guided_coach(self, sender, args):
+        try:
+            import System.Windows as Wpf
+            currently_visible = self.ConsoleGuidedCoachPanel.Visibility == Wpf.Visibility.Visible
+            self._set_console_guided_coach_visible(not currently_visible)
+        except:
+            pass
 
     def on_console_selection_confirm_changed(self, sender, args):
         try:
@@ -18400,9 +18475,9 @@ class OllamaAIChat(forms.WPFWindow):
         state = state or self._console_default_guided_coach_state()
         self.console_guided_coach_state = dict(state)
         text = (
-            "Last result: {0}\n"
+            "Last: {0}\n"
             "Meaning: {1}\n"
-            "Recommended next: {2}\n"
+            "Next: {2}\n"
             "Why: {3}\n"
             "Safety: {4}\n"
             "Status: {5}"
@@ -18804,7 +18879,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-GUIDED-COACH-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -18812,7 +18887,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-GUIDED-COACH-v1",
+            "AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -18827,9 +18902,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-RECIPE-PLANNER-v1",
             "AI-WORKBENCH-RECIPE-NAVIGATOR-v1",
             "AI-WORKBENCH-GUIDED-START-v1",
+            "AI-WORKBENCH-GUIDED-COACH-v1",
             "",
             "Feature name:",
-            "AI Workbench Guided Coach v1",
+            "AI Workbench Console Layout Polish v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -18860,6 +18936,9 @@ class OllamaAIChat(forms.WPFWindow):
             "Recipe navigator enabled: true",
             "Guided start enabled: true",
             "Guided coach enabled: true",
+            "Layout polish enabled: true",
+            "Guided start collapsible: true",
+            "Guided coach collapsible: true",
             "Console session summary export enabled: true",
             "History root: {0}".format(history_paths.get("root")),
             "Session summaries root: {0}".format(self._console_session_summaries_root()),
