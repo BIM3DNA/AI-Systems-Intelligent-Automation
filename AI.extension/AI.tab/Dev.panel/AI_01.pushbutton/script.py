@@ -108,6 +108,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]",
     "[AI WORKBENCH RECIPE PLANNER REPORT]",
     "[AI WORKBENCH RECIPE NAVIGATOR REPORT]",
+    "[AI WORKBENCH GUIDED START HELP REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14446,6 +14447,15 @@ AI_WORKBENCH_RECIPE_NAVIGATOR_STATUS_ROUTES = {
     "show loaded suggestion status",
 }
 
+AI_WORKBENCH_GUIDED_START_HELP_ROUTES = {
+    "show ai workbench guided start help",
+    "show guided start help",
+    "how do i use ai workbench",
+    "how do i start ai workbench",
+    "what do i do first",
+    "ai workbench quick start",
+}
+
 
 def _ai_workbench_console_history_viewer_route_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
@@ -14471,6 +14481,11 @@ def _is_ai_workbench_recipe_planner_prompt(prompt):
 def _is_ai_workbench_recipe_navigator_status_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in AI_WORKBENCH_RECIPE_NAVIGATOR_STATUS_ROUTES
+
+
+def _is_ai_workbench_guided_start_help_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in AI_WORKBENCH_GUIDED_START_HELP_ROUTES
 
 
 def _is_mep_qa_issueindex_v1_prompt(prompt):
@@ -15559,11 +15574,80 @@ class OllamaAIChat(forms.WPFWindow):
                 row.Height = Wpf.GridLength(float(height))
             center.RowDefinitions.Add(row)
 
+        header_stack = StackPanel()
+        guided_border = Border()
+        guided_border.BorderBrush = self._brush("#bae6fd")
+        guided_border.BorderThickness = Wpf.Thickness(1)
+        guided_border.Background = self._brush("#f0f9ff")
+        guided_border.Padding = Wpf.Thickness(8)
+        guided_border.Margin = Wpf.Thickness(0, 0, 0, 8)
+        guided_stack = StackPanel()
+        guided_title = TextBlock()
+        guided_title.Text = "Start Here - Guided AI Workbench Flow"
+        guided_title.FontWeight = Wpf.FontWeights.Bold
+        guided_title.Foreground = self._brush("#075985")
+        guided_text = TextBlock()
+        guided_text.Text = "1. Check this view  2. Get recommended next actions  3. Create a QA evidence recipe  4. Export evidence only when ready  5. Review history"
+        guided_text.TextWrapping = Wpf.TextWrapping.Wrap
+        guided_text.Foreground = self._brush("#0f172a")
+        guided_text.Margin = Wpf.Thickness(0, 3, 0, 6)
+        guided_buttons = WrapPanel()
+        guided_start_button = Button()
+        guided_start_button.Content = "Start: Check this view"
+        guided_start_button.Height = 26
+        guided_start_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        guided_start_button.Click += self.on_console_guided_start_check_view
+        guided_next_button = Button()
+        guided_next_button.Content = "Next: Recommend actions"
+        guided_next_button.Height = 26
+        guided_next_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        guided_next_button.Click += self.on_console_guided_next_actions
+        guided_plan_button = Button()
+        guided_plan_button.Content = "Plan: Create recipe"
+        guided_plan_button.Height = 26
+        guided_plan_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        guided_plan_button.Click += self.on_console_guided_create_recipe
+        guided_evidence_button = Button()
+        guided_evidence_button.Content = "Evidence: Load export step"
+        guided_evidence_button.Height = 26
+        guided_evidence_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        guided_evidence_button.Click += self.on_console_guided_load_evidence
+        guided_review_button = Button()
+        guided_review_button.Content = "Review: Show history"
+        guided_review_button.Height = 26
+        guided_review_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        guided_review_button.Click += self.on_console_guided_show_history
+        guided_help_button = Button()
+        guided_help_button.Content = "Help: How this works"
+        guided_help_button.Height = 26
+        guided_help_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        guided_help_button.Click += self.on_console_guided_help
+        for button in [
+            guided_start_button,
+            guided_next_button,
+            guided_plan_button,
+            guided_evidence_button,
+            guided_review_button,
+            guided_help_button,
+        ]:
+            guided_buttons.Children.Add(button)
+        guided_status = TextBlock()
+        guided_status.Text = "Guided Start: idle."
+        guided_status.TextWrapping = Wpf.TextWrapping.Wrap
+        guided_status.Foreground = self._brush("#075985")
+        guided_status.Margin = Wpf.Thickness(0, 2, 0, 0)
+        guided_stack.Children.Add(guided_title)
+        guided_stack.Children.Add(guided_text)
+        guided_stack.Children.Add(guided_buttons)
+        guided_stack.Children.Add(guided_status)
+        guided_border.Child = guided_stack
+        header_stack.Children.Add(guided_border)
         prompt_label = TextBlock()
         prompt_label.Text = "Ask ModelMind..."
         prompt_label.FontWeight = Wpf.FontWeights.Bold
         prompt_label.Margin = Wpf.Thickness(0, 0, 0, 4)
-        center.Children.Add(prompt_label)
+        header_stack.Children.Add(prompt_label)
+        center.Children.Add(header_stack)
 
         input_grid = Grid()
         input_grid.ColumnDefinitions.Add(ColumnDefinition())
@@ -15851,6 +15935,13 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsolePromptInput = input_box
         self.ConsoleRunButton = run_button
         self.ConsoleAdvancedButton = advanced_button
+        self.ConsoleGuidedStartButton = guided_start_button
+        self.ConsoleGuidedNextButton = guided_next_button
+        self.ConsoleGuidedPlanButton = guided_plan_button
+        self.ConsoleGuidedEvidenceButton = guided_evidence_button
+        self.ConsoleGuidedReviewButton = guided_review_button
+        self.ConsoleGuidedHelpButton = guided_help_button
+        self.ConsoleGuidedStartLabel = guided_status
         self.ConsoleCopyResultButton = copy_button
         self.ConsoleOpenExportFolderButton = open_folder_button
         self.ConsoleOpenHistoryFolderButton = open_history_button
@@ -17962,6 +18053,152 @@ class OllamaAIChat(forms.WPFWindow):
             return None
         return self._console_recipe_navigator_report(prompt)
 
+    def _console_guided_evidence_prompt(self):
+        records, malformed, history_status = self._console_load_history_records()
+        dashboard_recent = self._console_history_prompt_status("show active view mep qa dashboard", records) == "recently executed"
+        issue_export_recent = self._console_history_prompt_status("export mep project issue index", records) == "recently executed"
+        qa_export_recent = self._console_history_prompt_status("export latest QA report", records) == "recently executed"
+        session_export_recent = self._console_history_prompt_status("export ai workbench console session summary", records) == "recently executed"
+        if dashboard_recent and not issue_export_recent:
+            return "export mep project issue index"
+        if issue_export_recent and not qa_export_recent:
+            return "export latest QA report"
+        if qa_export_recent and len(records or []) > 3 and not session_export_recent:
+            return "export ai workbench console session summary"
+        return "export mep project issue index"
+
+    def _console_load_guided_prompt(self, prompt, status_message=None):
+        prompt = safe_str(prompt).strip()
+        if not prompt:
+            prompt = "show active view mep qa dashboard"
+        try:
+            self.ConsolePromptInput.Text = prompt
+            self.ConsolePromptInput.CaretIndex = len(prompt)
+        except:
+            pass
+        try:
+            self.update_console_suggestions()
+            self.update_console_preview(self._console_resolved_suggestion(prompt))
+        except:
+            pass
+        message = status_message or "Guided Start loaded: {0}. Review it, then click Run.".format(prompt)
+        try:
+            self.ConsoleGuidedStartLabel.Text = message
+        except:
+            pass
+        try:
+            self.ConsoleNavigatorLabel.Text = "Navigator: guided prompt loaded; not executed."
+        except:
+            pass
+        try:
+            self.ConsoleResultBox.Text = "{0}\nRun was not executed.".format(message)
+        except:
+            pass
+        self.console_loaded_navigator_prompt = prompt
+        self.console_last_navigator_action = "Guided Start prompt load"
+        self.console_last_navigator_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        return prompt
+
+    def on_console_guided_start_check_view(self, sender, args):
+        self._console_load_guided_prompt("show active view mep qa dashboard")
+
+    def on_console_guided_next_actions(self, sender, args):
+        self._console_load_guided_prompt("suggest next ai workbench actions")
+
+    def on_console_guided_create_recipe(self, sender, args):
+        self._console_load_guided_prompt("create mep qa evidence recipe")
+
+    def on_console_guided_load_evidence(self, sender, args):
+        self._console_load_guided_prompt(self._console_guided_evidence_prompt())
+
+    def on_console_guided_show_history(self, sender, args):
+        self._console_load_guided_prompt("show ai workbench console history")
+
+    def on_console_guided_help(self, sender, args):
+        self._console_load_guided_prompt(
+            "show ai workbench guided start help",
+            "Guided Start help loaded. Review it, then click Run.",
+        )
+
+    def _console_guided_start_help_report(self, prompt):
+        context = self.refresh_console_context()
+        lines = [
+            "[AI WORKBENCH GUIDED START HELP REPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-GUIDED-START-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Guided Start v1",
+            "",
+            "Action name:",
+            "Show guided start help",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            "AI_WORKBENCH_GUIDED_START_HELP_OK",
+            "",
+            "Active document title:",
+            context.get("document_title", _document_title(doc)),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(context.get("active_view_name", _active_view_title(doc, uidoc)), context.get("active_view_type", "unavailable")),
+            "",
+            "Current UI selection count:",
+            context.get("selection_count", 0),
+            "",
+            "Detected context discipline:",
+            context.get("likely_discipline", "Unknown / Empty"),
+            "",
+            "Quick start workflow:",
+            '1. Run "show active view mep qa dashboard"',
+            '2. Run "suggest next ai workbench actions"',
+            '3. Run "create mep qa evidence recipe"',
+            '4. Run "export mep project issue index" only if evidence is needed',
+            '5. Run "export latest QA report" after the report/export you want to capture',
+            '6. Run "export ai workbench console session summary" at the end of a QA session',
+            "",
+            "Selection-only explanation:",
+            "- Selection commands only change Revit UI selection.",
+            "- Selection commands require explicit confirmation.",
+            "- Selection commands do not modify model data.",
+            "",
+            "Safety explanation:",
+            "- Report-only commands do not modify model data.",
+            "- Export commands write evidence files only.",
+            "- Model-write commands are not part of this guided start flow.",
+            "",
+            "Button explanation:",
+            "- Start loads dashboard prompt.",
+            "- Next loads recommendation prompt.",
+            "- Plan loads recipe prompt.",
+            "- Evidence loads the next evidence prompt.",
+            "- Review loads history prompt.",
+            "- Help loads this help report prompt.",
+            "",
+            "Warnings:",
+            "- none",
+            "",
+            "Safety flags:",
+            "- Transaction opened: false",
+            "- Transaction group opened: false",
+            "- Model modified: false",
+            "- Linked document modified: false",
+            "- UI selection modified: false",
+            "- Active view changed: false",
+            "- External files written: false",
+        ]
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def answer_ai_workbench_guided_start_help_question(self, prompt):
+        if not _is_ai_workbench_guided_start_help_prompt(prompt):
+            return None
+        return self._console_guided_start_help_report(prompt)
+
     def _console_extract_field_anywhere(self, report_text, label):
         value = self._console_extract_report_field(report_text, label)
         if value:
@@ -18269,7 +18506,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-RECIPE-NAVIGATOR-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-GUIDED-START-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -18277,7 +18514,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-RECIPE-NAVIGATOR-v1",
+            "AI-WORKBENCH-GUIDED-START-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -18290,9 +18527,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
             "AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1",
             "AI-WORKBENCH-RECIPE-PLANNER-v1",
+            "AI-WORKBENCH-RECIPE-NAVIGATOR-v1",
             "",
             "Feature name:",
-            "AI Workbench Recipe Navigator v1",
+            "AI Workbench Guided Start v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -18321,6 +18559,7 @@ class OllamaAIChat(forms.WPFWindow):
             "Context suggestions enabled: true",
             "Recipe planner enabled: true",
             "Recipe navigator enabled: true",
+            "Guided start enabled: true",
             "Console session summary export enabled: true",
             "History root: {0}".format(history_paths.get("root")),
             "Session summaries root: {0}".format(self._console_session_summaries_root()),
@@ -19657,6 +19896,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "AI Workbench recipe planner / read-only deterministic workflow plan"
         if header == "[AI WORKBENCH RECIPE NAVIGATOR REPORT]":
             return "AI Workbench recipe navigator / prompt-loading status report"
+        if header == "[AI WORKBENCH GUIDED START HELP REPORT]":
+            return "AI Workbench guided start / report-only onboarding help"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -42198,11 +42439,16 @@ class OllamaAIChat(forms.WPFWindow):
                 ai_workbench_recipe_navigator_reply = self.answer_ai_workbench_recipe_navigator_question(
                     prompt
                 )
+            ai_workbench_guided_start_help_reply = None
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None:
+                ai_workbench_guided_start_help_reply = self.answer_ai_workbench_guided_start_help_question(
+                    prompt
+                )
             mep_qa_issueindex_export_v1_reply = self.answer_mep_qa_issueindex_export_v1_question(
                 prompt
-            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None else None
+            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None else None
             mep_qa_issueindex_v1_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None:
                 mep_qa_issueindex_v1_reply = self.answer_mep_qa_issueindex_v1_question(
                     prompt
                 )
@@ -42316,6 +42562,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif ai_workbench_recipe_navigator_reply is not None:
                 reply = ai_workbench_recipe_navigator_reply
+                preserve_latest_report_state = True
+            elif ai_workbench_guided_start_help_reply is not None:
+                reply = ai_workbench_guided_start_help_reply
                 preserve_latest_report_state = True
             elif mep_qa_issueindex_export_v1_reply is not None:
                 reply = mep_qa_issueindex_export_v1_reply
