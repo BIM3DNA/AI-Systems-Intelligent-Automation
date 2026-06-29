@@ -109,6 +109,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[AI WORKBENCH RECIPE PLANNER REPORT]",
     "[AI WORKBENCH RECIPE NAVIGATOR REPORT]",
     "[AI WORKBENCH GUIDED START HELP REPORT]",
+    "[AI WORKBENCH GUIDED COACH REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14456,6 +14457,13 @@ AI_WORKBENCH_GUIDED_START_HELP_ROUTES = {
     "ai workbench quick start",
 }
 
+AI_WORKBENCH_GUIDED_COACH_STATUS_ROUTES = {
+    "show ai workbench guided coach status",
+    "show guided coach status",
+    "show next recommended step",
+    "what should i do next in guided mode",
+}
+
 
 def _ai_workbench_console_history_viewer_route_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
@@ -14486,6 +14494,11 @@ def _is_ai_workbench_recipe_navigator_status_prompt(prompt):
 def _is_ai_workbench_guided_start_help_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in AI_WORKBENCH_GUIDED_START_HELP_ROUTES
+
+
+def _is_ai_workbench_guided_coach_status_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in AI_WORKBENCH_GUIDED_COACH_STATUS_ROUTES
 
 
 def _is_mep_qa_issueindex_v1_prompt(prompt):
@@ -15382,6 +15395,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.console_loaded_navigator_prompt = ""
         self.console_last_navigator_action = ""
         self.console_last_navigator_timestamp = ""
+        self.console_guided_coach_state = {}
         self.console_capture_active = False
         self.console_captured_reply = None
         self.console_captured_error = None
@@ -15642,6 +15656,39 @@ class OllamaAIChat(forms.WPFWindow):
         guided_stack.Children.Add(guided_status)
         guided_border.Child = guided_stack
         header_stack.Children.Add(guided_border)
+        coach_border = Border()
+        coach_border.BorderBrush = self._brush("#bbf7d0")
+        coach_border.BorderThickness = Wpf.Thickness(1)
+        coach_border.Background = self._brush("#f0fdf4")
+        coach_border.Padding = Wpf.Thickness(8)
+        coach_border.Margin = Wpf.Thickness(0, 0, 0, 8)
+        coach_stack = StackPanel()
+        coach_title = TextBlock()
+        coach_title.Text = "Guided Coach"
+        coach_title.FontWeight = Wpf.FontWeights.Bold
+        coach_title.Foreground = self._brush("#166534")
+        coach_text = TextBlock()
+        coach_text.Text = (
+            "Last result: none\n"
+            "Meaning: Start with the current Revit view.\n"
+            "Recommended next: show active view mep qa dashboard\n"
+            "Why: This is the safest first check.\n"
+            "Safety: Report-only; no model data is modified.\n"
+            "Status: Click Load recommended next to place the prompt in the input. Then review and click Run manually."
+        )
+        coach_text.TextWrapping = Wpf.TextWrapping.Wrap
+        coach_text.Foreground = self._brush("#14532d")
+        coach_text.Margin = Wpf.Thickness(0, 3, 0, 6)
+        coach_button = Button()
+        coach_button.Content = "Load recommended next"
+        coach_button.Height = 26
+        coach_button.Margin = Wpf.Thickness(0, 0, 6, 0)
+        coach_button.Click += self.on_console_guided_coach_load_next
+        coach_stack.Children.Add(coach_title)
+        coach_stack.Children.Add(coach_text)
+        coach_stack.Children.Add(coach_button)
+        coach_border.Child = coach_stack
+        header_stack.Children.Add(coach_border)
         prompt_label = TextBlock()
         prompt_label.Text = "Ask ModelMind..."
         prompt_label.FontWeight = Wpf.FontWeights.Bold
@@ -15942,6 +15989,8 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleGuidedReviewButton = guided_review_button
         self.ConsoleGuidedHelpButton = guided_help_button
         self.ConsoleGuidedStartLabel = guided_status
+        self.ConsoleGuidedCoachText = coach_text
+        self.ConsoleGuidedCoachLoadButton = coach_button
         self.ConsoleCopyResultButton = copy_button
         self.ConsoleOpenExportFolderButton = open_folder_button
         self.ConsoleOpenHistoryFolderButton = open_history_button
@@ -18199,6 +18248,251 @@ class OllamaAIChat(forms.WPFWindow):
             return None
         return self._console_guided_start_help_report(prompt)
 
+    def _console_default_guided_coach_state(self):
+        return {
+            "last_result": "none",
+            "meaning": "Start with the current Revit view.",
+            "recommended_prompt": "show active view mep qa dashboard",
+            "why": "This is the safest first check.",
+            "safety": "Report-only; no model data is modified.",
+            "status": "Click Load recommended next to place the prompt in the input. Then review and click Run manually.",
+            "result_header": "",
+            "feature_id": "",
+            "result_classification": "",
+            "warnings": "none",
+        }
+
+    def _console_guided_coach_state_from_report(self, report_text):
+        header = self._extract_report_header(report_text)
+        classification = self._console_extract_first_field(report_text, ["Result classification"])
+        feature_id = self._console_extract_first_field(report_text, ["Feature ID"])
+        state = self._console_default_guided_coach_state()
+        state["result_header"] = header
+        state["feature_id"] = feature_id
+        state["result_classification"] = classification
+        state["warnings"] = self._console_extract_warnings_summary(report_text) or "none"
+        if header == "[MEP QA DASHBOARD V1 REPORT]":
+            if classification == "MEP_QA_DASHBOARD_GREEN":
+                state.update(
+                    {
+                        "last_result": "Active-view MEP dashboard is GREEN.",
+                        "meaning": "No active-view MEP issue candidates were found.",
+                        "recommended_prompt": "export mep project issue index",
+                        "why": "Check and export broader project-level issue evidence.",
+                        "safety": "Export writes files only and does not modify the Revit model.",
+                    }
+                )
+            else:
+                state.update(
+                    {
+                        "last_result": "Active-view MEP dashboard reported review items.",
+                        "meaning": "Issue candidates or a non-green dashboard state may need follow-up.",
+                        "recommended_prompt": "export latest QA report",
+                        "why": "Preserve the dashboard report as evidence before follow-up. Selection-only review may be useful if applicable.",
+                        "safety": "Export writes report evidence only and does not modify model data.",
+                    }
+                )
+        elif header == "[MEP QA ISSUE INDEX EXPORT V1 REPORT]":
+            if classification == "MEP_QA_ISSUEINDEX_EXPORT_EMPTY":
+                state.update(
+                    {
+                        "last_result": "Project issue index export found no issue candidates.",
+                        "meaning": "No project issue candidates were found, but the empty evidence result should be captured.",
+                        "recommended_prompt": "export latest QA report",
+                        "why": "Capture the empty issue-index export report and metadata in the QA export folder.",
+                        "safety": "Export writes report evidence only.",
+                    }
+                )
+            else:
+                state.update(
+                    {
+                        "last_result": "Project issue index export completed.",
+                        "meaning": "Project-level issue evidence was written.",
+                        "recommended_prompt": "export latest QA report",
+                        "why": "Capture the issue-index export report and metadata in the QA export folder.",
+                        "safety": "Export writes report evidence only.",
+                    }
+                )
+        elif header == "[QA REPORT EXPORT COMPLETE]":
+            state.update(
+                {
+                    "last_result": "Latest QA report exported.",
+                    "meaning": "The previous report was saved with metadata and manifest.",
+                    "recommended_prompt": "export ai workbench console session summary",
+                    "why": "Capture a compact session-level trace of what was run.",
+                    "safety": "Writes session summary files only.",
+                }
+            )
+        elif header == "[AI WORKBENCH CONSOLE SESSION SUMMARY EXPORT REPORT]":
+            state.update(
+                {
+                    "last_result": "Console session summary exported.",
+                    "meaning": "The QA session is now traceable.",
+                    "recommended_prompt": "show ai workbench console history",
+                    "why": "Review the final command history.",
+                    "safety": "Report-only.",
+                }
+            )
+        elif header == "[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]":
+            state.update(
+                {
+                    "last_result": "Recommended actions generated.",
+                    "meaning": "The system identified safe next commands from the current context.",
+                    "recommended_prompt": "create mep qa evidence recipe",
+                    "why": "Convert suggestions into a structured workflow recipe.",
+                    "safety": "Report-only planning.",
+                }
+            )
+        elif header == "[AI WORKBENCH RECIPE PLANNER REPORT]":
+            state.update(
+                {
+                    "last_result": "QA evidence recipe created.",
+                    "meaning": "The workflow steps are planned and not executed automatically.",
+                    "recommended_prompt": "export mep project issue index",
+                    "why": "Begin the evidence export part of the planned workflow.",
+                    "safety": "Writes evidence files only.",
+                }
+            )
+        elif header == "[AI WORKBENCH CONSOLE HISTORY VIEWER REPORT]":
+            state.update(
+                {
+                    "last_result": "Console history displayed.",
+                    "meaning": "Recent commands and safety flags are visible.",
+                    "recommended_prompt": "show latest console result",
+                    "why": "Inspect the latest full report.",
+                    "safety": "Report-only.",
+                }
+            )
+        elif header == "[MEP SELECTION V1 REPORT]":
+            if classification == "MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT":
+                state.update(
+                    {
+                        "last_result": "No selection candidates were found.",
+                        "meaning": "There were no matching active-view elements for that selection command.",
+                        "recommended_prompt": "show active view mep qa dashboard",
+                        "why": "Return to the read-only active-view dashboard.",
+                        "safety": "Report-only.",
+                    }
+                )
+            else:
+                state.update(
+                    {
+                        "last_result": "Elements were selected for review.",
+                        "meaning": "Revit UI selection changed only; model data was not modified.",
+                        "recommended_prompt": "show active view mep qa dashboard",
+                        "why": "Re-run the read-only dashboard after visual review.",
+                        "safety": "Report-only.",
+                    }
+                )
+        elif header:
+            state.update(
+                {
+                    "last_result": "Latest deterministic report received.",
+                    "meaning": "Review the result summary and continue with a safe active-view check if unsure.",
+                    "recommended_prompt": "show active view mep qa dashboard",
+                    "why": "The active-view dashboard is the safest baseline follow-up.",
+                    "safety": "Report-only.",
+                }
+            )
+        return state
+
+    def _console_render_guided_coach_state(self, state):
+        state = state or self._console_default_guided_coach_state()
+        self.console_guided_coach_state = dict(state)
+        text = (
+            "Last result: {0}\n"
+            "Meaning: {1}\n"
+            "Recommended next: {2}\n"
+            "Why: {3}\n"
+            "Safety: {4}\n"
+            "Status: {5}"
+        ).format(
+            state.get("last_result", "none"),
+            state.get("meaning", ""),
+            state.get("recommended_prompt", ""),
+            state.get("why", ""),
+            state.get("safety", ""),
+            state.get("status", "Click Load recommended next to place the prompt in the input. Then review and click Run manually."),
+        )
+        try:
+            self.ConsoleGuidedCoachText.Text = text
+        except:
+            pass
+
+    def _console_update_guided_coach_from_report(self, report_text):
+        self._console_render_guided_coach_state(self._console_guided_coach_state_from_report(report_text))
+
+    def on_console_guided_coach_load_next(self, sender, args):
+        state = self.console_guided_coach_state or self._console_default_guided_coach_state()
+        prompt = state.get("recommended_prompt") or "show active view mep qa dashboard"
+        self._console_load_guided_prompt(
+            prompt,
+            "Guided Coach loaded: {0}. Review it, then click Run.".format(prompt),
+        )
+
+    def _console_guided_coach_report(self, prompt):
+        context = self.refresh_console_context()
+        state = self.console_guided_coach_state or self._console_default_guided_coach_state()
+        loaded = bool(state.get("recommended_prompt"))
+        classification = "AI_WORKBENCH_GUIDED_COACH_OK" if loaded else "AI_WORKBENCH_GUIDED_COACH_EMPTY"
+        lines = [
+            "[AI WORKBENCH GUIDED COACH REPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-GUIDED-COACH-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Guided Coach v1",
+            "",
+            "Action name:",
+            "Show guided coach status",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            classification,
+            "",
+            "Active document title:",
+            context.get("document_title", _document_title(doc)),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(context.get("active_view_name", _active_view_title(doc, uidoc)), context.get("active_view_type", "unavailable")),
+            "",
+            "Last result header:",
+            state.get("result_header") or "none",
+            "Last feature ID:",
+            state.get("feature_id") or "none",
+            "Last result classification:",
+            state.get("result_classification") or "none",
+            "Current recommended prompt:",
+            state.get("recommended_prompt") or "none",
+            "Recommendation reason:",
+            state.get("why") or "none",
+            "Run executed by coach:",
+            "false",
+            "",
+            "Warnings:",
+            "- {0}".format(state.get("warnings") or "none"),
+            "",
+            "Safety flags:",
+            "- Transaction opened: false",
+            "- Transaction group opened: false",
+            "- Model modified: false",
+            "- Linked document modified: false",
+            "- UI selection modified: false",
+            "- Active view changed: false",
+            "- External files written: false",
+        ]
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def answer_ai_workbench_guided_coach_question(self, prompt):
+        if not _is_ai_workbench_guided_coach_status_prompt(prompt):
+            return None
+        return self._console_guided_coach_report(prompt)
+
     def _console_extract_field_anywhere(self, report_text, label):
         value = self._console_extract_report_field(report_text, label)
         if value:
@@ -18376,6 +18670,10 @@ class OllamaAIChat(forms.WPFWindow):
             self.ConsoleOpenExportFolderButton.IsEnabled = bool(self.console_last_export_folder)
         except:
             pass
+        try:
+            self._console_update_guided_coach_from_report(report_text)
+        except:
+            pass
 
     def on_console_clear_result(self, sender, args):
         try:
@@ -18506,7 +18804,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-GUIDED-START-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-GUIDED-COACH-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -18514,7 +18812,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-GUIDED-START-v1",
+            "AI-WORKBENCH-GUIDED-COACH-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -18528,9 +18826,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1",
             "AI-WORKBENCH-RECIPE-PLANNER-v1",
             "AI-WORKBENCH-RECIPE-NAVIGATOR-v1",
+            "AI-WORKBENCH-GUIDED-START-v1",
             "",
             "Feature name:",
-            "AI Workbench Guided Start v1",
+            "AI Workbench Guided Coach v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -18560,6 +18859,7 @@ class OllamaAIChat(forms.WPFWindow):
             "Recipe planner enabled: true",
             "Recipe navigator enabled: true",
             "Guided start enabled: true",
+            "Guided coach enabled: true",
             "Console session summary export enabled: true",
             "History root: {0}".format(history_paths.get("root")),
             "Session summaries root: {0}".format(self._console_session_summaries_root()),
@@ -19898,6 +20198,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "AI Workbench recipe navigator / prompt-loading status report"
         if header == "[AI WORKBENCH GUIDED START HELP REPORT]":
             return "AI Workbench guided start / report-only onboarding help"
+        if header == "[AI WORKBENCH GUIDED COACH REPORT]":
+            return "AI Workbench guided coach / read-only next-step recommendation status"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -42444,11 +42746,16 @@ class OllamaAIChat(forms.WPFWindow):
                 ai_workbench_guided_start_help_reply = self.answer_ai_workbench_guided_start_help_question(
                     prompt
                 )
+            ai_workbench_guided_coach_reply = None
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None:
+                ai_workbench_guided_coach_reply = self.answer_ai_workbench_guided_coach_question(
+                    prompt
+                )
             mep_qa_issueindex_export_v1_reply = self.answer_mep_qa_issueindex_export_v1_question(
                 prompt
-            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None else None
+            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None and ai_workbench_guided_coach_reply is None else None
             mep_qa_issueindex_v1_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None and ai_workbench_guided_coach_reply is None:
                 mep_qa_issueindex_v1_reply = self.answer_mep_qa_issueindex_v1_question(
                     prompt
                 )
@@ -42565,6 +42872,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif ai_workbench_guided_start_help_reply is not None:
                 reply = ai_workbench_guided_start_help_reply
+                preserve_latest_report_state = True
+            elif ai_workbench_guided_coach_reply is not None:
+                reply = ai_workbench_guided_coach_reply
                 preserve_latest_report_state = True
             elif mep_qa_issueindex_export_v1_reply is not None:
                 reply = mep_qa_issueindex_export_v1_reply
