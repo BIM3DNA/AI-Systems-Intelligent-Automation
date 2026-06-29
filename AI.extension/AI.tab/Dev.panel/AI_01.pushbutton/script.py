@@ -14404,6 +14404,33 @@ def _is_ai_workbench_console_v1_prompt(prompt):
     return normalized in AI_WORKBENCH_CONSOLE_V1_ROUTES
 
 
+AI_WORKBENCH_CONSOLE_HISTORY_VIEWER_ROUTES = {
+    "show ai workbench console history",
+    "show console history",
+    "show recent console commands",
+}
+
+AI_WORKBENCH_CONSOLE_LATEST_RESULT_ROUTES = {
+    "show latest console result",
+}
+
+AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_ROUTES = {
+    "export ai workbench console session summary",
+    "export console session summary",
+}
+
+
+def _ai_workbench_console_history_viewer_route_kind(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    if normalized in AI_WORKBENCH_CONSOLE_HISTORY_VIEWER_ROUTES:
+        return "history"
+    if normalized in AI_WORKBENCH_CONSOLE_LATEST_RESULT_ROUTES:
+        return "latest"
+    if normalized in AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_ROUTES:
+        return "export"
+    return None
+
+
 def _is_mep_qa_issueindex_v1_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in MEP_QA_ISSUEINDEX_V1_ROUTES
@@ -15597,6 +15624,21 @@ class OllamaAIChat(forms.WPFWindow):
         open_latest_button.Margin = Wpf.Thickness(0, 0, 6, 6)
         open_latest_button.IsEnabled = False
         open_latest_button.Click += self.on_console_open_latest_result
+        show_history_button = Button()
+        show_history_button.Content = "Show history"
+        show_history_button.Height = 26
+        show_history_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        show_history_button.Click += self.on_console_show_history
+        show_latest_button = Button()
+        show_latest_button.Content = "Show latest result"
+        show_latest_button.Height = 26
+        show_latest_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        show_latest_button.Click += self.on_console_show_latest_result
+        export_summary_button = Button()
+        export_summary_button.Content = "Export session summary"
+        export_summary_button.Height = 26
+        export_summary_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        export_summary_button.Click += self.on_console_export_session_summary
         history_label = TextBlock()
         history_label.Text = "History folder: {0}".format(self._console_history_root())
         history_label.TextWrapping = Wpf.TextWrapping.Wrap
@@ -15638,6 +15680,9 @@ class OllamaAIChat(forms.WPFWindow):
         button_panel.Children.Add(open_folder_button)
         button_panel.Children.Add(open_history_button)
         button_panel.Children.Add(open_latest_button)
+        button_panel.Children.Add(show_history_button)
+        button_panel.Children.Add(show_latest_button)
+        button_panel.Children.Add(export_summary_button)
         button_panel.Children.Add(clear_button)
         button_panel.Children.Add(history_label)
         button_panel.Children.Add(selection_card)
@@ -15723,6 +15768,9 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleOpenExportFolderButton = open_folder_button
         self.ConsoleOpenHistoryFolderButton = open_history_button
         self.ConsoleOpenLatestResultButton = open_latest_button
+        self.ConsoleShowHistoryButton = show_history_button
+        self.ConsoleShowLatestResultButton = show_latest_button
+        self.ConsoleExportSessionSummaryButton = export_summary_button
         self.ConsoleHistoryLabel = history_label
         self.ConsoleSelectionCard = selection_card
         self.ConsoleSelectionNote = selection_note
@@ -16567,6 +16615,430 @@ class OllamaAIChat(forms.WPFWindow):
             "latest_md": os.path.join(root, "latest_console_result.md"),
         }
 
+    def _console_session_summaries_root(self):
+        return os.path.join(self._console_history_root(), "Session_Summaries")
+
+    def _console_load_history_records(self):
+        paths = self._console_history_paths()
+        records = []
+        malformed = 0
+        jsonl_path = paths.get("jsonl")
+        if not os.path.exists(jsonl_path):
+            return records, malformed, "missing"
+        try:
+            stream = codecs.open(jsonl_path, "r", "utf-8")
+            try:
+                for line in stream:
+                    stripped = safe_str(line).strip()
+                    if not stripped:
+                        continue
+                    try:
+                        parsed = json.loads(stripped)
+                        if isinstance(parsed, dict):
+                            records.append(parsed)
+                        else:
+                            malformed += 1
+                    except:
+                        malformed += 1
+            finally:
+                stream.close()
+        except:
+            return records, malformed + 1, "unreadable"
+        return records, malformed, "available"
+
+    def _console_history_classification(self, records, malformed):
+        if not records:
+            return "AI_WORKBENCH_CONSOLE_HISTORY_EMPTY"
+        if malformed:
+            return "AI_WORKBENCH_CONSOLE_HISTORY_OK_WITH_SKIPS"
+        return "AI_WORKBENCH_CONSOLE_HISTORY_OK"
+
+    def _console_history_table(self, records, limit):
+        lines = [
+            "| # | Timestamp | Feature ID | Classification | Prompt | Active view | UI selection modified | Model modified | External files written |",
+            "|---|---|---|---|---|---|---|---|---|",
+        ]
+        for index, record in enumerate(records[:limit], 1):
+            row = [
+                safe_str(index),
+                record.get("timestamp"),
+                record.get("feature_id"),
+                record.get("result_classification"),
+                record.get("source_prompt") or record.get("resolved_prompt"),
+                record.get("active_view"),
+                record.get("ui_selection_modified"),
+                record.get("model_modified"),
+                record.get("external_files_written"),
+            ]
+            lines.append("| {0} |".format(" | ".join([safe_str(item).replace("|", "\\|") for item in row])))
+        return lines
+
+    def _console_history_viewer_report(self, prompt):
+        paths = self._console_history_paths()
+        records, malformed, source_status = self._console_load_history_records()
+        newest = list(reversed(records))
+        displayed = newest[:20]
+        latest = displayed[0] if displayed else {}
+        classification = self._console_history_classification(records, malformed)
+        lines = [
+            "[AI WORKBENCH CONSOLE HISTORY VIEWER REPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Console History Viewer v1",
+            "",
+            "Action name:",
+            "Show recent console command history",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            classification,
+            "",
+            "History root:",
+            paths.get("root"),
+            "History JSONL path:",
+            paths.get("jsonl"),
+            "History CSV path:",
+            paths.get("csv"),
+            "History source status:",
+            source_status,
+            "Total history entries found:",
+            len(records),
+            "Entries displayed:",
+            len(displayed),
+            "Malformed history lines skipped:",
+            malformed,
+            "",
+            "Latest timestamp:",
+            latest.get("timestamp", "unavailable"),
+            "Latest feature ID:",
+            latest.get("feature_id", "unavailable"),
+            "Latest result classification:",
+            latest.get("result_classification", "unavailable"),
+            "Latest prompt:",
+            latest.get("source_prompt", "unavailable"),
+            "Latest active document title:",
+            latest.get("active_document_title", "unavailable"),
+            "Latest active view:",
+            latest.get("active_view", "unavailable"),
+            "",
+            "Recent console commands:",
+        ]
+        if displayed:
+            lines.extend(self._console_history_table(displayed, 20))
+        else:
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Warnings:",
+                "- malformed history lines skipped: {0}".format(malformed) if malformed else "- none",
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: false",
+                "- active view changed: false",
+                "- external files written: false",
+            ]
+        )
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def _console_latest_result_viewer_report(self, prompt):
+        paths = self._console_history_paths()
+        txt_path = paths.get("latest_txt")
+        json_path = paths.get("latest_json")
+        latest_text = ""
+        metadata = {}
+        classification = "AI_WORKBENCH_LATEST_CONSOLE_RESULT_EMPTY"
+        try:
+            if os.path.exists(txt_path):
+                stream = codecs.open(txt_path, "r", "utf-8")
+                try:
+                    latest_text = stream.read()
+                finally:
+                    stream.close()
+        except Exception as exc:
+            latest_text = "Latest result text could not be read: {0}".format(safe_str(exc))
+        try:
+            if os.path.exists(json_path):
+                stream = codecs.open(json_path, "r", "utf-8")
+                try:
+                    loaded = json.loads(stream.read())
+                    if isinstance(loaded, dict):
+                        metadata = loaded
+                finally:
+                    stream.close()
+        except:
+            metadata = {}
+        if latest_text:
+            classification = "AI_WORKBENCH_LATEST_CONSOLE_RESULT_OK"
+        lines = [
+            "[AI WORKBENCH LATEST CONSOLE RESULT REPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Console History Viewer v1",
+            "",
+            "Action name:",
+            "Show latest console result",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            classification,
+            "",
+            "Latest result txt path:",
+            txt_path,
+            "Latest result json path:",
+            json_path,
+            "Latest timestamp:",
+            metadata.get("timestamp", "unavailable"),
+            "Latest source prompt:",
+            metadata.get("source_prompt", "unavailable"),
+            "Latest feature ID:",
+            metadata.get("feature_id", "unavailable"),
+            "Latest result classification:",
+            metadata.get("result_classification", "unavailable"),
+            "",
+            "Full latest result text:",
+            latest_text or "No latest console result is available.",
+            "",
+            "Warnings:",
+            "- none" if latest_text else "- latest console result files are unavailable",
+            "",
+            "Safety flags:",
+            "- transaction opened: false",
+            "- transaction group opened: false",
+            "- model modified: false",
+            "- linked document modified: false",
+            "- UI selection modified: false",
+            "- active view changed: false",
+            "- external files written: false",
+        ]
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def _console_count_by_field(self, records, field):
+        counts = {}
+        for record in records or []:
+            key = safe_str(record.get(field) or "unavailable")
+            counts[key] = counts.get(key, 0) + 1
+        return counts
+
+    def _console_true_count(self, records, field):
+        count = 0
+        for record in records or []:
+            if safe_str(record.get(field)).strip().lower() == "true":
+                count += 1
+        return count
+
+    def _console_counts_lines(self, title, counts):
+        lines = [title + ":"]
+        if counts:
+            for key in sorted(counts.keys()):
+                lines.append("- {0}: {1}".format(key, counts.get(key)))
+        else:
+            lines.append("- none")
+        return lines
+
+    def _console_session_summary_files(self, prompt, records):
+        summaries_root = self._console_session_summaries_root()
+        if not os.path.exists(summaries_root):
+            os.makedirs(summaries_root)
+        folder = os.path.join(summaries_root, "{0}_console_session_summary".format(time.strftime("%Y%m%d_%H%M%S")))
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        included = list(reversed(records))[:20]
+        feature_counts = self._console_count_by_field(records, "feature_id")
+        classification_counts = self._console_count_by_field(records, "result_classification")
+        ui_selection_count = self._console_true_count(records, "ui_selection_modified")
+        model_modified_count = self._console_true_count(records, "model_modified")
+        external_write_count = self._console_true_count(records, "external_files_written")
+        export_refs = []
+        prompts = []
+        for record in included:
+            if record.get("export_folder"):
+                export_refs.append(record.get("export_folder"))
+            prompts.append(record.get("source_prompt") or record.get("resolved_prompt") or "")
+        summary = {
+            "feature_id": "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
+            "feature_name": "AI Workbench Console History Viewer v1",
+            "history_version": "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
+            "created_timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "source_prompt": safe_str(prompt),
+            "history_root": self._console_history_root(),
+            "export_folder": folder,
+            "total_history_entries_read": len(records),
+            "entries_included": len(included),
+            "counts_by_feature_id": feature_counts,
+            "counts_by_result_classification": classification_counts,
+            "ui_selection_modified_true_count": ui_selection_count,
+            "model_modified_true_count": model_modified_count,
+            "external_files_written_true_count": external_write_count,
+            "latest_export_folder_references": export_refs[:20],
+            "prompts_executed": prompts,
+            "records": included,
+        }
+        md_lines = [
+            "# AI Workbench Console Session Summary",
+            "",
+            "- Timestamp: {0}".format(summary.get("created_timestamp")),
+            "- Source prompt: {0}".format(prompt),
+            "- Total history entries read: {0}".format(len(records)),
+            "- Entries included: {0}".format(len(included)),
+            "- UI selection modified true count: {0}".format(ui_selection_count),
+            "- Model modified true count: {0}".format(model_modified_count),
+            "- External files written true count: {0}".format(external_write_count),
+            "",
+        ]
+        md_lines.extend(self._console_counts_lines("Counts by feature ID", feature_counts))
+        md_lines.extend([""])
+        md_lines.extend(self._console_counts_lines("Counts by result classification", classification_counts))
+        md_lines.extend(["", "Latest export folder references:"])
+        md_lines.extend(["- {0}".format(item) for item in export_refs[:20]] or ["- none"])
+        md_lines.extend(["", "Prompts executed:"])
+        md_lines.extend(["- {0}".format(item) for item in prompts] or ["- none"])
+        md_lines.extend(["", "Recent command table:"])
+        md_lines.extend(self._console_history_table(included, 20) if included else ["- none"])
+        md_lines.extend(
+            [
+                "",
+                "Safety summary:",
+                "- Session summary export writes local evidence only under Console_History/Session_Summaries.",
+                "- No Revit transaction was opened.",
+                "- No model data was modified by the export.",
+                "- No UI selection was modified by the export.",
+            ]
+        )
+        txt_text = "\n".join(md_lines)
+        md_path = os.path.join(folder, "console_session_summary.md")
+        txt_path = os.path.join(folder, "console_session_summary.txt")
+        json_path = os.path.join(folder, "console_session_summary.json")
+        csv_path = os.path.join(folder, "console_session_summary.csv")
+        manifest_path = os.path.join(folder, "artifact_manifest.txt")
+        self._write_utf8_file(md_path, "\n".join(md_lines))
+        self._write_utf8_file(txt_path, txt_text)
+        self._write_utf8_file(json_path, json.dumps(summary, indent=2, sort_keys=True))
+        csv_fields = [
+            "timestamp", "source_prompt", "resolved_prompt", "result_header", "feature_id", "feature_name",
+            "report_id", "action_name", "result_classification", "active_document_title", "active_view",
+            "ui_selection_modified", "model_modified", "external_files_written", "export_folder",
+        ]
+        csv_lines = [self._qa_index_csv_row(csv_fields)]
+        for record in included:
+            csv_lines.append(self._qa_index_csv_row([record.get(field) for field in csv_fields]))
+        self._write_utf8_file(csv_path, "\n".join(csv_lines) + "\n")
+        self._write_utf8_file(
+            manifest_path,
+            "\n".join(
+                [
+                    "AI Workbench Console Session Summary",
+                    "Generated: {0}".format(summary.get("created_timestamp")),
+                    "Source prompt: {0}".format(prompt),
+                    "Files:",
+                    "- console_session_summary.md",
+                    "- console_session_summary.txt",
+                    "- console_session_summary.json",
+                    "- console_session_summary.csv",
+                    "- artifact_manifest.txt",
+                    "",
+                ]
+            ),
+        )
+        return {
+            "folder": folder,
+            "generated_files": [md_path, txt_path, json_path, csv_path, manifest_path],
+            "summary": summary,
+        }
+
+    def _console_session_summary_export_report(self, prompt):
+        records, malformed, source_status = self._console_load_history_records()
+        classification = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_EMPTY"
+        export_data = {"folder": "", "generated_files": [], "summary": {"entries_included": 0}}
+        warning = "none"
+        if records:
+            try:
+                export_data = self._console_session_summary_files(prompt, records)
+                classification = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK"
+            except Exception as exc:
+                classification = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_FAILED"
+                warning = safe_str(exc)
+        lines = [
+            "[AI WORKBENCH CONSOLE SESSION SUMMARY EXPORT REPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Console History Viewer v1",
+            "",
+            "Action name:",
+            "Export console session summary",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            classification,
+            "",
+            "History source status:",
+            source_status,
+            "History root:",
+            self._console_history_root(),
+            "Session summaries root:",
+            self._console_session_summaries_root(),
+            "Export folder:",
+            export_data.get("folder", ""),
+            "Generated files count:",
+            len(export_data.get("generated_files") or []),
+            "Total history entries read:",
+            len(records),
+            "Entries included:",
+            (export_data.get("summary") or {}).get("entries_included", 0),
+            "Malformed history lines skipped:",
+            malformed,
+            "",
+            "Warnings:",
+            "- {0}".format(warning),
+            "",
+            "Safety flags:",
+            "- transaction opened: false",
+            "- transaction group opened: false",
+            "- model modified: false",
+            "- linked document modified: false",
+            "- UI selection modified: false",
+            "- active view changed: false",
+            "- external files written: {0}".format("true" if export_data.get("generated_files") else "false"),
+        ]
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def answer_ai_workbench_console_history_viewer_question(self, prompt):
+        route_kind = _ai_workbench_console_history_viewer_route_kind(prompt)
+        if not route_kind:
+            return None
+        if route_kind == "history":
+            return self._console_history_viewer_report(prompt)
+        if route_kind == "latest":
+            return self._console_latest_result_viewer_report(prompt)
+        if route_kind == "export":
+            return self._console_session_summary_export_report(prompt)
+        return None
+
     def _console_extract_field_anywhere(self, report_text, label):
         value = self._console_extract_report_field(report_text, label)
         if value:
@@ -16836,10 +17308,31 @@ class OllamaAIChat(forms.WPFWindow):
         except Exception as exc:
             self.ConsoleResultBox.Text = "Export request failed: {0}".format(safe_str(exc))
 
+    def on_console_show_history(self, sender, args):
+        try:
+            self.ConsolePromptInput.Text = "show ai workbench console history"
+            self.on_console_run(sender, args)
+        except Exception as exc:
+            self.ConsoleResultBox.Text = "Show history failed: {0}".format(safe_str(exc))
+
+    def on_console_show_latest_result(self, sender, args):
+        try:
+            self.ConsolePromptInput.Text = "show latest console result"
+            self.on_console_run(sender, args)
+        except Exception as exc:
+            self.ConsoleResultBox.Text = "Show latest console result failed: {0}".format(safe_str(exc))
+
+    def on_console_export_session_summary(self, sender, args):
+        try:
+            self.ConsolePromptInput.Text = "export ai workbench console session summary"
+            self.on_console_run(sender, args)
+        except Exception as exc:
+            self.ConsoleResultBox.Text = "Export session summary failed: {0}".format(safe_str(exc))
+
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-CONSOLE-HISTORY-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -16847,7 +17340,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-CONSOLE-HISTORY-v1",
+            "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -16856,9 +17349,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-SINGLE-CONSOLE-FIX-v1",
             "AI-WORKBENCH-SELECTION-GATE-FIX-v1",
             "AI-WORKBENCH-SELECTION-DISPATCH-v1",
+            "AI-WORKBENCH-CONSOLE-HISTORY-v1",
             "",
             "Feature name:",
-            "AI Workbench Console History v1",
+            "AI Workbench Console History Viewer v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -16883,7 +17377,10 @@ class OllamaAIChat(forms.WPFWindow):
             "Selection dispatch target: MEP-SEL-v1",
             "MEP-RO guard preserved: true",
             "Console history enabled: true",
+            "Console history viewer enabled: true",
+            "Console session summary export enabled: true",
             "History root: {0}".format(history_paths.get("root")),
+            "Session summaries root: {0}".format(self._console_session_summaries_root()),
             "JSONL history path: {0}".format(history_paths.get("jsonl")),
             "CSV history path: {0}".format(history_paths.get("csv")),
             "Latest result txt path: {0}".format(history_paths.get("latest_txt")),
@@ -17039,13 +17536,15 @@ class OllamaAIChat(forms.WPFWindow):
             except:
                 pass
             selection_after = self._console_context_selection_count()
-            try:
-                self._console_write_history_record(source_prompt, prompt, report, selection_before, selection_after)
-            except Exception as history_exc:
+            route_kind_for_history = _ai_workbench_console_history_viewer_route_kind(prompt)
+            if route_kind_for_history not in ("history", "latest"):
                 try:
-                    report = "{0}\n\nConsole history warning:\n- {1}".format(report, safe_str(history_exc))
-                except:
-                    pass
+                    self._console_write_history_record(source_prompt, prompt, report, selection_before, selection_after)
+                except Exception as history_exc:
+                    try:
+                        report = "{0}\n\nConsole history warning:\n- {1}".format(report, safe_str(history_exc))
+                    except:
+                        pass
             self._console_render_full_result(report)
         except Exception as exc:
             report = self._console_report(prompt, "AI_WORKBENCH_CONSOLE_HISTORY_FAILED", ["Failure:", safe_str(exc)])
@@ -40730,9 +41229,14 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             else:
                 reply = None
+            ai_workbench_console_history_viewer_reply = None
+            if ai_workbench_console_v1_reply is None:
+                ai_workbench_console_history_viewer_reply = self.answer_ai_workbench_console_history_viewer_question(
+                    prompt
+                )
             mep_qa_issueindex_export_v1_reply = self.answer_mep_qa_issueindex_export_v1_question(
                 prompt
-            ) if ai_workbench_console_v1_reply is None else None
+            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None else None
             mep_qa_issueindex_v1_reply = None
             if mep_qa_issueindex_export_v1_reply is None:
                 mep_qa_issueindex_v1_reply = self.answer_mep_qa_issueindex_v1_question(
@@ -40836,6 +41340,9 @@ class OllamaAIChat(forms.WPFWindow):
             index_reply = self.answer_qa_export_index_question(prompt)
             if ai_workbench_console_v1_reply is not None:
                 reply = ai_workbench_console_v1_reply
+                preserve_latest_report_state = True
+            elif ai_workbench_console_history_viewer_reply is not None:
+                reply = ai_workbench_console_history_viewer_reply
                 preserve_latest_report_state = True
             elif mep_qa_issueindex_export_v1_reply is not None:
                 reply = mep_qa_issueindex_export_v1_reply
