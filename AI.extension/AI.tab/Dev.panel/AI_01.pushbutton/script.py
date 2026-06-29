@@ -107,6 +107,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[AI WORKBENCH CONSOLE V1 REPORT]",
     "[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]",
     "[AI WORKBENCH RECIPE PLANNER REPORT]",
+    "[AI WORKBENCH RECIPE NAVIGATOR REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14439,6 +14440,12 @@ AI_WORKBENCH_RECIPE_PLANNER_ROUTES = {
     "what is the workflow for this view",
 }
 
+AI_WORKBENCH_RECIPE_NAVIGATOR_STATUS_ROUTES = {
+    "show ai workbench recipe navigator status",
+    "show recipe navigator status",
+    "show loaded suggestion status",
+}
+
 
 def _ai_workbench_console_history_viewer_route_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
@@ -14459,6 +14466,11 @@ def _is_ai_workbench_context_suggestions_prompt(prompt):
 def _is_ai_workbench_recipe_planner_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in AI_WORKBENCH_RECIPE_PLANNER_ROUTES
+
+
+def _is_ai_workbench_recipe_navigator_status_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in AI_WORKBENCH_RECIPE_NAVIGATOR_STATUS_ROUTES
 
 
 def _is_mep_qa_issueindex_v1_prompt(prompt):
@@ -15352,6 +15364,9 @@ class OllamaAIChat(forms.WPFWindow):
         self.console_last_history_classification = ""
         self.console_last_history_feature_id = ""
         self.console_last_result_txt_path = ""
+        self.console_loaded_navigator_prompt = ""
+        self.console_last_navigator_action = ""
+        self.console_last_navigator_timestamp = ""
         self.console_capture_active = False
         self.console_captured_reply = None
         self.console_captured_error = None
@@ -15674,6 +15689,26 @@ class OllamaAIChat(forms.WPFWindow):
         recipe_button.Height = 26
         recipe_button.Margin = Wpf.Thickness(0, 0, 6, 6)
         recipe_button.Click += self.on_console_create_recipe
+        load_next_button = Button()
+        load_next_button.Content = "Load next"
+        load_next_button.Height = 26
+        load_next_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        load_next_button.Click += self.on_console_load_suggested_next
+        load_recipe_button = Button()
+        load_recipe_button.Content = "Load recipe step"
+        load_recipe_button.Height = 26
+        load_recipe_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        load_recipe_button.Click += self.on_console_load_recipe_next_step
+        load_start_button = Button()
+        load_start_button.Content = "Load QA start"
+        load_start_button.Height = 26
+        load_start_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        load_start_button.Click += self.on_console_load_baseline_qa_start
+        clear_loaded_button = Button()
+        clear_loaded_button.Content = "Clear loaded"
+        clear_loaded_button.Height = 26
+        clear_loaded_button.Margin = Wpf.Thickness(0, 0, 6, 6)
+        clear_loaded_button.Click += self.on_console_clear_loaded_suggestion
         export_summary_button = Button()
         export_summary_button.Content = "Export session summary"
         export_summary_button.Height = 26
@@ -15684,6 +15719,11 @@ class OllamaAIChat(forms.WPFWindow):
         history_label.TextWrapping = Wpf.TextWrapping.Wrap
         history_label.Foreground = self._brush("#334155")
         history_label.Margin = Wpf.Thickness(0, 4, 8, 6)
+        navigator_label = TextBlock()
+        navigator_label.Text = "Navigator: idle."
+        navigator_label.TextWrapping = Wpf.TextWrapping.Wrap
+        navigator_label.Foreground = self._brush("#334155")
+        navigator_label.Margin = Wpf.Thickness(0, 4, 8, 6)
         selection_card = Border()
         selection_card.BorderBrush = self._brush("#f59e0b")
         selection_card.BorderThickness = Wpf.Thickness(1)
@@ -15724,9 +15764,14 @@ class OllamaAIChat(forms.WPFWindow):
         button_panel.Children.Add(show_latest_button)
         button_panel.Children.Add(suggest_button)
         button_panel.Children.Add(recipe_button)
+        button_panel.Children.Add(load_next_button)
+        button_panel.Children.Add(load_recipe_button)
+        button_panel.Children.Add(load_start_button)
+        button_panel.Children.Add(clear_loaded_button)
         button_panel.Children.Add(export_summary_button)
         button_panel.Children.Add(clear_button)
         button_panel.Children.Add(history_label)
+        button_panel.Children.Add(navigator_label)
         button_panel.Children.Add(selection_card)
         result_grid.Children.Add(button_panel)
         result_group = GroupBox()
@@ -15814,8 +15859,13 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleShowLatestResultButton = show_latest_button
         self.ConsoleSuggestNextActionsButton = suggest_button
         self.ConsoleCreateRecipeButton = recipe_button
+        self.ConsoleLoadNextButton = load_next_button
+        self.ConsoleLoadRecipeStepButton = load_recipe_button
+        self.ConsoleLoadQAStartButton = load_start_button
+        self.ConsoleClearLoadedButton = clear_loaded_button
         self.ConsoleExportSessionSummaryButton = export_summary_button
         self.ConsoleHistoryLabel = history_label
+        self.ConsoleNavigatorLabel = navigator_label
         self.ConsoleSelectionCard = selection_card
         self.ConsoleSelectionNote = selection_note
         self.ConsoleSuggestionList = suggestions
@@ -17720,6 +17770,198 @@ class OllamaAIChat(forms.WPFWindow):
             self.remember_latest_deterministic_report(prompt, report)
             return report
 
+    def _console_baseline_recipe_prompts(self):
+        return [
+            "show active view mep qa dashboard",
+            "export mep project issue index",
+            "export latest QA report",
+            "export ai workbench console session summary",
+        ]
+
+    def _console_next_baseline_prompt(self, records):
+        for prompt in self._console_baseline_recipe_prompts():
+            if self._console_history_prompt_status(prompt, records) != "recently executed":
+                available_prompt, item = self._console_first_available_prompt([prompt])
+                if available_prompt and item:
+                    return available_prompt
+        return "suggest next ai workbench actions"
+
+    def _console_suggested_navigator_prompt(self):
+        context = self.refresh_console_context()
+        records, malformed, history_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        latest_classification = safe_str(latest_result.get("result_classification"))
+        dashboard_recent = self._console_history_prompt_status("show active view mep qa dashboard", records) == "recently executed"
+        issue_export_recent = self._console_history_prompt_status("export mep project issue index", records) == "recently executed"
+        qa_export_recent = self._console_history_prompt_status("export latest QA report", records) == "recently executed"
+        session_export_recent = self._console_history_prompt_status("export ai workbench console session summary", records) == "recently executed"
+        if dashboard_recent and not issue_export_recent:
+            return "export mep project issue index"
+        if issue_export_recent and not qa_export_recent:
+            return "export latest QA report"
+        if qa_export_recent and len(records or []) > 3 and not session_export_recent:
+            return "export ai workbench console session summary"
+        if dashboard_recent and issue_export_recent and qa_export_recent and session_export_recent:
+            return "suggest next ai workbench actions"
+        if latest_classification == "MEP_QA_DASHBOARD_GREEN":
+            if self._console_history_prompt_status("export mep project issue index", records) != "recently executed":
+                return "export mep project issue index"
+        if latest_classification == "MEP_QA_ISSUEINDEX_EXPORT_OK":
+            if self._console_history_prompt_status("export latest QA report", records) != "recently executed":
+                return "export latest QA report"
+        if self._console_history_prompt_status("export latest QA report", records) == "recently executed" and len(records or []) > 3:
+            if self._console_history_prompt_status("export ai workbench console session summary", records) != "recently executed":
+                return "export ai workbench console session summary"
+        suggestions, latest_export_folder = self._console_context_suggestions(context, latest_result, records)
+        report_only = [item for item in suggestions if item.get("safety_class") == "report-only"]
+        if report_only:
+            return report_only[0].get("prompt") or "suggest next ai workbench actions"
+        if suggestions:
+            return suggestions[0].get("prompt") or "suggest next ai workbench actions"
+        return "suggest next ai workbench actions"
+
+    def _console_recipe_navigator_next_prompt(self):
+        context = self.refresh_console_context()
+        records, malformed, history_status = self._console_load_history_records()
+        steps, optional_steps, warnings = self._console_recipe_steps(context, records)
+        for step in steps or []:
+            if step.get("history_status") != "recently executed":
+                return step.get("prompt") or "create mep qa evidence recipe"
+        return "create mep qa evidence recipe"
+
+    def _console_load_navigator_prompt(self, prompt, action_name):
+        prompt = safe_str(prompt).strip()
+        if not prompt:
+            prompt = "suggest next ai workbench actions"
+        try:
+            self.ConsolePromptInput.Text = prompt
+            self.ConsolePromptInput.CaretIndex = len(prompt)
+        except:
+            pass
+        self.console_loaded_navigator_prompt = prompt
+        self.console_last_navigator_action = safe_str(action_name)
+        self.console_last_navigator_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            self.update_console_suggestions()
+            self.update_console_preview(self._console_resolved_suggestion(prompt))
+        except:
+            pass
+        status = 'Navigator: loaded "{0}"; not executed.'.format(prompt)
+        try:
+            self.ConsoleNavigatorLabel.Text = status
+        except:
+            pass
+        try:
+            self.ConsoleResultBox.Text = "Loaded suggested prompt: {0}\nRun was not executed.".format(prompt)
+        except:
+            pass
+        return prompt
+
+    def on_console_load_suggested_next(self, sender, args):
+        try:
+            self._console_load_navigator_prompt(self._console_suggested_navigator_prompt(), "Load suggested next action")
+        except Exception as exc:
+            try:
+                self.ConsoleNavigatorLabel.Text = "Navigator: load failed; not executed."
+                self.ConsoleResultBox.Text = "Load suggested next action failed: {0}".format(safe_str(exc))
+            except:
+                pass
+
+    def on_console_load_recipe_next_step(self, sender, args):
+        try:
+            self._console_load_navigator_prompt(self._console_recipe_navigator_next_prompt(), "Load recipe next step")
+        except Exception as exc:
+            try:
+                self.ConsoleNavigatorLabel.Text = "Navigator: load failed; not executed."
+                self.ConsoleResultBox.Text = "Load recipe next step failed: {0}".format(safe_str(exc))
+            except:
+                pass
+
+    def on_console_load_baseline_qa_start(self, sender, args):
+        self._console_load_navigator_prompt("show active view mep qa dashboard", "Load baseline QA workflow start")
+
+    def on_console_clear_loaded_suggestion(self, sender, args):
+        self.console_loaded_navigator_prompt = ""
+        self.console_last_navigator_action = "Clear loaded suggestion"
+        self.console_last_navigator_timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            self.ConsolePromptInput.Text = ""
+            self.update_console_suggestions()
+            self.update_console_preview(None)
+        except:
+            pass
+        try:
+            self.ConsoleNavigatorLabel.Text = "Navigator: idle."
+            self.ConsoleResultBox.Text = "Loaded suggestion cleared.\nRun was not executed."
+        except:
+            pass
+
+    def _console_recipe_navigator_report(self, prompt):
+        context = self.refresh_console_context()
+        loaded = safe_str(getattr(self, "console_loaded_navigator_prompt", ""))
+        classification = "AI_WORKBENCH_RECIPE_NAVIGATOR_OK" if loaded else "AI_WORKBENCH_RECIPE_NAVIGATOR_EMPTY"
+        lines = [
+            "[AI WORKBENCH RECIPE NAVIGATOR REPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-RECIPE-NAVIGATOR-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Recipe Navigator v1",
+            "",
+            "Action name:",
+            "Show recipe navigator status",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            classification,
+            "",
+            "Active document title:",
+            context.get("document_title", _document_title(doc)),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(context.get("active_view_name", _active_view_title(doc, uidoc)), context.get("active_view_type", "unavailable")),
+            "",
+            "Detected context discipline:",
+            context.get("likely_discipline", "Unknown / Empty"),
+            "",
+            "Current loaded prompt:",
+            loaded or "none",
+            "Last navigator action:",
+            safe_str(getattr(self, "console_last_navigator_action", "")) or "none",
+            "Last navigator timestamp:",
+            safe_str(getattr(self, "console_last_navigator_timestamp", "")) or "none",
+            "Run executed by navigator:",
+            "false",
+            "",
+            "Warnings:",
+            "- none",
+            "",
+            "Safety flags:",
+            "- Transaction opened: false",
+            "- Transaction group opened: false",
+            "- Model modified: false",
+            "- Linked document modified: false",
+            "- UI selection modified: false",
+            "- Active view changed: false",
+            "- External files written: false",
+            "",
+            "Safety:",
+            "- Navigator buttons only load prompts into the Console input.",
+            "- Navigator buttons do not execute commands.",
+            "- Existing selection-only confirmation remains required before manual Run.",
+        ]
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def answer_ai_workbench_recipe_navigator_question(self, prompt):
+        if not _is_ai_workbench_recipe_navigator_status_prompt(prompt):
+            return None
+        return self._console_recipe_navigator_report(prompt)
+
     def _console_extract_field_anywhere(self, report_text, label):
         value = self._console_extract_report_field(report_text, label)
         if value:
@@ -18027,7 +18269,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-RECIPE-PLANNER-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-RECIPE-NAVIGATOR-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -18035,7 +18277,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-RECIPE-PLANNER-v1",
+            "AI-WORKBENCH-RECIPE-NAVIGATOR-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -18047,9 +18289,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-CONSOLE-HISTORY-v1",
             "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
             "AI-WORKBENCH-CONTEXT-SUGGESTIONS-v1",
+            "AI-WORKBENCH-RECIPE-PLANNER-v1",
             "",
             "Feature name:",
-            "AI Workbench Recipe Planner v1",
+            "AI Workbench Recipe Navigator v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -18077,6 +18320,7 @@ class OllamaAIChat(forms.WPFWindow):
             "Console history viewer enabled: true",
             "Context suggestions enabled: true",
             "Recipe planner enabled: true",
+            "Recipe navigator enabled: true",
             "Console session summary export enabled: true",
             "History root: {0}".format(history_paths.get("root")),
             "Session summaries root: {0}".format(self._console_session_summaries_root()),
@@ -19411,6 +19655,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "AI Workbench context suggestions / read-only next-action recommendations"
         if header == "[AI WORKBENCH RECIPE PLANNER REPORT]":
             return "AI Workbench recipe planner / read-only deterministic workflow plan"
+        if header == "[AI WORKBENCH RECIPE NAVIGATOR REPORT]":
+            return "AI Workbench recipe navigator / prompt-loading status report"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
@@ -41947,11 +42193,16 @@ class OllamaAIChat(forms.WPFWindow):
                 ai_workbench_recipe_planner_reply = self.answer_ai_workbench_recipe_planner_question(
                     prompt
                 )
+            ai_workbench_recipe_navigator_reply = None
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None:
+                ai_workbench_recipe_navigator_reply = self.answer_ai_workbench_recipe_navigator_question(
+                    prompt
+                )
             mep_qa_issueindex_export_v1_reply = self.answer_mep_qa_issueindex_export_v1_question(
                 prompt
-            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None else None
+            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None else None
             mep_qa_issueindex_v1_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None:
                 mep_qa_issueindex_v1_reply = self.answer_mep_qa_issueindex_v1_question(
                     prompt
                 )
@@ -42062,6 +42313,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif ai_workbench_recipe_planner_reply is not None:
                 reply = ai_workbench_recipe_planner_reply
+                preserve_latest_report_state = True
+            elif ai_workbench_recipe_navigator_reply is not None:
+                reply = ai_workbench_recipe_navigator_reply
                 preserve_latest_report_state = True
             elif mep_qa_issueindex_export_v1_reply is not None:
                 reply = mep_qa_issueindex_export_v1_reply
