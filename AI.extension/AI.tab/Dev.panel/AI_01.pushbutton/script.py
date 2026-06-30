@@ -15589,6 +15589,22 @@ class OllamaAIChat(forms.WPFWindow):
             center.RowDefinitions.Add(row)
 
         header_stack = StackPanel()
+        shell_status_row = WrapPanel()
+        shell_status_row.Margin = Wpf.Thickness(0, 0, 0, 5)
+        shell_status = TextBlock()
+        shell_status.Text = "Console is the main guided workflow. Advanced tabs are hidden by default."
+        shell_status.TextWrapping = Wpf.TextWrapping.Wrap
+        shell_status.Foreground = self._brush("#334155")
+        shell_status.Margin = Wpf.Thickness(0, 3, 10, 2)
+        advanced_tabs_button = Button()
+        advanced_tabs_button.Content = "Show Advanced Tabs"
+        advanced_tabs_button.Height = 24
+        advanced_tabs_button.Margin = Wpf.Thickness(0, 0, 6, 2)
+        advanced_tabs_button.ToolTip = "Show or hide legacy/experimental tabs: Ollama Chat, AI Agent, and ModelMind."
+        advanced_tabs_button.Click += self.on_console_toggle_legacy_tabs
+        shell_status_row.Children.Add(shell_status)
+        shell_status_row.Children.Add(advanced_tabs_button)
+        header_stack.Children.Add(shell_status_row)
         guided_toggle_button = Button()
         guided_toggle_button.Content = "Hide Guided Start"
         guided_toggle_button.Height = 22
@@ -15922,6 +15938,21 @@ class OllamaAIChat(forms.WPFWindow):
         selection_stack.Children.Add(confirm)
         selection_stack.Children.Add(selection_note)
         selection_card.Child = selection_stack
+        utility_shell = StackPanel()
+        utility_shell.Margin = Wpf.Thickness(0, 0, 8, 4)
+        utility_toggle_button = Button()
+        utility_toggle_button.Content = "Show Controls"
+        utility_toggle_button.Height = 24
+        utility_toggle_button.Margin = Wpf.Thickness(0, 0, 6, 3)
+        utility_toggle_button.ToolTip = "Show or hide export, history, guidance, and maintenance controls."
+        utility_toggle_button.Click += self.on_console_toggle_utility_controls
+        utility_mini = TextBlock()
+        utility_mini.Text = "Console controls hidden. Use Show Controls for export, history, guidance, and maintenance actions."
+        utility_mini.TextWrapping = Wpf.TextWrapping.Wrap
+        utility_mini.Foreground = self._brush("#475569")
+        utility_mini.Margin = Wpf.Thickness(0, 0, 0, 4)
+        utility_controls_panel = StackPanel()
+        utility_controls_panel.Visibility = Wpf.Visibility.Collapsed
         def add_button_section(title_text, buttons):
             label = TextBlock()
             label.Text = title_text
@@ -15932,8 +15963,8 @@ class OllamaAIChat(forms.WPFWindow):
             row.Margin = Wpf.Thickness(0, 0, 0, 2)
             for button in buttons:
                 row.Children.Add(button)
-            button_panel.Children.Add(label)
-            button_panel.Children.Add(row)
+            utility_controls_panel.Children.Add(label)
+            utility_controls_panel.Children.Add(row)
 
         add_button_section("Result", [export_button, copy_button, open_folder_button])
         add_button_section(
@@ -15945,8 +15976,12 @@ class OllamaAIChat(forms.WPFWindow):
             [suggest_button, recipe_button, load_next_button, load_recipe_button, load_start_button, clear_loaded_button],
         )
         add_button_section("Maintenance", [clear_button])
-        button_panel.Children.Add(history_label)
-        button_panel.Children.Add(navigator_label)
+        utility_controls_panel.Children.Add(history_label)
+        utility_controls_panel.Children.Add(navigator_label)
+        utility_shell.Children.Add(utility_toggle_button)
+        utility_shell.Children.Add(utility_mini)
+        utility_shell.Children.Add(utility_controls_panel)
+        button_panel.Children.Add(utility_shell)
         button_panel.Children.Add(selection_card)
         result_grid.Children.Add(button_panel)
         result_group = GroupBox()
@@ -16033,6 +16068,8 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleGuidedCoachPanel = coach_border
         self.ConsoleGuidedCoachToggleButton = coach_toggle_button
         self.ConsoleGuidedCoachMiniLabel = coach_mini
+        self.ConsoleShellStatusText = shell_status
+        self.ConsoleAdvancedTabsToggleButton = advanced_tabs_button
         self.ConsoleGuidedStartButton = guided_start_button
         self.ConsoleGuidedNextButton = guided_next_button
         self.ConsoleGuidedPlanButton = guided_plan_button
@@ -16057,6 +16094,10 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleLoadQAStartButton = load_start_button
         self.ConsoleClearLoadedButton = clear_loaded_button
         self.ConsoleExportSessionSummaryButton = export_summary_button
+        self.ConsoleUtilityControlsPanel = utility_controls_panel
+        self.ConsoleUtilityControlsMiniLabel = utility_mini
+        self.ConsoleUtilityControlsToggleButton = utility_toggle_button
+        self.ConsoleUtilityControlsVisible = False
         self.ConsoleHistoryLabel = history_label
         self.ConsoleNavigatorLabel = navigator_label
         self.ConsoleSelectionCard = selection_card
@@ -16072,6 +16113,8 @@ class OllamaAIChat(forms.WPFWindow):
             self.MainTabs.Items.Insert(0, tab)
         except:
             self.MainTabs.Items.Add(tab)
+        self._set_console_legacy_tabs_visible(False)
+        self._set_console_utility_controls_visible(False)
         self.populate_console_command_tree()
         self._set_console_advanced_visible(False)
 
@@ -16256,6 +16299,43 @@ class OllamaAIChat(forms.WPFWindow):
             self.ConsoleGuidedCoachPanel.Visibility = Wpf.Visibility.Visible if visible else Wpf.Visibility.Collapsed
             self.ConsoleGuidedCoachMiniLabel.Visibility = Wpf.Visibility.Collapsed if visible else Wpf.Visibility.Visible
             self.ConsoleGuidedCoachToggleButton.Content = "Hide Guided Coach" if visible else "Show Guided Coach"
+        except:
+            pass
+
+    def _set_console_utility_controls_visible(self, visible):
+        import System.Windows as Wpf
+        self.ConsoleUtilityControlsVisible = bool(visible)
+        try:
+            self.ConsoleUtilityControlsPanel.Visibility = Wpf.Visibility.Visible if visible else Wpf.Visibility.Collapsed
+            self.ConsoleUtilityControlsMiniLabel.Visibility = Wpf.Visibility.Collapsed if visible else Wpf.Visibility.Visible
+            self.ConsoleUtilityControlsToggleButton.Content = "Hide Controls" if visible else "Show Controls"
+        except:
+            pass
+
+    def _set_console_legacy_tabs_visible(self, visible):
+        import System.Windows as Wpf
+        self.ConsoleLegacyTabsVisible = bool(visible)
+        try:
+            for tab_item in list(self.MainTabs.Items):
+                if tab_item is self.ConsoleTab:
+                    tab_item.Visibility = Wpf.Visibility.Visible
+                else:
+                    tab_item.Visibility = Wpf.Visibility.Visible if visible else Wpf.Visibility.Collapsed
+            self.ConsoleAdvancedTabsToggleButton.Content = "Hide Advanced Tabs" if visible else "Show Advanced Tabs"
+            if not visible:
+                self.MainTabs.SelectedItem = self.ConsoleTab
+        except:
+            pass
+
+    def on_console_toggle_utility_controls(self, sender, args):
+        try:
+            self._set_console_utility_controls_visible(not bool(getattr(self, "ConsoleUtilityControlsVisible", False)))
+        except:
+            pass
+
+    def on_console_toggle_legacy_tabs(self, sender, args):
+        try:
+            self._set_console_legacy_tabs_visible(not bool(getattr(self, "ConsoleLegacyTabsVisible", False)))
         except:
             pass
 
@@ -18947,7 +19027,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -18955,7 +19035,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1",
+            "AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -18972,9 +19052,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-GUIDED-START-v1",
             "AI-WORKBENCH-GUIDED-COACH-v1",
             "AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1",
+            "AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1",
             "",
             "Feature name:",
-            "AI Workbench Compact Selection Confirmation v1",
+            "AI Workbench Console Shell Simplify v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -18992,6 +19073,11 @@ class OllamaAIChat(forms.WPFWindow):
             "Context BuiltInCategory bug fixed: true",
             "Invalid BuiltInCategory guard active: true",
             "Unsupported prompt guard active: true",
+            "Utility controls collapsible: true",
+            "Utility controls default collapsed: true",
+            "Legacy tabs hidden by default: true",
+            "Advanced tabs toggle available: true",
+            "Console is primary workflow surface: true",
             "Compact selection confirmation enabled: true",
             "Selection confirmation explicit: true",
             "Selection confirmation permanently active by default: false",
