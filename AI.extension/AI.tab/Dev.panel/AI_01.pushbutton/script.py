@@ -15715,11 +15715,26 @@ class OllamaAIChat(forms.WPFWindow):
         header_stack.Children.Add(coach_toggle_button)
         header_stack.Children.Add(coach_border)
         header_stack.Children.Add(coach_mini)
+        prompt_header = WrapPanel()
+        prompt_header.Margin = Wpf.Thickness(0, 0, 0, 4)
         prompt_label = TextBlock()
         prompt_label.Text = "Ask ModelMind..."
         prompt_label.FontWeight = Wpf.FontWeights.Bold
-        prompt_label.Margin = Wpf.Thickness(0, 0, 0, 4)
-        header_stack.Children.Add(prompt_label)
+        prompt_label.Margin = Wpf.Thickness(0, 2, 8, 0)
+        safety_badge = Border()
+        safety_badge.BorderBrush = self._brush("#cbd5e1")
+        safety_badge.BorderThickness = Wpf.Thickness(1)
+        safety_badge.Background = self._brush("#f8fafc")
+        safety_badge.Padding = Wpf.Thickness(6, 2, 6, 2)
+        safety_badge.Margin = Wpf.Thickness(0, 0, 0, 2)
+        safety_badge_text = TextBlock()
+        safety_badge_text.Text = "No supported command"
+        safety_badge_text.Foreground = self._brush("#475569")
+        safety_badge_text.FontSize = 11
+        safety_badge.Child = safety_badge_text
+        prompt_header.Children.Add(prompt_label)
+        prompt_header.Children.Add(safety_badge)
+        header_stack.Children.Add(prompt_header)
         center.Children.Add(header_stack)
 
         input_grid = Grid()
@@ -15885,29 +15900,24 @@ class OllamaAIChat(forms.WPFWindow):
         selection_card.BorderBrush = self._brush("#f59e0b")
         selection_card.BorderThickness = Wpf.Thickness(1)
         selection_card.Background = self._brush("#fff7ed")
-        selection_card.Padding = Wpf.Thickness(8)
-        selection_card.Margin = Wpf.Thickness(0, 0, 8, 6)
+        selection_card.Padding = Wpf.Thickness(5, 3, 5, 3)
+        selection_card.Margin = Wpf.Thickness(0, 0, 8, 4)
         selection_card.Visibility = Wpf.Visibility.Collapsed
-        selection_stack = StackPanel()
-        selection_title = TextBlock()
-        selection_title.Text = "Selection-only command"
-        selection_title.FontWeight = Wpf.FontWeights.Bold
-        selection_title.Foreground = self._brush("#9a3412")
+        selection_stack = WrapPanel()
         selection_message = TextBlock()
-        selection_message.Text = "This command will change the current Revit UI selection only. It will not modify model data."
+        selection_message.Text = "Selection-only command: changes Revit UI selection only; model data will not be modified."
         selection_message.TextWrapping = Wpf.TextWrapping.Wrap
         selection_message.Foreground = self._brush("#7c2d12")
-        selection_message.Margin = Wpf.Thickness(0, 3, 0, 4)
+        selection_message.Margin = Wpf.Thickness(0, 2, 10, 2)
         confirm = CheckBox()
-        confirm.Content = "I confirm: change UI selection only"
-        confirm.Margin = Wpf.Thickness(0, 2, 0, 2)
+        confirm.Content = "Confirm UI selection change"
+        confirm.Margin = Wpf.Thickness(0, 2, 10, 2)
         confirm.Checked += self.on_console_selection_confirm_changed
         confirm.Unchecked += self.on_console_selection_confirm_changed
         selection_note = TextBlock()
-        selection_note.Text = "Check confirmation to enable Run."
+        selection_note.Text = "Required before Run."
         selection_note.Foreground = self._brush("#b45309")
-        selection_note.Margin = Wpf.Thickness(0, 2, 0, 0)
-        selection_stack.Children.Add(selection_title)
+        selection_note.Margin = Wpf.Thickness(0, 2, 0, 2)
         selection_stack.Children.Add(selection_message)
         selection_stack.Children.Add(confirm)
         selection_stack.Children.Add(selection_note)
@@ -16032,6 +16042,8 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleGuidedStartLabel = guided_status
         self.ConsoleGuidedCoachText = coach_text
         self.ConsoleGuidedCoachLoadButton = coach_button
+        self.ConsoleSafetyBadge = safety_badge
+        self.ConsoleSafetyBadgeText = safety_badge_text
         self.ConsoleCopyResultButton = copy_button
         self.ConsoleOpenExportFolderButton = open_folder_button
         self.ConsoleOpenHistoryFolderButton = open_history_button
@@ -16269,6 +16281,55 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             pass
 
+    def _set_console_safety_badge(self, suggestion):
+        if not hasattr(self, "ConsoleSafetyBadgeText"):
+            return
+        try:
+            safety = "unsupported"
+            if suggestion:
+                safety = self._console_safety_class((suggestion or {}).get("entry") or {})
+            if safety == "selection-only":
+                confirmed = False
+                try:
+                    confirmed = bool(self.ConsoleSelectionConfirm.IsChecked)
+                except:
+                    confirmed = False
+                self.ConsoleSafetyBadgeText.Text = (
+                    "Selection-only - confirmed"
+                    if confirmed
+                    else "Selection-only - confirmation required"
+                )
+                self.ConsoleSafetyBadge.Background = self._brush("#dcfce7" if confirmed else "#fff7ed")
+                self.ConsoleSafetyBadge.BorderBrush = self._brush("#16a34a" if confirmed else "#f59e0b")
+                self.ConsoleSafetyBadgeText.Foreground = self._brush("#166534" if confirmed else "#9a3412")
+            elif safety == "export":
+                self.ConsoleSafetyBadgeText.Text = "Export"
+                self.ConsoleSafetyBadge.Background = self._brush("#eff6ff")
+                self.ConsoleSafetyBadge.BorderBrush = self._brush("#60a5fa")
+                self.ConsoleSafetyBadgeText.Foreground = self._brush("#1d4ed8")
+            elif safety == "bundle":
+                self.ConsoleSafetyBadgeText.Text = "Export bundle"
+                self.ConsoleSafetyBadge.Background = self._brush("#eef2ff")
+                self.ConsoleSafetyBadge.BorderBrush = self._brush("#818cf8")
+                self.ConsoleSafetyBadgeText.Foreground = self._brush("#3730a3")
+            elif safety == "report-only":
+                self.ConsoleSafetyBadgeText.Text = "Report-only"
+                self.ConsoleSafetyBadge.Background = self._brush("#f0fdf4")
+                self.ConsoleSafetyBadge.BorderBrush = self._brush("#86efac")
+                self.ConsoleSafetyBadgeText.Foreground = self._brush("#166534")
+            elif safety == "model-write":
+                self.ConsoleSafetyBadgeText.Text = "Reviewed action required"
+                self.ConsoleSafetyBadge.Background = self._brush("#fef2f2")
+                self.ConsoleSafetyBadge.BorderBrush = self._brush("#fca5a5")
+                self.ConsoleSafetyBadgeText.Foreground = self._brush("#991b1b")
+            else:
+                self.ConsoleSafetyBadgeText.Text = "No supported command"
+                self.ConsoleSafetyBadge.Background = self._brush("#f8fafc")
+                self.ConsoleSafetyBadge.BorderBrush = self._brush("#cbd5e1")
+                self.ConsoleSafetyBadgeText.Foreground = self._brush("#475569")
+        except:
+            pass
+
     def _rebuild_console_command_index(self):
         index = []
         seen = set()
@@ -16418,6 +16479,7 @@ class OllamaAIChat(forms.WPFWindow):
                 self.ConsoleSelectionConfirm.IsChecked = False
         except:
             pass
+        self._set_console_safety_badge(resolved)
         if suggestions:
             if not strong:
                 self.ConsoleSuggestionList.Items.Add("Did you mean? Low-confidence matches only; Tab and Run will not auto-resolve.")
@@ -16470,7 +16532,7 @@ class OllamaAIChat(forms.WPFWindow):
                     self.ConsoleSelectionNote.Text = (
                         "Confirmed. Run will change UI selection only."
                         if bool(self.ConsoleSelectionConfirm.IsChecked)
-                        else "Check confirmation to enable Run."
+                        else "Required before Run."
                     )
                     self.ConsoleSelectionNote.Foreground = self._brush(
                         "#15803d" if bool(self.ConsoleSelectionConfirm.IsChecked) else "#b45309"
@@ -16483,12 +16545,14 @@ class OllamaAIChat(forms.WPFWindow):
                 self.ConsoleSelectionCard.Visibility = Wpf.Visibility.Collapsed
             except:
                 pass
+        self._set_console_safety_badge(suggestion)
         self.ConsoleRunButton.IsEnabled = bool(enabled)
 
     def update_console_preview(self, suggestion):
         if not hasattr(self, "ConsolePreviewBox"):
             return
         if not suggestion:
+            self._set_console_safety_badge(None)
             self.ConsolePreviewBox.Text = (
                 "Resolved command: none\n"
                 "Result classification: AI_WORKBENCH_CONSOLE_UNSUPPORTED_PROMPT\n\n"
@@ -16501,6 +16565,7 @@ class OllamaAIChat(forms.WPFWindow):
             )
             return
         entry = suggestion.get("entry") or {}
+        self._set_console_safety_badge(suggestion)
         safety = self._console_safety_class(entry)
         group, subgroup = self._console_group_path(entry)
         prompt_text = suggestion.get("prompt") or entry.get("canonical_prompt") or entry.get("prompt_text") or ""
@@ -16531,9 +16596,12 @@ class OllamaAIChat(forms.WPFWindow):
         ]
         if safety == "selection-only":
             lines.append("")
-            lines.append("Badge: UI selection only")
+            lines.append("Safety class: selection-only")
+            lines.append("Requires confirmation: true")
+            lines.append("Model data modified: false")
+            lines.append("UI selection may change: true")
+            lines.append("Dispatch target after confirmation: MEP-SEL-v1")
             lines.append("Run requires confirmation: This will change the Revit UI selection only. It will not modify model data.")
-            lines.append("This command will change only the current Revit UI selection. It will not modify model data.")
         if safety == "model-write":
             lines.append("Console v1 blocks direct model-write execution. Use the existing reviewed workflow prompt surface.")
         if safety == "unknown":
@@ -18879,7 +18947,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -18887,7 +18955,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1",
+            "AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -18903,9 +18971,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-RECIPE-NAVIGATOR-v1",
             "AI-WORKBENCH-GUIDED-START-v1",
             "AI-WORKBENCH-GUIDED-COACH-v1",
+            "AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1",
             "",
             "Feature name:",
-            "AI Workbench Console Layout Polish v1",
+            "AI Workbench Compact Selection Confirmation v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -18923,12 +18992,17 @@ class OllamaAIChat(forms.WPFWindow):
             "Context BuiltInCategory bug fixed: true",
             "Invalid BuiltInCategory guard active: true",
             "Unsupported prompt guard active: true",
+            "Compact selection confirmation enabled: true",
+            "Selection confirmation explicit: true",
+            "Selection confirmation permanently active by default: false",
             "Selection-only confirmation active: true",
-            "Selection-only confirmation card active: true",
+            "Selection-only confirmation compact strip active: true",
+            "Selection-only safety badge active: true",
             "Selection-only checkbox event wired: true",
             "Confirmed selection dispatch target: MEP-SEL-v1",
             "Selection dispatch target: MEP-SEL-v1",
             "MEP-RO guard preserved: true",
+            "Session-level selection confirmation memory implemented: false",
             "Console history enabled: true",
             "Console history viewer enabled: true",
             "Context suggestions enabled: true",
