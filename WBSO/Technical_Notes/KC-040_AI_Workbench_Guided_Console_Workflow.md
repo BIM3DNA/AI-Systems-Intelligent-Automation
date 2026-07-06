@@ -76,6 +76,55 @@ The AI Workbench Console was extended from a deterministic command execution int
 
 `AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1` remains future work. The selection-only confirmation card should remain explicit for safety, but a compact one-line confirmation strip, session-level remembered confirmation, small persistent badge, or context-only confirmation display should be investigated.
 
+## 2026-07-06 Addendum - Console UX Runtime Batch
+
+### Evidence Range
+
+EV-AI-308 through EV-AI-319
+
+### Features
+
+- AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1
+- AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1
+- AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1
+- AI-WORKBENCH-SAFE-CATALOG-VIEW-v1
+- AI-WORKBENCH-VISUAL-v1
+- AI-WORKBENCH-VISUAL-ACTION-CARDS-v1
+
+### Runtime Context
+
+- Model: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- Active view: `TEST [FloorPlan]`
+- Discipline: Piping
+- Pipe fittings: 97
+- Pipes: 18
+
+### Runtime Results
+
+- Compact selection confirmation validated: `select all pipes` selected 18 pipes only after explicit confirmation and kept model modified false.
+- Console shell simplification validated: Console is the default visible tab, legacy tabs are hidden by default, and utility controls are collapsed by default.
+- Alias route hardening validated: `show latest result` and `show latest console result` route to the Console latest-result viewer, not split visual review.
+- Safe Catalog validated: legacy/model-write/reviewed-action commands are hidden by default and remain guarded when Advanced Commands is enabled.
+- Visual Preview validated: `[AI WORKBENCH VISUAL PREVIEW REPORT]` shows View Context, Latest Result, Issues / Candidates, and Safe Next Action cards.
+- Visual Action Cards validated: Load buttons populate safe prompts only, do not auto-run, do not write history on load, and preserve selection confirmation.
+
+### Commit References
+
+- `a7333d1` - Compact AI Workbench selection confirmation
+- `30505cb` - Simplify AI Workbench console shell
+- `ee64658` - Harden AI Workbench alias routing
+- `75e1c38` - Filter AI Workbench command catalog for safe mode
+- `a44e4bc` - Add AI Workbench visual preview panel
+- `7faea67` - Add load-only visual action cards
+
+### Safety
+
+No Revit model mutation, `DB.Transaction`, `DB.TransactionGroup`, parameter write, active-view switch, linked-document mutation, or automatic command execution was introduced. Selection-only commands still require explicit confirmation. Visual Action Cards load prompts only and do not write Console history or exports on load.
+
+### Pending Follow-Up
+
+AI-WORKBENCH-NEXT-STEP-ENGINE-v1 is pending runtime validation and is not documented as completed, implemented, pushed, or validated in this evidence batch.
+
 ## Commit References
 
 - `not found in local git log` - Route confirmed AI Workbench selection commands to MEP-SEL v1

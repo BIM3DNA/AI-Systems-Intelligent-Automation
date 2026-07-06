@@ -2081,3 +2081,30 @@ Validation folder: `WBSO/Testing_Validation/runs/2026-06-29_ai-workbench-guided-
 Commit evidence: `not found in local git log` selection dispatch; `b38f488` console history; `7d07e07` history viewer; `b14867a` context suggestions; `ec771d7` recipe planner; `70f56ac` recipe navigator; `9a98076` guided start; `c366708` guided coach; `f037b07` layout polish.
 
 Technical conclusion: the guided console workflow batch converts ModelMind from a deterministic command surface into a guided workflow environment for command traceability, recommendations, recipe planning, prompt-loading navigation, guided onboarding, result coaching, and compact layout. It preserves no-model-modification governance; UI selection mutation remains isolated to confirmed MEP-SEL-v1 routes.
+
+## EV-AI-308 through EV-AI-319 - AI Workbench Console UX Runtime Batch
+
+Status: Runtime validated
+
+Date: 2026-07-06
+
+Week: `2026-W15`
+
+Validation folder: `WBSO/Testing_Validation/runs/2026-07-06_ai-workbench-console-ux-runtime-batch-validated/`
+
+- EV-AI-308: AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1 implementation and runtime validation. Commit `a7333d1`; compact selection confirmation displayed for `select all pipes`, Run stayed disabled until confirmation, and confirmed execution routed to MEP-SEL-v1.
+- EV-AI-309: Compact selection runtime result. `[MEP SELECTION V1 REPORT]`, `MEP_SEL_SELECTION_OK`, candidate count 18, selected count 18, UI selection modified true, model modified false, transaction opened false.
+- EV-AI-310: Compact selection negative/regression validation. `select unconnected pipe fittings` returned `MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT`; dashboard did not require selection confirmation; banana prompt remained blocked.
+- EV-AI-311: AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1 runtime validation. Commit `30505cb`; Console tab is primary, legacy tabs hidden behind Show Advanced Tabs, and utility controls collapsed behind Show Controls without breaking existing commands.
+- EV-AI-312: AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1 runtime validation. Commit `ee64658`; `show latest result` and `show latest console result` route to `[AI WORKBENCH LATEST CONSOLE RESULT REPORT]` and no longer route to split visual review. Historical bad row from 2026-06-30 15:37:38 is retained as defect evidence.
+- EV-AI-313: AI-WORKBENCH-SAFE-CATALOG-VIEW-v1 runtime validation. Commit `75e1c38`; Safe Catalog hides legacy/model-write/reviewed-action commands by default, Advanced Commands reveals them only for development review, and reviewed/model-write Run remains guarded/disabled.
+- EV-AI-314: Safe Catalog regression validation. MEP-SEL-v1 routes, dashboard, history, context suggestions, recipe planner, latest-result aliases, and banana prompt blocking all remained valid.
+- EV-AI-315: AI-WORKBENCH-VISUAL-v1 runtime validation. Commit `a44e4bc`; `[AI WORKBENCH VISUAL PREVIEW REPORT]` returned `AI_WORKBENCH_VISUAL_PREVIEW_OK`, Piping context, 97 pipe fittings, 18 pipes, and four cards: View Context, Latest Result, Issues / Candidates, Safe Next Action.
+- EV-AI-316: Visual Preview refresh and safety validation. Dashboard, selection, suggestions, and recipe planner results refreshed Visual Preview; model modified false, UI selection modified false, external files written false for the visual status report.
+- EV-AI-317: AI-WORKBENCH-VISUAL-ACTION-CARDS-v1 runtime validation. Commit `7faea67`; Visual Action Cards load prompts only, do not execute commands, do not write history on load, and preserve selection confirmation for selection-only prompts.
+- EV-AI-318: Visual Action Cards export workflow validation. Manual `export mep project issue index` returned `[MEP QA ISSUE INDEX EXPORT V1 REPORT]`, `MEP_QA_ISSUEINDEX_EXPORT_OK`, generated 11 files, found 24 issue candidates, and wrote to `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260706_153525_export_mep_project_issue_index`.
+- EV-AI-319: Batch safety/governance evidence. No Revit model mutation, transaction, TransactionGroup, parameter write, active-view switch, linked-document mutation, or automatic command execution was introduced; selection-only commands still require explicit confirmation; MEP-SEL-v1 dispatch and MEP-RO guard are preserved.
+
+Known pending follow-up: AI-WORKBENCH-NEXT-STEP-ENGINE-v1 is pending runtime validation and is not recorded here as completed, implemented, pushed, or validated.
+
+Technical conclusion: the Console UX runtime batch improves safety clarity and operator workflow through compact selection confirmation, simplified shell controls, hardened alias resolution, safe catalog filtering, read-only Visual Preview cards, and load-only Visual Action Cards while preserving deterministic routing and Revit model-safety boundaries.

@@ -831,3 +831,36 @@ No Revit transaction, TransactionGroup, model mutation, parameter write, active-
 ### Known Follow-Up
 
 `AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1` remains a future UX bottleneck. The confirmation card is functionally correct but should be made more compact without weakening explicit confirmation.
+
+## 2026-07-06 - AI Workbench Console UX Runtime Batch
+
+### Status
+
+Runtime validated.
+
+### Summary
+
+This batch completes the next Console UX layer after the guided workflow baseline. It covers compact selection confirmation, simplified Console shell controls, latest-result alias hardening, Safe Catalog filtering, read-only Visual Preview cards, and load-only Visual Action Cards.
+
+### Main Findings
+
+- Compact selection confirmation keeps Run disabled until explicit confirmation and confirmed `select all pipes` routes to MEP-SEL-v1, selecting 18 pipes with model modified false.
+- Legacy tabs are hidden by default behind Show Advanced Tabs and utility controls are collapsed by default behind Show Controls.
+- `show latest result` and `show latest console result` route to the Console latest-result viewer rather than split visual review.
+- Safe Catalog hides legacy/model-write/reviewed-action commands by default while preserving guarded development visibility through Advanced Commands.
+- Visual Preview reports Piping context in `TEST [FloorPlan]`, with 97 pipe fittings and 18 pipes, and renders View Context, Latest Result, Issues / Candidates, and Safe Next Action cards.
+- Visual Action Cards load prompts only; they do not auto-run, write history, export files, or bypass selection confirmation.
+- Manual issue-index export generated 11 files at `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260706_153525_export_mep_project_issue_index` and found 24 issue candidates.
+
+### Evidence Roots
+
+- `C:\Users\User\Desktop\Results\AI_Workbench\Console_History`
+- `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260706_153525_export_mep_project_issue_index`
+
+### Safety
+
+No Revit model mutation, transaction, TransactionGroup, parameter write, active-view switching, linked-document mutation, or automatic command execution was introduced. Selection-only behavior remains isolated to confirmed MEP-SEL-v1 routes.
+
+### Pending Follow-Up
+
+AI-WORKBENCH-NEXT-STEP-ENGINE-v1 is pending runtime validation and is not recorded as completed in this batch.

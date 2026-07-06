@@ -14477,6 +14477,14 @@ AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES = {
     "show model context visual preview",
 }
 
+AI_WORKBENCH_NEXT_STEP_STATUS_ROUTES = {
+    "show ai workbench next step status",
+    "show next step status",
+    "show recommended next step status",
+    "show ai workbench next recommendation",
+    "what is the next ai workbench step",
+}
+
 
 def _ai_workbench_console_history_viewer_route_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
@@ -14517,6 +14525,11 @@ def _is_ai_workbench_guided_coach_status_prompt(prompt):
 def _is_ai_workbench_visual_preview_status_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES
+
+
+def _is_ai_workbench_next_step_status_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in AI_WORKBENCH_NEXT_STEP_STATUS_ROUTES
 
 
 def _is_mep_qa_issueindex_v1_prompt(prompt):
@@ -17799,6 +17812,159 @@ class OllamaAIChat(forms.WPFWindow):
             return {}, "unreadable"
         return {}, "unreadable"
 
+    def _console_next_step_result(self, prompt, reason, context, latest_result, latest_status, status="resolved", source="AI-WORKBENCH-NEXT-STEP-ENGINE-v1"):
+        safety, requires_confirmation = self._console_visual_prompt_safety(prompt)
+        if safety not in ("report-only", "selection-only", "export", "bundle"):
+            prompt = "show active view mep qa dashboard"
+            reason = "Resolved prompt was not safe-catalog visible; restart from safe baseline."
+            safety = "report-only"
+            requires_confirmation = "false"
+            status = "fallback_safe_baseline"
+        return {
+            "prompt": prompt,
+            "reason": reason,
+            "safety_class": safety,
+            "requires_confirmation": requires_confirmation,
+            "auto_run": "false",
+            "source": source,
+            "status": status,
+            "confidence": "high" if latest_status == "available" else "baseline",
+            "latest_feature_id": latest_result.get("feature_id", "unavailable") if latest_result else "unavailable",
+            "latest_result_classification": latest_result.get("result_classification", "unavailable") if latest_result else "unavailable",
+            "latest_prompt": latest_result.get("source_prompt", "unavailable") if latest_result else "unavailable",
+            "active_document_title": (context or {}).get("document_title", _document_title(doc)),
+            "active_view": "{0} [{1}]".format(
+                (context or {}).get("active_view_name", _active_view_title(doc, uidoc)),
+                (context or {}).get("active_view_type", "unavailable"),
+            ),
+            "discipline": (context or {}).get("likely_discipline", "Unknown / Empty"),
+            "selection_count": (context or {}).get("selection_count", 0),
+        }
+
+    def resolve_ai_workbench_next_step(self, context=None, latest_result=None, history_records=None):
+        context = context or self.refresh_console_context()
+        if latest_result is None:
+            latest_result, latest_status = self._console_latest_result_metadata()
+        else:
+            latest_status = "available" if latest_result else "missing"
+        latest_result = latest_result or {}
+        classification = safe_str(latest_result.get("result_classification"))
+        prompt_text = safe_str(latest_result.get("source_prompt") or latest_result.get("resolved_prompt"))
+        header = safe_str(latest_result.get("result_header"))
+        issue_count_text = safe_str(latest_result.get("total_issue_candidates"))
+        try:
+            issue_count = int(float(issue_count_text)) if issue_count_text else 0
+        except:
+            issue_count = 0
+        if latest_status != "available" or not latest_result:
+            return self._console_next_step_result(
+                "show active view mep qa dashboard",
+                "Start by checking the current active Revit view.",
+                context,
+                latest_result,
+                latest_status,
+                status="baseline_no_latest_result",
+            )
+        if classification == "MEP_QA_DASHBOARD_GREEN":
+            return self._console_next_step_result(
+                "export mep project issue index",
+                "Active view is clean; create broader project-level issue evidence.",
+                context,
+                latest_result,
+                latest_status,
+            )
+        if classification == "MEP_QA_ISSUEINDEX_EXPORT_OK":
+            return self._console_next_step_result(
+                "export latest QA report",
+                "Issue-index evidence was generated; export the latest QA report with metadata and manifest.",
+                context,
+                latest_result,
+                latest_status,
+            )
+        if classification == "MEP_QA_DASHBOARD_YELLOW" or issue_count > 0:
+            return self._console_next_step_result(
+                "export mep project issue index",
+                "Issue candidates exist; export structured project issue evidence.",
+                context,
+                latest_result,
+                latest_status,
+            )
+        if header == "[QA REPORT EXPORT COMPLETE]" or self._console_normalize(prompt_text) == "export latest qa report":
+            return self._console_next_step_result(
+                "export ai workbench console session summary",
+                "QA report was exported; preserve the Console session trace.",
+                context,
+                latest_result,
+                latest_status,
+            )
+        if classification == "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK":
+            return self._console_next_step_result(
+                "show active view mep qa dashboard",
+                "Evidence cycle is complete; return to baseline view check.",
+                context,
+                latest_result,
+                latest_status,
+            )
+        if classification in ("MEP_SEL_SELECTION_OK", "MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT"):
+            reason = "Selection review was performed; return to read-only dashboard."
+            if classification == "MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT":
+                reason = "No selection candidates were found; return to read-only dashboard."
+            return self._console_next_step_result(
+                "show active view mep qa dashboard",
+                reason,
+                context,
+                latest_result,
+                latest_status,
+            )
+        if classification == "AI_WORKBENCH_CONTEXT_SUGGESTIONS_OK":
+            return self._console_next_step_result(
+                "create mep qa evidence recipe",
+                "Suggestions were generated; convert them into a deterministic evidence recipe.",
+                context,
+                latest_result,
+                latest_status,
+            )
+        if classification == "AI_WORKBENCH_RECIPE_PLANNER_OK":
+            return self._console_next_step_result(
+                "show active view mep qa dashboard",
+                "Recipe was planned; start executing the evidence workflow manually from the dashboard.",
+                context,
+                latest_result,
+                latest_status,
+            )
+        if classification == "AI_WORKBENCH_VISUAL_PREVIEW_OK":
+            return self._console_next_step_result(
+                "show active view mep qa dashboard",
+                "Visual preview is read-only; proceed with a dashboard check.",
+                context,
+                latest_result,
+                latest_status,
+            )
+        if classification == "AI_WORKBENCH_LATEST_CONSOLE_RESULT_OK":
+            return self._console_next_step_result(
+                "suggest next ai workbench actions",
+                "Latest result was inspected; ask for context-aware recommendations.",
+                context,
+                latest_result,
+                latest_status,
+            )
+        if "UNSUPPORTED" in classification or "NO_MATCH" in classification or "UNSUPPORTED" in header:
+            return self._console_next_step_result(
+                "show active view mep qa dashboard",
+                "No supported command was executed; restart from safe baseline.",
+                context,
+                latest_result,
+                latest_status,
+            )
+        return self._console_next_step_result(
+            "show active view mep qa dashboard",
+            "No specific next-step rule matched; restart from safe active-view dashboard.",
+            context,
+            latest_result,
+            latest_status,
+            status="fallback_unmatched_classification",
+        )
+
     def _console_visual_meaning_for_classification(self, classification, latest_status):
         classification = safe_str(classification)
         if latest_status == "missing":
@@ -17869,24 +18035,7 @@ class OllamaAIChat(forms.WPFWindow):
         return lines or ["No issue/candidate details were available in latest metadata."]
 
     def _console_visual_recommended_prompt(self, context, latest_result, latest_status):
-        classification = safe_str((latest_result or {}).get("result_classification"))
-        if latest_status != "available" or not classification or classification == "unavailable":
-            return "show active view mep qa dashboard"
-        if classification == "MEP_QA_DASHBOARD_GREEN":
-            return "export mep project issue index"
-        if classification == "MEP_QA_ISSUEINDEX_EXPORT_OK":
-            return "export latest QA report"
-        if classification in ("QA_REPORT_EXPORT_COMPLETE", "AI_WORKBENCH_QA_EXPORT_OK"):
-            return "export ai workbench console session summary"
-        if classification.startswith("MEP_SEL"):
-            return "show active view mep qa dashboard"
-        if classification.startswith("AI_WORKBENCH_CONTEXT_SUGGESTIONS"):
-            return "create mep qa evidence recipe"
-        if classification.startswith("AI_WORKBENCH_RECIPE_PLANNER"):
-            return "show active view mep qa dashboard"
-        if classification.startswith("AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT"):
-            return "show active view mep qa dashboard"
-        return "show active view mep qa dashboard"
+        return self.resolve_ai_workbench_next_step(context, latest_result, None).get("prompt", "show active view mep qa dashboard")
 
     def _console_visual_prompt_safety(self, prompt):
         item = self._console_catalog_item_for_prompt(prompt)
@@ -17951,8 +18100,10 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_visual_preview_state(self, refresh_context=True):
         context = self.refresh_console_context() if refresh_context else (self.console_last_context or {})
         latest_result, latest_status = self._console_latest_result_metadata()
-        recommended_prompt = self._console_visual_recommended_prompt(context, latest_result, latest_status)
-        recommended_safety, recommended_requires_confirmation = self._console_visual_prompt_safety(recommended_prompt)
+        next_step = self.resolve_ai_workbench_next_step(context, latest_result, None)
+        recommended_prompt = next_step.get("prompt", "show active view mep qa dashboard")
+        recommended_safety = next_step.get("safety_class", "report-only")
+        recommended_requires_confirmation = next_step.get("requires_confirmation", "false")
         state = {
             "context": context,
             "latest_result": latest_result,
@@ -17963,6 +18114,8 @@ class OllamaAIChat(forms.WPFWindow):
             "recommended_prompt": recommended_prompt,
             "recommended_safety": recommended_safety,
             "recommended_requires_confirmation": recommended_requires_confirmation,
+            "recommended_reason": next_step.get("reason", ""),
+            "recommended_source": next_step.get("source", "AI-WORKBENCH-NEXT-STEP-ENGINE-v1"),
             "safe_prompt_cards": self._console_safe_prompt_cards(context),
             "safe_prompt_lines": self._console_safe_prompt_lines(context),
         }
@@ -18003,9 +18156,11 @@ class OllamaAIChat(forms.WPFWindow):
                 "",
                 "Safe Next Action",
                 "- Recommended prompt: {0}".format(state.get("recommended_prompt")),
+                "- Reason: {0}".format(state.get("recommended_reason", "")),
                 "- Safety class: {0}".format(state.get("recommended_safety")),
                 "- Requires confirmation: {0}".format(state.get("recommended_requires_confirmation")),
                 "- Auto-run: false",
+                "- Source: {0}".format(state.get("recommended_source", "AI-WORKBENCH-NEXT-STEP-ENGINE-v1")),
                 "",
                 "Safe suggested commands:",
             ]
@@ -18520,6 +18675,132 @@ class OllamaAIChat(forms.WPFWindow):
             self.remember_latest_deterministic_report(prompt, report)
             return report
 
+    def _console_next_step_report(self, prompt):
+        context = self.refresh_console_context()
+        records, malformed, history_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        next_step = self.resolve_ai_workbench_next_step(context, latest_result, records)
+        lines = [
+            "[AI WORKBENCH NEXT STEP REPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-NEXT-STEP-ENGINE-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Next Step Engine v1",
+            "",
+            "Action name:",
+            "Show unified deterministic next-step recommendation",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            "AI_WORKBENCH_NEXT_STEP_OK",
+            "",
+            "Active document title:",
+            context.get("document_title", _document_title(doc)),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(context.get("active_view_name", _active_view_title(doc, uidoc)), context.get("active_view_type", "unavailable")),
+            "",
+            "Detected context discipline:",
+            context.get("likely_discipline", "Unknown / Empty"),
+            "",
+            "Current UI selection count:",
+            context.get("selection_count", 0),
+            "",
+            "Latest feature ID:",
+            next_step.get("latest_feature_id", "unavailable"),
+            "",
+            "Latest result classification:",
+            next_step.get("latest_result_classification", "unavailable"),
+            "",
+            "Latest prompt:",
+            next_step.get("latest_prompt", "unavailable"),
+            "",
+            "Recommended prompt:",
+            next_step.get("prompt", "show active view mep qa dashboard"),
+            "",
+            "Recommendation reason:",
+            next_step.get("reason", ""),
+            "",
+            "Safety class:",
+            next_step.get("safety_class", "report-only"),
+            "",
+            "Requires confirmation:",
+            next_step.get("requires_confirmation", "false"),
+            "",
+            "Auto-run:",
+            "false",
+            "",
+            "Resolver source:",
+            "AI-WORKBENCH-NEXT-STEP-ENGINE-v1",
+            "",
+            "Resolver status:",
+            next_step.get("status", "resolved"),
+            "",
+            "Surfaces using resolver:",
+            "- Guided Coach",
+            "- Visual Preview",
+            "- Utility Load Next",
+            "- Recipe Navigator Load Next",
+            "",
+            "Safety flags:",
+            "- Transaction opened: false",
+            "- Transaction group opened: false",
+            "- Model modified: false",
+            "- Linked document modified: false",
+            "- UI selection modified: false",
+            "- Active view changed: false",
+            "- External files written: false",
+            "",
+            "Safety:",
+            "- Next-step engine is deterministic and load-only.",
+            "- Recommended prompts are not executed by this report.",
+            "- Auto-run is false for every recommendation.",
+        ]
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def answer_ai_workbench_next_step_question(self, prompt):
+        if not _is_ai_workbench_next_step_status_prompt(prompt):
+            return None
+        try:
+            return self._console_next_step_report(prompt)
+        except Exception as exc:
+            lines = [
+                "[AI WORKBENCH NEXT STEP REPORT]",
+                "",
+                "Feature ID:",
+                "AI-WORKBENCH-NEXT-STEP-ENGINE-v1",
+                "",
+                "Feature name:",
+                "AI Workbench Next Step Engine v1",
+                "",
+                "Prompt:",
+                safe_str(prompt),
+                "",
+                "Result classification:",
+                "AI_WORKBENCH_NEXT_STEP_FAILED",
+                "",
+                "Warnings:",
+                "- {0}".format(safe_str(exc)),
+                "",
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+            ]
+            report = "\n".join([safe_str(line) for line in lines])
+            self.remember_latest_deterministic_report(prompt, report)
+            return report
+
     def answer_ai_workbench_context_suggestions_question(self, prompt):
         if not _is_ai_workbench_context_suggestions_prompt(prompt):
             return None
@@ -18922,35 +19203,7 @@ class OllamaAIChat(forms.WPFWindow):
         context = self.refresh_console_context()
         records, malformed, history_status = self._console_load_history_records()
         latest_result, latest_status = self._console_latest_result_metadata()
-        latest_classification = safe_str(latest_result.get("result_classification"))
-        dashboard_recent = self._console_history_prompt_status("show active view mep qa dashboard", records) == "recently executed"
-        issue_export_recent = self._console_history_prompt_status("export mep project issue index", records) == "recently executed"
-        qa_export_recent = self._console_history_prompt_status("export latest QA report", records) == "recently executed"
-        session_export_recent = self._console_history_prompt_status("export ai workbench console session summary", records) == "recently executed"
-        if dashboard_recent and not issue_export_recent:
-            return "export mep project issue index"
-        if issue_export_recent and not qa_export_recent:
-            return "export latest QA report"
-        if qa_export_recent and len(records or []) > 3 and not session_export_recent:
-            return "export ai workbench console session summary"
-        if dashboard_recent and issue_export_recent and qa_export_recent and session_export_recent:
-            return "suggest next ai workbench actions"
-        if latest_classification == "MEP_QA_DASHBOARD_GREEN":
-            if self._console_history_prompt_status("export mep project issue index", records) != "recently executed":
-                return "export mep project issue index"
-        if latest_classification == "MEP_QA_ISSUEINDEX_EXPORT_OK":
-            if self._console_history_prompt_status("export latest QA report", records) != "recently executed":
-                return "export latest QA report"
-        if self._console_history_prompt_status("export latest QA report", records) == "recently executed" and len(records or []) > 3:
-            if self._console_history_prompt_status("export ai workbench console session summary", records) != "recently executed":
-                return "export ai workbench console session summary"
-        suggestions, latest_export_folder = self._console_context_suggestions(context, latest_result, records)
-        report_only = [item for item in suggestions if item.get("safety_class") == "report-only"]
-        if report_only:
-            return report_only[0].get("prompt") or "suggest next ai workbench actions"
-        if suggestions:
-            return suggestions[0].get("prompt") or "suggest next ai workbench actions"
-        return "suggest next ai workbench actions"
+        return self.resolve_ai_workbench_next_step(context, latest_result, records).get("prompt", "show active view mep qa dashboard")
 
     def _console_recipe_navigator_next_prompt(self):
         context = self.refresh_console_context()
@@ -19252,140 +19505,34 @@ class OllamaAIChat(forms.WPFWindow):
             "feature_id": "",
             "result_classification": "",
             "warnings": "none",
+            "source": "AI-WORKBENCH-NEXT-STEP-ENGINE-v1",
         }
 
     def _console_guided_coach_state_from_report(self, report_text):
-        header = self._extract_report_header(report_text)
-        classification = self._console_extract_first_field(report_text, ["Result classification"])
-        feature_id = self._console_extract_first_field(report_text, ["Feature ID"])
+        context = self.console_last_context or self.refresh_console_context()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        next_step = self.resolve_ai_workbench_next_step(context, latest_result, None)
+        header = safe_str((latest_result or {}).get("result_header") or self._extract_report_header(report_text))
+        classification = safe_str((latest_result or {}).get("result_classification") or self._console_extract_first_field(report_text, ["Result classification"]))
+        feature_id = safe_str((latest_result or {}).get("feature_id") or self._console_extract_first_field(report_text, ["Feature ID"]))
         state = self._console_default_guided_coach_state()
         state["result_header"] = header
         state["feature_id"] = feature_id
         state["result_classification"] = classification
         state["warnings"] = self._console_extract_warnings_summary(report_text) or "none"
-        if header == "[MEP QA DASHBOARD V1 REPORT]":
-            if classification == "MEP_QA_DASHBOARD_GREEN":
-                state.update(
-                    {
-                        "last_result": "Active-view MEP dashboard is GREEN.",
-                        "meaning": "No active-view MEP issue candidates were found.",
-                        "recommended_prompt": "export mep project issue index",
-                        "why": "Check and export broader project-level issue evidence.",
-                        "safety": "Export writes files only and does not modify the Revit model.",
-                    }
-                )
-            else:
-                state.update(
-                    {
-                        "last_result": "Active-view MEP dashboard reported review items.",
-                        "meaning": "Issue candidates or a non-green dashboard state may need follow-up.",
-                        "recommended_prompt": "export latest QA report",
-                        "why": "Preserve the dashboard report as evidence before follow-up. Selection-only review may be useful if applicable.",
-                        "safety": "Export writes report evidence only and does not modify model data.",
-                    }
-                )
-        elif header == "[MEP QA ISSUE INDEX EXPORT V1 REPORT]":
-            if classification == "MEP_QA_ISSUEINDEX_EXPORT_EMPTY":
-                state.update(
-                    {
-                        "last_result": "Project issue index export found no issue candidates.",
-                        "meaning": "No project issue candidates were found, but the empty evidence result should be captured.",
-                        "recommended_prompt": "export latest QA report",
-                        "why": "Capture the empty issue-index export report and metadata in the QA export folder.",
-                        "safety": "Export writes report evidence only.",
-                    }
-                )
-            else:
-                state.update(
-                    {
-                        "last_result": "Project issue index export completed.",
-                        "meaning": "Project-level issue evidence was written.",
-                        "recommended_prompt": "export latest QA report",
-                        "why": "Capture the issue-index export report and metadata in the QA export folder.",
-                        "safety": "Export writes report evidence only.",
-                    }
-                )
-        elif header == "[QA REPORT EXPORT COMPLETE]":
-            state.update(
-                {
-                    "last_result": "Latest QA report exported.",
-                    "meaning": "The previous report was saved with metadata and manifest.",
-                    "recommended_prompt": "export ai workbench console session summary",
-                    "why": "Capture a compact session-level trace of what was run.",
-                    "safety": "Writes session summary files only.",
-                }
-            )
-        elif header == "[AI WORKBENCH CONSOLE SESSION SUMMARY EXPORT REPORT]":
-            state.update(
-                {
-                    "last_result": "Console session summary exported.",
-                    "meaning": "The QA session is now traceable.",
-                    "recommended_prompt": "show ai workbench console history",
-                    "why": "Review the final command history.",
-                    "safety": "Report-only.",
-                }
-            )
-        elif header == "[AI WORKBENCH CONTEXT SUGGESTIONS REPORT]":
-            state.update(
-                {
-                    "last_result": "Recommended actions generated.",
-                    "meaning": "The system identified safe next commands from the current context.",
-                    "recommended_prompt": "create mep qa evidence recipe",
-                    "why": "Convert suggestions into a structured workflow recipe.",
-                    "safety": "Report-only planning.",
-                }
-            )
-        elif header == "[AI WORKBENCH RECIPE PLANNER REPORT]":
-            state.update(
-                {
-                    "last_result": "QA evidence recipe created.",
-                    "meaning": "The workflow steps are planned and not executed automatically.",
-                    "recommended_prompt": "export mep project issue index",
-                    "why": "Begin the evidence export part of the planned workflow.",
-                    "safety": "Writes evidence files only.",
-                }
-            )
-        elif header == "[AI WORKBENCH CONSOLE HISTORY VIEWER REPORT]":
-            state.update(
-                {
-                    "last_result": "Console history displayed.",
-                    "meaning": "Recent commands and safety flags are visible.",
-                    "recommended_prompt": "show latest console result",
-                    "why": "Inspect the latest full report.",
-                    "safety": "Report-only.",
-                }
-            )
-        elif header == "[MEP SELECTION V1 REPORT]":
-            if classification == "MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT":
-                state.update(
-                    {
-                        "last_result": "No selection candidates were found.",
-                        "meaning": "There were no matching active-view elements for that selection command.",
-                        "recommended_prompt": "show active view mep qa dashboard",
-                        "why": "Return to the read-only active-view dashboard.",
-                        "safety": "Report-only.",
-                    }
-                )
-            else:
-                state.update(
-                    {
-                        "last_result": "Elements were selected for review.",
-                        "meaning": "Revit UI selection changed only; model data was not modified.",
-                        "recommended_prompt": "show active view mep qa dashboard",
-                        "why": "Re-run the read-only dashboard after visual review.",
-                        "safety": "Report-only.",
-                    }
-                )
-        elif header:
-            state.update(
-                {
-                    "last_result": "Latest deterministic report received.",
-                    "meaning": "Review the result summary and continue with a safe active-view check if unsure.",
-                    "recommended_prompt": "show active view mep qa dashboard",
-                    "why": "The active-view dashboard is the safest baseline follow-up.",
-                    "safety": "Report-only.",
-                }
-            )
+        state.update(
+            {
+                "last_result": classification or "none",
+                "meaning": self._console_visual_meaning_for_classification(classification, latest_status),
+                "recommended_prompt": next_step.get("prompt", "show active view mep qa dashboard"),
+                "why": next_step.get("reason", "Start from the safe active-view dashboard."),
+                "safety": "{0}; requires confirmation: {1}; auto-run: false".format(
+                    next_step.get("safety_class", "report-only"),
+                    next_step.get("requires_confirmation", "false"),
+                ),
+                "source": next_step.get("source", "AI-WORKBENCH-NEXT-STEP-ENGINE-v1"),
+            }
+        )
         return state
 
     def _console_render_guided_coach_state(self, state):
@@ -19397,7 +19544,8 @@ class OllamaAIChat(forms.WPFWindow):
             "Next: {2}\n"
             "Why: {3}\n"
             "Safety: {4}\n"
-            "Status: {5}"
+            "Status: {5}\n"
+            "Source: {6}"
         ).format(
             state.get("last_result", "none"),
             state.get("meaning", ""),
@@ -19405,6 +19553,7 @@ class OllamaAIChat(forms.WPFWindow):
             state.get("why", ""),
             state.get("safety", ""),
             state.get("status", "Click Load recommended next to place the prompt in the input. Then review and click Run manually."),
+            state.get("source", "AI-WORKBENCH-NEXT-STEP-ENGINE-v1"),
         )
         try:
             self.ConsoleGuidedCoachText.Text = text
@@ -19415,7 +19564,11 @@ class OllamaAIChat(forms.WPFWindow):
         self._console_render_guided_coach_state(self._console_guided_coach_state_from_report(report_text))
 
     def on_console_guided_coach_load_next(self, sender, args):
-        state = self.console_guided_coach_state or self._console_default_guided_coach_state()
+        try:
+            state = self._console_guided_coach_state_from_report(self.console_last_report or "")
+            self._console_render_guided_coach_state(state)
+        except:
+            state = self.console_guided_coach_state or self._console_default_guided_coach_state()
         prompt = state.get("recommended_prompt") or "show active view mep qa dashboard"
         self._console_load_guided_prompt(
             prompt,
@@ -19800,7 +19953,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-VISUAL-ACTION-CARDS-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-NEXT-STEP-ENGINE-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -19808,7 +19961,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-VISUAL-ACTION-CARDS-v1",
+            "AI-WORKBENCH-NEXT-STEP-ENGINE-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -19830,9 +19983,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1",
             "AI-WORKBENCH-SAFE-CATALOG-VIEW-v1",
             "AI-WORKBENCH-VISUAL-v1",
+            "AI-WORKBENCH-VISUAL-ACTION-CARDS-v1",
             "",
             "Feature name:",
-            "AI Workbench Visual Action Cards v1",
+            "AI Workbench Next Step Engine v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -19863,6 +20017,13 @@ class OllamaAIChat(forms.WPFWindow):
             "Visual action cards history write on load: false",
             "Visual action cards safe catalog filtered: true",
             "Selection confirmation preserved for loaded selection prompts: true",
+            "Shared next-step resolver enabled: true",
+            "Guided Coach uses shared resolver: true",
+            "Visual Preview uses shared resolver: true",
+            "Utility Load Next uses shared resolver: true",
+            "Recipe Navigator Load Next uses shared resolver: true",
+            "Next-step auto-run: false",
+            "Next-step load only: true",
             "Safe catalog filter enabled: true",
             "Advanced Commands hidden by default: true",
             "Advanced Commands currently visible: {0}".format(str(self._console_advanced_commands_visible()).lower()),
@@ -43788,36 +43949,41 @@ class OllamaAIChat(forms.WPFWindow):
                 ai_workbench_visual_preview_reply = self.answer_ai_workbench_visual_preview_question(
                     prompt
                 )
-            ai_workbench_context_suggestions_reply = None
+            ai_workbench_next_step_reply = None
             if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None:
+                ai_workbench_next_step_reply = self.answer_ai_workbench_next_step_question(
+                    prompt
+                )
+            ai_workbench_context_suggestions_reply = None
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None:
                 ai_workbench_context_suggestions_reply = self.answer_ai_workbench_context_suggestions_question(
                     prompt
                 )
             ai_workbench_recipe_planner_reply = None
-            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None:
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None and ai_workbench_context_suggestions_reply is None:
                 ai_workbench_recipe_planner_reply = self.answer_ai_workbench_recipe_planner_question(
                     prompt
                 )
             ai_workbench_recipe_navigator_reply = None
-            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None:
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None:
                 ai_workbench_recipe_navigator_reply = self.answer_ai_workbench_recipe_navigator_question(
                     prompt
                 )
             ai_workbench_guided_start_help_reply = None
-            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None:
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None:
                 ai_workbench_guided_start_help_reply = self.answer_ai_workbench_guided_start_help_question(
                     prompt
                 )
             ai_workbench_guided_coach_reply = None
-            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None:
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None:
                 ai_workbench_guided_coach_reply = self.answer_ai_workbench_guided_coach_question(
                     prompt
                 )
             mep_qa_issueindex_export_v1_reply = self.answer_mep_qa_issueindex_export_v1_question(
                 prompt
-            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None and ai_workbench_guided_coach_reply is None else None
+            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None and ai_workbench_guided_coach_reply is None else None
             mep_qa_issueindex_v1_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None and ai_workbench_guided_coach_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None and ai_workbench_guided_coach_reply is None:
                 mep_qa_issueindex_v1_reply = self.answer_mep_qa_issueindex_v1_question(
                     prompt
                 )
@@ -43925,6 +44091,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif ai_workbench_visual_preview_reply is not None:
                 reply = ai_workbench_visual_preview_reply
+                preserve_latest_report_state = True
+            elif ai_workbench_next_step_reply is not None:
+                reply = ai_workbench_next_step_reply
                 preserve_latest_report_state = True
             elif ai_workbench_context_suggestions_reply is not None:
                 reply = ai_workbench_context_suggestions_reply
