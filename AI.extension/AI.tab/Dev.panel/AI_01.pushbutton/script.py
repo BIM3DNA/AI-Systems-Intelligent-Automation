@@ -16080,14 +16080,31 @@ class OllamaAIChat(forms.WPFWindow):
         right.Children.Add(context_group)
         visual_group = GroupBox()
         visual_group.Header = "Visual Preview / Model Context"
+        visual_panel = StackPanel()
         visual_box = TextBox()
         visual_box.IsReadOnly = True
         visual_box.AcceptsReturn = True
+        visual_box.MinHeight = 170
         visual_box.TextWrapping = Wpf.TextWrapping.Wrap
         visual_box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         visual_box.BorderThickness = Wpf.Thickness(0)
         visual_box.Background = self._brush("#f8fafd")
-        visual_group.Content = visual_box
+        visual_actions_label = TextBlock()
+        visual_actions_label.Text = "Load-only action cards"
+        visual_actions_label.FontWeight = Wpf.FontWeights.Bold
+        visual_actions_label.Foreground = self._brush("#334155")
+        visual_actions_label.Margin = Wpf.Thickness(0, 6, 0, 3)
+        visual_actions_panel = StackPanel()
+        visual_action_status = TextBlock()
+        visual_action_status.Text = "Visual action cards are load-only. Run is manual."
+        visual_action_status.TextWrapping = Wpf.TextWrapping.Wrap
+        visual_action_status.Foreground = self._brush("#475569")
+        visual_action_status.Margin = Wpf.Thickness(0, 4, 0, 0)
+        visual_panel.Children.Add(visual_box)
+        visual_panel.Children.Add(visual_actions_label)
+        visual_panel.Children.Add(visual_actions_panel)
+        visual_panel.Children.Add(visual_action_status)
+        visual_group.Content = visual_panel
         Grid.SetRow(visual_group, 2)
         right.Children.Add(visual_group)
         Grid.SetColumn(right, 4)
@@ -16100,6 +16117,8 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleAdvancedSplitter = split_a
         self.ConsoleVisualGroup = visual_group
         self.ConsoleVisualRefreshButton = visual_refresh_button
+        self.ConsoleVisualActionsPanel = visual_actions_panel
+        self.ConsoleVisualActionStatus = visual_action_status
         self.ConsoleAdvancedVisible = False
         self.ConsolePromptInput = input_box
         self.ConsoleRunButton = run_button
@@ -17876,6 +17895,10 @@ class OllamaAIChat(forms.WPFWindow):
         return safety, "true" if safety == "selection-only" else "false"
 
     def _console_safe_prompt_lines(self, context):
+        cards = self._console_safe_prompt_cards(context)
+        return ["- {0} [{1}]".format(card.get("prompt"), card.get("safety_class")) for card in cards]
+
+    def _console_safe_prompt_cards(self, context):
         records, malformed, history_status = self._console_load_history_records()
         latest_result, latest_status = self._console_latest_result_metadata()
         suggestions, latest_export_folder = self._console_context_suggestions(context, latest_result, records)
@@ -17893,13 +17916,37 @@ class OllamaAIChat(forms.WPFWindow):
                 safety, requires_confirmation = self._console_visual_prompt_safety(prompt)
                 if safety in ("report-only", "selection-only", "export", "bundle"):
                     suggestions.append({"prompt": prompt, "safety_class": safety})
-        lines = []
+        cards = []
+        seen = set()
         for suggestion in suggestions[:6]:
             prompt = suggestion.get("prompt")
             safety = suggestion.get("safety_class") or self._console_visual_prompt_safety(prompt)[0]
+            normalized = self._console_normalize(prompt)
+            if not normalized or normalized in seen:
+                continue
+            item = self._console_catalog_item_for_prompt(prompt)
+            if item and not self._console_item_visible_in_safe_catalog(item):
+                continue
             if safety in ("report-only", "selection-only", "export", "bundle"):
-                lines.append("- {0} [{1}]".format(prompt, safety))
-        return lines or ["- show active view mep qa dashboard [report-only]"]
+                cards.append(
+                    {
+                        "prompt": prompt,
+                        "safety_class": safety,
+                        "requires_confirmation": "true" if safety == "selection-only" else "false",
+                    }
+                )
+                seen.add(normalized)
+            if len(cards) >= 6:
+                break
+        if not cards:
+            cards.append(
+                {
+                    "prompt": "show active view mep qa dashboard",
+                    "safety_class": "report-only",
+                    "requires_confirmation": "false",
+                }
+            )
+        return cards
 
     def _console_visual_preview_state(self, refresh_context=True):
         context = self.refresh_console_context() if refresh_context else (self.console_last_context or {})
@@ -17916,6 +17963,7 @@ class OllamaAIChat(forms.WPFWindow):
             "recommended_prompt": recommended_prompt,
             "recommended_safety": recommended_safety,
             "recommended_requires_confirmation": recommended_requires_confirmation,
+            "safe_prompt_cards": self._console_safe_prompt_cards(context),
             "safe_prompt_lines": self._console_safe_prompt_lines(context),
         }
         self.console_visual_preview_state = state
@@ -17984,7 +18032,96 @@ class OllamaAIChat(forms.WPFWindow):
             self.ConsoleVisualBox.Text = self._console_visual_preview_text(state)
         except:
             pass
+        try:
+            self._render_console_visual_action_cards(state)
+        except:
+            pass
         return state
+
+    def _console_load_visual_prompt(self, prompt):
+        prompt = safe_str(prompt).strip()
+        if not prompt:
+            return
+        try:
+            self.ConsolePromptInput.Text = prompt
+            self.ConsolePromptInput.CaretIndex = len(prompt)
+        except:
+            pass
+        try:
+            self.update_console_suggestions()
+        except:
+            pass
+        try:
+            suggestion = self._console_resolved_suggestion(prompt)
+            self.update_console_preview(suggestion)
+        except:
+            pass
+        try:
+            self._update_console_run_enabled()
+        except:
+            pass
+        try:
+            self.ConsoleVisualActionStatus.Text = "Loaded visual recommendation: {0}. Run was not executed.".format(prompt)
+        except:
+            pass
+
+    def on_console_visual_action_load(self, sender, args):
+        try:
+            prompt = safe_str(sender.Tag if sender is not None and hasattr(sender, "Tag") else "")
+            self._console_load_visual_prompt(prompt)
+        except Exception as exc:
+            try:
+                self.ConsoleVisualActionStatus.Text = "Visual action load failed: {0}".format(safe_str(exc))
+            except:
+                pass
+
+    def _add_visual_action_button_row(self, panel, prompt, safety, is_recommended=False):
+        try:
+            import System.Windows as Wpf
+            from System.Windows.Controls import Button, TextBlock, WrapPanel
+            row = WrapPanel()
+            row.Margin = Wpf.Thickness(0, 0, 0, 3)
+            load_button = Button()
+            load_button.Content = "Load recommended prompt" if is_recommended else "Load"
+            load_button.Height = 24
+            load_button.Margin = Wpf.Thickness(0, 0, 6, 2)
+            load_button.Tag = prompt
+            load_button.ToolTip = "Load prompt only. Run is not executed."
+            load_button.Click += self.on_console_visual_action_load
+            label = TextBlock()
+            label.Text = "{0} [{1}]".format(prompt, safety)
+            label.TextWrapping = Wpf.TextWrapping.Wrap
+            label.Foreground = self._brush("#0f172a")
+            label.Margin = Wpf.Thickness(0, 4, 0, 0)
+            row.Children.Add(load_button)
+            row.Children.Add(label)
+            panel.Children.Add(row)
+            return True
+        except:
+            return False
+
+    def _render_console_visual_action_cards(self, state):
+        if not hasattr(self, "ConsoleVisualActionsPanel"):
+            return
+        panel = self.ConsoleVisualActionsPanel
+        panel.Children.Clear()
+        recommended_prompt = safe_str(state.get("recommended_prompt") or "show active view mep qa dashboard")
+        recommended_safety = safe_str(state.get("recommended_safety") or "report-only")
+        if recommended_safety in ("report-only", "selection-only", "export", "bundle"):
+            self._add_visual_action_button_row(panel, recommended_prompt, recommended_safety, is_recommended=True)
+        cards = state.get("safe_prompt_cards") or []
+        for card in cards[:6]:
+            prompt = safe_str(card.get("prompt"))
+            safety = safe_str(card.get("safety_class"))
+            if not prompt or prompt == recommended_prompt:
+                continue
+            if safety not in ("report-only", "selection-only", "export", "bundle"):
+                continue
+            self._add_visual_action_button_row(panel, prompt, safety, is_recommended=False)
+        try:
+            self.ConsoleVisualActionStatus.Text = "Visual action cards are load-only. Run is manual."
+        except:
+            pass
 
     def _console_add_context_suggestion(self, suggestions, prompts, reason, expected_output, uses_current_context):
         prompt, item = self._console_first_available_prompt(prompts)
@@ -18278,6 +18415,24 @@ class OllamaAIChat(forms.WPFWindow):
                 "",
                 "Visual cards generated count:",
                 len(visual_cards),
+                "",
+                "Latest visual action card feature:",
+                "AI-WORKBENCH-VISUAL-ACTION-CARDS-v1",
+                "",
+                "Visual action cards enabled:",
+                "true",
+                "Visual action cards load only:",
+                "true",
+                "Visual action cards auto-run:",
+                "false",
+                "Visual action cards history write on load:",
+                "false",
+                "Visual action cards safe catalog filtered:",
+                "true",
+                "Visual action cards selection confirmation preserved:",
+                "true",
+                "Suggested command rows count:",
+                len(state.get("safe_prompt_cards") or []),
                 "",
                 "Visual cards:",
             ]
@@ -19645,7 +19800,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-VISUAL-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-VISUAL-ACTION-CARDS-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -19653,7 +19808,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-VISUAL-v1",
+            "AI-WORKBENCH-VISUAL-ACTION-CARDS-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -19674,9 +19829,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1",
             "AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1",
             "AI-WORKBENCH-SAFE-CATALOG-VIEW-v1",
+            "AI-WORKBENCH-VISUAL-v1",
             "",
             "Feature name:",
-            "AI Workbench Visual Preview v1",
+            "AI Workbench Visual Action Cards v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -19701,6 +19857,12 @@ class OllamaAIChat(forms.WPFWindow):
             "Visual Preview writes files: false",
             "Visual Preview modifies UI selection: false",
             "Visual Preview modifies model: false",
+            "Visual action cards enabled: true",
+            "Visual action cards load only: true",
+            "Visual action cards auto-run: false",
+            "Visual action cards history write on load: false",
+            "Visual action cards safe catalog filtered: true",
+            "Selection confirmation preserved for loaded selection prompts: true",
             "Safe catalog filter enabled: true",
             "Advanced Commands hidden by default: true",
             "Advanced Commands currently visible: {0}".format(str(self._console_advanced_commands_visible()).lower()),
