@@ -4783,7 +4783,12 @@
     "scope_type": "ai_workbench_latest_console_result",
     "canonical_prompt": "show latest console result",
     "planner_aliases": [
-      "show latest console result"
+      "show latest result",
+      "show latest console result",
+      "show ai workbench latest result",
+      "show ai workbench latest console result",
+      "open latest console result",
+      "inspect latest console result"
     ],
     "deterministic_handler": "ai_workbench_console_history_viewer_v1_report",
     "requires_confirmation": false,
@@ -4853,9 +4858,9 @@
     "validation_state": "structural_only",
     "prompt_text": "show ai workbench console status",
     "mode": "deterministic",
-    "feature_id": "AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1",
-    "feature_name": "AI Workbench Console Shell Simplify v1",
-    "description": "Console status report for collapsible utility controls, hidden legacy tabs, compact explicit selection confirmation, layout polish, guided coach, guided start, recipe navigation, recipe planning, context suggestions, history, viewer, session summary export, result routing, and selection dispatch readiness.",
+    "feature_id": "AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1",
+    "feature_name": "AI Workbench Alias Route Hardening v1",
+    "description": "Console status report for exact alias route priority, latest-result route hardening, collapsible utility controls, hidden legacy tabs, compact explicit selection confirmation, layout polish, guided coach, guided start, recipe navigation, recipe planning, context suggestions, history, viewer, session summary export, result routing, and selection dispatch readiness.",
     "safety_class": "report-only",
     "writes_external_files": false,
     "modifies_model": false,

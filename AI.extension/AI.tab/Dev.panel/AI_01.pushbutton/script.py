@@ -14416,7 +14416,12 @@ AI_WORKBENCH_CONSOLE_HISTORY_VIEWER_ROUTES = {
 }
 
 AI_WORKBENCH_CONSOLE_LATEST_RESULT_ROUTES = {
+    "show latest result",
     "show latest console result",
+    "show ai workbench latest result",
+    "show ai workbench latest console result",
+    "open latest console result",
+    "inspect latest console result",
 }
 
 AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_ROUTES = {
@@ -16485,9 +16490,39 @@ class OllamaAIChat(forms.WPFWindow):
         ]
         return any(term in normalized for term in dangerous)
 
+    def _console_reserved_exact_alias_target(self, normalized_prompt):
+        reserved = {
+            "show latest result": "ai-workbench-latest-console-result-v1",
+            "show latest console result": "ai-workbench-latest-console-result-v1",
+            "show ai workbench latest result": "ai-workbench-latest-console-result-v1",
+            "show ai workbench latest console result": "ai-workbench-latest-console-result-v1",
+            "open latest console result": "ai-workbench-latest-console-result-v1",
+            "inspect latest console result": "ai-workbench-latest-console-result-v1",
+        }
+        return reserved.get(normalized_prompt)
+
+    def _console_find_index_item_by_entry_id(self, entry_id):
+        target = safe_str(entry_id).strip().lower()
+        if not target:
+            return None
+        for item in self.console_command_index or []:
+            entry = item.get("entry") or {}
+            if safe_str(entry.get("id") or "").strip().lower() == target:
+                return item
+        return None
+
     def _console_rank_suggestions(self, text):
         text = safe_str(text).strip()
         norm = self._console_normalize(text)
+        reserved_id = self._console_reserved_exact_alias_target(norm)
+        if reserved_id:
+            item = self._console_find_index_item_by_entry_id(reserved_id)
+            if item:
+                candidate = dict(item)
+                candidate["prompt"] = "show latest console result"
+                candidate["confidence"] = "high"
+                candidate["score"] = 1200
+                return [candidate]
         if not norm:
             preferred = [
                 "show active view mep qa dashboard",
@@ -16581,6 +16616,15 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             text = prompt_text or ""
         norm = self._console_normalize(text or "")
+        reserved_id = self._console_reserved_exact_alias_target(norm)
+        if reserved_id:
+            item = self._console_find_index_item_by_entry_id(reserved_id)
+            if item:
+                exact = dict(item)
+                exact["prompt"] = "show latest console result"
+                exact["confidence"] = "high"
+                exact["score"] = 1200
+                return exact
         if norm:
             for item in self.console_command_index:
                 if item.get("normalized") == norm:
@@ -16682,6 +16726,12 @@ class OllamaAIChat(forms.WPFWindow):
             lines.append("UI selection may change: true")
             lines.append("Dispatch target after confirmation: MEP-SEL-v1")
             lines.append("Run requires confirmation: This will change the Revit UI selection only. It will not modify model data.")
+        elif self._console_entry_feature_id(entry) == "AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1" and "latest" in prompt_text.lower():
+            lines.append("")
+            lines.append("Requires confirmation: false")
+            lines.append("Model data modified: false")
+            lines.append("UI selection may change: false")
+            lines.append("Dispatch target: Console history viewer latest-result route")
         if safety == "model-write":
             lines.append("Console v1 blocks direct model-write execution. Use the existing reviewed workflow prompt surface.")
         if safety == "unknown":
@@ -19027,7 +19077,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -19035,7 +19085,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1",
+            "AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -19053,9 +19103,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-GUIDED-COACH-v1",
             "AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1",
             "AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1",
+            "AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1",
             "",
             "Feature name:",
-            "AI Workbench Console Shell Simplify v1",
+            "AI Workbench Alias Route Hardening v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -19073,6 +19124,12 @@ class OllamaAIChat(forms.WPFWindow):
             "Context BuiltInCategory bug fixed: true",
             "Invalid BuiltInCategory guard active: true",
             "Unsupported prompt guard active: true",
+            "Exact alias priority enabled: true",
+            "Latest-result alias target: AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
+            "Generic latest-result prompts blocked from split visual review: true",
+            "Selection confirmation isolated to selection-only commands: true",
+            "Legacy split visual review explicit aliases only: true",
+            "Console shell simplify enabled: true",
             "Utility controls collapsible: true",
             "Utility controls default collapsed: true",
             "Legacy tabs hidden by default: true",
@@ -19088,6 +19145,7 @@ class OllamaAIChat(forms.WPFWindow):
             "Confirmed selection dispatch target: MEP-SEL-v1",
             "Selection dispatch target: MEP-SEL-v1",
             "MEP-RO guard preserved: true",
+            "MEP-SEL dispatch preserved: true",
             "Session-level selection confirmation memory implemented: false",
             "Console history enabled: true",
             "Console history viewer enabled: true",
