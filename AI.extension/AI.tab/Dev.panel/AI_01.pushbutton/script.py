@@ -14469,6 +14469,14 @@ AI_WORKBENCH_GUIDED_COACH_STATUS_ROUTES = {
     "what should i do next in guided mode",
 }
 
+AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES = {
+    "show ai workbench visual preview status",
+    "show visual preview status",
+    "refresh visual preview",
+    "show ai workbench visual status",
+    "show model context visual preview",
+}
+
 
 def _ai_workbench_console_history_viewer_route_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
@@ -14504,6 +14512,11 @@ def _is_ai_workbench_guided_start_help_prompt(prompt):
 def _is_ai_workbench_guided_coach_status_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in AI_WORKBENCH_GUIDED_COACH_STATUS_ROUTES
+
+
+def _is_ai_workbench_visual_preview_status_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES
 
 
 def _is_mep_qa_issueindex_v1_prompt(prompt):
@@ -16038,12 +16051,21 @@ class OllamaAIChat(forms.WPFWindow):
         right.RowDefinitions[0].Height = Wpf.GridLength(1, Wpf.GridUnitType.Auto)
         right.RowDefinitions[1].Height = Wpf.GridLength(1, Wpf.GridUnitType.Star)
         right.RowDefinitions[2].Height = Wpf.GridLength(1, Wpf.GridUnitType.Star)
+        refresh_row = WrapPanel()
+        refresh_row.Margin = Wpf.Thickness(0, 0, 0, 8)
         refresh_button = Button()
         refresh_button.Content = "Refresh Context"
         refresh_button.Height = 28
-        refresh_button.Margin = Wpf.Thickness(0, 0, 0, 8)
+        refresh_button.Margin = Wpf.Thickness(0, 0, 6, 0)
         refresh_button.Click += self.on_console_refresh_context
-        right.Children.Add(refresh_button)
+        visual_refresh_button = Button()
+        visual_refresh_button.Content = "Refresh Visual Preview"
+        visual_refresh_button.Height = 28
+        visual_refresh_button.Margin = Wpf.Thickness(0, 0, 0, 0)
+        visual_refresh_button.Click += self.on_console_refresh_visual_preview
+        refresh_row.Children.Add(refresh_button)
+        refresh_row.Children.Add(visual_refresh_button)
+        right.Children.Add(refresh_row)
         context_group = GroupBox()
         context_group.Header = "Live Revit Context"
         context_box = TextBox()
@@ -16077,6 +16099,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleAdvancedPanel = left
         self.ConsoleAdvancedSplitter = split_a
         self.ConsoleVisualGroup = visual_group
+        self.ConsoleVisualRefreshButton = visual_refresh_button
         self.ConsoleAdvancedVisible = False
         self.ConsolePromptInput = input_box
         self.ConsoleRunButton = run_button
@@ -17131,15 +17154,21 @@ class OllamaAIChat(forms.WPFWindow):
         else:
             lines.append("")
             lines.append("Suggested safe commands:")
-            for prompt in [
-                "show active view mep qa dashboard",
-                "scan all floor plan views for mep qa",
-                "show mep project issue index",
-                "export mep project issue index",
-                "export latest QA report",
-            ]:
-                lines.append("- {0}".format(prompt))
+            try:
+                lines.extend(self._console_safe_prompt_lines(context))
+            except:
+                lines.extend(
+                    [
+                        "- show active view mep qa dashboard [report-only]",
+                        "- export mep project issue index [export]",
+                        "- export latest QA report [export]",
+                    ]
+                )
             self.ConsoleContextBox.Text = "\n".join(lines)
+            try:
+                self._render_console_visual_preview(refresh_context=False)
+            except:
+                pass
             return
         breakdown = context.get("selection_breakdown") or {}
         if breakdown:
@@ -17153,32 +17182,33 @@ class OllamaAIChat(forms.WPFWindow):
             lines.append("- {0}: {1}".format(name, count))
         lines.append("")
         lines.append("Safe suggested commands:")
-        for prompt in [
-            "show active view mep qa dashboard",
-            "scan all floor plan views for mep qa",
-            "show mep project issue index",
-            "export mep project issue index",
-            "export latest QA report",
-        ]:
-            lines.append("- {0}".format(prompt))
+        try:
+            lines.extend(self._console_safe_prompt_lines(context))
+        except:
+            lines.extend(
+                [
+                    "- show active view mep qa dashboard [report-only]",
+                    "- export mep project issue index [export]",
+                    "- export latest QA report [export]",
+                ]
+            )
         self.ConsoleContextBox.Text = "\n".join(lines)
         try:
-            self.ConsoleVisualBox.Text = (
-                "Visual Preview coming next\n\n"
-                "Visual Preview will show element cards, issue nodes, and view/context callouts in "
-                "AI-WORKBENCH-VISUAL-v1. No model data or UI selection is modified by this placeholder.\n\n"
-                "Current context: {0} [{1}], selection {2}, discipline {3}."
-            ).format(
-                context.get("active_view_name", "(unknown view)"),
-                context.get("active_view_type", "unavailable"),
-                context.get("selection_count", 0),
-                context.get("likely_discipline", "Unknown / Empty"),
-            )
+            self._render_console_visual_preview(refresh_context=False)
         except:
             pass
 
     def on_console_refresh_context(self, sender, args):
         self.refresh_console_context()
+
+    def on_console_refresh_visual_preview(self, sender, args):
+        try:
+            self._render_console_visual_preview(refresh_context=True)
+        except Exception as exc:
+            try:
+                self.ConsoleVisualBox.Text = "Visual Preview refresh failed: {0}".format(safe_str(exc))
+            except:
+                pass
 
     def _console_extract_result_summary(self, report_text):
         text = safe_str(report_text)
@@ -17750,6 +17780,212 @@ class OllamaAIChat(forms.WPFWindow):
             return {}, "unreadable"
         return {}, "unreadable"
 
+    def _console_visual_meaning_for_classification(self, classification, latest_status):
+        classification = safe_str(classification)
+        if latest_status == "missing":
+            return "No latest Console result yet. Start with Check this view."
+        if latest_status == "unreadable":
+            return "Latest Console result metadata exists but could not be read."
+        meanings = {
+            "MEP_QA_DASHBOARD_GREEN": "Active view has no detected MEP issue candidates.",
+            "MEP_SEL_SELECTION_OK": "Revit UI selection was changed for visual review only; model data was not modified.",
+            "MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT": "No matching selection candidates were found in the active view.",
+            "AI_WORKBENCH_CONTEXT_SUGGESTIONS_OK": "Context recommendations were generated; no commands were executed.",
+            "AI_WORKBENCH_RECIPE_PLANNER_OK": "Workflow recipe was generated; planned steps were not executed.",
+            "AI_WORKBENCH_CONSOLE_HISTORY_OK": "Console history was displayed; no model changes.",
+            "AI_WORKBENCH_LATEST_CONSOLE_RESULT_OK": "Latest result was displayed; no model changes.",
+            "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK": "Session summary files were exported; Revit model was not modified.",
+            "MEP_QA_ISSUEINDEX_EXPORT_OK": "Project-level MEP issue index export completed; Revit model was not modified.",
+            "QA_REPORT_EXPORT_COMPLETE": "Latest QA report was exported; Revit model data was not modified.",
+        }
+        if classification in meanings:
+            return meanings.get(classification)
+        if not classification or classification == "unavailable":
+            return "Latest result classification is unavailable."
+        if "NOT_READY" in classification or "UNSUPPORTED" in classification:
+            return "Latest result is diagnostic or not ready; no model action was performed."
+        if classification.endswith("_OK"):
+            return "Latest command completed successfully with no automatic follow-up action."
+        return "Review the latest result summary before choosing the next safe command."
+
+    def _console_visual_safety_summary(self, latest_result):
+        if not latest_result:
+            return "No command has been logged in the Console history."
+        return "Model modified: {0}; UI selection modified: {1}; External files written: {2}".format(
+            latest_result.get("model_modified", "unknown"),
+            latest_result.get("ui_selection_modified", "unknown"),
+            latest_result.get("external_files_written", "unknown"),
+        )
+
+    def _console_visual_issue_candidate_lines(self, latest_result, latest_status):
+        if latest_status != "available" or not latest_result:
+            return ["No latest Console result yet. Start with Check this view."]
+        classification = safe_str(latest_result.get("result_classification"))
+        lines = []
+        if classification.startswith("MEP_QA_DASHBOARD"):
+            lines.append("Dashboard status: {0}".format(classification or "unavailable"))
+            lines.append("Issue candidate count: {0}".format(latest_result.get("total_issue_candidates") or "unavailable"))
+            skipped = latest_result.get("total_skipped_unreadable_count")
+            if skipped:
+                lines.append("Skipped/unreadable count: {0}".format(skipped))
+        elif classification.startswith("MEP_SEL"):
+            lines.append("Selection result: {0}".format(classification or "unavailable"))
+            lines.append("Selected count: {0}".format(latest_result.get("selected_count") or "unavailable"))
+            lines.append("Candidate count: {0}".format(latest_result.get("candidate_count") or "unavailable"))
+        elif classification == "MEP_QA_ISSUEINDEX_EXPORT_OK":
+            lines.append("Issue-index export result: {0}".format(classification))
+            lines.append("Total issue candidates: {0}".format(latest_result.get("total_issue_candidates") or "unavailable"))
+            lines.append("Generated files count: {0}".format(latest_result.get("generated_files_count") or "unavailable"))
+        elif classification.startswith("AI_WORKBENCH_CONTEXT_SUGGESTIONS"):
+            lines.append("Suggestions result: {0}".format(classification))
+            lines.append("Suggestions count: {0}".format(latest_result.get("candidate_count") or "see report"))
+        elif classification.startswith("AI_WORKBENCH_RECIPE_PLANNER"):
+            lines.append("Recipe result: {0}".format(classification))
+            lines.append("Planned steps count: {0}".format(latest_result.get("candidate_count") or "see report"))
+        else:
+            lines.append("Latest result status: {0}".format(classification or "unavailable"))
+            warnings = latest_result.get("warnings")
+            if warnings:
+                lines.append("Warnings: {0}".format(warnings))
+        return lines or ["No issue/candidate details were available in latest metadata."]
+
+    def _console_visual_recommended_prompt(self, context, latest_result, latest_status):
+        classification = safe_str((latest_result or {}).get("result_classification"))
+        if latest_status != "available" or not classification or classification == "unavailable":
+            return "show active view mep qa dashboard"
+        if classification == "MEP_QA_DASHBOARD_GREEN":
+            return "export mep project issue index"
+        if classification == "MEP_QA_ISSUEINDEX_EXPORT_OK":
+            return "export latest QA report"
+        if classification in ("QA_REPORT_EXPORT_COMPLETE", "AI_WORKBENCH_QA_EXPORT_OK"):
+            return "export ai workbench console session summary"
+        if classification.startswith("MEP_SEL"):
+            return "show active view mep qa dashboard"
+        if classification.startswith("AI_WORKBENCH_CONTEXT_SUGGESTIONS"):
+            return "create mep qa evidence recipe"
+        if classification.startswith("AI_WORKBENCH_RECIPE_PLANNER"):
+            return "show active view mep qa dashboard"
+        if classification.startswith("AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT"):
+            return "show active view mep qa dashboard"
+        return "show active view mep qa dashboard"
+
+    def _console_visual_prompt_safety(self, prompt):
+        item = self._console_catalog_item_for_prompt(prompt)
+        entry = (item or {}).get("entry") or {}
+        safety = self._console_safety_class(entry)
+        return safety, "true" if safety == "selection-only" else "false"
+
+    def _console_safe_prompt_lines(self, context):
+        records, malformed, history_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        suggestions, latest_export_folder = self._console_context_suggestions(context, latest_result, records)
+        if not suggestions:
+            fallback = [
+                "show active view mep qa dashboard",
+                "select all pipes in active view",
+                "select unconnected pipe fittings",
+                "export mep project issue index",
+                "export latest QA report",
+                "export ai workbench console session summary",
+            ]
+            suggestions = []
+            for prompt in fallback:
+                safety, requires_confirmation = self._console_visual_prompt_safety(prompt)
+                if safety in ("report-only", "selection-only", "export", "bundle"):
+                    suggestions.append({"prompt": prompt, "safety_class": safety})
+        lines = []
+        for suggestion in suggestions[:6]:
+            prompt = suggestion.get("prompt")
+            safety = suggestion.get("safety_class") or self._console_visual_prompt_safety(prompt)[0]
+            if safety in ("report-only", "selection-only", "export", "bundle"):
+                lines.append("- {0} [{1}]".format(prompt, safety))
+        return lines or ["- show active view mep qa dashboard [report-only]"]
+
+    def _console_visual_preview_state(self, refresh_context=True):
+        context = self.refresh_console_context() if refresh_context else (self.console_last_context or {})
+        latest_result, latest_status = self._console_latest_result_metadata()
+        recommended_prompt = self._console_visual_recommended_prompt(context, latest_result, latest_status)
+        recommended_safety, recommended_requires_confirmation = self._console_visual_prompt_safety(recommended_prompt)
+        state = {
+            "context": context,
+            "latest_result": latest_result,
+            "latest_status": latest_status,
+            "meaning": self._console_visual_meaning_for_classification(latest_result.get("result_classification"), latest_status),
+            "safety_summary": self._console_visual_safety_summary(latest_result),
+            "issue_lines": self._console_visual_issue_candidate_lines(latest_result, latest_status),
+            "recommended_prompt": recommended_prompt,
+            "recommended_safety": recommended_safety,
+            "recommended_requires_confirmation": recommended_requires_confirmation,
+            "safe_prompt_lines": self._console_safe_prompt_lines(context),
+        }
+        self.console_visual_preview_state = state
+        return state
+
+    def _console_visual_preview_text(self, state):
+        context = state.get("context") or {}
+        latest = state.get("latest_result") or {}
+        counts = context.get("category_counts") or {}
+        nonzero_counts = ["- {0}: {1}".format(name, counts.get(name)) for name in sorted(counts.keys()) if counts.get(name)]
+        lines = [
+            "View Context",
+            "- Document: {0}".format(context.get("document_title", _document_title(doc))),
+            "- Active view: {0} [{1}]".format(context.get("active_view_name", _active_view_title(doc, uidoc)), context.get("active_view_type", "unavailable")),
+            "- Discipline: {0}".format(context.get("likely_discipline", "Unknown / Empty")),
+            "- Current UI selection count: {0}".format(context.get("selection_count", 0)),
+            "- Quick counts summary:",
+        ]
+        lines.extend(nonzero_counts or ["- none"])
+        lines.extend(
+            [
+                "",
+                "Latest Result",
+                "- Latest feature ID: {0}".format(latest.get("feature_id", "unavailable")),
+                "- Latest result classification: {0}".format(latest.get("result_classification", "unavailable")),
+                "- Latest prompt: {0}".format(latest.get("source_prompt", "unavailable")),
+                "- Meaning: {0}".format(state.get("meaning")),
+                "- Safety summary: {0}".format(state.get("safety_summary")),
+                "- Export folder: {0}".format(latest.get("export_folder") or "unavailable"),
+                "",
+                "Issues / Candidates",
+            ]
+        )
+        lines.extend(["- {0}".format(line) if not safe_str(line).startswith("-") else line for line in state.get("issue_lines") or []])
+        lines.extend(
+            [
+                "",
+                "Safe Next Action",
+                "- Recommended prompt: {0}".format(state.get("recommended_prompt")),
+                "- Safety class: {0}".format(state.get("recommended_safety")),
+                "- Requires confirmation: {0}".format(state.get("recommended_requires_confirmation")),
+                "- Auto-run: false",
+                "",
+                "Safe suggested commands:",
+            ]
+        )
+        lines.extend(state.get("safe_prompt_lines") or ["- show active view mep qa dashboard [report-only]"])
+        lines.extend(
+            [
+                "",
+                "Safety:",
+                "- Read-only visual/context preview.",
+                "- No transaction opened.",
+                "- No model data modified.",
+                "- No UI selection modified by this feature.",
+                "- No active view changed.",
+            ]
+        )
+        return "\n".join([safe_str(line) for line in lines])
+
+    def _render_console_visual_preview(self, refresh_context=False):
+        if not hasattr(self, "ConsoleVisualBox"):
+            return {}
+        state = self._console_visual_preview_state(refresh_context=refresh_context)
+        try:
+            self.ConsoleVisualBox.Text = self._console_visual_preview_text(state)
+        except:
+            pass
+        return state
+
     def _console_add_context_suggestion(self, suggestions, prompts, reason, expected_output, uses_current_context):
         prompt, item = self._console_first_available_prompt(prompts)
         if not prompt or not item:
@@ -17971,6 +18207,163 @@ class OllamaAIChat(forms.WPFWindow):
         report = "\n".join([safe_str(line) for line in lines])
         self.remember_latest_deterministic_report(prompt, report)
         return report
+
+    def _console_visual_preview_report(self, prompt):
+        state = self._console_visual_preview_state(refresh_context=True)
+        context = state.get("context") or {}
+        latest = state.get("latest_result") or {}
+        counts = context.get("category_counts") or {}
+        nonzero_counts = ["- {0}: {1}".format(name, counts.get(name)) for name in sorted(counts.keys()) if counts.get(name)]
+        visual_cards = ["View Context", "Latest Result", "Issues / Candidates", "Safe Next Action"]
+        lines = [
+            "[AI WORKBENCH VISUAL PREVIEW REPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-VISUAL-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Visual Preview v1",
+            "",
+            "Action name:",
+            "Show read-only active context visual preview status",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            "AI_WORKBENCH_VISUAL_PREVIEW_OK",
+            "",
+            "Active document title:",
+            context.get("document_title", _document_title(doc)),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(context.get("active_view_name", _active_view_title(doc, uidoc)), context.get("active_view_type", "unavailable")),
+            "",
+            "Detected context discipline:",
+            context.get("likely_discipline", "Unknown / Empty"),
+            "",
+            "Current UI selection count:",
+            context.get("selection_count", 0),
+            "",
+            "Active-view quick counts:",
+        ]
+        lines.extend(nonzero_counts or ["- none"])
+        lines.extend(
+            [
+                "",
+                "Latest feature ID:",
+                latest.get("feature_id", "unavailable"),
+                "",
+                "Latest result classification:",
+                latest.get("result_classification", "unavailable"),
+                "",
+                "Latest prompt:",
+                latest.get("source_prompt", "unavailable"),
+                "",
+                "Latest result meaning:",
+                state.get("meaning", "unavailable"),
+                "",
+                "Latest safety summary:",
+                state.get("safety_summary", "unavailable"),
+                "",
+                "Latest export folder:",
+                latest.get("export_folder") or "unavailable",
+                "",
+                "Issue / candidate summary:",
+            ]
+        )
+        lines.extend(["- {0}".format(line) if not safe_str(line).startswith("-") else line for line in state.get("issue_lines") or []])
+        lines.extend(
+            [
+                "",
+                "Visual cards generated count:",
+                len(visual_cards),
+                "",
+                "Visual cards:",
+            ]
+        )
+        lines.extend(["- {0}".format(card) for card in visual_cards])
+        lines.extend(
+            [
+                "",
+                "Recommended next prompt:",
+                state.get("recommended_prompt", "show active view mep qa dashboard"),
+                "",
+                "Recommended next safety class:",
+                state.get("recommended_safety", "report-only"),
+                "",
+                "Recommended next requires confirmation:",
+                state.get("recommended_requires_confirmation", "false"),
+                "",
+                "Recommended next auto-run:",
+                "false",
+                "",
+                "Safe suggested commands:",
+            ]
+        )
+        lines.extend(state.get("safe_prompt_lines") or ["- show active view mep qa dashboard [report-only]"])
+        lines.extend(
+            [
+                "",
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+                "",
+                "Safety:",
+                "- Visual Preview is a read-only UI/context summary.",
+                "- Suggested commands are displayed only; they are not executed by this report.",
+                "- The panel does not change Revit model data, selection, or active view.",
+            ]
+        )
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        try:
+            self._render_console_visual_preview(refresh_context=False)
+        except:
+            pass
+        return report
+
+    def answer_ai_workbench_visual_preview_question(self, prompt):
+        if not _is_ai_workbench_visual_preview_status_prompt(prompt):
+            return None
+        try:
+            return self._console_visual_preview_report(prompt)
+        except Exception as exc:
+            lines = [
+                "[AI WORKBENCH VISUAL PREVIEW REPORT]",
+                "",
+                "Feature ID:",
+                "AI-WORKBENCH-VISUAL-v1",
+                "",
+                "Feature name:",
+                "AI Workbench Visual Preview v1",
+                "",
+                "Prompt:",
+                safe_str(prompt),
+                "",
+                "Result classification:",
+                "AI_WORKBENCH_VISUAL_PREVIEW_FAILED",
+                "",
+                "Warnings:",
+                "- {0}".format(safe_str(exc)),
+                "",
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+            ]
+            report = "\n".join([safe_str(line) for line in lines])
+            self.remember_latest_deterministic_report(prompt, report)
+            return report
 
     def answer_ai_workbench_context_suggestions_question(self, prompt):
         if not _is_ai_workbench_context_suggestions_prompt(prompt):
@@ -19118,6 +19511,10 @@ class OllamaAIChat(forms.WPFWindow):
             self._console_update_guided_coach_from_report(report_text)
         except:
             pass
+        try:
+            self._render_console_visual_preview(refresh_context=False)
+        except:
+            pass
 
     def on_console_clear_result(self, sender, args):
         try:
@@ -19248,7 +19645,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-SAFE-CATALOG-VIEW-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-VISUAL-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -19256,7 +19653,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-SAFE-CATALOG-VIEW-v1",
+            "AI-WORKBENCH-VISUAL-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -19276,9 +19673,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1",
             "AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1",
             "AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1",
+            "AI-WORKBENCH-SAFE-CATALOG-VIEW-v1",
             "",
             "Feature name:",
-            "AI Workbench Safe Catalog View v1",
+            "AI Workbench Visual Preview v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -19296,6 +19694,13 @@ class OllamaAIChat(forms.WPFWindow):
             "Context BuiltInCategory bug fixed: true",
             "Invalid BuiltInCategory guard active: true",
             "Unsupported prompt guard active: true",
+            "Visual Preview panel enabled: true",
+            "Visual Preview read-only: true",
+            "Visual Preview auto-refresh after command: true",
+            "Visual Preview refresh button available: true",
+            "Visual Preview writes files: false",
+            "Visual Preview modifies UI selection: false",
+            "Visual Preview modifies model: false",
             "Safe catalog filter enabled: true",
             "Advanced Commands hidden by default: true",
             "Advanced Commands currently visible: {0}".format(str(self._console_advanced_commands_visible()).lower()),
@@ -19305,6 +19710,7 @@ class OllamaAIChat(forms.WPFWindow):
             "Advanced Commands bypass safety: false",
             "Legacy split commands hidden in safe mode: true",
             "Exact alias priority enabled: true",
+            "Exact latest-result alias priority enabled: true",
             "Latest-result alias target: AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
             "Generic latest-result prompts blocked from split visual review: true",
             "Selection confirmation isolated to selection-only commands: true",
@@ -43215,36 +43621,41 @@ class OllamaAIChat(forms.WPFWindow):
                 ai_workbench_console_history_viewer_reply = self.answer_ai_workbench_console_history_viewer_question(
                     prompt
                 )
-            ai_workbench_context_suggestions_reply = None
+            ai_workbench_visual_preview_reply = None
             if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None:
+                ai_workbench_visual_preview_reply = self.answer_ai_workbench_visual_preview_question(
+                    prompt
+                )
+            ai_workbench_context_suggestions_reply = None
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None:
                 ai_workbench_context_suggestions_reply = self.answer_ai_workbench_context_suggestions_question(
                     prompt
                 )
             ai_workbench_recipe_planner_reply = None
-            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None:
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None:
                 ai_workbench_recipe_planner_reply = self.answer_ai_workbench_recipe_planner_question(
                     prompt
                 )
             ai_workbench_recipe_navigator_reply = None
-            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None:
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None:
                 ai_workbench_recipe_navigator_reply = self.answer_ai_workbench_recipe_navigator_question(
                     prompt
                 )
             ai_workbench_guided_start_help_reply = None
-            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None:
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None:
                 ai_workbench_guided_start_help_reply = self.answer_ai_workbench_guided_start_help_question(
                     prompt
                 )
             ai_workbench_guided_coach_reply = None
-            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None:
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None:
                 ai_workbench_guided_coach_reply = self.answer_ai_workbench_guided_coach_question(
                     prompt
                 )
             mep_qa_issueindex_export_v1_reply = self.answer_mep_qa_issueindex_export_v1_question(
                 prompt
-            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None and ai_workbench_guided_coach_reply is None else None
+            ) if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None and ai_workbench_guided_coach_reply is None else None
             mep_qa_issueindex_v1_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None and ai_workbench_guided_coach_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_context_suggestions_reply is None and ai_workbench_recipe_planner_reply is None and ai_workbench_recipe_navigator_reply is None and ai_workbench_guided_start_help_reply is None and ai_workbench_guided_coach_reply is None:
                 mep_qa_issueindex_v1_reply = self.answer_mep_qa_issueindex_v1_question(
                     prompt
                 )
@@ -43349,6 +43760,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif ai_workbench_console_history_viewer_reply is not None:
                 reply = ai_workbench_console_history_viewer_reply
+                preserve_latest_report_state = True
+            elif ai_workbench_visual_preview_reply is not None:
+                reply = ai_workbench_visual_preview_reply
                 preserve_latest_report_state = True
             elif ai_workbench_context_suggestions_reply is not None:
                 reply = ai_workbench_context_suggestions_reply
