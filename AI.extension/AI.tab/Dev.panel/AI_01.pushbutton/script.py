@@ -15597,7 +15597,7 @@ class OllamaAIChat(forms.WPFWindow):
         shell_status_row = WrapPanel()
         shell_status_row.Margin = Wpf.Thickness(0, 0, 0, 5)
         shell_status = TextBlock()
-        shell_status.Text = "Console is the main guided workflow. Advanced tabs are hidden by default."
+        shell_status.Text = "Console shows safe commands by default. Advanced Commands and Advanced Tabs are hidden unless enabled."
         shell_status.TextWrapping = Wpf.TextWrapping.Wrap
         shell_status.Foreground = self._brush("#334155")
         shell_status.Margin = Wpf.Thickness(0, 3, 10, 2)
@@ -15607,9 +15607,23 @@ class OllamaAIChat(forms.WPFWindow):
         advanced_tabs_button.Margin = Wpf.Thickness(0, 0, 6, 2)
         advanced_tabs_button.ToolTip = "Show or hide legacy/experimental tabs: Ollama Chat, AI Agent, and ModelMind."
         advanced_tabs_button.Click += self.on_console_toggle_legacy_tabs
+        advanced_commands_button = Button()
+        advanced_commands_button.Content = "Show Advanced Commands"
+        advanced_commands_button.Height = 24
+        advanced_commands_button.Margin = Wpf.Thickness(0, 0, 6, 2)
+        advanced_commands_button.ToolTip = "Show or hide legacy/reviewed/model-write commands in the Console command tree and autocomplete."
+        advanced_commands_button.Click += self.on_console_toggle_advanced_commands
         shell_status_row.Children.Add(shell_status)
+        shell_status_row.Children.Add(advanced_commands_button)
         shell_status_row.Children.Add(advanced_tabs_button)
         header_stack.Children.Add(shell_status_row)
+        advanced_commands_warning = TextBlock()
+        advanced_commands_warning.Text = "Advanced commands are visible for development review. Reviewed/model-write commands remain guarded."
+        advanced_commands_warning.TextWrapping = Wpf.TextWrapping.Wrap
+        advanced_commands_warning.Foreground = self._brush("#b45309")
+        advanced_commands_warning.Margin = Wpf.Thickness(0, 0, 0, 5)
+        advanced_commands_warning.Visibility = Wpf.Visibility.Collapsed
+        header_stack.Children.Add(advanced_commands_warning)
         guided_toggle_button = Button()
         guided_toggle_button.Content = "Hide Guided Start"
         guided_toggle_button.Height = 22
@@ -16103,6 +16117,9 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleUtilityControlsMiniLabel = utility_mini
         self.ConsoleUtilityControlsToggleButton = utility_toggle_button
         self.ConsoleUtilityControlsVisible = False
+        self.ConsoleAdvancedCommandsToggleButton = advanced_commands_button
+        self.ConsoleAdvancedCommandsWarning = advanced_commands_warning
+        self.ConsoleAdvancedCommandsVisible = False
         self.ConsoleHistoryLabel = history_label
         self.ConsoleNavigatorLabel = navigator_label
         self.ConsoleSelectionCard = selection_card
@@ -16119,6 +16136,7 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             self.MainTabs.Items.Add(tab)
         self._set_console_legacy_tabs_visible(False)
+        self._set_console_advanced_commands_visible(False)
         self._set_console_utility_controls_visible(False)
         self.populate_console_command_tree()
         self._set_console_advanced_visible(False)
@@ -16197,6 +16215,91 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_may_run(self, entry):
         safety = self._console_safety_class(entry)
         return safety in ("report-only", "export", "bundle", "selection-only")
+
+    def _console_advanced_commands_visible(self):
+        return bool(getattr(self, "ConsoleAdvancedCommandsVisible", False))
+
+    def _console_entry_is_reviewed_or_legacy(self, entry):
+        if not entry:
+            return True
+        feature_id = self._console_entry_feature_id(entry).lower()
+        prompt = safe_str(entry.get("canonical_prompt") or entry.get("prompt_text") or "").lower()
+        handler = safe_str(entry.get("deterministic_handler") or "").lower()
+        group = safe_str(entry.get("group") or "").lower()
+        category = safe_str(entry.get("category") or "").lower()
+        role = safe_str(entry.get("role") or "").lower()
+        scope = safe_str(entry.get("scope_type") or "").lower()
+        title = safe_str(entry.get("title") or entry.get("feature_name") or "").lower()
+        if entry.get("requires_confirmation"):
+            return True
+        if role in ("write", "modify", "reviewed_apply", "reviewed_rollback_test"):
+            return True
+        if "reviewed" in group or "reviewed" in title or "reviewed" in prompt:
+            return True
+        if feature_id.startswith("split-") or handler.startswith("split_") or "split workflow" in prompt:
+            return True
+        if feature_id.startswith("mep-wr") or handler.startswith("mep_wr"):
+            return True
+        if feature_id.startswith("coord-wr") or "link reset" in title or "link reset" in group:
+            return True
+        if "legacy" in category or "legacy" in group or "internal" in group or "internal" in scope:
+            return True
+        return False
+
+    def _console_item_visible_in_safe_catalog(self, item):
+        if self._console_advanced_commands_visible():
+            return True
+        entry = (item or {}).get("entry") or item or {}
+        safety = self._console_safety_class(entry)
+        if safety not in ("report-only", "export", "bundle", "selection-only"):
+            return False
+        if self._console_entry_is_reviewed_or_legacy(entry):
+            return False
+        return True
+
+    def _console_visible_command_index(self):
+        if self._console_advanced_commands_visible():
+            return list(self.console_command_index or [])
+        return [item for item in (self.console_command_index or []) if self._console_item_visible_in_safe_catalog(item)]
+
+    def _console_find_hidden_exact_item(self, normalized_prompt):
+        if not normalized_prompt or self._console_advanced_commands_visible():
+            return None
+        for item in self.console_command_index or []:
+            if item.get("normalized") == normalized_prompt and not self._console_item_visible_in_safe_catalog(item):
+                hidden = dict(item)
+                hidden["hidden_by_safe_catalog"] = True
+                hidden["confidence"] = "blocked"
+                hidden["score"] = 0
+                return hidden
+        return None
+
+    def _console_find_hidden_advanced_intent_item(self, normalized_prompt):
+        if not normalized_prompt or self._console_advanced_commands_visible():
+            return None
+        legacy_split_terms = ("split", "pipe split", "split result", "split workflow", "split memory")
+        reviewed_terms = ("reviewed", "apply", "persistent", "rollback", "preflight", "visual review")
+        has_split_intent = any(term in normalized_prompt for term in legacy_split_terms)
+        has_reviewed_intent = any(term in normalized_prompt for term in reviewed_terms)
+        if not (has_split_intent and has_reviewed_intent):
+            return None
+        preferred_ids = (
+            "split-result-visual-review",
+            "split-workflow-session-state",
+            "split-workflow-actionability-state",
+            "split-selected-pipe-reviewed-apply",
+        )
+        for preferred_id in preferred_ids:
+            for item in self.console_command_index or []:
+                entry = item.get("entry") or {}
+                if safe_str(entry.get("id") or "").strip().lower() == preferred_id:
+                    hidden = dict(item)
+                    hidden["prompt"] = normalized_prompt
+                    hidden["hidden_by_safe_catalog"] = True
+                    hidden["confidence"] = "blocked"
+                    hidden["score"] = 0
+                    return hidden
+        return None
 
     def _console_confirmed_selection_dispatch_prompt(self, prompt, entry):
         """Map confirmed console selection aliases to existing MEP-SEL-v1 prompts."""
@@ -16332,6 +16435,26 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             pass
 
+    def _set_console_advanced_commands_visible(self, visible):
+        import System.Windows as Wpf
+        self.ConsoleAdvancedCommandsVisible = bool(visible)
+        try:
+            self.ConsoleAdvancedCommandsToggleButton.Content = "Hide Advanced Commands" if visible else "Show Advanced Commands"
+        except:
+            pass
+        try:
+            self.ConsoleAdvancedCommandsWarning.Visibility = Wpf.Visibility.Visible if visible else Wpf.Visibility.Collapsed
+        except:
+            pass
+        try:
+            self.populate_console_command_tree()
+        except:
+            pass
+        try:
+            self.update_console_suggestions()
+        except:
+            pass
+
     def on_console_toggle_utility_controls(self, sender, args):
         try:
             self._set_console_utility_controls_visible(not bool(getattr(self, "ConsoleUtilityControlsVisible", False)))
@@ -16341,6 +16464,12 @@ class OllamaAIChat(forms.WPFWindow):
     def on_console_toggle_legacy_tabs(self, sender, args):
         try:
             self._set_console_legacy_tabs_visible(not bool(getattr(self, "ConsoleLegacyTabsVisible", False)))
+        except:
+            pass
+
+    def on_console_toggle_advanced_commands(self, sender, args):
+        try:
+            self._set_console_advanced_commands_visible(not bool(getattr(self, "ConsoleAdvancedCommandsVisible", False)))
         except:
             pass
 
@@ -16532,8 +16661,9 @@ class OllamaAIChat(forms.WPFWindow):
                 "export latest QA report",
             ]
             suggestions = []
+            visible_index = self._console_visible_command_index()
             for prompt in preferred:
-                for item in self.console_command_index:
+                for item in visible_index:
                     if item["normalized"] == self._console_normalize(prompt):
                         candidate = dict(item)
                         candidate["confidence"] = "recommended"
@@ -16543,7 +16673,7 @@ class OllamaAIChat(forms.WPFWindow):
         terms = self._console_meaningful_tokens(norm)
         dangerous = self._console_has_dangerous_unknown_intent(norm)
         ranked = []
-        for item in self.console_command_index:
+        for item in self._console_visible_command_index():
             candidate = item.get("normalized", "")
             score = 0
             confidence = "none"
@@ -16595,7 +16725,12 @@ class OllamaAIChat(forms.WPFWindow):
         except:
             pass
         self._set_console_safety_badge(resolved)
-        if suggestions:
+        if resolved and resolved.get("hidden_by_safe_catalog"):
+            self.ConsoleSuggestionList.Items.Add("Advanced/reviewed command hidden in safe Console mode.")
+            self.ConsoleSuggestionList.Items.Add("Enable Advanced Commands only for development review.")
+            self.ConsoleSuggestionList.Items.Add("Run is disabled; no command dispatch will occur.")
+            self.update_console_preview(resolved)
+        elif suggestions:
             if not strong:
                 self.ConsoleSuggestionList.Items.Add("Did you mean? Low-confidence matches only; Tab and Run will not auto-resolve.")
             for item in suggestions:
@@ -16626,6 +16761,12 @@ class OllamaAIChat(forms.WPFWindow):
                 exact["score"] = 1200
                 return exact
         if norm:
+            hidden = self._console_find_hidden_exact_item(norm)
+            if hidden:
+                return hidden
+            hidden = self._console_find_hidden_advanced_intent_item(norm)
+            if hidden:
+                return hidden
             for item in self.console_command_index:
                 if item.get("normalized") == norm:
                     exact = dict(item)
@@ -16642,6 +16783,8 @@ class OllamaAIChat(forms.WPFWindow):
         if suggestion:
             safety = self._console_safety_class(suggestion.get("entry") or {})
             enabled = self._console_may_run(suggestion.get("entry") or {})
+            if suggestion.get("hidden_by_safe_catalog"):
+                enabled = False
             if safety == "selection-only":
                 try:
                     enabled = enabled and bool(self.ConsoleSelectionConfirm.IsChecked)
@@ -16693,6 +16836,34 @@ class OllamaAIChat(forms.WPFWindow):
         safety = self._console_safety_class(entry)
         group, subgroup = self._console_group_path(entry)
         prompt_text = suggestion.get("prompt") or entry.get("canonical_prompt") or entry.get("prompt_text") or ""
+        if suggestion.get("hidden_by_safe_catalog"):
+            self.ConsolePreviewBox.Text = "\n".join(
+                [
+                    "Resolved command: {0}".format(prompt_text),
+                    "Feature ID: {0}".format(self._console_entry_feature_id(entry)),
+                    "Feature name: {0}".format(entry.get("title") or entry.get("feature_name") or "(catalog command)"),
+                    "Group: {0} / {1}".format(group, subgroup),
+                    "Safety class: {0}".format(safety),
+                    "",
+                    "Result classification: AI_WORKBENCH_SAFE_CATALOG_HIDDEN_ADVANCED_COMMAND",
+                    "",
+                    "Advanced/reviewed command hidden in safe Console mode. Enable Advanced Commands only for development review.",
+                    "",
+                    "Run enabled: false",
+                    "May modify model: false",
+                    "May modify UI selection: false",
+                    "May change active view: false",
+                    "May write external files: false",
+                    "",
+                    "Safety:",
+                    "- No command dispatch from this preview.",
+                    "- No Revit transaction.",
+                    "- No model mutation.",
+                    "- No active view switch.",
+                    "- No UI selection modification.",
+                ]
+            )
+            return
         modifies_model = safety == "model-write"
         modifies_selection = safety == "selection-only"
         writes_external = safety in ("export", "bundle")
@@ -16744,7 +16915,7 @@ class OllamaAIChat(forms.WPFWindow):
         from System.Windows.Controls import TreeViewItem
         self.ConsoleCommandTree.Items.Clear()
         grouped = {}
-        for item in self.console_command_index:
+        for item in self._console_visible_command_index():
             entry = item.get("entry") or {}
             canonical = safe_str(entry.get("canonical_prompt") or entry.get("prompt_text") or item.get("prompt"))
             if item.get("prompt") != canonical:
@@ -19077,7 +19248,7 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
-        report_id = "AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        report_id = "AI-WORKBENCH-SAFE-CATALOG-VIEW-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
             "",
@@ -19085,7 +19256,7 @@ class OllamaAIChat(forms.WPFWindow):
             report_id,
             "",
             "Feature ID:",
-            "AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1",
+            "AI-WORKBENCH-SAFE-CATALOG-VIEW-v1",
             "",
             "Previous console layers:",
             "AI-WORKBENCH-CONSOLE-v1",
@@ -19104,9 +19275,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-CONSOLE-LAYOUT-POLISH-v1",
             "AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1",
             "AI-WORKBENCH-CONSOLE-SHELL-SIMPLIFY-v1",
+            "AI-WORKBENCH-ALIAS-ROUTE-HARDENING-v1",
             "",
             "Feature name:",
-            "AI Workbench Alias Route Hardening v1",
+            "AI Workbench Safe Catalog View v1",
             "",
             "Prompt:",
             safe_str(prompt),
@@ -19124,6 +19296,14 @@ class OllamaAIChat(forms.WPFWindow):
             "Context BuiltInCategory bug fixed: true",
             "Invalid BuiltInCategory guard active: true",
             "Unsupported prompt guard active: true",
+            "Safe catalog filter enabled: true",
+            "Advanced Commands hidden by default: true",
+            "Advanced Commands currently visible: {0}".format(str(self._console_advanced_commands_visible()).lower()),
+            "Model-write commands hidden by default: true",
+            "Reviewed-action commands hidden by default: true",
+            "Advanced Commands toggle available: true",
+            "Advanced Commands bypass safety: false",
+            "Legacy split commands hidden in safe mode: true",
             "Exact alias priority enabled: true",
             "Latest-result alias target: AI-WORKBENCH-CONSOLE-HISTORY-VIEWER-v1",
             "Generic latest-result prompts blocked from split visual review: true",
@@ -19252,6 +19432,18 @@ class OllamaAIChat(forms.WPFWindow):
         entry = suggestion.get("entry") or {}
         prompt = suggestion.get("prompt") or prompt
         safety = self._console_safety_class(entry)
+        if suggestion.get("hidden_by_safe_catalog"):
+            report = self._console_report(
+                source_prompt,
+                "AI_WORKBENCH_SAFE_CATALOG_HIDDEN_ADVANCED_COMMAND",
+                [
+                    "Advanced/reviewed command hidden in safe Console mode. Enable Advanced Commands only for development review.",
+                    "Run disabled by safe catalog resolver guard.",
+                    "No command dispatch occurred.",
+                ],
+            )
+            self._console_render_full_result(report)
+            return
         if safety == "selection-only":
             try:
                 if not bool(self.ConsoleSelectionConfirm.IsChecked):
