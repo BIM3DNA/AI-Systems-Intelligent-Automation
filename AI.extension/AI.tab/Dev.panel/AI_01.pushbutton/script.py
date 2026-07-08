@@ -17813,7 +17813,107 @@ class OllamaAIChat(forms.WPFWindow):
             return {}, "unreadable"
         return {}, "unreadable"
 
-    def _console_next_step_result(self, prompt, reason, context, latest_result, latest_status, status="resolved", source="AI-WORKBENCH-NEXT-STEP-ENGINE-v1"):
+    def _console_is_workflow_anchor_meta_result(self, record):
+        record = record or {}
+        classification = safe_str(record.get("result_classification")).upper()
+        feature_id = safe_str(record.get("feature_id"))
+        feature_lower = feature_id.lower()
+        prompt_text = safe_str(record.get("source_prompt") or record.get("resolved_prompt"))
+        normalized_prompt = self._console_normalize(prompt_text)
+        meta_classifications = set(
+            [
+                "AI_WORKBENCH_NEXT_STEP_OK",
+                "AI_WORKBENCH_VISUAL_PREVIEW_OK",
+                "AI_WORKBENCH_LATEST_CONSOLE_RESULT_OK",
+                "AI_WORKBENCH_CONSOLE_HISTORY_VIEWER_OK",
+                "AI_WORKBENCH_CONSOLE_HISTORY_OK",
+                "AI_WORKBENCH_STATUS_OK",
+                "AI_WORKBENCH_DEBUG_STATUS_OK",
+            ]
+        )
+        if classification in meta_classifications:
+            return True
+        if feature_lower == "ai-workbench-next-step-engine-v1":
+            return True
+        if feature_lower == "ai-workbench-visual-v1" and normalized_prompt in AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES:
+            return True
+        if feature_lower == "ai-workbench-console-history-viewer-v1":
+            if normalized_prompt in AI_WORKBENCH_CONSOLE_HISTORY_VIEWER_ROUTES:
+                return True
+            if normalized_prompt in AI_WORKBENCH_CONSOLE_LATEST_RESULT_ROUTES:
+                return True
+        return False
+
+    def _console_workflow_anchor_from_record(self, record, source, anchor_found, skipped_count, skipped_sample, raw_latest):
+        record = record or {}
+        raw_latest = raw_latest or {}
+        return {
+            "anchor_found": bool(anchor_found),
+            "anchor_feature_id": safe_str(record.get("feature_id") or "unavailable"),
+            "anchor_result_classification": safe_str(record.get("result_classification") or "unavailable"),
+            "anchor_prompt": safe_str(record.get("source_prompt") or record.get("resolved_prompt") or "unavailable"),
+            "anchor_timestamp": safe_str(record.get("timestamp") or "unavailable"),
+            "anchor_export_folder": safe_str(record.get("export_folder") or "unavailable"),
+            "anchor_source": safe_str(source),
+            "skipped_meta_results_count": int(skipped_count or 0),
+            "skipped_meta_results_sample": list(skipped_sample or []),
+            "raw_latest_feature_id": safe_str(raw_latest.get("feature_id") or "unavailable"),
+            "raw_latest_result_classification": safe_str(raw_latest.get("result_classification") or "unavailable"),
+            "raw_latest_prompt": safe_str(raw_latest.get("source_prompt") or raw_latest.get("resolved_prompt") or "unavailable"),
+        }
+
+    def resolve_latest_workflow_anchor(self, history_records=None, latest_result=None):
+        raw_latest = latest_result or {}
+        candidates = []
+        if raw_latest:
+            candidates.append(("raw_latest", raw_latest))
+        for record in reversed(history_records or []):
+            if isinstance(record, dict):
+                candidates.append(("history", record))
+        seen = set()
+        skipped_count = 0
+        skipped_sample = []
+        first_record = raw_latest or ((history_records or [])[-1] if history_records else {})
+        for source, record in candidates:
+            key = "|".join(
+                [
+                    safe_str(record.get("timestamp")),
+                    safe_str(record.get("feature_id")),
+                    safe_str(record.get("result_classification")),
+                    safe_str(record.get("source_prompt") or record.get("resolved_prompt")),
+                ]
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            if self._console_is_workflow_anchor_meta_result(record):
+                skipped_count += 1
+                if len(skipped_sample) < 5:
+                    skipped_sample.append(
+                        "{0} / {1}".format(
+                            safe_str(record.get("result_classification") or record.get("feature_id") or "unavailable"),
+                            safe_str(record.get("source_prompt") or record.get("resolved_prompt") or "unavailable"),
+                        )
+                    )
+                continue
+            return self._console_workflow_anchor_from_record(
+                record,
+                source,
+                True,
+                skipped_count,
+                skipped_sample,
+                raw_latest,
+            )
+        return self._console_workflow_anchor_from_record(
+            first_record,
+            "raw_latest_fallback" if first_record else "unavailable",
+            False,
+            skipped_count,
+            skipped_sample,
+            raw_latest,
+        )
+
+    def _console_next_step_result(self, prompt, reason, context, latest_result, latest_status, status="resolved", source="AI-WORKBENCH-NEXT-STEP-ENGINE-v1", anchor_state=None):
         safety, requires_confirmation = self._console_visual_prompt_safety(prompt)
         if safety not in ("report-only", "selection-only", "export", "bundle"):
             prompt = "show active view mep qa dashboard"
@@ -17821,7 +17921,7 @@ class OllamaAIChat(forms.WPFWindow):
             safety = "report-only"
             requires_confirmation = "false"
             status = "fallback_safe_baseline"
-        return {
+        result = {
             "prompt": prompt,
             "reason": reason,
             "safety_class": safety,
@@ -17841,6 +17941,25 @@ class OllamaAIChat(forms.WPFWindow):
             "discipline": (context or {}).get("likely_discipline", "Unknown / Empty"),
             "selection_count": (context or {}).get("selection_count", 0),
         }
+        if anchor_state:
+            result.update(
+                {
+                    "workflow_anchor_enabled": "true",
+                    "workflow_anchor_feature": "AI-WORKBENCH-WORKFLOW-ANCHOR-v1",
+                    "workflow_anchor_found": "true" if anchor_state.get("anchor_found") else "false",
+                    "workflow_anchor_feature_id": anchor_state.get("anchor_feature_id", "unavailable"),
+                    "workflow_anchor_result_classification": anchor_state.get("anchor_result_classification", "unavailable"),
+                    "workflow_anchor_prompt": anchor_state.get("anchor_prompt", "unavailable"),
+                    "workflow_anchor_timestamp": anchor_state.get("anchor_timestamp", "unavailable"),
+                    "workflow_anchor_export_folder": anchor_state.get("anchor_export_folder", "unavailable"),
+                    "workflow_anchor_skipped_meta_count": anchor_state.get("skipped_meta_results_count", 0),
+                    "resolver_anchor_source": "AI-WORKBENCH-WORKFLOW-ANCHOR-v1",
+                    "raw_latest_feature_id": anchor_state.get("raw_latest_feature_id", "unavailable"),
+                    "raw_latest_result_classification": anchor_state.get("raw_latest_result_classification", "unavailable"),
+                    "raw_latest_prompt": anchor_state.get("raw_latest_prompt", "unavailable"),
+                }
+            )
+        return result
 
     def resolve_ai_workbench_next_step(self, context=None, latest_result=None, history_records=None):
         context = context or self.refresh_console_context()
@@ -17848,63 +17967,81 @@ class OllamaAIChat(forms.WPFWindow):
             latest_result, latest_status = self._console_latest_result_metadata()
         else:
             latest_status = "available" if latest_result else "missing"
+        if history_records is None:
+            history_records, malformed, history_status = self._console_load_history_records()
         latest_result = latest_result or {}
-        classification = safe_str(latest_result.get("result_classification"))
-        prompt_text = safe_str(latest_result.get("source_prompt") or latest_result.get("resolved_prompt"))
-        header = safe_str(latest_result.get("result_header"))
-        issue_count_text = safe_str(latest_result.get("total_issue_candidates"))
+        anchor_state = self.resolve_latest_workflow_anchor(history_records, latest_result)
+        anchor_result = dict(latest_result)
+        if anchor_state.get("anchor_prompt") and anchor_state.get("anchor_prompt") != "unavailable":
+            anchor_result["source_prompt"] = anchor_state.get("anchor_prompt")
+        if anchor_state.get("anchor_feature_id") and anchor_state.get("anchor_feature_id") != "unavailable":
+            anchor_result["feature_id"] = anchor_state.get("anchor_feature_id")
+        if anchor_state.get("anchor_result_classification") and anchor_state.get("anchor_result_classification") != "unavailable":
+            anchor_result["result_classification"] = anchor_state.get("anchor_result_classification")
+        if anchor_state.get("anchor_export_folder") and anchor_state.get("anchor_export_folder") != "unavailable":
+            anchor_result["export_folder"] = anchor_state.get("anchor_export_folder")
+        classification = safe_str(anchor_result.get("result_classification"))
+        prompt_text = safe_str(anchor_result.get("source_prompt") or anchor_result.get("resolved_prompt"))
+        header = safe_str(anchor_result.get("result_header"))
+        issue_count_text = safe_str(anchor_result.get("total_issue_candidates"))
         try:
             issue_count = int(float(issue_count_text)) if issue_count_text else 0
         except:
             issue_count = 0
-        if latest_status != "available" or not latest_result:
+        if not anchor_result or (latest_status != "available" and not anchor_state.get("anchor_found")):
             return self._console_next_step_result(
                 "show active view mep qa dashboard",
                 "Start by checking the current active Revit view.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
                 status="baseline_no_latest_result",
+                anchor_state=anchor_state,
             )
         if classification == "MEP_QA_DASHBOARD_GREEN":
             return self._console_next_step_result(
                 "export mep project issue index",
                 "Active view is clean; create broader project-level issue evidence.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         if classification == "MEP_QA_ISSUEINDEX_EXPORT_OK":
             return self._console_next_step_result(
                 "export latest QA report",
                 "Issue-index evidence was generated; export the latest QA report with metadata and manifest.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         if classification == "MEP_QA_DASHBOARD_YELLOW" or issue_count > 0:
             return self._console_next_step_result(
                 "export mep project issue index",
                 "Issue candidates exist; export structured project issue evidence.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         if classification == "QA_REPORT_EXPORT_COMPLETE" or header == "[QA REPORT EXPORT COMPLETE]" or self._console_normalize(prompt_text) == "export latest qa report":
             return self._console_next_step_result(
                 "export ai workbench console session summary",
                 "QA report was exported; preserve the Console session trace.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         if classification == "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK":
             return self._console_next_step_result(
                 "show active view mep qa dashboard",
                 "Evidence cycle is complete; return to baseline view check.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         if classification in ("MEP_SEL_SELECTION_OK", "MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT"):
             reason = "Selection review was performed; return to read-only dashboard."
@@ -17914,56 +18051,63 @@ class OllamaAIChat(forms.WPFWindow):
                 "show active view mep qa dashboard",
                 reason,
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         if classification == "AI_WORKBENCH_CONTEXT_SUGGESTIONS_OK":
             return self._console_next_step_result(
                 "create mep qa evidence recipe",
                 "Suggestions were generated; convert them into a deterministic evidence recipe.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         if classification == "AI_WORKBENCH_RECIPE_PLANNER_OK":
             return self._console_next_step_result(
                 "show active view mep qa dashboard",
                 "Recipe was planned; start executing the evidence workflow manually from the dashboard.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         if classification == "AI_WORKBENCH_VISUAL_PREVIEW_OK":
             return self._console_next_step_result(
                 "show active view mep qa dashboard",
                 "Visual preview is read-only; proceed with a dashboard check.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         if classification == "AI_WORKBENCH_LATEST_CONSOLE_RESULT_OK":
             return self._console_next_step_result(
                 "suggest next ai workbench actions",
                 "Latest result was inspected; ask for context-aware recommendations.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         if "UNSUPPORTED" in classification or "NO_MATCH" in classification or "UNSUPPORTED" in header:
             return self._console_next_step_result(
                 "show active view mep qa dashboard",
                 "No supported command was executed; restart from safe baseline.",
                 context,
-                latest_result,
+                anchor_result,
                 latest_status,
+                anchor_state=anchor_state,
             )
         return self._console_next_step_result(
             "show active view mep qa dashboard",
             "No specific next-step rule matched; restart from safe active-view dashboard.",
             context,
-            latest_result,
+            anchor_result,
             latest_status,
             status="fallback_unmatched_classification",
+            anchor_state=anchor_state,
         )
 
     def _console_visual_meaning_for_classification(self, classification, latest_status):
@@ -18117,6 +18261,13 @@ class OllamaAIChat(forms.WPFWindow):
             "recommended_requires_confirmation": recommended_requires_confirmation,
             "recommended_reason": next_step.get("reason", ""),
             "recommended_source": next_step.get("source", "AI-WORKBENCH-NEXT-STEP-ENGINE-v1"),
+            "workflow_anchor_enabled": next_step.get("workflow_anchor_enabled", "true"),
+            "workflow_anchor_feature": next_step.get("workflow_anchor_feature", "AI-WORKBENCH-WORKFLOW-ANCHOR-v1"),
+            "workflow_anchor_found": next_step.get("workflow_anchor_found", "false"),
+            "workflow_anchor_feature_id": next_step.get("workflow_anchor_feature_id", "unavailable"),
+            "workflow_anchor_result_classification": next_step.get("workflow_anchor_result_classification", "unavailable"),
+            "workflow_anchor_prompt": next_step.get("workflow_anchor_prompt", "unavailable"),
+            "workflow_anchor_skipped_meta_count": next_step.get("workflow_anchor_skipped_meta_count", 0),
             "safe_prompt_cards": self._console_safe_prompt_cards(context),
             "safe_prompt_lines": self._console_safe_prompt_lines(context),
         }
@@ -18147,6 +18298,15 @@ class OllamaAIChat(forms.WPFWindow):
                 "- Meaning: {0}".format(state.get("meaning")),
                 "- Safety summary: {0}".format(state.get("safety_summary")),
                 "- Export folder: {0}".format(latest.get("export_folder") or "unavailable"),
+                "",
+                "Workflow Anchor",
+                "- Workflow anchor enabled: {0}".format(state.get("workflow_anchor_enabled", "true")),
+                "- Workflow anchor feature: {0}".format(state.get("workflow_anchor_feature", "AI-WORKBENCH-WORKFLOW-ANCHOR-v1")),
+                "- Workflow anchor found: {0}".format(state.get("workflow_anchor_found", "false")),
+                "- Workflow anchor feature ID: {0}".format(state.get("workflow_anchor_feature_id", "unavailable")),
+                "- Workflow anchor result classification: {0}".format(state.get("workflow_anchor_result_classification", "unavailable")),
+                "- Workflow anchor prompt: {0}".format(state.get("workflow_anchor_prompt", "unavailable")),
+                "- Workflow anchor skipped meta/status count: {0}".format(state.get("workflow_anchor_skipped_meta_count", 0)),
                 "",
                 "Issues / Candidates",
             ]
@@ -18562,6 +18722,21 @@ class OllamaAIChat(forms.WPFWindow):
                 "Latest export folder:",
                 latest.get("export_folder") or "unavailable",
                 "",
+                "Workflow anchor enabled:",
+                state.get("workflow_anchor_enabled", "true"),
+                "Workflow anchor feature:",
+                state.get("workflow_anchor_feature", "AI-WORKBENCH-WORKFLOW-ANCHOR-v1"),
+                "Workflow anchor found:",
+                state.get("workflow_anchor_found", "false"),
+                "Workflow anchor feature ID:",
+                state.get("workflow_anchor_feature_id", "unavailable"),
+                "Workflow anchor result classification:",
+                state.get("workflow_anchor_result_classification", "unavailable"),
+                "Workflow anchor prompt:",
+                state.get("workflow_anchor_prompt", "unavailable"),
+                "Workflow anchor skipped meta/status count:",
+                state.get("workflow_anchor_skipped_meta_count", 0),
+                "",
                 "Issue / candidate summary:",
             ]
         )
@@ -18719,6 +18894,31 @@ class OllamaAIChat(forms.WPFWindow):
             "",
             "Latest prompt:",
             next_step.get("latest_prompt", "unavailable"),
+            "",
+            "Workflow anchor enabled:",
+            next_step.get("workflow_anchor_enabled", "true"),
+            "Workflow anchor feature:",
+            next_step.get("workflow_anchor_feature", "AI-WORKBENCH-WORKFLOW-ANCHOR-v1"),
+            "",
+            "Raw latest feature ID:",
+            next_step.get("raw_latest_feature_id", "unavailable"),
+            "Raw latest result classification:",
+            next_step.get("raw_latest_result_classification", "unavailable"),
+            "Raw latest prompt:",
+            next_step.get("raw_latest_prompt", "unavailable"),
+            "",
+            "Workflow anchor found:",
+            next_step.get("workflow_anchor_found", "false"),
+            "Workflow anchor feature ID:",
+            next_step.get("workflow_anchor_feature_id", "unavailable"),
+            "Workflow anchor result classification:",
+            next_step.get("workflow_anchor_result_classification", "unavailable"),
+            "Workflow anchor prompt:",
+            next_step.get("workflow_anchor_prompt", "unavailable"),
+            "Workflow anchor skipped meta/status count:",
+            next_step.get("workflow_anchor_skipped_meta_count", 0),
+            "Resolver anchor source:",
+            next_step.get("resolver_anchor_source", "AI-WORKBENCH-WORKFLOW-ANCHOR-v1"),
             "",
             "Recommended prompt:",
             next_step.get("prompt", "show active view mep qa dashboard"),
@@ -19985,6 +20185,7 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-SAFE-CATALOG-VIEW-v1",
             "AI-WORKBENCH-VISUAL-v1",
             "AI-WORKBENCH-VISUAL-ACTION-CARDS-v1",
+            "AI-WORKBENCH-WORKFLOW-ANCHOR-v1",
             "",
             "Feature name:",
             "AI Workbench Next Step Engine v1",
@@ -20019,6 +20220,14 @@ class OllamaAIChat(forms.WPFWindow):
             "Visual action cards safe catalog filtered: true",
             "Selection confirmation preserved for loaded selection prompts: true",
             "Shared next-step resolver enabled: true",
+            "Workflow anchor enabled: true",
+            "Workflow anchor feature ID: AI-WORKBENCH-WORKFLOW-ANCHOR-v1",
+            "Next Step Engine uses workflow anchor: true",
+            "Visual Preview uses workflow anchor: true",
+            "Utility Load Next uses workflow anchor: true",
+            "Guided Coach uses workflow anchor: true",
+            "Recipe Navigator Load Next uses workflow anchor: true",
+            "Meta/status results skipped for next-step state: true",
             "Guided Coach uses shared resolver: true",
             "Visual Preview uses shared resolver: true",
             "Utility Load Next uses shared resolver: true",
