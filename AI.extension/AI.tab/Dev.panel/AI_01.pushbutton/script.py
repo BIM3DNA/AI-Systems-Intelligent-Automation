@@ -110,6 +110,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[AI WORKBENCH RECIPE NAVIGATOR REPORT]",
     "[AI WORKBENCH GUIDED START HELP REPORT]",
     "[AI WORKBENCH GUIDED COACH REPORT]",
+    "[AI WORKBENCH NEXT STEP REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -17889,7 +17890,7 @@ class OllamaAIChat(forms.WPFWindow):
                 latest_result,
                 latest_status,
             )
-        if header == "[QA REPORT EXPORT COMPLETE]" or self._console_normalize(prompt_text) == "export latest qa report":
+        if classification == "QA_REPORT_EXPORT_COMPLETE" or header == "[QA REPORT EXPORT COMPLETE]" or self._console_normalize(prompt_text) == "export latest qa report":
             return self._console_next_step_result(
                 "export ai workbench console session summary",
                 "QA report was exported; preserve the Console session trace.",
@@ -21418,6 +21419,8 @@ class OllamaAIChat(forms.WPFWindow):
             return "AI Workbench guided start / report-only onboarding help"
         if header == "[AI WORKBENCH GUIDED COACH REPORT]":
             return "AI Workbench guided coach / read-only next-step recommendation status"
+        if header == "[AI WORKBENCH NEXT STEP REPORT]":
+            return "AI Workbench shared next-step resolver / deterministic load-only workflow guidance"
         if header == "[LINK ORIGIN RESET REVIEWED APPLY]":
             return "selected Revit link origin reset reviewed persistent apply"
         if header == "[LINK ORIGIN RESET ROLLBACK TEST]":
