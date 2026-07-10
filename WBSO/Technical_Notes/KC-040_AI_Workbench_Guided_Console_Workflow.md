@@ -125,6 +125,50 @@ No Revit model mutation, `DB.Transaction`, `DB.TransactionGroup`, parameter writ
 
 AI-WORKBENCH-NEXT-STEP-ENGINE-v1 is pending runtime validation and is not documented as completed, implemented, pushed, or validated in this evidence batch.
 
+## 2026-07-08 Addendum - Next-Step Workflow Anchor Batch
+
+### Evidence Range
+
+EV-AI-320 through EV-AI-323
+
+### Features
+
+- AI-WORKBENCH-NEXT-STEP-ENGINE-v1
+- AI-WORKBENCH-WORKFLOW-ANCHOR-v1
+
+### Runtime Context
+
+- Model: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- Active view: `TEST [FloorPlan]`
+- Discipline: Piping
+- Pipe fittings: 97
+- Pipes: 18
+
+### Runtime Results
+
+- Next Step Engine validated: `[AI WORKBENCH NEXT STEP REPORT]` returned `AI_WORKBENCH_NEXT_STEP_OK`, identified Guided Coach, Visual Preview, Utility Load Next, and Recipe Navigator Load Next as shared resolver surfaces, and kept auto-run false.
+- Dashboard GREEN mapped to `export mep project issue index`.
+- Issue-index export OK mapped to `export latest QA report`.
+- QA report export complete mapped to `export ai workbench console session summary`.
+- Selection OK mapped to `show active view mep qa dashboard`.
+- Context suggestions OK mapped to `create mep qa evidence recipe`.
+- Recipe planner OK mapped to `show active view mep qa dashboard`.
+- Workflow Anchor validated: Visual Preview status, Next Step status, latest-result viewer, and history-style meta commands are skipped for next-step state, while raw latest result remains visible for inspection.
+- Dashboard and recipe planner anchors survived Visual Preview status; issue-index export anchor survived latest-result viewer.
+
+### Commit References
+
+- `046ba44` - Unify AI Workbench next step recommendations
+- `157e995` - Anchor next step recommendations to workflow results
+
+### Safety
+
+No Revit model mutation, `DB.Transaction`, `DB.TransactionGroup`, parameter write, active-view switch, linked-document mutation, direct selection API, or automatic command execution was introduced. Load Next remains load-only. Exports occur only after manual Run.
+
+### Known Follow-Up
+
+AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 is pending only. During workflow anchor validation, `export latest QA report` still used raw latest meta/viewer output after `show latest result`, so QA export failed with `[QA REPORT EXPORT] Latest output is not a deterministic AI Workbench QA report. Run a read-only deterministic report first.` This is a workflow-source integration defect, not a model-safety defect.
+
 ## Commit References
 
 - `not found in local git log` - Route confirmed AI Workbench selection commands to MEP-SEL v1

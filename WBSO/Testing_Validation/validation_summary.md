@@ -864,3 +864,42 @@ No Revit model mutation, transaction, TransactionGroup, parameter write, active-
 ### Pending Follow-Up
 
 AI-WORKBENCH-NEXT-STEP-ENGINE-v1 is pending runtime validation and is not recorded as completed in this batch.
+
+## 2026-07-08 - AI Workbench Next-Step Workflow Anchor Batch
+
+### Status
+
+Runtime validated.
+
+### Summary
+
+This batch validates the shared AI Workbench Next Step Engine and the workflow anchor layer. The Next Step Engine provides one deterministic resolver for Guided Coach, Visual Preview, Utility Load Next, and Recipe Navigator Load Next. The Workflow Anchor prevents meta/status/viewer reports from replacing the workflow-relevant result used for Load Next recommendations.
+
+### Main Findings
+
+- `show ai workbench next step status` returned `[AI WORKBENCH NEXT STEP REPORT]`, feature `AI-WORKBENCH-NEXT-STEP-ENGINE-v1`, classification `AI_WORKBENCH_NEXT_STEP_OK`, Piping context, auto-run false, and no model/UI/active-view/external writes.
+- Dashboard GREEN mapped to `export mep project issue index`.
+- Issue-index export OK mapped to `export latest QA report`.
+- QA report export complete mapped to `export ai workbench console session summary`.
+- Selection OK mapped back to `show active view mep qa dashboard`.
+- Context suggestions OK mapped to `create mep qa evidence recipe`.
+- Recipe planner OK mapped back to `show active view mep qa dashboard`.
+- Workflow Anchor kept dashboard GREEN as the anchor after Visual Preview status.
+- Workflow Anchor kept issue-index export as the anchor after latest-result viewer.
+- Workflow Anchor skipped Next Step status as meta/status while preserving the prior dashboard anchor.
+- Recipe planner remained workflow-relevant after Visual Preview status.
+
+### Evidence Roots
+
+- `C:\Users\User\Desktop\Results\AI_Workbench\Console_History`
+- `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260708_092115_export_mep_project_issue_index`
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260708_092330`
+- `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries\20260708_092419_console_session_summary`
+
+### Safety
+
+No Revit model mutation, transaction, TransactionGroup, parameter write, active-view switching, linked-document mutation, direct selection API, or automatic command execution was introduced. Load Next remains load-only, selection-only commands still require explicit confirmation, and exports write files only after manual Run.
+
+### Known Follow-Up
+
+AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 is pending only. Runtime validation found that `export latest QA report` still uses raw latest meta/viewer output instead of the workflow anchor after `show latest result`. The defect is recorded as a workflow-source integration issue and is not marked completed in this batch.

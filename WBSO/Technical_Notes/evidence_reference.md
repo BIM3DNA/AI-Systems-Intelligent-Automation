@@ -2108,3 +2108,27 @@ Validation folder: `WBSO/Testing_Validation/runs/2026-07-06_ai-workbench-console
 Known pending follow-up: AI-WORKBENCH-NEXT-STEP-ENGINE-v1 is pending runtime validation and is not recorded here as completed, implemented, pushed, or validated.
 
 Technical conclusion: the Console UX runtime batch improves safety clarity and operator workflow through compact selection confirmation, simplified shell controls, hardened alias resolution, safe catalog filtering, read-only Visual Preview cards, and load-only Visual Action Cards while preserving deterministic routing and Revit model-safety boundaries.
+
+## EV-AI-320 through EV-AI-323 - AI Workbench Next-Step Workflow Anchor Batch
+
+Status: Runtime validated
+
+Date: 2026-07-08
+
+Week: `2026-W16`
+
+Daily log references:
+
+- DL-2026-07-08-01 - AI-WORKBENCH-NEXT-STEP-ENGINE-v1
+- DL-2026-07-08-02 - AI-WORKBENCH-WORKFLOW-ANCHOR-v1
+
+Validation folder: `WBSO/Testing_Validation/runs/2026-07-08_ai-workbench-next-step-workflow-anchor-validated/`
+
+- EV-AI-320: AI-WORKBENCH-NEXT-STEP-ENGINE-v1 implementation evidence. Commit `046ba44`; added one deterministic next-step resolver used by Guided Coach, Visual Preview, Utility Load Next, and Recipe Navigator Load Next.
+- EV-AI-321: AI-WORKBENCH-NEXT-STEP-ENGINE-v1 runtime validation. `show ai workbench next step status` returned `[AI WORKBENCH NEXT STEP REPORT]`, feature `AI-WORKBENCH-NEXT-STEP-ENGINE-v1`, classification `AI_WORKBENCH_NEXT_STEP_OK`, Piping context, auto-run false, and no model/UI/active-view/external writes from the status route.
+- EV-AI-322: AI-WORKBENCH-WORKFLOW-ANCHOR-v1 implementation evidence. Commit `157e995`; added workflow-relevant latest-result anchoring so meta/status/viewer commands do not overwrite the workflow state used by Load Next.
+- EV-AI-323: AI-WORKBENCH-WORKFLOW-ANCHOR-v1 runtime validation and discovered QA export anchor defect. Dashboard, issue-index export, Next Step status, latest-result viewer, and recipe planner anchor scenarios passed; `export latest QA report` was found to still use raw latest meta output instead of the workflow anchor and is recorded as pending `AI-WORKBENCH-QA-EXPORT-ANCHOR-v1` follow-up, not completed.
+
+Runtime context: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, `TEST [FloorPlan]`, Piping, 97 pipe fittings, 18 pipes.
+
+Technical conclusion: the batch unifies next-step guidance across AI Workbench surfaces and adds workflow anchoring for latest-result precision. It preserves load-only guidance, explicit manual Run boundaries, MEP-SEL confirmation, MEP-RO guards, Safe Catalog filtering, and no Revit model mutation.

@@ -15380,6 +15380,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_project_context_summary = ""
         self.latest_codex_brief = ""
         self.latest_deterministic_report = None
+        self.latest_workflow_anchor_report = None
         self.latest_chat_output_is_deterministic_report = False
         self.latest_reviewed_action_proposal = None
         self.latest_split_pipe_dry_run = None
@@ -17820,6 +17821,8 @@ class OllamaAIChat(forms.WPFWindow):
         feature_lower = feature_id.lower()
         prompt_text = safe_str(record.get("source_prompt") or record.get("resolved_prompt"))
         normalized_prompt = self._console_normalize(prompt_text)
+        result_header = safe_str(record.get("result_header"))
+        export_folder = safe_str(record.get("export_folder"))
         meta_classifications = set(
             [
                 "AI_WORKBENCH_NEXT_STEP_OK",
@@ -17829,9 +17832,14 @@ class OllamaAIChat(forms.WPFWindow):
                 "AI_WORKBENCH_CONSOLE_HISTORY_OK",
                 "AI_WORKBENCH_STATUS_OK",
                 "AI_WORKBENCH_DEBUG_STATUS_OK",
+                "QA_REPORT_EXPORT_NOT_READY",
             ]
         )
         if classification in meta_classifications:
+            return True
+        if result_header == "[QA REPORT EXPORT]":
+            return True
+        if normalized_prompt == "export latest qa report" and classification in ("", "UNAVAILABLE") and not export_folder:
             return True
         if feature_lower == "ai-workbench-next-step-engine-v1":
             return True
@@ -17860,6 +17868,7 @@ class OllamaAIChat(forms.WPFWindow):
             "raw_latest_feature_id": safe_str(raw_latest.get("feature_id") or "unavailable"),
             "raw_latest_result_classification": safe_str(raw_latest.get("result_classification") or "unavailable"),
             "raw_latest_prompt": safe_str(raw_latest.get("source_prompt") or raw_latest.get("resolved_prompt") or "unavailable"),
+            "raw_latest_result_header": safe_str(raw_latest.get("result_header") or "unavailable"),
         }
 
     def resolve_latest_workflow_anchor(self, history_records=None, latest_result=None):
@@ -17957,6 +17966,18 @@ class OllamaAIChat(forms.WPFWindow):
                     "raw_latest_feature_id": anchor_state.get("raw_latest_feature_id", "unavailable"),
                     "raw_latest_result_classification": anchor_state.get("raw_latest_result_classification", "unavailable"),
                     "raw_latest_prompt": anchor_state.get("raw_latest_prompt", "unavailable"),
+                    "latest_qa_export_complete": "true" if (
+                        safe_str(anchor_state.get("raw_latest_result_classification")).upper() == "QA_REPORT_EXPORT_COMPLETE"
+                        or safe_str(anchor_state.get("raw_latest_result_header")) == "[QA REPORT EXPORT COMPLETE]"
+                    ) else "false",
+                    "latest_qa_export_not_ready": "true" if (
+                        safe_str(anchor_state.get("raw_latest_result_classification")).upper() == "QA_REPORT_EXPORT_NOT_READY"
+                        or safe_str(anchor_state.get("raw_latest_result_header")) == "[QA REPORT EXPORT]"
+                    ) else "false",
+                    "qa_export_handoff_allowed": "true" if (
+                        safe_str(anchor_state.get("raw_latest_result_classification")).upper() == "QA_REPORT_EXPORT_COMPLETE"
+                        or safe_str(anchor_state.get("raw_latest_result_header")) == "[QA REPORT EXPORT COMPLETE]"
+                    ) else "false",
                 }
             )
         return result
@@ -17971,6 +17992,12 @@ class OllamaAIChat(forms.WPFWindow):
             history_records, malformed, history_status = self._console_load_history_records()
         latest_result = latest_result or {}
         anchor_state = self.resolve_latest_workflow_anchor(history_records, latest_result)
+        raw_classification = safe_str(latest_result.get("result_classification")).upper()
+        raw_header = safe_str(latest_result.get("result_header"))
+        raw_qa_export_not_ready = (
+            raw_classification == "QA_REPORT_EXPORT_NOT_READY"
+            or raw_header == "[QA REPORT EXPORT]"
+        )
         anchor_result = dict(latest_result)
         if anchor_state.get("anchor_prompt") and anchor_state.get("anchor_prompt") != "unavailable":
             anchor_result["source_prompt"] = anchor_state.get("anchor_prompt")
@@ -17988,6 +18015,26 @@ class OllamaAIChat(forms.WPFWindow):
             issue_count = int(float(issue_count_text)) if issue_count_text else 0
         except:
             issue_count = 0
+        if raw_qa_export_not_ready:
+            if anchor_state.get("anchor_found"):
+                return self._console_next_step_result(
+                    "export latest QA report",
+                    "Latest QA export did not complete; retry export using the workflow anchor.",
+                    context,
+                    anchor_result,
+                    latest_status,
+                    status="qa_export_retry_from_workflow_anchor",
+                    anchor_state=anchor_state,
+                )
+            return self._console_next_step_result(
+                "show active view mep qa dashboard",
+                "No valid workflow report is available for QA export; restart from baseline dashboard.",
+                context,
+                anchor_result,
+                latest_status,
+                status="qa_export_not_ready_no_anchor",
+                anchor_state=anchor_state,
+            )
         if not anchor_result or (latest_status != "available" and not anchor_state.get("anchor_found")):
             return self._console_next_step_result(
                 "show active view mep qa dashboard",
@@ -18025,7 +18072,7 @@ class OllamaAIChat(forms.WPFWindow):
                 latest_status,
                 anchor_state=anchor_state,
             )
-        if classification == "QA_REPORT_EXPORT_COMPLETE" or header == "[QA REPORT EXPORT COMPLETE]" or self._console_normalize(prompt_text) == "export latest qa report":
+        if classification == "QA_REPORT_EXPORT_COMPLETE" or header == "[QA REPORT EXPORT COMPLETE]":
             return self._console_next_step_result(
                 "export ai workbench console session summary",
                 "QA report was exported; preserve the Console session trace.",
@@ -18919,6 +18966,13 @@ class OllamaAIChat(forms.WPFWindow):
             next_step.get("workflow_anchor_skipped_meta_count", 0),
             "Resolver anchor source:",
             next_step.get("resolver_anchor_source", "AI-WORKBENCH-WORKFLOW-ANCHOR-v1"),
+            "",
+            "Latest QA export complete:",
+            next_step.get("latest_qa_export_complete", "false"),
+            "Latest QA export not ready:",
+            next_step.get("latest_qa_export_not_ready", "false"),
+            "QA export handoff allowed:",
+            next_step.get("qa_export_handoff_allowed", "false"),
             "",
             "Recommended prompt:",
             next_step.get("prompt", "show active view mep qa dashboard"),
@@ -19951,6 +20005,7 @@ class OllamaAIChat(forms.WPFWindow):
         if not os.path.exists(root):
             os.makedirs(root)
         record = self._console_history_metadata(source_prompt, resolved_prompt, report_text, selection_before, selection_after)
+        self._remember_workflow_anchor_report(record, report_text)
         record["latest_result_txt_path"] = paths.get("latest_txt")
         record["latest_result_md_path"] = paths.get("latest_md")
         record["latest_result_json_path"] = paths.get("latest_json")
@@ -20186,6 +20241,7 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-VISUAL-v1",
             "AI-WORKBENCH-VISUAL-ACTION-CARDS-v1",
             "AI-WORKBENCH-WORKFLOW-ANCHOR-v1",
+            "AI-WORKBENCH-QA-EXPORT-ANCHOR-v1",
             "",
             "Feature name:",
             "AI Workbench Next Step Engine v1",
@@ -20228,6 +20284,11 @@ class OllamaAIChat(forms.WPFWindow):
             "Guided Coach uses workflow anchor: true",
             "Recipe Navigator Load Next uses workflow anchor: true",
             "Meta/status results skipped for next-step state: true",
+            "QA export anchor feature ID: AI-WORKBENCH-QA-EXPORT-ANCHOR-v1",
+            "QA export uses workflow anchor: true",
+            "QA export skips meta/status/viewer latest results: true",
+            "QA export not-ready classification enabled: true",
+            "Next Step Engine requires QA_REPORT_EXPORT_COMPLETE for session-summary handoff: true",
             "Guided Coach uses shared resolver: true",
             "Visual Preview uses shared resolver: true",
             "Utility Load Next uses shared resolver: true",
@@ -21671,7 +21732,7 @@ class OllamaAIChat(forms.WPFWindow):
         if not self._is_exportable_report_text(report_text):
             self.latest_chat_output_is_deterministic_report = False
             return False
-        self.latest_deterministic_report = {
+        report_state = {
             "source_prompt": safe_str(prompt),
             "report_text": safe_str(report_text),
             "report_header": self._extract_report_header(report_text),
@@ -21679,8 +21740,190 @@ class OllamaAIChat(forms.WPFWindow):
             "report_scope": self._detect_report_scope(report_text),
             "deterministic": True,
         }
+        self.latest_deterministic_report = report_state
+        self._remember_workflow_anchor_report(
+            self._qa_export_report_state_record(report_state),
+            report_text,
+        )
         self.latest_chat_output_is_deterministic_report = True
         return True
+
+    def _qa_export_report_state_record(self, report_state):
+        report_state = report_state or {}
+        report_text = safe_str(report_state.get("report_text"))
+        return {
+            "feature_id": safe_str(
+                report_state.get("feature_id")
+                or self._console_extract_first_field(report_text, ["Feature ID", "Feature"])
+                or "unavailable"
+            ),
+            "result_classification": safe_str(
+                report_state.get("result_classification")
+                or self._console_extract_first_field(
+                    report_text,
+                    [
+                        "Result classification",
+                        "Dashboard result",
+                        "Export result",
+                        "Visual review result",
+                        "Verification result",
+                        "Reset result",
+                    ],
+                )
+                or "unavailable"
+            ),
+            "source_prompt": safe_str(report_state.get("source_prompt")),
+            "result_header": safe_str(
+                report_state.get("report_header")
+                or self._extract_report_header(report_text)
+            ),
+            "timestamp": safe_str(
+                report_state.get("report_timestamp")
+                or report_state.get("created_timestamp_local")
+            ),
+            "export_folder": safe_str(
+                report_state.get("export_folder")
+                or self._console_extract_export_folder(report_text)
+            ),
+        }
+
+    def _qa_export_workflow_report_valid(self, report_state):
+        report_state = report_state or {}
+        report_text = safe_str(report_state.get("report_text"))
+        if not report_text or not self._is_exportable_report_text(report_text):
+            return False
+        record = self._qa_export_report_state_record(report_state)
+        classification = safe_str(record.get("result_classification")).upper()
+        header = safe_str(record.get("result_header"))
+        if self._console_is_workflow_anchor_meta_result(record):
+            return False
+        if header == "[QA REPORT EXPORT]":
+            return False
+        if "UNSUPPORTED" in classification or "NO_MATCH" in classification:
+            return False
+        return True
+
+    def _qa_export_report_matches_record(self, report_state, record):
+        if not report_state or not record:
+            return False
+        state_record = self._qa_export_report_state_record(report_state)
+        comparisons = [
+            ("result_header", False),
+            ("feature_id", False),
+            ("source_prompt", True),
+        ]
+        compared = 0
+        for key, normalize in comparisons:
+            left = safe_str(state_record.get(key))
+            right = safe_str(record.get(key))
+            if not left or not right or left == "unavailable" or right == "unavailable":
+                continue
+            compared += 1
+            if normalize:
+                if self._console_normalize(left) != self._console_normalize(right):
+                    return False
+            elif left != right:
+                return False
+        return compared > 0
+
+    def _remember_workflow_anchor_report(self, record, report_text):
+        report_text = safe_str(report_text)
+        record = record or {}
+        report_state = {
+            "source_prompt": safe_str(record.get("source_prompt") or record.get("resolved_prompt")),
+            "report_text": report_text,
+            "report_header": safe_str(record.get("result_header") or self._extract_report_header(report_text)),
+            "report_timestamp": safe_str(record.get("timestamp") or time.strftime("%Y-%m-%d %H:%M:%S")),
+            "report_scope": self._detect_report_scope(report_text),
+            "feature_id": safe_str(record.get("feature_id") or "unavailable"),
+            "result_classification": safe_str(record.get("result_classification") or "unavailable"),
+            "export_folder": safe_str(record.get("export_folder")),
+            "deterministic": True,
+        }
+        if not self._qa_export_workflow_report_valid(report_state):
+            return False
+        self.latest_workflow_anchor_report = report_state
+        return True
+
+    def _qa_export_not_ready_report(self, reason):
+        return "\n".join(
+            [
+                "[QA REPORT EXPORT]",
+                "",
+                "Feature ID:",
+                "AI-WORKBENCH-QA-EXPORT-ANCHOR-v1",
+                "",
+                "Feature name:",
+                "AI Workbench QA Export Anchor v1",
+                "",
+                "Result classification:",
+                "QA_REPORT_EXPORT_NOT_READY",
+                "",
+                "Reason:",
+                safe_str(reason),
+                "",
+                "Safety flags:",
+                "- transaction opened: false",
+                "- transaction group opened: false",
+                "- model modified: false",
+                "- linked document modified: false",
+                "- UI selection modified: false",
+                "- active view changed: false",
+                "- external files written: false",
+            ]
+        )
+
+    def _qa_export_source_resolution(self):
+        raw_latest, raw_status = self._console_latest_result_metadata()
+        records, malformed, history_status = self._console_load_history_records()
+        anchor_state = self.resolve_latest_workflow_anchor(records, raw_latest)
+        raw_report = self.latest_deterministic_report or {}
+        raw_is_meta = self._console_is_workflow_anchor_meta_result(raw_latest)
+        raw_is_valid = self._qa_export_workflow_report_valid(raw_report)
+        if raw_status == "available" and not raw_is_meta and raw_is_valid:
+            if self._qa_export_report_matches_record(raw_report, raw_latest):
+                return {
+                    "report": raw_report,
+                    "source_mode": "raw latest",
+                    "anchor_state": anchor_state,
+                    "raw_latest": raw_latest,
+                }
+        if raw_status != "available" and self.latest_chat_output_is_deterministic_report and raw_is_valid:
+            return {
+                "report": raw_report,
+                "source_mode": "raw latest",
+                "anchor_state": anchor_state,
+                "raw_latest": raw_latest,
+            }
+        anchor_report = self.latest_workflow_anchor_report or {}
+        anchor_record = {
+            "feature_id": anchor_state.get("anchor_feature_id"),
+            "result_classification": anchor_state.get("anchor_result_classification"),
+            "source_prompt": anchor_state.get("anchor_prompt"),
+            "result_header": "",
+        }
+        if anchor_state.get("anchor_found") and self._qa_export_workflow_report_valid(anchor_report):
+            if self._qa_export_report_matches_record(anchor_report, anchor_record):
+                return {
+                    "report": anchor_report,
+                    "source_mode": "workflow anchor",
+                    "anchor_state": anchor_state,
+                    "raw_latest": raw_latest,
+                }
+        if anchor_state.get("anchor_found") and raw_is_valid:
+            if self._qa_export_report_matches_record(raw_report, anchor_record):
+                return {
+                    "report": raw_report,
+                    "source_mode": "workflow anchor",
+                    "anchor_state": anchor_state,
+                    "raw_latest": raw_latest,
+                }
+        return {
+            "report": None,
+            "source_mode": "not ready",
+            "anchor_state": anchor_state,
+            "raw_latest": raw_latest,
+        }
 
     def _is_qa_export_request(self, prompt):
         normalized = self._normalize_context_prompt(prompt)
@@ -42078,29 +42321,21 @@ class OllamaAIChat(forms.WPFWindow):
             stream.close()
 
     def export_latest_qa_report(self, export_prompt):
-        if not self.latest_deterministic_report:
-            return "\n".join(
-                [
-                    "[QA REPORT EXPORT]",
-                    "No exportable deterministic report is available yet. Run a read-only report first.",
-                ]
+        source_resolution = self._qa_export_source_resolution()
+        report = source_resolution.get("report")
+        if not report:
+            return self._qa_export_not_ready_report(
+                "Latest output is not a deterministic AI Workbench QA report and no valid workflow anchor was found."
             )
-        if not self.latest_chat_output_is_deterministic_report:
-            return "\n".join(
-                [
-                    "[QA REPORT EXPORT]",
-                    "Latest output is not a deterministic AI Workbench QA report. Run a read-only deterministic report first.",
-                ]
-            )
-        report = self.latest_deterministic_report
         report_text = report.get("report_text") or ""
-        if not self._is_exportable_report_text(report_text):
-            return "\n".join(
-                [
-                    "[QA REPORT EXPORT]",
-                    "Latest output is not a deterministic AI Workbench QA report. Run a read-only deterministic report first.",
-                ]
+        if not self._qa_export_workflow_report_valid(report):
+            return self._qa_export_not_ready_report(
+                "Latest output is not a deterministic AI Workbench QA report and no valid workflow anchor was found."
             )
+
+        export_source_mode = source_resolution.get("source_mode") or "raw latest"
+        raw_latest = source_resolution.get("raw_latest") or {}
+        anchor_state = source_resolution.get("anchor_state") or {}
 
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         export_folder = os.path.join(self._qa_export_base_folder(), timestamp)
@@ -42125,6 +42360,7 @@ class OllamaAIChat(forms.WPFWindow):
 
         metadata = {
             "feature_id": "MEP-RO-005",
+            "qa_export_anchor_feature_id": "AI-WORKBENCH-QA-EXPORT-ANCHOR-v1",
             "export_timestamp_local": time.strftime("%Y-%m-%d %H:%M:%S"),
             "document_title": doc_title,
             "document_path": self._safe_document_path(),
@@ -42141,6 +42377,15 @@ class OllamaAIChat(forms.WPFWindow):
             "geometry_extraction_used": False,
             "export_folder": export_folder,
             "generated_files": generated_files,
+            "export_source_mode": export_source_mode,
+            "raw_latest_feature_id": raw_latest.get("feature_id", "unavailable"),
+            "raw_latest_result_classification": raw_latest.get("result_classification", "unavailable"),
+            "raw_latest_prompt": raw_latest.get("source_prompt") or raw_latest.get("resolved_prompt") or "unavailable",
+            "workflow_anchor_feature": "AI-WORKBENCH-WORKFLOW-ANCHOR-v1",
+            "workflow_anchor_feature_id": anchor_state.get("anchor_feature_id", "unavailable"),
+            "workflow_anchor_result_classification": anchor_state.get("anchor_result_classification", "unavailable"),
+            "workflow_anchor_prompt": anchor_state.get("anchor_prompt", "unavailable"),
+            "workflow_anchor_skipped_meta_status_count": anchor_state.get("skipped_meta_results_count", 0),
         }
 
         report_md = "\n".join(
@@ -42154,6 +42399,15 @@ class OllamaAIChat(forms.WPFWindow):
                 "- Source prompt: {0}".format(source_prompt),
                 "- Source report header: {0}".format(header),
                 "- Scope: {0}".format(scope),
+                "- Export source mode: {0}".format(export_source_mode),
+                "- Raw latest feature ID: {0}".format(metadata.get("raw_latest_feature_id")),
+                "- Raw latest result classification: {0}".format(metadata.get("raw_latest_result_classification")),
+                "- Raw latest prompt: {0}".format(metadata.get("raw_latest_prompt")),
+                "- Workflow anchor feature: AI-WORKBENCH-WORKFLOW-ANCHOR-v1",
+                "- Workflow anchor feature ID: {0}".format(metadata.get("workflow_anchor_feature_id")),
+                "- Workflow anchor result classification: {0}".format(metadata.get("workflow_anchor_result_classification")),
+                "- Workflow anchor prompt: {0}".format(metadata.get("workflow_anchor_prompt")),
+                "- Workflow anchor skipped meta/status count: {0}".format(metadata.get("workflow_anchor_skipped_meta_status_count")),
                 "- Safety: read-only; no model data modified.",
                 "",
                 "## Report",
@@ -42171,6 +42425,15 @@ class OllamaAIChat(forms.WPFWindow):
                 "Source prompt: {0}".format(source_prompt),
                 "Source report header: {0}".format(header),
                 "Scope: {0}".format(scope),
+                "Export source mode: {0}".format(export_source_mode),
+                "Raw latest feature ID: {0}".format(metadata.get("raw_latest_feature_id")),
+                "Raw latest result classification: {0}".format(metadata.get("raw_latest_result_classification")),
+                "Raw latest prompt: {0}".format(metadata.get("raw_latest_prompt")),
+                "Workflow anchor feature: AI-WORKBENCH-WORKFLOW-ANCHOR-v1",
+                "Workflow anchor feature ID: {0}".format(metadata.get("workflow_anchor_feature_id")),
+                "Workflow anchor result classification: {0}".format(metadata.get("workflow_anchor_result_classification")),
+                "Workflow anchor prompt: {0}".format(metadata.get("workflow_anchor_prompt")),
+                "Workflow anchor skipped meta/status count: {0}".format(metadata.get("workflow_anchor_skipped_meta_status_count")),
                 "Safety: read-only; no model data modified.",
                 "",
                 report_text,
@@ -42181,8 +42444,10 @@ class OllamaAIChat(forms.WPFWindow):
             [
                 "AI Workbench QA Evidence Snapshot Manifest",
                 "Feature: MEP-RO-005",
+                "QA export anchor feature: AI-WORKBENCH-QA-EXPORT-ANCHOR-v1",
                 "Export timestamp: {0}".format(metadata.get("export_timestamp_local")),
                 "Export folder: {0}".format(export_folder),
+                "Export source mode: {0}".format(export_source_mode),
                 "",
                 "Generated files:",
                 "- report.md",
@@ -42219,6 +42484,15 @@ class OllamaAIChat(forms.WPFWindow):
         lines = [
             "[QA REPORT EXPORT COMPLETE]",
             "",
+            "Feature ID:",
+            "AI-WORKBENCH-QA-EXPORT-ANCHOR-v1",
+            "",
+            "Feature name:",
+            "AI Workbench QA Export Anchor v1",
+            "",
+            "Result classification:",
+            "QA_REPORT_EXPORT_COMPLETE",
+            "",
             "Export folder:",
             export_folder,
             "",
@@ -42254,6 +42528,15 @@ class OllamaAIChat(forms.WPFWindow):
                 "- header: {0}".format(header),
                 "- document: {0}".format(doc_title),
                 "- active view: {0} [{1}]".format(active_view_name, active_view_type),
+                "- Export source mode: {0}".format(export_source_mode),
+                "- Raw latest feature ID: {0}".format(metadata.get("raw_latest_feature_id")),
+                "- Raw latest result classification: {0}".format(metadata.get("raw_latest_result_classification")),
+                "- Raw latest prompt: {0}".format(metadata.get("raw_latest_prompt")),
+                "- Workflow anchor feature: AI-WORKBENCH-WORKFLOW-ANCHOR-v1",
+                "- Workflow anchor feature ID: {0}".format(metadata.get("workflow_anchor_feature_id")),
+                "- Workflow anchor result classification: {0}".format(metadata.get("workflow_anchor_result_classification")),
+                "- Workflow anchor prompt: {0}".format(metadata.get("workflow_anchor_prompt")),
+                "- Workflow anchor skipped meta/status count: {0}".format(metadata.get("workflow_anchor_skipped_meta_status_count")),
                 "",
                 "Safety:",
                 "- Export only.",
