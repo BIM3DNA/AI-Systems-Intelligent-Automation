@@ -1631,3 +1631,30 @@ Runtime result:
 Future bottleneck:
 
 `AI-WORKBENCH-SELECTION-CONFIRM-COMPACT-v1` should compact the selection-only confirmation card. The current card is functionally correct but consumes too much vertical space when active.
+
+## 2026-07-10 AI Workbench QA Export Source and Handoff Defect
+
+Status: Resolved / runtime validated
+
+Issue:
+
+- Next Step Engine used the workflow anchor while `export latest QA report` still depended on raw latest Console output.
+- A latest-result viewer/status output could block a valid QA export.
+- Prompt-based success inference could incorrectly advance failed QA export toward session-summary export.
+
+Resolution:
+
+- raw-valid-first source resolution with retained workflow-anchor fallback;
+- explicit `QA_REPORT_EXPORT_NOT_READY` before file/folder creation;
+- complete-only handoff using `QA_REPORT_EXPORT_COMPLETE` or `[QA REPORT EXPORT COMPLETE]`;
+- failed export skipped as non-success and session-summary handoff blocked.
+
+Runtime result:
+
+- issue-index -> viewer -> QA export chain passed;
+- successful source mode was `raw latest` in the observed run;
+- not-ready path wrote no QA files;
+- failed-handoff prevention passed;
+- no model/UI/view mutation occurred.
+
+Remaining R&D: `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1` is pending.

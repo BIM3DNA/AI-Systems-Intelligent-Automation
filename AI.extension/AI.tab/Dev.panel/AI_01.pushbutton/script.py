@@ -14486,6 +14486,15 @@ AI_WORKBENCH_NEXT_STEP_STATUS_ROUTES = {
     "what is the next ai workbench step",
 }
 
+AI_WORKBENCH_EVIDENCE_RUNBOOK_STATUS_ROUTES = {
+    "show ai workbench evidence runbook status",
+    "show evidence runbook",
+    "show qa evidence progress",
+    "show ai workbench qa progress",
+    "show evidence workflow status",
+    "show mep qa evidence progress",
+}
+
 
 def _ai_workbench_console_history_viewer_route_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
@@ -14531,6 +14540,11 @@ def _is_ai_workbench_visual_preview_status_prompt(prompt):
 def _is_ai_workbench_next_step_status_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in AI_WORKBENCH_NEXT_STEP_STATUS_ROUTES
+
+
+def _is_ai_workbench_evidence_runbook_status_prompt(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return normalized in AI_WORKBENCH_EVIDENCE_RUNBOOK_STATUS_ROUTES
 
 
 def _is_mep_qa_issueindex_v1_prompt(prompt):
@@ -16104,6 +16118,53 @@ class OllamaAIChat(forms.WPFWindow):
         visual_box.VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         visual_box.BorderThickness = Wpf.Thickness(0)
         visual_box.Background = self._brush("#f8fafd")
+        evidence_runbook_card = Border()
+        evidence_runbook_card.BorderBrush = self._brush("#bfdbfe")
+        evidence_runbook_card.BorderThickness = Wpf.Thickness(1)
+        evidence_runbook_card.Background = self._brush("#eff6ff")
+        evidence_runbook_card.Padding = Wpf.Thickness(6)
+        evidence_runbook_card.Margin = Wpf.Thickness(0, 6, 0, 4)
+        evidence_runbook_stack = StackPanel()
+        evidence_runbook_title = TextBlock()
+        evidence_runbook_title.Text = "Evidence Runbook"
+        evidence_runbook_title.FontWeight = Wpf.FontWeights.Bold
+        evidence_runbook_title.Foreground = self._brush("#1e3a8a")
+        evidence_runbook_text = TextBlock()
+        evidence_runbook_text.Text = (
+            "[Current] 1. Active-view QA dashboard\n"
+            "[Pending] 2. Project issue index\n"
+            "[Pending] 3. QA evidence export\n"
+            "[Pending] 4. Console session summary"
+        )
+        evidence_runbook_text.TextWrapping = Wpf.TextWrapping.Wrap
+        evidence_runbook_text.Foreground = self._brush("#1e3a8a")
+        evidence_runbook_text.Margin = Wpf.Thickness(0, 3, 0, 4)
+        evidence_runbook_buttons = WrapPanel()
+        evidence_runbook_current_button = Button()
+        evidence_runbook_current_button.Content = "Load current stage"
+        evidence_runbook_current_button.Height = 24
+        evidence_runbook_current_button.Margin = Wpf.Thickness(0, 0, 4, 2)
+        evidence_runbook_current_button.Tag = "show active view mep qa dashboard"
+        evidence_runbook_current_button.Click += self.on_console_evidence_runbook_load_stage
+        evidence_runbook_next_button = Button()
+        evidence_runbook_next_button.Content = "Load next incomplete stage"
+        evidence_runbook_next_button.Height = 24
+        evidence_runbook_next_button.Margin = Wpf.Thickness(0, 0, 4, 2)
+        evidence_runbook_next_button.Tag = "show active view mep qa dashboard"
+        evidence_runbook_next_button.Click += self.on_console_evidence_runbook_load_stage
+        evidence_runbook_restart_button = Button()
+        evidence_runbook_restart_button.Content = "Restart evidence cycle"
+        evidence_runbook_restart_button.Height = 24
+        evidence_runbook_restart_button.Margin = Wpf.Thickness(0, 0, 0, 2)
+        evidence_runbook_restart_button.Tag = "show active view mep qa dashboard"
+        evidence_runbook_restart_button.Click += self.on_console_evidence_runbook_load_stage
+        evidence_runbook_buttons.Children.Add(evidence_runbook_current_button)
+        evidence_runbook_buttons.Children.Add(evidence_runbook_next_button)
+        evidence_runbook_buttons.Children.Add(evidence_runbook_restart_button)
+        evidence_runbook_stack.Children.Add(evidence_runbook_title)
+        evidence_runbook_stack.Children.Add(evidence_runbook_text)
+        evidence_runbook_stack.Children.Add(evidence_runbook_buttons)
+        evidence_runbook_card.Child = evidence_runbook_stack
         visual_actions_label = TextBlock()
         visual_actions_label.Text = "Load-only action cards"
         visual_actions_label.FontWeight = Wpf.FontWeights.Bold
@@ -16116,6 +16177,7 @@ class OllamaAIChat(forms.WPFWindow):
         visual_action_status.Foreground = self._brush("#475569")
         visual_action_status.Margin = Wpf.Thickness(0, 4, 0, 0)
         visual_panel.Children.Add(visual_box)
+        visual_panel.Children.Add(evidence_runbook_card)
         visual_panel.Children.Add(visual_actions_label)
         visual_panel.Children.Add(visual_actions_panel)
         visual_panel.Children.Add(visual_action_status)
@@ -16134,6 +16196,11 @@ class OllamaAIChat(forms.WPFWindow):
         self.ConsoleVisualRefreshButton = visual_refresh_button
         self.ConsoleVisualActionsPanel = visual_actions_panel
         self.ConsoleVisualActionStatus = visual_action_status
+        self.ConsoleEvidenceRunbookCard = evidence_runbook_card
+        self.ConsoleEvidenceRunbookText = evidence_runbook_text
+        self.ConsoleEvidenceRunbookCurrentButton = evidence_runbook_current_button
+        self.ConsoleEvidenceRunbookNextButton = evidence_runbook_next_button
+        self.ConsoleEvidenceRunbookRestartButton = evidence_runbook_restart_button
         self.ConsoleAdvancedVisible = False
         self.ConsolePromptInput = input_box
         self.ConsoleRunButton = run_button
@@ -17832,6 +17899,7 @@ class OllamaAIChat(forms.WPFWindow):
                 "AI_WORKBENCH_CONSOLE_HISTORY_OK",
                 "AI_WORKBENCH_STATUS_OK",
                 "AI_WORKBENCH_DEBUG_STATUS_OK",
+                "AI_WORKBENCH_EVIDENCE_RUNBOOK_OK",
                 "QA_REPORT_EXPORT_NOT_READY",
             ]
         )
@@ -17842,6 +17910,8 @@ class OllamaAIChat(forms.WPFWindow):
         if normalized_prompt == "export latest qa report" and classification in ("", "UNAVAILABLE") and not export_folder:
             return True
         if feature_lower == "ai-workbench-next-step-engine-v1":
+            return True
+        if feature_lower == "ai-workbench-evidence-runbook-v1":
             return True
         if feature_lower == "ai-workbench-visual-v1" and normalized_prompt in AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES:
             return True
@@ -18157,6 +18227,228 @@ class OllamaAIChat(forms.WPFWindow):
             anchor_state=anchor_state,
         )
 
+    def _console_evidence_runbook_stage_definitions(self):
+        return [
+            {
+                "stage_number": 1,
+                "label": "Active-view QA dashboard",
+                "prompt": "show active view mep qa dashboard",
+                "success_classifications": ["MEP_QA_DASHBOARD_GREEN", "MEP_QA_DASHBOARD_YELLOW"],
+                "failure_classifications": [],
+            },
+            {
+                "stage_number": 2,
+                "label": "Project issue index",
+                "prompt": "export mep project issue index",
+                "success_classifications": ["MEP_QA_ISSUEINDEX_EXPORT_OK"],
+                "failure_classifications": [],
+            },
+            {
+                "stage_number": 3,
+                "label": "QA evidence export",
+                "prompt": "export latest QA report",
+                "success_classifications": ["QA_REPORT_EXPORT_COMPLETE"],
+                "failure_classifications": ["QA_REPORT_EXPORT_NOT_READY"],
+            },
+            {
+                "stage_number": 4,
+                "label": "Console session summary",
+                "prompt": "export ai workbench console session summary",
+                "success_classifications": ["AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK"],
+                "failure_classifications": [],
+            },
+        ]
+
+    def _console_evidence_runbook_record_key(self, record):
+        record = record or {}
+        return "|".join(
+            [
+                safe_str(record.get("timestamp")),
+                safe_str(record.get("feature_id")),
+                safe_str(record.get("result_classification")),
+                safe_str(record.get("source_prompt") or record.get("resolved_prompt")),
+            ]
+        )
+
+    def _console_evidence_runbook_stage_number(self, classification):
+        normalized = safe_str(classification).upper()
+        for definition in self._console_evidence_runbook_stage_definitions():
+            if normalized in definition.get("success_classifications", []):
+                return definition.get("stage_number")
+            if normalized in definition.get("failure_classifications", []):
+                return definition.get("stage_number")
+        return 0
+
+    def resolve_ai_workbench_evidence_runbook(self, history_records=None, latest_result=None, workflow_anchor=None):
+        records = list(history_records or [])
+        latest_result = latest_result or {}
+        seen = set()
+        ordered = []
+        for record in records + ([latest_result] if latest_result else []):
+            if not isinstance(record, dict):
+                continue
+            key = self._console_evidence_runbook_record_key(record)
+            if key in seen:
+                continue
+            seen.add(key)
+            ordered.append(record)
+
+        relevant = []
+        for record in ordered:
+            classification = safe_str(record.get("result_classification")).upper()
+            if self._console_evidence_runbook_stage_number(classification):
+                relevant.append(record)
+
+        dashboard_success = set(["MEP_QA_DASHBOARD_GREEN", "MEP_QA_DASHBOARD_YELLOW"])
+        summary_success = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK"
+        dashboard_indexes = []
+        summary_indexes = []
+        for index, record in enumerate(relevant):
+            classification = safe_str(record.get("result_classification")).upper()
+            if classification in dashboard_success:
+                dashboard_indexes.append(index)
+            if classification == summary_success:
+                summary_indexes.append(index)
+
+        active_records = []
+        last_dashboard = dashboard_indexes[-1] if dashboard_indexes else -1
+        last_summary = summary_indexes[-1] if summary_indexes else -1
+        if last_dashboard > last_summary:
+            active_records = relevant[last_dashboard:]
+        elif last_summary >= 0:
+            previous_summary = -1
+            for summary_index in summary_indexes:
+                if summary_index < last_summary:
+                    previous_summary = summary_index
+            cycle_dashboards = [
+                index for index in dashboard_indexes
+                if previous_summary < index <= last_summary
+            ]
+            if cycle_dashboards:
+                active_records = relevant[cycle_dashboards[-1]:last_summary + 1]
+
+        stage_latest = {}
+        for record in active_records:
+            stage_number = self._console_evidence_runbook_stage_number(record.get("result_classification"))
+            if stage_number:
+                stage_latest[stage_number] = record
+
+        stage1_index = -1
+        stage2_index = -1
+        stage3_index = -1
+        stage4_index = -1
+        stage3_retry = False
+        for index, record in enumerate(active_records):
+            classification = safe_str(record.get("result_classification")).upper()
+            if classification in dashboard_success:
+                stage1_index = index
+            elif classification == "MEP_QA_ISSUEINDEX_EXPORT_OK" and stage1_index >= 0:
+                stage2_index = index
+            elif classification in ("QA_REPORT_EXPORT_COMPLETE", "QA_REPORT_EXPORT_NOT_READY") and stage2_index >= 0:
+                stage3_index = index
+                stage3_retry = classification == "QA_REPORT_EXPORT_NOT_READY"
+            elif classification == summary_success and stage3_index >= 0 and not stage3_retry:
+                stage4_index = index
+
+        completion = {
+            1: stage1_index >= 0,
+            2: stage2_index >= 0,
+            3: stage3_index >= 0 and not stage3_retry,
+            4: stage4_index >= 0,
+        }
+        complete_cycle = bool(completion.get(1) and completion.get(2) and completion.get(3) and completion.get(4))
+        if complete_cycle:
+            current_stage_number = 1
+        elif stage3_retry:
+            current_stage_number = 3
+        else:
+            current_stage_number = 1
+            for stage_number in (1, 2, 3, 4):
+                if not completion.get(stage_number):
+                    current_stage_number = stage_number
+                    break
+
+        context = self.console_last_context or {}
+        if not context:
+            try:
+                context = self.refresh_console_context()
+            except:
+                context = {}
+        anchor_state = workflow_anchor or self.resolve_latest_workflow_anchor(records, latest_result)
+        next_step = self.resolve_ai_workbench_next_step(context, latest_result, records)
+        stages = []
+        completed_count = 0
+        pending_count = 0
+        for definition in self._console_evidence_runbook_stage_definitions():
+            stage_number = definition.get("stage_number")
+            prompt = definition.get("prompt")
+            item = self._console_catalog_item_for_prompt(prompt)
+            entry = (item or {}).get("entry") or {}
+            safety_class = self._console_safety_class(entry)
+            load_allowed = bool(
+                item
+                and self._console_item_visible_in_safe_catalog(item)
+                and safety_class in ("report-only", "selection-only", "export", "bundle")
+            )
+            if completion.get(stage_number):
+                status = "completed"
+                completed_count += 1
+            elif stage_number == 3 and stage3_retry:
+                status = "retry required" if load_allowed else "unavailable"
+            elif not complete_cycle and stage_number == current_stage_number:
+                status = "current" if load_allowed else "unavailable"
+            else:
+                status = "pending" if load_allowed else "unavailable"
+                if status == "pending":
+                    pending_count += 1
+            latest_stage_record = stage_latest.get(stage_number) or {}
+            stages.append(
+                {
+                    "stage_number": stage_number,
+                    "label": definition.get("label"),
+                    "prompt": prompt,
+                    "safety_class": safety_class or "unavailable",
+                    "status": status,
+                    "latest_result_classification": safe_str(latest_stage_record.get("result_classification") or "unavailable"),
+                    "latest_timestamp": safe_str(latest_stage_record.get("timestamp") or "unavailable"),
+                    "latest_export_folder": safe_str(latest_stage_record.get("export_folder") or "unavailable"),
+                    "completion_found": bool(completion.get(stage_number)),
+                    "load_allowed": load_allowed,
+                    "auto_run": False,
+                }
+            )
+
+        current_prompt = self._console_evidence_runbook_stage_definitions()[current_stage_number - 1].get("prompt")
+        if complete_cycle:
+            cycle_status = "complete"
+        elif stage3_retry:
+            cycle_status = "retry required"
+        elif any([stage.get("status") == "unavailable" for stage in stages if stage.get("stage_number") == current_stage_number]):
+            cycle_status = "unavailable"
+        elif completed_count:
+            cycle_status = "in progress"
+        else:
+            cycle_status = "not started"
+        return {
+            "feature_id": "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
+            "qa_export_anchor_feature_id": "AI-WORKBENCH-QA-EXPORT-ANCHOR-v1",
+            "cycle_status": cycle_status,
+            "current_stage_number": current_stage_number,
+            "current_stage_prompt": current_prompt,
+            "completed_stage_count": completed_count,
+            "pending_stage_count": pending_count,
+            "retry_required": bool(stage3_retry),
+            "qa_export_handoff_allowed": bool(completion.get(3)),
+            "recommended_restart_prompt": "show active view mep qa dashboard",
+            "next_step_prompt": next_step.get("prompt", "show active view mep qa dashboard"),
+            "next_step_agrees": bool(next_step.get("prompt") == current_prompt),
+            "workflow_anchor_feature_id": anchor_state.get("anchor_feature_id", "unavailable"),
+            "workflow_anchor_result_classification": anchor_state.get("anchor_result_classification", "unavailable"),
+            "raw_latest_feature_id": anchor_state.get("raw_latest_feature_id", "unavailable"),
+            "raw_latest_result_classification": anchor_state.get("raw_latest_result_classification", "unavailable"),
+            "stages": stages,
+        }
+
     def _console_visual_meaning_for_classification(self, classification, latest_status):
         classification = safe_str(classification)
         if latest_status == "missing":
@@ -18292,7 +18584,14 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_visual_preview_state(self, refresh_context=True):
         context = self.refresh_console_context() if refresh_context else (self.console_last_context or {})
         latest_result, latest_status = self._console_latest_result_metadata()
-        next_step = self.resolve_ai_workbench_next_step(context, latest_result, None)
+        history_records, malformed, history_status = self._console_load_history_records()
+        workflow_anchor = self.resolve_latest_workflow_anchor(history_records, latest_result)
+        next_step = self.resolve_ai_workbench_next_step(context, latest_result, history_records)
+        evidence_runbook = self.resolve_ai_workbench_evidence_runbook(
+            history_records,
+            latest_result,
+            workflow_anchor,
+        )
         recommended_prompt = next_step.get("prompt", "show active view mep qa dashboard")
         recommended_safety = next_step.get("safety_class", "report-only")
         recommended_requires_confirmation = next_step.get("requires_confirmation", "false")
@@ -18315,6 +18614,7 @@ class OllamaAIChat(forms.WPFWindow):
             "workflow_anchor_result_classification": next_step.get("workflow_anchor_result_classification", "unavailable"),
             "workflow_anchor_prompt": next_step.get("workflow_anchor_prompt", "unavailable"),
             "workflow_anchor_skipped_meta_count": next_step.get("workflow_anchor_skipped_meta_count", 0),
+            "evidence_runbook": evidence_runbook,
             "safe_prompt_cards": self._console_safe_prompt_cards(context),
             "safe_prompt_lines": self._console_safe_prompt_lines(context),
         }
@@ -18359,6 +18659,26 @@ class OllamaAIChat(forms.WPFWindow):
             ]
         )
         lines.extend(["- {0}".format(line) if not safe_str(line).startswith("-") else line for line in state.get("issue_lines") or []])
+        evidence_runbook = state.get("evidence_runbook") or {}
+        lines.extend(
+            [
+                "",
+                "Evidence Runbook",
+                "- Feature ID: AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
+                "- Cycle status: {0}".format(evidence_runbook.get("cycle_status", "unavailable")),
+                "- Completed stages: {0}/4".format(evidence_runbook.get("completed_stage_count", 0)),
+                "- Current stage prompt: {0}".format(evidence_runbook.get("current_stage_prompt", "show active view mep qa dashboard")),
+                "- Retry required: {0}".format(str(bool(evidence_runbook.get("retry_required"))).lower()),
+            ]
+        )
+        for stage in evidence_runbook.get("stages") or []:
+            lines.append(
+                "- [{0}] {1}. {2}".format(
+                    safe_str(stage.get("status", "unavailable")).title(),
+                    stage.get("stage_number"),
+                    stage.get("label"),
+                )
+            )
         lines.extend(
             [
                 "",
@@ -18399,7 +18719,82 @@ class OllamaAIChat(forms.WPFWindow):
             self._render_console_visual_action_cards(state)
         except:
             pass
+        try:
+            self._render_console_evidence_runbook_card(state.get("evidence_runbook") or {})
+        except:
+            pass
         return state
+
+    def _console_evidence_runbook_short_folder(self, folder):
+        folder = safe_str(folder)
+        if not folder or folder == "unavailable":
+            return ""
+        try:
+            parent = os.path.basename(os.path.dirname(folder))
+            leaf = os.path.basename(folder)
+            return "...\\{0}\\{1}".format(parent, leaf)
+        except:
+            return folder
+
+    def _render_console_evidence_runbook_card(self, runbook):
+        if not hasattr(self, "ConsoleEvidenceRunbookText"):
+            return
+        lines = []
+        for stage in runbook.get("stages") or []:
+            lines.append(
+                "[{0}] {1}. {2}".format(
+                    safe_str(stage.get("status", "unavailable")).title(),
+                    stage.get("stage_number"),
+                    stage.get("label"),
+                )
+            )
+            folder = self._console_evidence_runbook_short_folder(stage.get("latest_export_folder"))
+            if folder and stage.get("status") == "completed":
+                lines.append("  Evidence: {0}".format(folder))
+        if not lines:
+            lines = ["[Current] 1. Active-view QA dashboard"]
+        lines.extend(
+            [
+                "Cycle: {0}; completed: {1}/4".format(
+                    runbook.get("cycle_status", "not started"),
+                    runbook.get("completed_stage_count", 0),
+                ),
+                "Load-only; commands are never run automatically.",
+            ]
+        )
+        self.ConsoleEvidenceRunbookText.Text = "\n".join(lines)
+        current_prompt = safe_str(runbook.get("current_stage_prompt") or "show active view mep qa dashboard")
+        current_stage = None
+        for stage in runbook.get("stages") or []:
+            if stage.get("stage_number") == runbook.get("current_stage_number"):
+                current_stage = stage
+                break
+        load_allowed = bool(current_stage and current_stage.get("load_allowed"))
+        self.ConsoleEvidenceRunbookCurrentButton.Tag = current_prompt
+        self.ConsoleEvidenceRunbookCurrentButton.IsEnabled = load_allowed
+        self.ConsoleEvidenceRunbookNextButton.Tag = current_prompt
+        self.ConsoleEvidenceRunbookNextButton.IsEnabled = load_allowed
+        self.ConsoleEvidenceRunbookRestartButton.Tag = "show active view mep qa dashboard"
+        self.ConsoleEvidenceRunbookRestartButton.IsEnabled = bool(
+            self._console_catalog_item_for_prompt("show active view mep qa dashboard")
+        )
+
+    def on_console_evidence_runbook_load_stage(self, sender, args):
+        try:
+            prompt = safe_str(sender.Tag if sender is not None and hasattr(sender, "Tag") else "")
+            item = self._console_catalog_item_for_prompt(prompt)
+            if not item or not self._console_item_visible_in_safe_catalog(item):
+                raise Exception("Evidence Runbook stage is unavailable in the safe prompt catalog.")
+            safety = self._console_safety_class((item or {}).get("entry") or {})
+            if safety not in ("report-only", "selection-only", "export", "bundle"):
+                raise Exception("Evidence Runbook stage is not loadable under the current safety policy.")
+            self._console_load_visual_prompt(prompt)
+            self.ConsoleVisualActionStatus.Text = "Loaded Evidence Runbook stage: {0}. Run was not executed.".format(prompt)
+        except Exception as exc:
+            try:
+                self.ConsoleVisualActionStatus.Text = "Evidence Runbook load failed: {0}".format(safe_str(exc))
+            except:
+                pass
 
     def _console_load_visual_prompt(self, prompt):
         prompt = safe_str(prompt).strip()
@@ -18714,7 +19109,8 @@ class OllamaAIChat(forms.WPFWindow):
         latest = state.get("latest_result") or {}
         counts = context.get("category_counts") or {}
         nonzero_counts = ["- {0}: {1}".format(name, counts.get(name)) for name in sorted(counts.keys()) if counts.get(name)]
-        visual_cards = ["View Context", "Latest Result", "Issues / Candidates", "Safe Next Action"]
+        runbook = state.get("evidence_runbook") or {}
+        visual_cards = ["View Context", "Latest Result", "Issues / Candidates", "Evidence Runbook", "Safe Next Action"]
         lines = [
             "[AI WORKBENCH VISUAL PREVIEW REPORT]",
             "",
@@ -18783,6 +19179,45 @@ class OllamaAIChat(forms.WPFWindow):
                 state.get("workflow_anchor_prompt", "unavailable"),
                 "Workflow anchor skipped meta/status count:",
                 state.get("workflow_anchor_skipped_meta_count", 0),
+                "",
+                "Evidence Runbook enabled:",
+                "true",
+                "Evidence Runbook feature ID:",
+                "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
+                "Evidence cycle status:",
+                runbook.get("cycle_status", "unavailable"),
+                "Evidence completed stage count:",
+                runbook.get("completed_stage_count", 0),
+                "Evidence current stage number:",
+                runbook.get("current_stage_number", 1),
+                "Evidence current stage prompt:",
+                runbook.get("current_stage_prompt", "show active view mep qa dashboard"),
+                "Evidence retry required:",
+                str(bool(runbook.get("retry_required"))).lower(),
+                "Evidence Runbook load only:",
+                "true",
+                "Evidence Runbook auto-run:",
+                "false",
+                "",
+                "Evidence Runbook stages:",
+                "| Stage | Label | Prompt | Safety class | Status | Latest classification | Latest export folder | Auto-run |",
+                "|---|---|---|---|---|---|---|---|",
+            ]
+        )
+        for stage in runbook.get("stages") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} | false |".format(
+                    stage.get("stage_number"),
+                    safe_str(stage.get("label")).replace("|", "\\|"),
+                    safe_str(stage.get("prompt")).replace("|", "\\|"),
+                    stage.get("safety_class", "unavailable"),
+                    stage.get("status", "unavailable"),
+                    stage.get("latest_result_classification", "unavailable"),
+                    safe_str(stage.get("latest_export_folder", "unavailable")).replace("|", "\\|"),
+                )
+            )
+        lines.extend(
+            [
                 "",
                 "Issue / candidate summary:",
             ]
@@ -19039,6 +19474,165 @@ class OllamaAIChat(forms.WPFWindow):
                 "",
                 "Result classification:",
                 "AI_WORKBENCH_NEXT_STEP_FAILED",
+                "",
+                "Warnings:",
+                "- {0}".format(safe_str(exc)),
+                "",
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+            ]
+            report = "\n".join([safe_str(line) for line in lines])
+            self.remember_latest_deterministic_report(prompt, report)
+            return report
+
+    def _console_evidence_runbook_report(self, prompt):
+        context = self.refresh_console_context()
+        records, malformed, history_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        workflow_anchor = self.resolve_latest_workflow_anchor(records, latest_result)
+        runbook = self.resolve_ai_workbench_evidence_runbook(records, latest_result, workflow_anchor)
+        report_id = "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
+        lines = [
+            "[AI WORKBENCH EVIDENCE RUNBOOK REPORT]",
+            "",
+            "Report ID:",
+            report_id,
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Evidence Runbook v1",
+            "",
+            "Action name:",
+            "Show deterministic QA evidence workflow progress",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            "AI_WORKBENCH_EVIDENCE_RUNBOOK_OK",
+            "",
+            "Active document title:",
+            context.get("document_title", _document_title(doc)),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(
+                context.get("active_view_name", _active_view_title(doc, uidoc)),
+                context.get("active_view_type", "unavailable"),
+            ),
+            "",
+            "Detected context discipline:",
+            context.get("likely_discipline", "Unknown / Empty"),
+            "",
+            "Current UI selection count:",
+            context.get("selection_count", 0),
+            "",
+            "Cycle status:",
+            runbook.get("cycle_status", "unavailable"),
+            "Completed stage count:",
+            runbook.get("completed_stage_count", 0),
+            "Current stage number:",
+            runbook.get("current_stage_number", 1),
+            "Current stage prompt:",
+            runbook.get("current_stage_prompt", "show active view mep qa dashboard"),
+            "Pending stage count:",
+            runbook.get("pending_stage_count", 0),
+            "Retry required:",
+            str(bool(runbook.get("retry_required"))).lower(),
+            "QA export handoff allowed:",
+            str(bool(runbook.get("qa_export_handoff_allowed"))).lower(),
+            "",
+            "Workflow anchor feature ID:",
+            runbook.get("workflow_anchor_feature_id", "unavailable"),
+            "Workflow anchor result classification:",
+            runbook.get("workflow_anchor_result_classification", "unavailable"),
+            "Raw latest feature ID:",
+            runbook.get("raw_latest_feature_id", "unavailable"),
+            "Raw latest result classification:",
+            runbook.get("raw_latest_result_classification", "unavailable"),
+            "QA export anchor feature ID:",
+            runbook.get("qa_export_anchor_feature_id", "AI-WORKBENCH-QA-EXPORT-ANCHOR-v1"),
+            "",
+            "Next Step Engine prompt:",
+            runbook.get("next_step_prompt", "show active view mep qa dashboard"),
+            "Runbook current stage agrees with Next Step Engine:",
+            str(bool(runbook.get("next_step_agrees"))).lower(),
+            "",
+            "Stages:",
+            "| Stage | Label | Prompt | Safety class | Status | Latest classification | Latest export folder | Auto-run |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+        for stage in runbook.get("stages") or []:
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} | {6} | false |".format(
+                    stage.get("stage_number"),
+                    safe_str(stage.get("label")).replace("|", "\\|"),
+                    safe_str(stage.get("prompt")).replace("|", "\\|"),
+                    stage.get("safety_class", "unavailable"),
+                    stage.get("status", "unavailable"),
+                    stage.get("latest_result_classification", "unavailable"),
+                    safe_str(stage.get("latest_export_folder", "unavailable")).replace("|", "\\|"),
+                )
+            )
+        lines.extend(
+            [
+                "",
+                "Load-only:",
+                "true",
+                "Auto-run:",
+                "false",
+                "",
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+                "",
+                "Safety:",
+                "- Evidence Runbook reads Console history and workflow metadata only.",
+                "- Stage controls load prompts into the Console input only.",
+                "- No command is executed automatically.",
+                "- Previous history and evidence folders are not cleared, rewritten, or deleted.",
+            ]
+        )
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        try:
+            self._render_console_visual_preview(refresh_context=False)
+        except:
+            pass
+        return report
+
+    def answer_ai_workbench_evidence_runbook_question(self, prompt):
+        if not _is_ai_workbench_evidence_runbook_status_prompt(prompt):
+            return None
+        try:
+            return self._console_evidence_runbook_report(prompt)
+        except Exception as exc:
+            lines = [
+                "[AI WORKBENCH EVIDENCE RUNBOOK REPORT]",
+                "",
+                "Feature ID:",
+                "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
+                "",
+                "Feature name:",
+                "AI Workbench Evidence Runbook v1",
+                "",
+                "Prompt:",
+                safe_str(prompt),
+                "",
+                "Result classification:",
+                "AI_WORKBENCH_EVIDENCE_RUNBOOK_FAILED",
                 "",
                 "Warnings:",
                 "- {0}".format(safe_str(exc)),
@@ -20242,6 +20836,7 @@ class OllamaAIChat(forms.WPFWindow):
             "AI-WORKBENCH-VISUAL-ACTION-CARDS-v1",
             "AI-WORKBENCH-WORKFLOW-ANCHOR-v1",
             "AI-WORKBENCH-QA-EXPORT-ANCHOR-v1",
+            "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
             "",
             "Feature name:",
             "AI Workbench Next Step Engine v1",
@@ -20289,6 +20884,15 @@ class OllamaAIChat(forms.WPFWindow):
             "QA export skips meta/status/viewer latest results: true",
             "QA export not-ready classification enabled: true",
             "Next Step Engine requires QA_REPORT_EXPORT_COMPLETE for session-summary handoff: true",
+            "Evidence Runbook feature ID: AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
+            "Evidence Runbook enabled: true",
+            "Evidence Runbook stage count: 4",
+            "Evidence Runbook load-only actions: true",
+            "Evidence Runbook auto-run: false",
+            "Evidence Runbook uses Next Step Engine: true",
+            "Evidence Runbook uses Workflow Anchor: true",
+            "Evidence Runbook uses QA Export Anchor: true",
+            "Evidence Runbook recognizes QA_REPORT_EXPORT_NOT_READY: true",
             "Guided Coach uses shared resolver: true",
             "Visual Preview uses shared resolver: true",
             "Utility Load Next uses shared resolver: true",
@@ -44449,6 +45053,11 @@ class OllamaAIChat(forms.WPFWindow):
                 ai_workbench_next_step_reply = self.answer_ai_workbench_next_step_question(
                     prompt
                 )
+            ai_workbench_evidence_runbook_reply = None
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None:
+                ai_workbench_evidence_runbook_reply = self.answer_ai_workbench_evidence_runbook_question(
+                    prompt
+                )
             ai_workbench_context_suggestions_reply = None
             if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None:
                 ai_workbench_context_suggestions_reply = self.answer_ai_workbench_context_suggestions_question(
@@ -44589,6 +45198,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif ai_workbench_next_step_reply is not None:
                 reply = ai_workbench_next_step_reply
+                preserve_latest_report_state = True
+            elif ai_workbench_evidence_runbook_reply is not None:
+                reply = ai_workbench_evidence_runbook_reply
                 preserve_latest_report_state = True
             elif ai_workbench_context_suggestions_reply is not None:
                 reply = ai_workbench_context_suggestions_reply

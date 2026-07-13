@@ -2132,3 +2132,30 @@ Validation folder: `WBSO/Testing_Validation/runs/2026-07-08_ai-workbench-next-st
 Runtime context: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, `TEST [FloorPlan]`, Piping, 97 pipe fittings, 18 pipes.
 
 Technical conclusion: the batch unifies next-step guidance across AI Workbench surfaces and adds workflow anchoring for latest-result precision. It preserves load-only guidance, explicit manual Run boundaries, MEP-SEL confirmation, MEP-RO guards, Safe Catalog filtering, and no Revit model mutation.
+
+## EV-AI-324 through EV-AI-328 - AI Workbench QA Export Anchor
+
+Status: Implemented, statically validated, live Revit validated, committed, and pushed
+
+Date: 2026-07-10
+
+Week: `2026-W16`
+
+Daily log: `DL-2026-07-10-01` (hours require manual entry)
+
+Validation folder: `WBSO/Testing_Validation/runs/2026-07-10_ai-workbench-qa-export-anchor-validated/`
+
+- EV-AI-324: AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 implementation and static validation. Commit `378f5c3` (`Use workflow anchor for QA report export`); implementation in `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`; prompt catalog unchanged; requested static and governance checks passed.
+- EV-AI-325: Successful workflow-source QA export runtime validation. The issue-index -> latest-result viewer -> Load Next -> QA export chain completed at `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260710_162242`, generated the four existing snapshot files, and updated all three QA indexes. The successful run reported `Export source mode: raw latest`; workflow-anchor fallback is implemented but was not directly selected in this run.
+- EV-AI-326: QA export completion to Console session-summary handoff. `QA_REPORT_EXPORT_COMPLETE` enabled handoff; manual session-summary export wrote five files at `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries\20260710_162730_console_session_summary`, with 90 history entries read, 20 included, and 0 malformed.
+- EV-AI-327: `QA_REPORT_EXPORT_NOT_READY` and failed-handoff prevention. The not-ready path returned before QA folder/file creation, reported all safety flags false, and the Next Step Engine blocked session-summary handoff while recommending `export latest QA report` retry.
+- EV-AI-328: Regression, safety, and Console status evidence. Dashboard/Visual Preview/latest-result/Safe Catalog/unsupported-prompt checks passed; no model mutation occurred. `show ai workbench next step satus` was a test-input typo and is not recorded as a software defect.
+
+Evidence paths:
+
+- `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260710_161832_export_mep_project_issue_index`
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260710_162242`
+- `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries\20260710_162730_console_session_summary`
+- `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260710_163746_export_mep_project_issue_index`
+
+Technical conclusion: AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 closes the downstream export-source gap and establishes the safe evidence chain Dashboard -> Issue Index -> QA Export -> Console Session Summary. Failed QA exports do not advance. `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1` remains pending.

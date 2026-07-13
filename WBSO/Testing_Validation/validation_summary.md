@@ -903,3 +903,28 @@ No Revit model mutation, transaction, TransactionGroup, parameter write, active-
 ### Known Follow-Up
 
 AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 is pending only. Runtime validation found that `export latest QA report` still uses raw latest meta/viewer output instead of the workflow anchor after `show latest result`. The defect is recorded as a workflow-source integration issue and is not marked completed in this batch.
+
+## 2026-07-10 - AI Workbench QA Export Anchor
+
+### Status
+
+Implemented, statically validated, live Revit validated, committed (`378f5c3`), and pushed.
+
+### Main Findings
+
+- The issue-index -> viewer -> Load Next -> QA export chain completed successfully.
+- Successful export preserved `[QA REPORT EXPORT COMPLETE]`, four evidence files, and three indexes.
+- Observed source mode was `raw latest`; workflow-anchor fallback is implemented but was not directly selected in the successful run.
+- QA completion enabled Console session-summary handoff and produced a five-file summary export.
+- `QA_REPORT_EXPORT_NOT_READY` returned before QA folder/file creation.
+- Failed QA export did not permit session-summary handoff and recommended QA export retry.
+- Dashboard and Visual Preview regressions passed with 19 pipes, 97 fittings, and no issue candidates.
+- The `satus` input was a typo, not a product defect.
+
+### Safety
+
+No transaction, TransactionGroup, parameter write, model mutation, active-view switch, direct selection API, linked-document mutation, or automatic execution was introduced. Prompt catalog and successful report headers remained unchanged.
+
+### Next Package
+
+`AI-WORKBENCH-EVIDENCE-RUNBOOK-v1` remains pending.

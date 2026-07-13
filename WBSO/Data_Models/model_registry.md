@@ -517,3 +517,24 @@ Commit evidence:
 - `9a98076` - Add AI Workbench guided start
 - `c366708` - Add AI Workbench guided coach
 - `f037b07` - Polish AI Workbench console layout
+
+## AI-WORKBENCH-QA-EXPORT-ANCHOR-v1
+
+Status: Runtime validated
+
+Commit: `378f5c3` - Use workflow anchor for QA report export
+
+Implementation path: `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+
+State/model relationship:
+
+- consumes raw latest Console result metadata;
+- consumes AI-WORKBENCH-WORKFLOW-ANCHOR-v1 metadata and retained workflow report text;
+- preserves AI-WORKBENCH-NEXT-STEP-ENGINE-v1 load-only recommendation semantics;
+- records export source mode and raw/anchor provenance in QA export metadata;
+- treats `QA_REPORT_EXPORT_NOT_READY` as non-success;
+- allows session-summary handoff only after `QA_REPORT_EXPORT_COMPLETE`.
+
+Prompt catalog: unchanged.
+
+Pending package: `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1`, not implemented.

@@ -1745,3 +1745,21 @@ Passed with known integration bottleneck. See `WBSO/Testing_Validation/runs/2026
 ### Result
 
 Passed. See `WBSO/Testing_Validation/runs/2026-06-29_ai-workbench-guided-console-workflow-validated/`.
+
+## 2026-07-10 AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 Validation Plan
+
+Context: BUNGE loading building model, `TEST [FloorPlan]`, Piping, 97 fittings, 19 pipes. Evidence EV-AI-324 through EV-AI-328.
+
+Tests:
+
+1. Run project issue-index export; expect `MEP_QA_ISSUEINDEX_EXPORT_OK`, 11 files, 15 views scanned, 24 issues, no model/UI/view mutation.
+2. Run `show latest result`; expect latest-result viewer and retained issue-index workflow source.
+3. Load and manually run `export latest QA report`; expect `[QA REPORT EXPORT COMPLETE]`, `QA_REPORT_EXPORT_COMPLETE`, four files, three indexes, and provenance metadata.
+4. Run Next Step status; expect complete true, not-ready false, handoff allowed true, session-summary recommendation.
+5. Run session-summary export; expect five files and no model/UI/view mutation.
+6. Run QA export without valid source; expect `[QA REPORT EXPORT]`, `QA_REPORT_EXPORT_NOT_READY`, and no QA folder/files.
+7. Run Next Step status after failure; expect complete false, not-ready true, handoff false, and QA export retry rather than session summary.
+8. Regress dashboard, Visual Preview, latest-result viewer, Safe Catalog split blocking, and banana prompt blocking.
+9. Record `show ai workbench next step satus` as a test-input typo, not a software defect.
+
+Result: Passed. The successful QA export directly observed `raw latest` source mode. Workflow-anchor fallback is implemented but was not directly selected in this runtime run.

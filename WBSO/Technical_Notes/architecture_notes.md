@@ -1551,3 +1551,19 @@ Safety boundary:
 - no parameter writes
 - no automatic command execution from guided/navigator/coach buttons
 - UI selection mutation only through confirmed MEP-SEL-v1 routes
+
+## 2026-07-10 AI Workbench QA Export Anchor Architecture
+
+AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 closes the source-selection gap after the Next Step Engine and Workflow Anchor layers:
+
+- raw latest output is used when it is a valid deterministic workflow report;
+- retained workflow-anchor report text is the fallback when raw latest is meta/status/viewer output;
+- invalid/meta/status/viewer output is rejected as QA evidence;
+- `QA_REPORT_EXPORT_NOT_READY` returns before QA folder/file creation;
+- `[QA REPORT EXPORT COMPLETE]`, the four-file snapshot, and three QA indexes remain compatible;
+- successful output records raw-latest and workflow-anchor provenance;
+- session-summary handoff requires actual `QA_REPORT_EXPORT_COMPLETE` or the complete header.
+
+Runtime validation completed the issue-index -> viewer -> Load Next -> QA export chain. The observed successful source mode was `raw latest`; fallback mode is implemented but was not directly selected in this run. Commit: `378f5c3`.
+
+Safety boundary: no transaction, model/parameter/link mutation, view switch, direct selection API, or automatic execution. QA files write only after manual Run with a valid source.

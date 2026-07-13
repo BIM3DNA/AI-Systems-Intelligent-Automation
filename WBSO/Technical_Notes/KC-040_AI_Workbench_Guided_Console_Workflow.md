@@ -169,6 +169,12 @@ No Revit model mutation, `DB.Transaction`, `DB.TransactionGroup`, parameter writ
 
 AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 is pending only. During workflow anchor validation, `export latest QA report` still used raw latest meta/viewer output after `show latest result`, so QA export failed with `[QA REPORT EXPORT] Latest output is not a deterministic AI Workbench QA report. Run a read-only deterministic report first.` This is a workflow-source integration defect, not a model-safety defect.
 
+## 2026-07-10 Addendum - QA Export Anchor Completed
+
+AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 is now implemented and runtime validated in commit `378f5c3`. It closes the downstream source-selection gap after the Next Step Engine and Workflow Anchor, preserves the existing QA snapshot/index structure, adds explicit not-ready behavior, and prevents false session-summary handoff.
+
+The successful runtime export reported `Export source mode: raw latest`; workflow-anchor fallback is implemented but was not directly selected in that run. Evidence: EV-AI-324 through EV-AI-328. `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1` remains pending.
+
 ## Commit References
 
 - `not found in local git log` - Route confirmed AI Workbench selection commands to MEP-SEL v1

@@ -824,3 +824,28 @@ Still out of scope:
 - automatic model correction or parameter writes
 - automatic execution of recommended recipe/coach steps
 - making selection confirmation permanently active by default
+
+### 2026-07-10 AI Workbench QA Export Anchor scope alignment
+
+Validated scope:
+
+- raw-valid-first QA export source resolution
+- retained workflow-anchor fallback implementation
+- explicit `QA_REPORT_EXPORT_NOT_READY`
+- no-file-write not-ready behavior
+- preserved `[QA REPORT EXPORT COMPLETE]` files and indexes
+- export provenance metadata
+- complete-only Console session-summary handoff
+- dashboard, Visual Preview, latest-result, Safe Catalog, and unsupported-prompt regression checks
+
+Safety boundary:
+
+- manual Run required for export
+- no QA files written without a valid deterministic source
+- no Revit model, parameter, link, selection, or active-view mutation
+- MEP-RO guard, MEP-SEL dispatch, selection confirmation, and Safe Catalog preserved
+
+Still out of scope:
+
+- `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1`
+- claiming direct runtime observation of workflow-anchor fallback source mode
