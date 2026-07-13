@@ -928,3 +928,33 @@ No transaction, TransactionGroup, parameter write, model mutation, active-view s
 ### Next Package
 
 `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1` remains pending.
+
+## 2026-07-13 - AI Workbench Evidence Runbook and Resolver Hardening
+
+### Status
+
+Implemented and substantially runtime-validated. The package remains open for Context Suggestions alignment.
+
+### Main Findings
+
+- Commit `4f6eaf3` added the visible four-stage Evidence Runbook and load-only UI integration.
+- Working-tree corrections added evidence-cycle gate precedence, active-cycle boundary isolation, Stage 4 history isolation, summary preflight, strict QA-source eligibility, terminal-cycle diagnostics, duplicate-summary prevention, and dynamic dark-theme styling. These corrections are not yet committed.
+- Retry state after `QA_REPORT_EXPORT_NOT_READY` now controls all shared recommendation surfaces and does not permit session-summary handoff.
+- Context Suggestions and other non-QA reports are rejected as QA evidence; invalid paths write no files.
+- Valid issue-index, QA export, and session-summary evidence completed successfully.
+- A completed cycle requires a new dashboard and blocks duplicate summaries with zero files.
+- Immediate Dark/Light switching and dynamic Console readability passed.
+
+### Runtime Evidence
+
+- Issue index: `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260713_170438_export_mep_project_issue_index`
+- QA export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260713_170515`
+- Session summary: `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries\20260713_170614_console_session_summary`
+
+### Safety
+
+No transaction, TransactionGroup, parameter write, model mutation, linked-document mutation, active-view switch, direct selection API, automatic execution, history deletion/rewrite, ineligible QA file write, or duplicate terminal summary write was introduced. Existing safety guards and explicit manual Run remain preserved.
+
+### Pending Defect
+
+After only a dashboard result, Context Suggestions can recommend `export latest QA report` rather than `export mep project issue index`. The strict exporter blocks the invalid recommendation safely. This is a workflow-guidance consistency issue, not a Revit model-safety defect, and prevents final package closure.

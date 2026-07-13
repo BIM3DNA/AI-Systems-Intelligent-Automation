@@ -1763,3 +1763,31 @@ Tests:
 9. Record `show ai workbench next step satus` as a test-input typo, not a software defect.
 
 Result: Passed. The successful QA export directly observed `raw latest` source mode. Workflow-anchor fallback is implemented but was not directly selected in this runtime run.
+
+## 2026-07-13 AI-WORKBENCH-EVIDENCE-RUNBOOK-v1 Validation Plan
+
+Context: BUNGE loading building model, `TEST [FloorPlan]`, Piping, 97 fittings, 18 pipes. Evidence EV-AI-329 through EV-AI-334.
+
+Tests:
+
+1. Show Evidence Runbook status and alias; verify four deterministic stages, current/completed/pending/retry/unavailable states, evidence folders, anchor metadata, and load-only controls.
+2. Run dashboard -> issue index -> QA export -> session summary; verify stage advancement only after successful classifications.
+3. Produce `QA_REPORT_EXPORT_NOT_READY`; verify Stage 3 retry, Stage 4 pending, and agreement across Guided Coach, Visual Preview, Utility Load Next, Recipe Navigator Load Next, and Runbook current stage.
+4. Verify active-cycle boundary timestamp/history index, active entries considered, historical entries ignored, and no historical Stage 4 leakage.
+5. Attempt session summary before QA completion; expect `AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_NOT_READY`, zero generated files, and external files false.
+6. Validate dynamic dark theme for headings, autocomplete, preview/result/context/visual panels, status/warning styling, and immediate Dark/Light switching.
+7. Run dashboard -> Context Suggestions -> QA export; expect Suggestions rejected, `QA_REPORT_EXPORT_NOT_READY`, eligible active-cycle source false, and no files.
+8. Run issue-index export; expect `MEP_QA_ISSUEINDEX_EXPORT_OK`, 11 files, 15 views scanned, 24 issue candidates, and no skipped/unreadable items.
+9. Run valid QA export; expect source eligibility true, issue-index source classification, four files, and provenance metadata.
+10. Run valid session summary; expect five files and Stage 4 completion.
+11. Inspect completed runbook; expect four completed stages, current stage 1/dashboard, terminal/restart true, and both handoffs false.
+12. Attempt duplicate session summary; expect `AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_CYCLE_COMPLETE`, restart reason, zero files, and no external write.
+13. Record Context Suggestions recommending direct QA export after dashboard as a pending guidance consistency defect.
+
+Pass criteria:
+
+- core state machine, active-cycle isolation, retry state, resolver gate, strict source eligibility, terminal guard, duplicate-summary no-write path, and dark theme pass;
+- no transaction, model/link/parameter/view mutation or automatic execution;
+- package remains open until Context Suggestions follows the active stage.
+
+Result: Substantially passed with one known deterministic workflow-guidance inconsistency. See `WBSO/Testing_Validation/runs/2026-07-13_ai-workbench-evidence-runbook-substantially-validated/`.

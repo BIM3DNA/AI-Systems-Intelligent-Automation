@@ -1658,3 +1658,31 @@ Runtime result:
 - no model/UI/view mutation occurred.
 
 Remaining R&D: `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1` is pending.
+
+## 2026-07-13 Evidence Runbook Resolver, Source Eligibility, and Guidance Issues
+
+Status: Core state machine substantially runtime-validated; one guidance inconsistency remains open.
+
+Resolved runtime defects:
+
+- Generic next-step rules could override Stage 3 retry after `QA_REPORT_EXPORT_NOT_READY`.
+- Historical session-summary metadata could leak into active Stage 4 state.
+- Session-summary export could be attempted before QA completion.
+- Context Suggestions and other recommendation/status reports could be accepted as QA export sources.
+- A duplicate summary after a completed cycle used a contradictory QA-incomplete reason.
+- Dynamic Console panels/headings had incomplete dark-theme styling.
+
+Resolution:
+
+- evidence-cycle gate precedence and active-cycle boundary isolation;
+- Stage 4 metadata isolation and summary preflight;
+- explicit `MEP_QA_ISSUEINDEX_EXPORT_OK` source allowlist;
+- `QA_REPORT_EXPORT_NOT_READY` no-write rejection diagnostics;
+- terminal-cycle/restart state and `AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_CYCLE_COMPLETE`;
+- immediate workspace Dark/Light styling for dynamic controls.
+
+Open issue:
+
+After only `show active view mep qa dashboard`, Context Suggestions can recommend `export latest QA report` instead of `export mep project issue index`. The exporter rejects this safely because no eligible issue-index source exists. The next correction must make Context Suggestions consume the active runbook/evidence gate and shared Next Step Engine.
+
+Risk classification: deterministic UX/workflow-guidance inconsistency; not a Revit model-safety defect.

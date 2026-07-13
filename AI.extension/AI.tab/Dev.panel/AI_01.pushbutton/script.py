@@ -15395,6 +15395,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_codex_brief = ""
         self.latest_deterministic_report = None
         self.latest_workflow_anchor_report = None
+        self.latest_eligible_qa_report = None
         self.latest_chat_output_is_deterministic_report = False
         self.latest_reviewed_action_proposal = None
         self.latest_split_pipe_dry_run = None
@@ -15443,6 +15444,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.console_last_navigator_action = ""
         self.console_last_navigator_timestamp = ""
         self.console_guided_coach_state = {}
+        self.console_evidence_cycle_gate_state = {}
         self.console_capture_active = False
         self.console_captured_reply = None
         self.console_captured_error = None
@@ -16190,11 +16192,22 @@ class OllamaAIChat(forms.WPFWindow):
         tab.Content = root
         self.ConsoleTab = tab
         self.ConsoleRootGrid = root
+        self.ConsoleCommandTreeTitle = title
+        self.ConsoleCommandTreeGroup = tree_group
         self.ConsoleAdvancedPanel = left
         self.ConsoleAdvancedSplitter = split_a
+        self.ConsoleContextSplitter = split_b
+        self.ConsoleCenterPanel = center
+        self.ConsolePromptLabel = prompt_label
+        self.ConsoleSuggestionGroup = suggestion_group
+        self.ConsolePreviewGroup = preview_group
+        self.ConsoleResultGroup = result_group
+        self.ConsoleRightPanel = right
+        self.ConsoleContextGroup = context_group
         self.ConsoleVisualGroup = visual_group
         self.ConsoleVisualRefreshButton = visual_refresh_button
         self.ConsoleVisualActionsPanel = visual_actions_panel
+        self.ConsoleVisualActionsLabel = visual_actions_label
         self.ConsoleVisualActionStatus = visual_action_status
         self.ConsoleEvidenceRunbookCard = evidence_runbook_card
         self.ConsoleEvidenceRunbookText = evidence_runbook_text
@@ -16264,6 +16277,7 @@ class OllamaAIChat(forms.WPFWindow):
         self._set_console_utility_controls_visible(False)
         self.populate_console_command_tree()
         self._set_console_advanced_visible(False)
+        self._apply_console_theme(self.current_theme)
 
     def _console_normalize(self, value):
         return _normalize_deterministic_route_text(value)
@@ -17773,8 +17787,93 @@ class OllamaAIChat(forms.WPFWindow):
             "summary": summary,
         }
 
+    def _console_session_summary_not_ready_report(self, prompt, gate, runbook):
+        cycle_complete = bool(gate.get("cycle_restart_required"))
+        if cycle_complete:
+            classification = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_CYCLE_COMPLETE"
+            reason_code = "EVIDENCE_CYCLE_COMPLETE_RESTART_REQUIRED"
+            reason = (
+                "The current QA evidence cycle is already complete. Start a new cycle with the active-view "
+                "QA dashboard before exporting another session summary."
+            )
+            next_prompt = "show active view mep qa dashboard"
+        else:
+            classification = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_NOT_READY"
+            reason_code = "QA_EXPORT_INCOMPLETE"
+            reason = "The active QA evidence cycle has not completed QA_REPORT_EXPORT_COMPLETE."
+            next_prompt = gate.get("required_prompt", "export latest QA report")
+        lines = [
+            "[AI WORKBENCH CONSOLE SESSION SUMMARY EXPORT]",
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Evidence Runbook v1",
+            "",
+            "Action name:",
+            "Guard console session summary export",
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            classification,
+            "",
+            "Reason:",
+            reason,
+            "Summary guard reason code:",
+            reason_code,
+            "Evidence cycle status:",
+            gate.get("cycle_status", "unavailable"),
+            "Cycle terminal state:",
+            str(bool(gate.get("cycle_terminal_state"))).lower(),
+            "Cycle restart required:",
+            str(bool(gate.get("cycle_restart_required"))).lower(),
+            "Previous cycle complete:",
+            str(bool(gate.get("previous_cycle_complete"))).lower(),
+            "New dashboard boundary required:",
+            str(bool(gate.get("new_dashboard_boundary_required"))).lower(),
+            "Evidence current stage:",
+            gate.get("current_stage_number", 1),
+            "Evidence retry required:",
+            str(bool(gate.get("retry_required"))).lower(),
+            "QA export handoff allowed:",
+            str(bool(gate.get("qa_export_handoff_allowed"))).lower(),
+            "Session-summary handoff allowed:",
+            "false",
+            "Evidence cycle boundary timestamp:",
+            runbook.get("cycle_boundary_timestamp", "unavailable"),
+            "",
+            "Next recommended prompt:",
+            next_prompt,
+            "",
+            "Export folder:",
+            "",
+            "Generated files count:",
+            "0",
+            "",
+            "Safety flags:",
+            "- transaction opened: false",
+            "- transaction group opened: false",
+            "- model modified: false",
+            "- linked document modified: false",
+            "- UI selection modified: false",
+            "- active view changed: false",
+            "- external files written: false",
+        ]
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
     def _console_session_summary_export_report(self, prompt):
         records, malformed, source_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        workflow_anchor = self.resolve_latest_workflow_anchor(records, latest_result)
+        runbook = self.resolve_ai_workbench_evidence_runbook(records, latest_result, workflow_anchor)
+        gate = self.resolve_evidence_cycle_gate(records, latest_result, workflow_anchor, runbook)
+        if gate.get("gate_active") and not gate.get("session_summary_handoff_allowed"):
+            return self._console_session_summary_not_ready_report(prompt, gate, runbook)
         classification = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_EMPTY"
         export_data = {"folder": "", "generated_files": [], "summary": {"entries_included": 0}}
         warning = "none"
@@ -17900,6 +17999,8 @@ class OllamaAIChat(forms.WPFWindow):
                 "AI_WORKBENCH_STATUS_OK",
                 "AI_WORKBENCH_DEBUG_STATUS_OK",
                 "AI_WORKBENCH_EVIDENCE_RUNBOOK_OK",
+                "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_NOT_READY",
+                "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_CYCLE_COMPLETE",
                 "QA_REPORT_EXPORT_NOT_READY",
             ]
         )
@@ -17992,7 +18093,7 @@ class OllamaAIChat(forms.WPFWindow):
             raw_latest,
         )
 
-    def _console_next_step_result(self, prompt, reason, context, latest_result, latest_status, status="resolved", source="AI-WORKBENCH-NEXT-STEP-ENGINE-v1", anchor_state=None):
+    def _console_next_step_result(self, prompt, reason, context, latest_result, latest_status, status="resolved", source="AI-WORKBENCH-NEXT-STEP-ENGINE-v1", anchor_state=None, evidence_gate=None):
         safety, requires_confirmation = self._console_visual_prompt_safety(prompt)
         if safety not in ("report-only", "selection-only", "export", "bundle"):
             prompt = "show active view mep qa dashboard"
@@ -18050,6 +18151,19 @@ class OllamaAIChat(forms.WPFWindow):
                     ) else "false",
                 }
             )
+        evidence_gate = evidence_gate or getattr(self, "console_evidence_cycle_gate_state", {}) or {}
+        result.update(
+            {
+                "evidence_cycle_gate_active": "true" if evidence_gate.get("gate_active") else "false",
+                "evidence_cycle_gate_reason": evidence_gate.get("gate_reason", "No active evidence-cycle gate."),
+                "evidence_cycle_status": evidence_gate.get("cycle_status", "not started"),
+                "evidence_current_stage": evidence_gate.get("current_stage_number", 1),
+                "evidence_required_prompt": evidence_gate.get("required_prompt", "show active view mep qa dashboard"),
+                "evidence_retry_required": "true" if evidence_gate.get("retry_required") else "false",
+                "session_summary_handoff_allowed": "true" if evidence_gate.get("session_summary_handoff_allowed") else "false",
+                "resolver_precedence_source": evidence_gate.get("resolver_precedence_source", "AI-WORKBENCH-NEXT-STEP-ENGINE-v1"),
+            }
+        )
         return result
 
     def resolve_ai_workbench_next_step(self, context=None, latest_result=None, history_records=None):
@@ -18062,6 +18176,18 @@ class OllamaAIChat(forms.WPFWindow):
             history_records, malformed, history_status = self._console_load_history_records()
         latest_result = latest_result or {}
         anchor_state = self.resolve_latest_workflow_anchor(history_records, latest_result)
+        runbook_state = self.resolve_ai_workbench_evidence_runbook(
+            history_records,
+            latest_result,
+            anchor_state,
+        )
+        evidence_gate = self.resolve_evidence_cycle_gate(
+            history_records,
+            latest_result,
+            anchor_state,
+            runbook_state,
+        )
+        self.console_evidence_cycle_gate_state = evidence_gate
         raw_classification = safe_str(latest_result.get("result_classification")).upper()
         raw_header = safe_str(latest_result.get("result_header"))
         raw_qa_export_not_ready = (
@@ -18085,6 +18211,18 @@ class OllamaAIChat(forms.WPFWindow):
             issue_count = int(float(issue_count_text)) if issue_count_text else 0
         except:
             issue_count = 0
+        if evidence_gate.get("gate_active"):
+            return self._console_next_step_result(
+                evidence_gate.get("required_prompt", "show active view mep qa dashboard"),
+                evidence_gate.get("gate_reason", "Active evidence cycle controls the next safe step."),
+                context,
+                anchor_result,
+                latest_status,
+                status="evidence_cycle_gate",
+                source="AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
+                anchor_state=anchor_state,
+                evidence_gate=evidence_gate,
+            )
         if raw_qa_export_not_ready:
             if anchor_state.get("anchor_found"):
                 return self._console_next_step_result(
@@ -18302,36 +18440,43 @@ class OllamaAIChat(forms.WPFWindow):
         dashboard_success = set(["MEP_QA_DASHBOARD_GREEN", "MEP_QA_DASHBOARD_YELLOW"])
         summary_success = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK"
         dashboard_indexes = []
-        summary_indexes = []
+        valid_completed_cycles = []
+        scan_dashboard_index = -1
+        scan_stage2_index = -1
+        scan_stage3_index = -1
+        scan_stage3_retry = False
         for index, record in enumerate(relevant):
             classification = safe_str(record.get("result_classification")).upper()
             if classification in dashboard_success:
                 dashboard_indexes.append(index)
-            if classification == summary_success:
-                summary_indexes.append(index)
+                scan_dashboard_index = index
+                scan_stage2_index = -1
+                scan_stage3_index = -1
+                scan_stage3_retry = False
+            elif classification == "MEP_QA_ISSUEINDEX_EXPORT_OK" and scan_dashboard_index >= 0:
+                scan_stage2_index = index
+                scan_stage3_index = -1
+                scan_stage3_retry = False
+            elif classification in ("QA_REPORT_EXPORT_COMPLETE", "QA_REPORT_EXPORT_NOT_READY") and scan_stage2_index >= 0:
+                scan_stage3_index = index
+                scan_stage3_retry = classification == "QA_REPORT_EXPORT_NOT_READY"
+            elif (
+                classification == summary_success
+                and scan_dashboard_index >= 0
+                and scan_stage2_index >= 0
+                and scan_stage3_index >= 0
+                and not scan_stage3_retry
+            ):
+                valid_completed_cycles.append((index, scan_dashboard_index))
 
         active_records = []
         last_dashboard = dashboard_indexes[-1] if dashboard_indexes else -1
-        last_summary = summary_indexes[-1] if summary_indexes else -1
-        if last_dashboard > last_summary:
+        last_valid_summary = valid_completed_cycles[-1][0] if valid_completed_cycles else -1
+        if last_dashboard > last_valid_summary:
             active_records = relevant[last_dashboard:]
-        elif last_summary >= 0:
-            previous_summary = -1
-            for summary_index in summary_indexes:
-                if summary_index < last_summary:
-                    previous_summary = summary_index
-            cycle_dashboards = [
-                index for index in dashboard_indexes
-                if previous_summary < index <= last_summary
-            ]
-            if cycle_dashboards:
-                active_records = relevant[cycle_dashboards[-1]:last_summary + 1]
-
-        stage_latest = {}
-        for record in active_records:
-            stage_number = self._console_evidence_runbook_stage_number(record.get("result_classification"))
-            if stage_number:
-                stage_latest[stage_number] = record
+        elif valid_completed_cycles:
+            cycle_end, cycle_start = valid_completed_cycles[-1]
+            active_records = relevant[cycle_start:cycle_end + 1]
 
         stage1_index = -1
         stage2_index = -1
@@ -18344,11 +18489,25 @@ class OllamaAIChat(forms.WPFWindow):
                 stage1_index = index
             elif classification == "MEP_QA_ISSUEINDEX_EXPORT_OK" and stage1_index >= 0:
                 stage2_index = index
+                stage3_index = -1
+                stage4_index = -1
+                stage3_retry = False
             elif classification in ("QA_REPORT_EXPORT_COMPLETE", "QA_REPORT_EXPORT_NOT_READY") and stage2_index >= 0:
                 stage3_index = index
+                stage4_index = -1
                 stage3_retry = classification == "QA_REPORT_EXPORT_NOT_READY"
             elif classification == summary_success and stage3_index >= 0 and not stage3_retry:
                 stage4_index = index
+
+        stage_latest = {}
+        if stage1_index >= 0:
+            stage_latest[1] = active_records[stage1_index]
+        if stage2_index >= 0:
+            stage_latest[2] = active_records[stage2_index]
+        if stage3_index >= 0:
+            stage_latest[3] = active_records[stage3_index]
+        if stage4_index >= 0:
+            stage_latest[4] = active_records[stage4_index]
 
         completion = {
             1: stage1_index >= 0,
@@ -18368,14 +18527,7 @@ class OllamaAIChat(forms.WPFWindow):
                     current_stage_number = stage_number
                     break
 
-        context = self.console_last_context or {}
-        if not context:
-            try:
-                context = self.refresh_console_context()
-            except:
-                context = {}
         anchor_state = workflow_anchor or self.resolve_latest_workflow_anchor(records, latest_result)
-        next_step = self.resolve_ai_workbench_next_step(context, latest_result, records)
         stages = []
         completed_count = 0
         pending_count = 0
@@ -18429,6 +18581,14 @@ class OllamaAIChat(forms.WPFWindow):
             cycle_status = "in progress"
         else:
             cycle_status = "not started"
+        boundary_history_index = -1
+        boundary_timestamp = "unavailable"
+        if active_records:
+            boundary_timestamp = safe_str(active_records[0].get("timestamp") or "unavailable")
+            try:
+                boundary_history_index = ordered.index(active_records[0])
+            except:
+                boundary_history_index = -1
         return {
             "feature_id": "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
             "qa_export_anchor_feature_id": "AI-WORKBENCH-QA-EXPORT-ANCHOR-v1",
@@ -18438,15 +18598,93 @@ class OllamaAIChat(forms.WPFWindow):
             "completed_stage_count": completed_count,
             "pending_stage_count": pending_count,
             "retry_required": bool(stage3_retry),
-            "qa_export_handoff_allowed": bool(completion.get(3)),
+            "qa_export_handoff_allowed": bool(completion.get(3) and not complete_cycle),
+            "session_summary_handoff_allowed": bool(completion.get(3) and not completion.get(4)),
+            "active_cycle_exists": bool(stage1_index >= 0),
+            "cycle_terminal_state": bool(complete_cycle),
+            "cycle_restart_required": bool(complete_cycle),
+            "previous_cycle_complete": bool(complete_cycle),
+            "new_dashboard_boundary_required": bool(complete_cycle),
+            "cycle_boundary_timestamp": boundary_timestamp,
+            "cycle_boundary_history_index": boundary_history_index,
+            "active_cycle_entries_considered": len(active_records),
+            "historical_entries_ignored": max(0, len(relevant) - len(active_records)),
             "recommended_restart_prompt": "show active view mep qa dashboard",
-            "next_step_prompt": next_step.get("prompt", "show active view mep qa dashboard"),
-            "next_step_agrees": bool(next_step.get("prompt") == current_prompt),
             "workflow_anchor_feature_id": anchor_state.get("anchor_feature_id", "unavailable"),
             "workflow_anchor_result_classification": anchor_state.get("anchor_result_classification", "unavailable"),
             "raw_latest_feature_id": anchor_state.get("raw_latest_feature_id", "unavailable"),
             "raw_latest_result_classification": anchor_state.get("raw_latest_result_classification", "unavailable"),
             "stages": stages,
+        }
+
+    def resolve_evidence_cycle_gate(self, history_records=None, latest_result=None, workflow_anchor=None, runbook_state=None):
+        runbook = runbook_state or self.resolve_ai_workbench_evidence_runbook(
+            history_records,
+            latest_result,
+            workflow_anchor,
+        )
+        active_cycle = bool(runbook.get("active_cycle_exists"))
+        cycle_status = safe_str(runbook.get("cycle_status") or "not started")
+        current_stage = int(runbook.get("current_stage_number") or 1)
+        required_prompt = safe_str(
+            runbook.get("current_stage_prompt")
+            or "show active view mep qa dashboard"
+        )
+        retry_required = bool(runbook.get("retry_required"))
+        session_handoff = bool(runbook.get("session_summary_handoff_allowed"))
+        cycle_terminal = bool(runbook.get("cycle_terminal_state"))
+        cycle_restart_required = bool(runbook.get("cycle_restart_required"))
+        source_feature_id = "unavailable"
+        source_classification = "unavailable"
+        for stage in runbook.get("stages") or []:
+            classification = safe_str(stage.get("latest_result_classification"))
+            if classification and classification != "unavailable":
+                source_feature_id = "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1"
+                source_classification = classification
+        if not active_cycle:
+            reason = "No active QA evidence cycle exists; generic workflow recommendations may be used."
+        elif retry_required:
+            reason = "QA evidence export is not ready; retry export before any session-summary handoff."
+        elif cycle_status == "complete":
+            reason = "The active QA evidence cycle is complete; restart from the active-view dashboard."
+        elif current_stage == 2:
+            reason = "The active QA evidence cycle requires the project issue-index export next."
+        elif current_stage == 3:
+            reason = "The active QA evidence cycle requires QA evidence export next."
+        elif current_stage == 4:
+            reason = "QA evidence export completed for this cycle; session-summary handoff is allowed."
+        else:
+            reason = "The active QA evidence cycle controls the next safe workflow step."
+        return {
+            "gate_active": active_cycle,
+            "gate_reason": reason,
+            "cycle_status": cycle_status,
+            "current_stage_number": current_stage,
+            "required_prompt": required_prompt,
+            "qa_export_handoff_allowed": bool(runbook.get("qa_export_handoff_allowed")),
+            "session_summary_handoff_allowed": session_handoff,
+            "cycle_terminal_state": cycle_terminal,
+            "cycle_restart_required": cycle_restart_required,
+            "previous_cycle_complete": bool(runbook.get("previous_cycle_complete")),
+            "new_dashboard_boundary_required": bool(runbook.get("new_dashboard_boundary_required")),
+            "summary_guard_reason_code": (
+                "EVIDENCE_CYCLE_COMPLETE_RESTART_REQUIRED"
+                if cycle_restart_required
+                else ("QA_EXPORT_INCOMPLETE" if active_cycle and not session_handoff else "HANDOFF_ALLOWED")
+            ),
+            "summary_guard_next_prompt": (
+                "show active view mep qa dashboard"
+                if cycle_restart_required
+                else required_prompt
+            ),
+            "retry_required": retry_required,
+            "source_feature_id": source_feature_id,
+            "source_classification": source_classification,
+            "resolver_precedence_source": (
+                "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1"
+                if active_cycle
+                else "AI-WORKBENCH-NEXT-STEP-ENGINE-v1"
+            ),
         }
 
     def _console_visual_meaning_for_classification(self, classification, latest_status):
@@ -18591,6 +18829,10 @@ class OllamaAIChat(forms.WPFWindow):
             history_records,
             latest_result,
             workflow_anchor,
+        )
+        evidence_runbook["next_step_prompt"] = next_step.get("prompt", "show active view mep qa dashboard")
+        evidence_runbook["next_step_agrees"] = bool(
+            next_step.get("prompt") == evidence_runbook.get("current_stage_prompt")
         )
         recommended_prompt = next_step.get("prompt", "show active view mep qa dashboard")
         recommended_safety = next_step.get("safety_class", "report-only")
@@ -19408,6 +19650,22 @@ class OllamaAIChat(forms.WPFWindow):
             next_step.get("latest_qa_export_not_ready", "false"),
             "QA export handoff allowed:",
             next_step.get("qa_export_handoff_allowed", "false"),
+            "Evidence cycle gate active:",
+            next_step.get("evidence_cycle_gate_active", "false"),
+            "Evidence cycle gate reason:",
+            next_step.get("evidence_cycle_gate_reason", "No active evidence-cycle gate."),
+            "Evidence cycle status:",
+            next_step.get("evidence_cycle_status", "not started"),
+            "Evidence current stage:",
+            next_step.get("evidence_current_stage", 1),
+            "Evidence required prompt:",
+            next_step.get("evidence_required_prompt", "show active view mep qa dashboard"),
+            "Evidence retry required:",
+            next_step.get("evidence_retry_required", "false"),
+            "Session-summary handoff allowed:",
+            next_step.get("session_summary_handoff_allowed", "false"),
+            "Resolver precedence source:",
+            next_step.get("resolver_precedence_source", "AI-WORKBENCH-NEXT-STEP-ENGINE-v1"),
             "",
             "Recommended prompt:",
             next_step.get("prompt", "show active view mep qa dashboard"),
@@ -19497,6 +19755,11 @@ class OllamaAIChat(forms.WPFWindow):
         latest_result, latest_status = self._console_latest_result_metadata()
         workflow_anchor = self.resolve_latest_workflow_anchor(records, latest_result)
         runbook = self.resolve_ai_workbench_evidence_runbook(records, latest_result, workflow_anchor)
+        next_step = self.resolve_ai_workbench_next_step(context, latest_result, records)
+        runbook["next_step_prompt"] = next_step.get("prompt", "show active view mep qa dashboard")
+        runbook["next_step_agrees"] = bool(
+            next_step.get("prompt") == runbook.get("current_stage_prompt")
+        )
         report_id = "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH EVIDENCE RUNBOOK REPORT]",
@@ -19548,6 +19811,24 @@ class OllamaAIChat(forms.WPFWindow):
             str(bool(runbook.get("retry_required"))).lower(),
             "QA export handoff allowed:",
             str(bool(runbook.get("qa_export_handoff_allowed"))).lower(),
+            "Session-summary handoff allowed:",
+            str(bool(runbook.get("session_summary_handoff_allowed"))).lower(),
+            "Cycle terminal state:",
+            str(bool(runbook.get("cycle_terminal_state"))).lower(),
+            "Cycle restart required:",
+            str(bool(runbook.get("cycle_restart_required"))).lower(),
+            "Previous cycle complete:",
+            str(bool(runbook.get("previous_cycle_complete"))).lower(),
+            "New dashboard boundary required:",
+            str(bool(runbook.get("new_dashboard_boundary_required"))).lower(),
+            "Evidence cycle boundary timestamp:",
+            runbook.get("cycle_boundary_timestamp", "unavailable"),
+            "Evidence cycle boundary history index:",
+            runbook.get("cycle_boundary_history_index", -1),
+            "Active-cycle entries considered:",
+            runbook.get("active_cycle_entries_considered", 0),
+            "Historical entries ignored:",
+            runbook.get("historical_entries_ignored", 0),
             "",
             "Workflow anchor feature ID:",
             runbook.get("workflow_anchor_feature_id", "unavailable"),
@@ -19564,6 +19845,12 @@ class OllamaAIChat(forms.WPFWindow):
             runbook.get("next_step_prompt", "show active view mep qa dashboard"),
             "Runbook current stage agrees with Next Step Engine:",
             str(bool(runbook.get("next_step_agrees"))).lower(),
+            "Resolver agreement surfaces:",
+            "- Guided Coach",
+            "- Visual Preview Safe Next Action",
+            "- Utility Load Next",
+            "- Recipe Navigator Load Next",
+            "- Evidence Runbook current stage",
             "",
             "Stages:",
             "| Stage | Label | Prompt | Safety class | Status | Latest classification | Latest export folder | Auto-run |",
@@ -20057,6 +20344,12 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_recipe_navigator_next_prompt(self):
         context = self.refresh_console_context()
         records, malformed, history_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        workflow_anchor = self.resolve_latest_workflow_anchor(records, latest_result)
+        runbook = self.resolve_ai_workbench_evidence_runbook(records, latest_result, workflow_anchor)
+        gate = self.resolve_evidence_cycle_gate(records, latest_result, workflow_anchor, runbook)
+        if gate.get("gate_active"):
+            return gate.get("required_prompt", "show active view mep qa dashboard")
         steps, optional_steps, warnings = self._console_recipe_steps(context, records)
         for step in steps or []:
             if step.get("history_status") != "recently executed":
@@ -20198,6 +20491,12 @@ class OllamaAIChat(forms.WPFWindow):
 
     def _console_guided_evidence_prompt(self):
         records, malformed, history_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        workflow_anchor = self.resolve_latest_workflow_anchor(records, latest_result)
+        runbook = self.resolve_ai_workbench_evidence_runbook(records, latest_result, workflow_anchor)
+        gate = self.resolve_evidence_cycle_gate(records, latest_result, workflow_anchor, runbook)
+        if gate.get("gate_active"):
+            return gate.get("required_prompt", "show active view mep qa dashboard")
         dashboard_recent = self._console_history_prompt_status("show active view mep qa dashboard", records) == "recently executed"
         issue_export_recent = self._console_history_prompt_status("export mep project issue index", records) == "recently executed"
         qa_export_recent = self._console_history_prompt_status("export latest QA report", records) == "recently executed"
@@ -20803,6 +21102,17 @@ class OllamaAIChat(forms.WPFWindow):
     def _console_report(self, prompt, classification, extra_lines=None):
         context = self.console_last_context or self.refresh_console_context()
         history_paths = self._console_history_paths()
+        status_records, status_malformed, status_history = self._console_load_history_records()
+        status_raw_latest, status_latest = self._console_latest_result_metadata()
+        status_anchor = self.resolve_latest_workflow_anchor(status_records, status_raw_latest)
+        status_raw_eligibility = self.classify_qa_export_source_eligibility(status_raw_latest)
+        status_anchor_eligibility = self.classify_qa_export_source_eligibility(
+            {
+                "feature_id": status_anchor.get("anchor_feature_id"),
+                "result_classification": status_anchor.get("anchor_result_classification"),
+                "source_prompt": status_anchor.get("anchor_prompt"),
+            }
+        )
         report_id = "AI-WORKBENCH-NEXT-STEP-ENGINE-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S"))
         lines = [
             "[AI WORKBENCH CONSOLE V1 REPORT]",
@@ -20883,6 +21193,15 @@ class OllamaAIChat(forms.WPFWindow):
             "QA export uses workflow anchor: true",
             "QA export skips meta/status/viewer latest results: true",
             "QA export not-ready classification enabled: true",
+            "QA source eligibility policy enabled: true",
+            "QA source classification allowlist: {0}".format(", ".join(self._qa_export_source_classification_allowlist())),
+            "Raw latest QA-source eligible: {0}".format(str(bool(status_raw_eligibility.get("eligible"))).lower()),
+            "Workflow anchor QA-source eligible: {0}".format(str(bool(status_anchor_eligibility.get("eligible"))).lower()),
+            "Active-cycle QA source fallback enabled: true",
+            "Rejected non-QA report classifications: suggestions, recipes, next-step, preview, runbook, viewers, history, status, session summary, selection, QA export outcomes",
+            "Context Suggestions accepted as QA source: false",
+            "Recipe Planner accepted as QA source: false",
+            "Selection reports accepted as QA source: false",
             "Next Step Engine requires QA_REPORT_EXPORT_COMPLETE for session-summary handoff: true",
             "Evidence Runbook feature ID: AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
             "Evidence Runbook enabled: true",
@@ -20893,6 +21212,10 @@ class OllamaAIChat(forms.WPFWindow):
             "Evidence Runbook uses Workflow Anchor: true",
             "Evidence Runbook uses QA Export Anchor: true",
             "Evidence Runbook recognizes QA_REPORT_EXPORT_NOT_READY: true",
+            "Evidence cycle gate precedence enabled: true",
+            "Session-summary evidence handoff guard enabled: true",
+            "Console workspace theme helper enabled: true",
+            "Console dark/light theme switching immediate: true",
             "Guided Coach uses shared resolver: true",
             "Visual Preview uses shared resolver: true",
             "Utility Load Next uses shared resolver: true",
@@ -21269,6 +21592,88 @@ class OllamaAIChat(forms.WPFWindow):
                 control.BorderBrush = self._brush(border)
         except:
             pass
+
+    def _apply_console_list_selection_theme(self, control, palette):
+        if control is None:
+            return
+        try:
+            from System.Windows import Setter, Style, Trigger
+            from System.Windows.Controls import ListBoxItem
+
+            style = Style(ListBoxItem)
+            style.Setters.Add(Setter(ListBoxItem.BackgroundProperty, self._brush(palette["panel_alt"])))
+            style.Setters.Add(Setter(ListBoxItem.ForegroundProperty, self._brush(palette["text"])))
+            hovered = Trigger()
+            hovered.Property = ListBoxItem.IsMouseOverProperty
+            hovered.Value = True
+            hovered.Setters.Add(Setter(ListBoxItem.BackgroundProperty, self._brush(palette["tree_hover_bg"])))
+            style.Triggers.Add(hovered)
+            selected = Trigger()
+            selected.Property = ListBoxItem.IsSelectedProperty
+            selected.Value = True
+            selected.Setters.Add(Setter(ListBoxItem.BackgroundProperty, self._brush(palette["tree_selected_bg"])))
+            selected.Setters.Add(Setter(ListBoxItem.ForegroundProperty, self._brush(palette["tree_selected_fg"])))
+            style.Triggers.Add(selected)
+            control.ItemContainerStyle = style
+        except:
+            pass
+
+    def _apply_console_theme(self, theme_name=None):
+        if not hasattr(self, "ConsoleRootGrid"):
+            return
+        palette = THEMES.get(theme_name or self.current_theme, THEMES["light"])
+        for name in [
+            "ConsoleRootGrid",
+            "ConsoleAdvancedPanel",
+            "ConsoleCenterPanel",
+            "ConsoleRightPanel",
+            "ConsoleUtilityControlsPanel",
+        ]:
+            self._apply_control_style(name, palette["panel_bg"], palette["text"], None)
+        for name in [
+            "ConsoleCommandTreeGroup",
+            "ConsoleSuggestionGroup",
+            "ConsolePreviewGroup",
+            "ConsoleResultGroup",
+            "ConsoleContextGroup",
+            "ConsoleVisualGroup",
+        ]:
+            self._apply_control_style(name, palette["panel_bg"], palette["text"], palette["border"])
+        for name in [
+            "ConsolePromptInput",
+            "ConsoleSuggestionList",
+            "ConsolePreviewBox",
+            "ConsoleResultBox",
+            "ConsoleContextBox",
+            "ConsoleVisualBox",
+        ]:
+            self._apply_control_style(name, palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ConsoleCommandTree", palette["tree_bg"], palette["tree_fg"], palette["border"])
+        for name in [
+            "ConsoleCommandTreeTitle",
+            "ConsolePromptLabel",
+            "ConsoleVisualActionsLabel",
+        ]:
+            self._apply_control_style(name, None, palette["text"], None)
+        for name in [
+            "ConsoleShellStatusText",
+            "ConsoleHistoryLabel",
+            "ConsoleNavigatorLabel",
+            "ConsoleUtilityControlsMiniLabel",
+            "ConsoleVisualActionStatus",
+        ]:
+            self._apply_control_style(name, None, palette["muted"], None)
+        self._apply_control_style("ConsoleAdvancedSplitter", palette["border"], None, None)
+        self._apply_control_style("ConsoleContextSplitter", palette["border"], None, None)
+        self._apply_control_style("ConsoleEvidenceRunbookCard", palette["panel_alt"], palette["text"], palette["border"])
+        self._apply_control_style("ConsoleEvidenceRunbookText", None, palette["text"], None)
+        try:
+            child = self.ConsoleEvidenceRunbookCard.Child
+            if child is not None and child.Children.Count:
+                child.Children[0].Foreground = self._brush(palette["accent"])
+        except:
+            pass
+        self._apply_console_list_selection_theme(getattr(self, "ConsoleSuggestionList", None), palette)
 
     def _set_theme_resource(self, resource_name, color_value):
         try:
@@ -21707,6 +22112,7 @@ class OllamaAIChat(forms.WPFWindow):
             self.ThemeToggleButton.Content = "Theme: {0}".format(theme_name.title())
         except:
             pass
+        self._apply_console_theme(theme_name)
         self.refresh_action_button_states()
         self.settings["theme"] = theme_name
         self.settings_store.save(self.settings)
@@ -22397,15 +22803,8 @@ class OllamaAIChat(forms.WPFWindow):
         if not report_text or not self._is_exportable_report_text(report_text):
             return False
         record = self._qa_export_report_state_record(report_state)
-        classification = safe_str(record.get("result_classification")).upper()
-        header = safe_str(record.get("result_header"))
-        if self._console_is_workflow_anchor_meta_result(record):
-            return False
-        if header == "[QA REPORT EXPORT]":
-            return False
-        if "UNSUPPORTED" in classification or "NO_MATCH" in classification:
-            return False
-        return True
+        eligibility = self.classify_qa_export_source_eligibility(record)
+        return bool(eligibility.get("eligible"))
 
     def _qa_export_report_matches_record(self, report_state, record):
         if not report_state or not record:
@@ -22447,9 +22846,13 @@ class OllamaAIChat(forms.WPFWindow):
         if not self._qa_export_workflow_report_valid(report_state):
             return False
         self.latest_workflow_anchor_report = report_state
+        self.latest_eligible_qa_report = report_state
         return True
 
-    def _qa_export_not_ready_report(self, reason):
+    def _qa_export_not_ready_report(self, reason, source_resolution=None):
+        source_resolution = source_resolution or {}
+        raw_eligibility = source_resolution.get("raw_eligibility") or {}
+        anchor_eligibility = source_resolution.get("anchor_eligibility") or {}
         return "\n".join(
             [
                 "[QA REPORT EXPORT]",
@@ -22466,6 +22869,29 @@ class OllamaAIChat(forms.WPFWindow):
                 "Reason:",
                 safe_str(reason),
                 "",
+                "QA source eligibility policy enabled:",
+                "true",
+                "QA source classification allowlist:",
+                ", ".join(self._qa_export_source_classification_allowlist()),
+                "Raw latest eligible:",
+                str(bool(raw_eligibility.get("eligible"))).lower(),
+                "Raw latest rejected classification:",
+                raw_eligibility.get("result_classification", "unavailable"),
+                "Raw latest rejection reason:",
+                raw_eligibility.get("reason", "No raw latest result is available."),
+                "Workflow anchor eligible:",
+                str(bool(anchor_eligibility.get("eligible"))).lower(),
+                "Workflow anchor rejected classification:",
+                anchor_eligibility.get("result_classification", "unavailable"),
+                "Workflow anchor rejection reason:",
+                anchor_eligibility.get("reason", "No workflow anchor is available."),
+                "Eligible active-cycle QA source found:",
+                str(bool(source_resolution.get("active_cycle_source_found"))).lower(),
+                "Active-cycle QA source fallback enabled:",
+                "true",
+                "External files written:",
+                "false",
+                "",
                 "Safety flags:",
                 "- transaction opened: false",
                 "- transaction group opened: false",
@@ -22477,56 +22903,160 @@ class OllamaAIChat(forms.WPFWindow):
             ]
         )
 
+    def _qa_export_source_classification_allowlist(self):
+        return ["MEP_QA_ISSUEINDEX_EXPORT_OK"]
+
+    def classify_qa_export_source_eligibility(self, result):
+        result = result or {}
+        record = self._qa_export_report_state_record(result)
+        classification = safe_str(record.get("result_classification") or "unavailable").upper()
+        feature_id = safe_str(record.get("feature_id") or "unavailable")
+        source_kind = "project MEP QA issue-index evidence export" if classification == "MEP_QA_ISSUEINDEX_EXPORT_OK" else "non-QA workflow report"
+        eligible = classification in set(self._qa_export_source_classification_allowlist())
+        if eligible:
+            reason = "Classification is explicitly allowlisted as a deterministic QA evidence source."
+        elif classification in (
+            "AI_WORKBENCH_CONTEXT_SUGGESTIONS_OK",
+            "AI_WORKBENCH_RECIPE_PLANNER_OK",
+            "AI_WORKBENCH_NEXT_STEP_OK",
+            "AI_WORKBENCH_VISUAL_PREVIEW_OK",
+            "AI_WORKBENCH_EVIDENCE_RUNBOOK_OK",
+        ):
+            reason = "Recommendation, recipe, next-step, preview, and runbook reports are workflow guidance, not QA evidence."
+        elif classification in (
+            "AI_WORKBENCH_LATEST_CONSOLE_RESULT_OK",
+            "AI_WORKBENCH_CONSOLE_HISTORY_VIEWER_OK",
+            "AI_WORKBENCH_CONSOLE_HISTORY_OK",
+            "AI_WORKBENCH_STATUS_OK",
+            "AI_WORKBENCH_DEBUG_STATUS_OK",
+        ):
+            reason = "Console viewer, history, status, and debug reports are not QA evidence."
+        elif classification in (
+            "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK",
+            "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_NOT_READY",
+            "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_CYCLE_COMPLETE",
+            "QA_REPORT_EXPORT_COMPLETE",
+            "QA_REPORT_EXPORT_NOT_READY",
+        ):
+            reason = "Export status and session-summary results cannot be re-exported as source QA evidence."
+        elif classification in ("MEP_SEL_SELECTION_OK", "MEP_SEL_EMPTY_ACTIVE_VIEW_RESULT"):
+            reason = "Selection-only results are not QA evidence reports."
+        else:
+            reason = "Result classification is not in the explicit QA export source allowlist."
+        return {
+            "eligible": bool(eligible),
+            "reason": reason,
+            "source_kind": source_kind,
+            "feature_id": feature_id,
+            "result_classification": classification,
+        }
+
     def _qa_export_source_resolution(self):
         raw_latest, raw_status = self._console_latest_result_metadata()
         records, malformed, history_status = self._console_load_history_records()
         anchor_state = self.resolve_latest_workflow_anchor(records, raw_latest)
+        runbook = self.resolve_ai_workbench_evidence_runbook(records, raw_latest, anchor_state)
         raw_report = self.latest_deterministic_report or {}
-        raw_is_meta = self._console_is_workflow_anchor_meta_result(raw_latest)
+        raw_eligibility = self.classify_qa_export_source_eligibility(raw_latest)
         raw_is_valid = self._qa_export_workflow_report_valid(raw_report)
-        if raw_status == "available" and not raw_is_meta and raw_is_valid:
+        cycle_terminal = bool(runbook.get("cycle_terminal_state"))
+        if raw_status == "available" and raw_eligibility.get("eligible") and raw_is_valid and not cycle_terminal:
             if self._qa_export_report_matches_record(raw_report, raw_latest):
                 return {
                     "report": raw_report,
                     "source_mode": "raw latest",
                     "anchor_state": anchor_state,
                     "raw_latest": raw_latest,
+                    "raw_eligibility": raw_eligibility,
+                    "anchor_eligibility": {},
+                    "source_eligibility": raw_eligibility,
+                    "active_cycle_source_found": False,
+                    "active_cycle_search_used": False,
+                    "active_cycle_source_history_index": -1,
+                    "active_cycle_source_timestamp": "unavailable",
                 }
-        if raw_status != "available" and self.latest_chat_output_is_deterministic_report and raw_is_valid:
+        if raw_status != "available" and self.latest_chat_output_is_deterministic_report and raw_is_valid and not cycle_terminal:
+            report_eligibility = self.classify_qa_export_source_eligibility(raw_report)
             return {
                 "report": raw_report,
                 "source_mode": "raw latest",
                 "anchor_state": anchor_state,
                 "raw_latest": raw_latest,
+                "raw_eligibility": report_eligibility,
+                "anchor_eligibility": {},
+                "source_eligibility": report_eligibility,
+                "active_cycle_source_found": False,
+                "active_cycle_search_used": False,
+                "active_cycle_source_history_index": -1,
+                "active_cycle_source_timestamp": "unavailable",
             }
-        anchor_report = self.latest_workflow_anchor_report or {}
         anchor_record = {
             "feature_id": anchor_state.get("anchor_feature_id"),
             "result_classification": anchor_state.get("anchor_result_classification"),
             "source_prompt": anchor_state.get("anchor_prompt"),
             "result_header": "",
         }
-        if anchor_state.get("anchor_found") and self._qa_export_workflow_report_valid(anchor_report):
+        anchor_eligibility = self.classify_qa_export_source_eligibility(anchor_record)
+        anchor_report = self.latest_eligible_qa_report or self.latest_workflow_anchor_report or {}
+        if anchor_state.get("anchor_found") and anchor_eligibility.get("eligible") and self._qa_export_workflow_report_valid(anchor_report) and not cycle_terminal:
             if self._qa_export_report_matches_record(anchor_report, anchor_record):
                 return {
                     "report": anchor_report,
                     "source_mode": "workflow anchor",
                     "anchor_state": anchor_state,
                     "raw_latest": raw_latest,
+                    "raw_eligibility": raw_eligibility,
+                    "anchor_eligibility": anchor_eligibility,
+                    "source_eligibility": anchor_eligibility,
+                    "active_cycle_source_found": False,
+                    "active_cycle_search_used": False,
+                    "active_cycle_source_history_index": -1,
+                    "active_cycle_source_timestamp": "unavailable",
                 }
-        if anchor_state.get("anchor_found") and raw_is_valid:
-            if self._qa_export_report_matches_record(raw_report, anchor_record):
-                return {
-                    "report": raw_report,
-                    "source_mode": "workflow anchor",
-                    "anchor_state": anchor_state,
-                    "raw_latest": raw_latest,
-                }
+        boundary_value = runbook.get("cycle_boundary_history_index")
+        boundary_index = int(boundary_value) if boundary_value is not None else -1
+        boundary_timestamp = safe_str(runbook.get("cycle_boundary_timestamp") or "")
+        if runbook.get("active_cycle_exists") and not cycle_terminal:
+            for history_index in range(len(records) - 1, max(-1, boundary_index - 1), -1):
+                candidate = records[history_index]
+                candidate_timestamp = safe_str(candidate.get("timestamp") or "")
+                if boundary_timestamp and boundary_timestamp != "unavailable" and candidate_timestamp < boundary_timestamp:
+                    continue
+                candidate_eligibility = self.classify_qa_export_source_eligibility(candidate)
+                if not candidate_eligibility.get("eligible"):
+                    continue
+                cached_report = self.latest_eligible_qa_report or {}
+                if self._qa_export_workflow_report_valid(cached_report) and self._qa_export_report_matches_record(cached_report, candidate):
+                    return {
+                        "report": cached_report,
+                        "source_mode": "active evidence cycle",
+                        "anchor_state": anchor_state,
+                        "raw_latest": raw_latest,
+                        "raw_eligibility": raw_eligibility,
+                        "anchor_eligibility": anchor_eligibility,
+                        "source_eligibility": candidate_eligibility,
+                        "active_cycle_source_found": True,
+                        "active_cycle_search_used": True,
+                        "active_cycle_source_history_index": history_index,
+                        "active_cycle_source_timestamp": safe_str(candidate.get("timestamp") or "unavailable"),
+                    }
+        reason = "No explicitly eligible QA evidence source exists in the active evidence cycle."
+        if cycle_terminal:
+            reason = "The current QA evidence cycle is complete; start a new cycle with the active-view dashboard."
         return {
             "report": None,
             "source_mode": "not ready",
             "anchor_state": anchor_state,
             "raw_latest": raw_latest,
+            "raw_eligibility": raw_eligibility,
+            "anchor_eligibility": anchor_eligibility,
+            "source_eligibility": {},
+            "active_cycle_source_found": False,
+            "active_cycle_search_used": bool(runbook.get("active_cycle_exists") and not cycle_terminal),
+            "active_cycle_source_history_index": -1,
+            "active_cycle_source_timestamp": "unavailable",
+            "not_ready_reason": reason,
+            "cycle_terminal": cycle_terminal,
         }
 
     def _is_qa_export_request(self, prompt):
@@ -42929,17 +43459,21 @@ class OllamaAIChat(forms.WPFWindow):
         report = source_resolution.get("report")
         if not report:
             return self._qa_export_not_ready_report(
-                "Latest output is not a deterministic AI Workbench QA report and no valid workflow anchor was found."
+                source_resolution.get("not_ready_reason")
+                or "No explicitly eligible deterministic QA evidence source was found.",
+                source_resolution,
             )
         report_text = report.get("report_text") or ""
         if not self._qa_export_workflow_report_valid(report):
             return self._qa_export_not_ready_report(
-                "Latest output is not a deterministic AI Workbench QA report and no valid workflow anchor was found."
+                "Resolved report is not explicitly eligible as deterministic QA evidence.",
+                source_resolution,
             )
 
         export_source_mode = source_resolution.get("source_mode") or "raw latest"
         raw_latest = source_resolution.get("raw_latest") or {}
         anchor_state = source_resolution.get("anchor_state") or {}
+        source_eligibility = source_resolution.get("source_eligibility") or {}
 
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         export_folder = os.path.join(self._qa_export_base_folder(), timestamp)
@@ -42990,6 +43524,13 @@ class OllamaAIChat(forms.WPFWindow):
             "workflow_anchor_result_classification": anchor_state.get("anchor_result_classification", "unavailable"),
             "workflow_anchor_prompt": anchor_state.get("anchor_prompt", "unavailable"),
             "workflow_anchor_skipped_meta_status_count": anchor_state.get("skipped_meta_results_count", 0),
+            "qa_source_eligibility": True,
+            "qa_source_kind": source_eligibility.get("source_kind", "unavailable"),
+            "qa_source_eligibility_reason": source_eligibility.get("reason", "unavailable"),
+            "qa_source_classification_allowlist": self._qa_export_source_classification_allowlist(),
+            "active_cycle_source_search_used": bool(source_resolution.get("active_cycle_search_used")),
+            "active_cycle_source_history_index": source_resolution.get("active_cycle_source_history_index", -1),
+            "active_cycle_source_timestamp": source_resolution.get("active_cycle_source_timestamp", "unavailable"),
         }
 
         report_md = "\n".join(
@@ -43012,6 +43553,12 @@ class OllamaAIChat(forms.WPFWindow):
                 "- Workflow anchor result classification: {0}".format(metadata.get("workflow_anchor_result_classification")),
                 "- Workflow anchor prompt: {0}".format(metadata.get("workflow_anchor_prompt")),
                 "- Workflow anchor skipped meta/status count: {0}".format(metadata.get("workflow_anchor_skipped_meta_status_count")),
+                "- QA source eligibility: true",
+                "- QA source kind: {0}".format(metadata.get("qa_source_kind")),
+                "- QA source eligibility reason: {0}".format(metadata.get("qa_source_eligibility_reason")),
+                "- Active-cycle source search used: {0}".format(str(bool(metadata.get("active_cycle_source_search_used"))).lower()),
+                "- Active-cycle source history index: {0}".format(metadata.get("active_cycle_source_history_index")),
+                "- Active-cycle source timestamp: {0}".format(metadata.get("active_cycle_source_timestamp")),
                 "- Safety: read-only; no model data modified.",
                 "",
                 "## Report",
@@ -43038,6 +43585,12 @@ class OllamaAIChat(forms.WPFWindow):
                 "Workflow anchor result classification: {0}".format(metadata.get("workflow_anchor_result_classification")),
                 "Workflow anchor prompt: {0}".format(metadata.get("workflow_anchor_prompt")),
                 "Workflow anchor skipped meta/status count: {0}".format(metadata.get("workflow_anchor_skipped_meta_status_count")),
+                "QA source eligibility: true",
+                "QA source kind: {0}".format(metadata.get("qa_source_kind")),
+                "QA source eligibility reason: {0}".format(metadata.get("qa_source_eligibility_reason")),
+                "Active-cycle source search used: {0}".format(str(bool(metadata.get("active_cycle_source_search_used"))).lower()),
+                "Active-cycle source history index: {0}".format(metadata.get("active_cycle_source_history_index")),
+                "Active-cycle source timestamp: {0}".format(metadata.get("active_cycle_source_timestamp")),
                 "Safety: read-only; no model data modified.",
                 "",
                 report_text,
@@ -43141,6 +43694,12 @@ class OllamaAIChat(forms.WPFWindow):
                 "- Workflow anchor result classification: {0}".format(metadata.get("workflow_anchor_result_classification")),
                 "- Workflow anchor prompt: {0}".format(metadata.get("workflow_anchor_prompt")),
                 "- Workflow anchor skipped meta/status count: {0}".format(metadata.get("workflow_anchor_skipped_meta_status_count")),
+                "- QA source eligibility: true",
+                "- QA source kind: {0}".format(metadata.get("qa_source_kind")),
+                "- QA source eligibility reason: {0}".format(metadata.get("qa_source_eligibility_reason")),
+                "- Active-cycle source search used: {0}".format(str(bool(metadata.get("active_cycle_source_search_used"))).lower()),
+                "- Active-cycle source history index: {0}".format(metadata.get("active_cycle_source_history_index")),
+                "- Active-cycle source timestamp: {0}".format(metadata.get("active_cycle_source_timestamp")),
                 "",
                 "Safety:",
                 "- Export only.",

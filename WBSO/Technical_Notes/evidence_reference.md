@@ -2159,3 +2159,30 @@ Evidence paths:
 - `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260710_163746_export_mep_project_issue_index`
 
 Technical conclusion: AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 closes the downstream export-source gap and establishes the safe evidence chain Dashboard -> Issue Index -> QA Export -> Console Session Summary. Failed QA exports do not advance. `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1` remains pending.
+
+## EV-AI-329 through EV-AI-334 - AI Workbench Evidence Runbook and Resolver Hardening
+
+Status: Implemented and substantially runtime-validated; one Context Suggestions workflow-guidance inconsistency remains pending.
+
+Date: 2026-07-13
+
+Week: `2026-W17`
+
+Daily log: `DL-2026-07-13-01` (hours require manual entry; no project-local hours ledger was found)
+
+Validation folder: `WBSO/Testing_Validation/runs/2026-07-13_ai-workbench-evidence-runbook-substantially-validated/`
+
+- EV-AI-329: AI-WORKBENCH-EVIDENCE-RUNBOOK-v1 implementation and commit evidence. Commit `4f6eaf3` (`4f6eaf383e9b16ec125abb0e0347c4e5bc27ee86`) added the four-stage runbook, Visual Preview card, status/alias routes, stage states, load-only controls, evidence-folder display, Next Step agreement, and workflow-anchor metadata.
+- EV-AI-330: Initial runtime validation and resolver inconsistency evidence. Dashboard -> issue index -> QA export -> session summary navigation passed, while `QA_REPORT_EXPORT_NOT_READY` exposed generic resolver override and historical Stage 4 metadata leakage.
+- EV-AI-331: Evidence-cycle gate, active-cycle isolation, session-summary preflight, and dark-theme implementation evidence. Working-tree implementation present; no commit created yet; commit hash pending.
+- EV-AI-332: Gate, Stage 4 isolation, blocked-summary, and dark-theme runtime evidence. Guided Coach, Visual Preview Safe Next Action, Utility Load Next, Recipe Navigator Load Next, and Runbook current stage agreed; invalid Stage 4 history was isolated; blocked summary wrote no files; immediate Dark/Light switching passed.
+- EV-AI-333: Strict QA-source eligibility and terminal-cycle guard implementation evidence. The explicit allowlist contains `MEP_QA_ISSUEINDEX_EXPORT_OK`; non-QA sources are rejected; active-cycle fallback and provenance were added; completed cycles require a new dashboard; focused no-write harnesses passed. Working-tree implementation present; commit pending.
+- EV-AI-334: Final runtime evidence and remaining defect discovery. Context Suggestions was rejected as an ineligible QA source with no files; valid issue-index, QA export, and Console summary completed; terminal cycle and duplicate-summary no-write guard passed; dark theme passed. Context Suggestions still recommends QA export after only a dashboard and must be aligned with the runbook/evidence gate.
+
+Primary runtime paths:
+
+- `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260713_170438_export_mep_project_issue_index`
+- `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260713_170515`
+- `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries\20260713_170614_console_session_summary`
+
+Technical conclusion: the core evidence state machine, active-cycle isolation, retry behavior, resolver gate, strict QA source eligibility, no-write invalid paths, terminal-cycle guard, duplicate-summary block, and dark theme are validated. The package is not closed because Context Suggestions remains inconsistent with the required dashboard -> issue-index -> QA-export sequence. The remaining issue is deterministic workflow guidance, not Revit model safety.

@@ -849,3 +849,35 @@ Still out of scope:
 
 - `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1`
 - claiming direct runtime observation of workflow-anchor fallback source mode
+
+### 2026-07-13 AI Workbench Evidence Runbook scope alignment
+
+Status: Implemented and substantially runtime-validated; package remains open.
+
+Validated scope:
+
+- four-stage dashboard -> issue index -> QA export -> Console summary runbook
+- current/completed/pending/retry/unavailable stage presentation
+- evidence-cycle gate precedence across shared next-step surfaces
+- active-cycle timestamp/history boundary and Stage 4 isolation
+- session-summary preflight and no-write not-ready behavior
+- strict QA-source allowlist containing `MEP_QA_ISSUEINDEX_EXPORT_OK`
+- source rejection/provenance diagnostics and active-cycle fallback
+- terminal completed-cycle restart state
+- duplicate-summary no-write guard
+- dynamic workspace dark-theme readability and immediate theme switching
+
+Safety boundary:
+
+- no transaction, TransactionGroup, parameter write, model/link mutation, view switch, or direct selection API
+- no automatic command execution; runbook and navigation controls load prompts only
+- no history deletion/rewrite
+- no QA files from ineligible sources
+- no duplicate summary folder after terminal completion
+- MEP-RO, MEP-SEL, Safe Catalog, selection confirmation, and manual Run preserved
+
+Pending:
+
+- Context Suggestions must follow the active runbook/evidence gate and recommend issue-index export after the dashboard
+- working-tree gate/theme/eligibility/terminal corrections require a commit
+- package remains open until the guidance inconsistency is resolved

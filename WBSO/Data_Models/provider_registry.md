@@ -272,3 +272,15 @@ The guided console workflow batch is provider-independent for deterministic rout
 - QA evidence export remains tied to existing deterministic report registration
 
 Status: runtime validated. Evidence: EV-AI-289 through EV-AI-307.
+
+## 2026-07-13 Evidence Runbook Provider Independence
+
+AI-WORKBENCH-EVIDENCE-RUNBOOK-v1 and its evidence-cycle gate are provider-independent deterministic state resolvers.
+
+- Ollama/OpenAI does not determine stage completion, retry state, active-cycle boundary, QA-source eligibility, summary handoff, terminal-cycle state, or restart requirements.
+- Known runbook status routes execute before generic LLM fallback.
+- Load-only controls populate prompts and never execute them automatically.
+- The strict QA-source allowlist currently accepts `MEP_QA_ISSUEINDEX_EXPORT_OK`; generic model/recommendation output is non-authoritative and rejected as QA evidence.
+- Context Suggestions alignment remains pending, but the exporter safely rejects its premature QA-export recommendation.
+
+Status: implemented and substantially runtime-validated; package remains open. Evidence: EV-AI-329 through EV-AI-334.

@@ -1567,3 +1567,22 @@ AI-WORKBENCH-QA-EXPORT-ANCHOR-v1 closes the source-selection gap after the Next 
 Runtime validation completed the issue-index -> viewer -> Load Next -> QA export chain. The observed successful source mode was `raw latest`; fallback mode is implemented but was not directly selected in this run. Commit: `378f5c3`.
 
 Safety boundary: no transaction, model/parameter/link mutation, view switch, direct selection API, or automatic execution. QA files write only after manual Run with a valid source.
+
+## 2026-07-13 AI Workbench Evidence Runbook and Resolver Hardening
+
+AI-WORKBENCH-EVIDENCE-RUNBOOK-v1 adds a visible four-stage state machine over the existing Next Step Engine, Workflow Anchor, and QA Export Anchor:
+
+1. active-view MEP QA dashboard;
+2. project issue-index export;
+3. latest QA report export;
+4. Console session-summary export.
+
+The initial implementation is committed as `4f6eaf3`. Subsequent working-tree corrections add active-cycle gate precedence, timestamp/history boundary isolation, Stage 4 history isolation, session-summary preflight, strict QA-source eligibility, active-cycle eligible-source fallback, terminal-cycle restart state, duplicate-summary prevention, and readable dynamic dark-theme styling. These corrections are not yet committed.
+
+The strict QA source policy currently allowlists `MEP_QA_ISSUEINDEX_EXPORT_OK`. Recommendation, recipe, next-step, preview, runbook, viewer/status, selection, QA-export outcome, and session-summary classifications cannot be re-exported as QA evidence. Ineligible paths return `QA_REPORT_EXPORT_NOT_READY` before creating files.
+
+A completed cycle is terminal until a new dashboard establishes a new boundary. It reports four completed stages, current stage 1, restart required, QA/session-summary handoffs false, and blocks duplicate summaries with `AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_CYCLE_COMPLETE`.
+
+Status: implemented and substantially runtime-validated. Pending: Context Suggestions still recommends QA export directly after a dashboard instead of the required issue-index stage. This is a deterministic guidance inconsistency, not a Revit model-safety defect.
+
+Safety boundary: no transaction, TransactionGroup, parameter write, model/link mutation, active-view switch, direct selection API, or automatic execution. Runbook and navigation controls load prompts only; external writes require manual Run and valid source/gate state.

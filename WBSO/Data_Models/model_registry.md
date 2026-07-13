@@ -538,3 +538,27 @@ State/model relationship:
 Prompt catalog: unchanged.
 
 Pending package: `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1`, not implemented.
+
+## AI-WORKBENCH-EVIDENCE-RUNBOOK-v1
+
+Status: Implemented and substantially runtime-validated; one guidance inconsistency remains pending.
+
+Commit: `4f6eaf3` - Add AI Workbench evidence runbook.
+
+Working-tree correction status: evidence gate, active-cycle isolation, summary guards, strict source eligibility, terminal-cycle diagnostics, and dark-theme corrections are present but not yet committed.
+
+State/model relationship:
+
+- consumes Console history, raw latest result, workflow anchor, and prompt catalog safety metadata;
+- derives a four-stage evidence cycle and active boundary timestamp/history index;
+- records active entries considered and historical entries ignored;
+- exposes retry, handoff, terminal, restart, previous-cycle-complete, and new-dashboard-boundary-required state;
+- caches only explicitly eligible QA source reports for active-cycle fallback;
+- currently allowlists `MEP_QA_ISSUEINDEX_EXPORT_OK` as QA evidence source;
+- blocks premature summaries with `AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_NOT_READY`;
+- blocks duplicate terminal-cycle summaries with `AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_CYCLE_COMPLETE`;
+- writes no files from runbook/status/load-only controls.
+
+Provider relationship: provider-independent deterministic state resolution. No Ollama/OpenAI call determines stage, source eligibility, handoff, or terminal-cycle state.
+
+Pending: Context Suggestions must consume the runbook/evidence gate so dashboard state recommends issue-index export rather than direct QA export.
