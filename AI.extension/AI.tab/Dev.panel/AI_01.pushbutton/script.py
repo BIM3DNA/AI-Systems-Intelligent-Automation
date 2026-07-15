@@ -15445,6 +15445,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.console_last_navigator_timestamp = ""
         self.console_guided_coach_state = {}
         self.console_evidence_cycle_gate_state = {}
+        self.console_context_suggestions_workflow_state = {}
         self.console_capture_active = False
         self.console_captured_reply = None
         self.console_captured_error = None
@@ -19152,8 +19153,68 @@ class OllamaAIChat(forms.WPFWindow):
         if history_records:
             recent_prompt = safe_str(history_records[-1].get("source_prompt") or history_records[-1].get("resolved_prompt"))
 
+        workflow_anchor = self.resolve_latest_workflow_anchor(history_records, latest_result)
+        evidence_runbook = self.resolve_ai_workbench_evidence_runbook(
+            history_records,
+            latest_result,
+            workflow_anchor,
+        )
+        evidence_gate = self.resolve_evidence_cycle_gate(
+            history_records,
+            latest_result,
+            workflow_anchor,
+            evidence_runbook,
+        )
+        next_step = self.resolve_ai_workbench_next_step(context, latest_result, history_records)
+        workflow_prompt = safe_str(next_step.get("prompt") or "show active view mep qa dashboard")
+        workflow_normalized = self._console_normalize(workflow_prompt)
+        gate_active = bool(evidence_gate.get("gate_active"))
+        evidence_prompts = set(
+            [
+                self._console_normalize("show active view mep qa dashboard"),
+                self._console_normalize("export mep project issue index"),
+                self._console_normalize("export latest QA report"),
+                self._console_normalize("export ai workbench console session summary"),
+            ]
+        )
+        suppressed_count = [0]
+
+        qa_source_eligible = False
+        for stage in evidence_runbook.get("stages") or []:
+            if int(stage.get("stage_number") or 0) != 2:
+                continue
+            eligibility = self.classify_qa_export_source_eligibility(
+                {
+                    "feature_id": "MEP-QA-ISSUEINDEX-EXPORT-v1",
+                    "result_classification": stage.get("latest_result_classification"),
+                }
+            )
+            qa_source_eligible = bool(
+                eligibility.get("eligible")
+                and stage.get("completion_found")
+                and not evidence_runbook.get("cycle_terminal_state")
+            )
+            break
+
         def add(prompts, reason, expected_output, uses_current_context):
+            candidate_prompt, candidate_item = self._console_first_available_prompt(prompts)
+            candidate_normalized = self._console_normalize(candidate_prompt)
+            if (
+                gate_active
+                and candidate_normalized in evidence_prompts
+                and candidate_normalized != workflow_normalized
+            ):
+                suppressed_count[0] += 1
+                return False
             return self._console_add_context_suggestion(suggestions, prompts, reason, expected_output, uses_current_context)
+
+        if gate_active:
+            add(
+                [workflow_prompt],
+                "Active Evidence Runbook stage and shared Next Step Engine require this workflow action.",
+                "Current evidence-stage result",
+                "yes",
+            )
 
         add(["show active view mep qa dashboard"], "Baseline read-only active-view MEP status.", "MEP QA dashboard report", "yes")
         add(["show ai workbench console history", "show console history"], "Review recent deterministic Console commands.", "Console history viewer report", "no")
@@ -19198,14 +19259,16 @@ class OllamaAIChat(forms.WPFWindow):
             add(["export mep project issue index"], "Create broader MEP issue evidence across eligible project views.", "MEP project issue index export", "yes")
 
         if latest_classification == "MEP_QA_DASHBOARD_GREEN":
-            add(["export latest QA report"], "Latest dashboard is green; export QA evidence if needed.", "QA report export", "no")
+            if qa_source_eligible:
+                add(["export latest QA report"], "The active evidence cycle has an eligible project issue-index source for QA export.", "QA report export", "no")
             add(["export mep project issue index"], "Run broader project evidence export after a clean active-view dashboard.", "MEP project issue index export", "yes")
         elif latest_classification == "MEP_QA_ISSUEINDEX_EXPORT_OK":
             add(["show ai workbench console history", "show console history"], "Issue index export completed; review recent command chain.", "Console history viewer report", "no")
             add(["export ai workbench console session summary", "export console session summary"], "Export a local Console session summary for evidence traceability.", "Console session summary export", "no")
         elif latest_classification == "MEP_SEL_SELECTION_OK":
             add(["show active view mep qa dashboard"], "Latest selection command succeeded; run read-only dashboard for current view status.", "MEP QA dashboard report", "yes")
-            add(["export latest QA report"], "Export latest deterministic QA evidence if needed.", "QA report export", "no")
+            if qa_source_eligible:
+                add(["export latest QA report"], "The active evidence cycle has an eligible project issue-index source for QA export.", "QA report export", "no")
         elif latest_classification == "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK":
             add(["show ai workbench console history", "show console history"], "Session summary export completed; review recent command history.", "Console history viewer report", "no")
             add(["show active view mep qa dashboard"], "Continue with active-view MEP QA dashboard.", "MEP QA dashboard report", "yes")
@@ -19213,10 +19276,26 @@ class OllamaAIChat(forms.WPFWindow):
         if len(history_records or []) > 3:
             add(["export ai workbench console session summary", "export console session summary"], "More than three Console history entries exist; export a session summary if evidence is needed.", "Console session summary export", "no")
 
-        if suggestions and recent_prompt:
+        if suggestions and recent_prompt and not gate_active:
             recent_norm = self._console_normalize(recent_prompt)
             if suggestions[0].get("normalized") == recent_norm and len(suggestions) > 1:
                 suggestions.append(suggestions.pop(0))
+
+        top_prompt = safe_str(suggestions[0].get("prompt")) if suggestions else "unavailable"
+        self.console_context_suggestions_workflow_state = {
+            "evidence_runbook_enabled": True,
+            "evidence_cycle_status": evidence_runbook.get("cycle_status", "not started"),
+            "evidence_current_stage": evidence_runbook.get("current_stage_number", 1),
+            "evidence_required_prompt": evidence_gate.get("required_prompt", workflow_prompt),
+            "qa_source_eligible_in_active_cycle": bool(qa_source_eligible),
+            "context_suggestions_workflow_prompt": top_prompt,
+            "context_suggestions_agrees_with_next_step": bool(
+                self._console_normalize(top_prompt) == workflow_normalized
+            ),
+            "ineligible_workflow_actions_suppressed": bool(suppressed_count[0] > 0),
+            "ineligible_workflow_actions_suppressed_count": suppressed_count[0],
+            "evidence_gate_active": gate_active,
+        }
 
         return suggestions[:10], latest_export_folder
 
@@ -19244,6 +19323,7 @@ class OllamaAIChat(forms.WPFWindow):
         records, malformed, history_status = self._console_load_history_records()
         latest_result, latest_status = self._console_latest_result_metadata()
         suggestions, latest_export_folder = self._console_context_suggestions(context, latest_result, records)
+        workflow_state = self.console_context_suggestions_workflow_state or {}
         warnings = []
         if context.get("warning"):
             warnings.append("Context warning: {0}".format(context.get("warning")))
@@ -19316,6 +19396,25 @@ class OllamaAIChat(forms.WPFWindow):
                 "",
                 "Suggestions displayed count:",
                 len(suggestions),
+                "",
+                "Evidence Runbook enabled:",
+                str(bool(workflow_state.get("evidence_runbook_enabled"))).lower(),
+                "Evidence cycle status:",
+                workflow_state.get("evidence_cycle_status", "not started"),
+                "Evidence current stage:",
+                workflow_state.get("evidence_current_stage", 1),
+                "Evidence required prompt:",
+                workflow_state.get("evidence_required_prompt", "show active view mep qa dashboard"),
+                "QA source eligible in active cycle:",
+                str(bool(workflow_state.get("qa_source_eligible_in_active_cycle"))).lower(),
+                "Context Suggestions workflow prompt:",
+                workflow_state.get("context_suggestions_workflow_prompt", "unavailable"),
+                "Context Suggestions agrees with Next Step Engine:",
+                str(bool(workflow_state.get("context_suggestions_agrees_with_next_step"))).lower(),
+                "Ineligible workflow actions suppressed:",
+                str(bool(workflow_state.get("ineligible_workflow_actions_suppressed"))).lower(),
+                "Ineligible workflow actions suppressed count:",
+                workflow_state.get("ineligible_workflow_actions_suppressed_count", 0),
                 "",
                 "Recommendation table:",
             ]
