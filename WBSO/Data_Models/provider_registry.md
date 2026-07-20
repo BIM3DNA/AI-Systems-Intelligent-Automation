@@ -281,6 +281,18 @@ AI-WORKBENCH-EVIDENCE-RUNBOOK-v1 and its evidence-cycle gate are provider-indepe
 - Known runbook status routes execute before generic LLM fallback.
 - Load-only controls populate prompts and never execute them automatically.
 - The strict QA-source allowlist currently accepts `MEP_QA_ISSUEINDEX_EXPORT_OK`; generic model/recommendation output is non-authoritative and rejected as QA evidence.
-- Context Suggestions alignment remains pending, but the exporter safely rejects its premature QA-export recommendation.
+- Context Suggestions now follows the active Evidence Runbook stage and shared Next Step Engine; strict QA-source eligibility suppresses premature QA-export recommendations.
 
-Status: implemented and substantially runtime-validated; package remains open. Evidence: EV-AI-329 through EV-AI-334.
+Status: implemented, fully runtime-validated, committed, and pushed. Historical pending evidence remains EV-AI-329 through EV-AI-334; closure evidence is EV-AI-335 through EV-AI-337.
+
+## 2026-07-20 Evidence Cycle Manifest Provider Independence
+
+AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1 is a provider-independent deterministic provenance and lifecycle layer.
+
+- Ollama/OpenAI does not create cycle IDs, select stage artifacts, classify completeness, validate provenance, or determine terminal/restart state.
+- Manifest status routes read local deterministic state and do not write artifacts.
+- Reuse and force-new controls load prompts only and never execute exports automatically.
+- Stage artifacts are written only by their existing explicit manual export commands.
+- Historical artifacts are preserved; no provider can rewrite prior cycle records.
+
+Status: fully runtime-validated and source-control closed at commit `4797b5e2b7f1be3aac63bccb24f809c8fbe7476b`. Evidence: EV-AI-338 through EV-AI-342.

@@ -1686,3 +1686,36 @@ Open issue:
 After only `show active view mep qa dashboard`, Context Suggestions can recommend `export latest QA report` instead of `export mep project issue index`. The exporter rejects this safely because no eligible issue-index source exists. The next correction must make Context Suggestions consume the active runbook/evidence gate and shared Next Step Engine.
 
 Risk classification: deterministic UX/workflow-guidance inconsistency; not a Revit model-safety defect.
+
+## 2026-07-15 Evidence Runbook Context Suggestions Closure
+
+Status: Resolved / fully runtime validated / committed / pushed.
+
+Closure:
+
+- Context Suggestions consumes the active Evidence Runbook stage, evidence-cycle gate, and shared Next Step Engine.
+- After dashboard GREEN it recommends `export mep project issue index`, not QA export.
+- After a valid issue-index export it recommends `export latest QA report` and reports active-cycle QA-source eligibility true.
+- After QA export completion it recommends `export ai workbench console session summary`.
+- After terminal cycle completion it recommends a new dashboard and suppresses QA/session-summary actions.
+- Active-cycle fallback selects eligible issue-index evidence rather than Context Suggestions output.
+
+Runtime result: passed in `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, `TEST [FloorPlan]`, Piping. Commit `73c7f7916d54f79fccdf0ceda33f0cf6e47eca8d` was pushed to `origin/main`.
+
+The previously documented July 13 guidance inconsistency remains in the log as historical defect-discovery evidence; this dated entry closes it.
+
+## 2026-07-20 - Evidence Cycle Manifest Stage 3 Scalar Rendering Regression
+
+Feature: AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1
+
+Status: Resolved and runtime validated; historical failure retained.
+
+Issue: the first Stage 3 QA export returned `AI_WORKBENCH_CONSOLE_HISTORY_FAILED` with `sequence item 18: expected string, int found`.
+
+Root cause: `cycle_boundary_history_index` was correctly stored as an integer for metadata but was passed directly to `"\n".join(lines)` during textual report rendering.
+
+Resolution: textual report scalars are converted with `safe_str`, while JSON metadata retains native integer and boolean types. Console history serialization and Stage 3 manifest registration now succeed.
+
+Related semantic correction: absent Stage 3/4 records now report `not created; awaiting upstream completion`; `superseded by upstream stage revision` is reserved for an actual downstream artifact invalidated by a newer upstream revision.
+
+Validation: Stage 3 occurrences `20260720_144247` and `20260720_144454` completed under the same cycle; the latest successful artifact was selected; cross-stage match remained true. Evidence: EV-AI-340.

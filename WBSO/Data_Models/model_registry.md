@@ -537,15 +537,17 @@ State/model relationship:
 
 Prompt catalog: unchanged.
 
-Pending package: `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1`, not implemented.
+Completed package: `AI-WORKBENCH-EVIDENCE-RUNBOOK-v1`, fully runtime-validated, committed, and pushed.
 
 ## AI-WORKBENCH-EVIDENCE-RUNBOOK-v1
 
-Status: Implemented and substantially runtime-validated; one guidance inconsistency remains pending.
+Status: Implemented, fully runtime-validated, committed, and pushed. The Context Suggestions workflow-guidance inconsistency is closed.
 
-Commit: `4f6eaf3` - Add AI Workbench evidence runbook.
+Initial commit: `4f6eaf3` - Add AI Workbench evidence runbook.
 
-Working-tree correction status: evidence gate, active-cycle isolation, summary guards, strict source eligibility, terminal-cycle diagnostics, and dark-theme corrections are present but not yet committed.
+Final package commit: `73c7f7916d54f79fccdf0ceda33f0cf6e47eca8d` - Complete AI Workbench evidence runbook workflow alignment.
+
+Final correction status: evidence gate, active-cycle isolation, summary guards, strict source eligibility, terminal-cycle diagnostics, dark-theme corrections, and Context Suggestions alignment are committed and pushed to `origin/main`.
 
 State/model relationship:
 
@@ -557,8 +559,26 @@ State/model relationship:
 - currently allowlists `MEP_QA_ISSUEINDEX_EXPORT_OK` as QA evidence source;
 - blocks premature summaries with `AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_NOT_READY`;
 - blocks duplicate terminal-cycle summaries with `AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_CYCLE_COMPLETE`;
-- writes no files from runbook/status/load-only controls.
+- writes no files from runbook/status/load-only controls;
+- makes Context Suggestions consume the active runbook stage and shared Next Step Engine while suppressing ineligible QA/session-summary workflow actions.
 
 Provider relationship: provider-independent deterministic state resolution. No Ollama/OpenAI call determines stage, source eligibility, handoff, or terminal-cycle state.
 
-Pending: Context Suggestions must consume the runbook/evidence gate so dashboard state recommends issue-index export rather than direct QA export.
+Closure: Context Suggestions now consumes the runbook/evidence gate, recommends issue-index export after dashboard completion, respects strict QA-source eligibility, and restarts at a new dashboard after terminal cycle completion. Evidence: EV-AI-335 through EV-AI-337.
+
+## AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1
+
+Status: Implemented, fully runtime-validated, committed, pushed, and source-control closed.
+
+Commit: `4797b5e2b7f1be3aac63bccb24f809c8fbe7476b` - Complete AI Workbench evidence cycle manifest.
+
+State/model relationship:
+
+- creates deterministic cycle IDs from document, view, dashboard report ID, boundary timestamp, and boundary history index;
+- persists `cycle_manifest.json` under `Desktop\Results\AI_Workbench\Evidence_Cycles\<cycle_id>`;
+- records Stage 1-4 provenance and propagates cycle metadata through Stage 2-4 exports;
+- tracks artifact occurrences, revisions, superseded artifacts, latest successful selections, completeness, provenance, and cross-stage cycle matching;
+- preserves historical artifacts and supports legacy Console history without cycle IDs;
+- exposes terminal and restart-required state plus read-only/load-only manifest guidance.
+
+Validated cycle: `EVCYCLE-20260720-120400-fb9e254b78`; four stages complete; provenance valid; cross-stage match true; two duplicate stage artifacts; terminal and restart required. Evidence: EV-AI-338 through EV-AI-342.

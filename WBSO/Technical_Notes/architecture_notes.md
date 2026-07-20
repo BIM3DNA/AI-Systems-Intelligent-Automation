@@ -1586,3 +1586,25 @@ A completed cycle is terminal until a new dashboard establishes a new boundary. 
 Status: implemented and substantially runtime-validated. Pending: Context Suggestions still recommends QA export directly after a dashboard instead of the required issue-index stage. This is a deterministic guidance inconsistency, not a Revit model-safety defect.
 
 Safety boundary: no transaction, TransactionGroup, parameter write, model/link mutation, active-view switch, direct selection API, or automatic execution. Runbook and navigation controls load prompts only; external writes require manual Run and valid source/gate state.
+
+## 2026-07-15 AI Workbench Evidence Runbook Package Closure
+
+Context Suggestions now resolves the active Evidence Runbook and evidence-cycle gate before ranking workflow actions. Its top workflow recommendation uses the shared Next Step Engine, and competing dashboard, issue-index, QA-export, or session-summary actions are suppressed when they do not match the required active stage. QA export is suggested only when the active cycle contains an eligible `MEP_QA_ISSUEINDEX_EXPORT_OK` source.
+
+The final runtime sequence validated dashboard -> issue index -> QA export -> Console session summary, terminal-cycle restart state, and a new dashboard boundary. Context Suggestions agreed with the Next Step Engine at every stage and returned to dashboard after completion.
+
+Final package commit: `73c7f7916d54f79fccdf0ceda33f0cf6e47eca8d` (`Complete AI Workbench evidence runbook workflow alignment`), pushed `main -> origin/main`.
+
+Safety boundary remains unchanged: no transaction, TransactionGroup, parameter write, model/link mutation, active-view switch, direct selection API, or automatic execution. Context Suggestions and runbook controls remain read-only/load-only; evidence files are written only by manually executed eligible export commands.
+
+## 2026-07-20 AI Workbench Evidence Cycle Manifest Architecture
+
+AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1 adds persistent deterministic provenance over the four-stage Evidence Runbook. A cycle boundary is established by a manually executed valid dashboard and receives an ID in the form `EVCYCLE-YYYYMMDD-HHMMSS-<10-character SHA-256 suffix>`. Inputs are the document, view, dashboard report ID, boundary timestamp, and boundary history index.
+
+Each cycle persists to `Desktop\Results\AI_Workbench\Evidence_Cycles\<cycle_id>\cycle_manifest.json`. Stage records preserve all artifact occurrences while selecting the latest successful occurrence. A newer upstream revision can supersede an existing downstream artifact, but an absent downstream stage remains `not created; awaiting upstream completion`. Artifact completeness, provenance validity, cross-stage cycle matching, terminal state, and restart requirement are derived deterministically.
+
+Runtime cycle `EVCYCLE-20260720-120400-fb9e254b78` retained two Stage 2 and two Stage 3 occurrences, selected the latest successful artifacts, completed Stage 4, and reached terminal/restart-required state without overwriting historical folders. Repeated Stage 4 export was blocked before file writing.
+
+The Stage 3 regression `sequence item 18: expected string, int found` is retained as R&D evidence. The boundary history index remains a native integer in JSON metadata and is converted with `safe_str` only for text rendering.
+
+Safety boundary: manifest reports are read-only; reuse/force-new controls are load-only; no transaction, model or parameter mutation, UI selection change, active-view switch, linked-document mutation, automatic execution, Console history rewrite, or historical artifact rewrite was introduced.

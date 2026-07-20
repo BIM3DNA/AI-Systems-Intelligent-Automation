@@ -2186,3 +2186,49 @@ Primary runtime paths:
 - `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries\20260713_170614_console_session_summary`
 
 Technical conclusion: the core evidence state machine, active-cycle isolation, retry behavior, resolver gate, strict QA source eligibility, no-write invalid paths, terminal-cycle guard, duplicate-summary block, and dark theme are validated. The package is not closed because Context Suggestions remains inconsistent with the required dashboard -> issue-index -> QA-export sequence. The remaining issue is deterministic workflow guidance, not Revit model safety.
+
+## EV-AI-335 through EV-AI-337 - AI Workbench Evidence Runbook Final Closure
+
+Status: Implemented, fully runtime-validated, committed, and pushed
+
+Date: 2026-07-15
+
+Week: `2026-W17`
+
+Daily log: `DL-2026-07-15-01` (hours require manual entry; no supplied or project-local numeric value was found)
+
+Validation folder: `WBSO/Testing_Validation/runs/2026-07-15_ai-workbench-evidence-runbook-validated/`
+
+- EV-AI-335: Context Suggestions workflow-alignment implementation and static validation. `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py` was updated so Context Suggestions consumes the active Evidence Runbook, evidence-cycle gate, and shared Next Step Engine; suppresses ineligible competing workflow actions; and recommends QA export only when an eligible active-cycle issue-index source exists. `tabnanny`, supporting-module compilation, prompt catalog JSON parsing, `git diff --check`, focused stage harnesses, and governance checks passed.
+- EV-AI-336: Final live Revit stage A-E validation and package closure. In `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, `TEST [FloorPlan]`, Piping, Context Suggestions correctly recommended issue index after dashboard, QA export after issue index, session summary after QA completion, and dashboard after terminal completion. Final artifacts: issue index `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260715_131747_export_mep_project_issue_index`; QA export `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260715_131857`; session summary `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries\20260715_132010_console_session_summary`. A new dashboard boundary was established by report `MEP-QA-DASHBOARD-v1-20260715_132302`.
+- EV-AI-337: Commit and push evidence. Commit `73c7f7916d54f79fccdf0ceda33f0cf6e47eca8d` (`Complete AI Workbench evidence runbook workflow alignment`) contains only `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`; it was pushed `main -> origin/main`, and the final implementation worktree was clean and aligned. The first HTTPS push certificate-chain failure was an environment/tooling event; retry with Git's Windows certificate store succeeded and is not a product defect.
+
+Active-cycle fallback evidence: QA export `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260715_121544` selected an eligible issue-index history entry while raw latest was `AI_WORKBENCH_CONTEXT_SUGGESTIONS_OK`, proving recommendation output is not accepted as QA evidence.
+
+Required closure: AI-WORKBENCH-EVIDENCE-RUNBOOK-v1 is implemented, fully runtime-validated, committed, and pushed. Context Suggestions now follows the active Evidence Runbook stage, shared Next Step Engine, and strict QA-source eligibility policy. The previously documented workflow-guidance inconsistency is closed.
+
+## EV-AI-338 through EV-AI-342 - AI Workbench Evidence Cycle Manifest
+
+Status: Implemented, fully runtime-validated, committed, pushed, and source-control closed
+
+Date: 2026-07-20
+
+Week: `2026-W18`
+
+Daily log: `DL-2026-07-20-01` (hours require manual entry; no supplied or project-local numeric value was found)
+
+Validation folder: `WBSO/Testing_Validation/runs/2026-07-20_ai-workbench-evidence-cycle-manifest-validated/`
+
+- EV-AI-338: Implementation and static validation. Added deterministic cycle ID generation, persistent cycle manifests, Stage 1-4 provenance, Stage 2-4 metadata propagation, duplicate occurrence/revision tracking, latest-success selection, superseded handling, completeness/provenance/cross-stage state, terminal/restart state, read-only reports, load-only guidance, and legacy-history compatibility. Static, route, scope, and governance checks passed.
+- EV-AI-339: Stage 2 duplicate-occurrence validation. Cycle `EVCYCLE-20260720-120400-fb9e254b78` retained occurrences `20260720_143730_export_mep_project_issue_index` and `20260720_143938_export_mep_project_issue_index`, incremented occurrence index, preserved both folders, counted one duplicate, and selected the latest successful artifact. Project scan: 15 eligible views, 15 scanned, 14 with MEP inventory, 8 with issue candidates, 538 inventory elements, 24 issue candidates, and 0 skipped/unreadable.
+- EV-AI-340: Stage 3 regression and correction evidence. Initial `AI_WORKBENCH_CONSOLE_HISTORY_FAILED` with `sequence item 18: expected string, int found` was traced to integer `cycle_boundary_history_index` in text rendering. `safe_str` conversion corrected report rendering while JSON retained native types. Both QA folders `20260720_144247` and `20260720_144454` were preserved; the latter was selected; active-cycle history fallback, strict issue-index source eligibility, and cross-stage cycle matching passed. Absent-stage semantics were also corrected without rewriting history.
+- EV-AI-341: Final Stage 4 and manifest-state validation. Session summary `20260720_144617_console_session_summary` linked selected Stage 2 and Stage 3 artifacts, generated five files, read 205 history entries, included 20, skipped 0 malformed lines, and completed all four stages. Artifact completeness was complete, provenance valid, cross-stage match true, duplicate stage artifact count 2, terminal true, and restart required true. Repeated Stage 4 export was blocked with zero files written.
+- EV-AI-342: Read-only/load-only, governance, and source-control closure. Manifest/status aliases and reuse/force-new guidance produced no automatic export, model/UI/view change, or report-only manifest write. Commit `4797b5e2b7f1be3aac63bccb24f809c8fbe7476b` (`Complete AI Workbench evidence cycle manifest`) contains only the runtime script and prompt catalog, was pushed `main -> origin/main`, and finished at ahead/behind `0/0`. WBSO and generated evidence were excluded from that commit.
+
+Selected artifacts:
+
+- Stage 2: `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260720_143938_export_mep_project_issue_index`
+- Stage 3: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260720_144454`
+- Stage 4: `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries\20260720_144617_console_session_summary`
+
+Technical conclusion: AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1 provides persistent deterministic provenance for a complete four-stage evidence cycle while preserving every artifact occurrence and all historical failure/correction evidence. No known application defect remains. The malformed global Git `safe.directory` warnings are a development-environment configuration note only.

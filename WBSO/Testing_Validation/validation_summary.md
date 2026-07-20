@@ -958,3 +958,82 @@ No transaction, TransactionGroup, parameter write, model mutation, linked-docume
 ### Pending Defect
 
 After only a dashboard result, Context Suggestions can recommend `export latest QA report` rather than `export mep project issue index`. The strict exporter blocks the invalid recommendation safely. This is a workflow-guidance consistency issue, not a Revit model-safety defect, and prevents final package closure.
+
+## 2026-07-15 - AI Workbench Evidence Runbook Final Closure
+
+### Status
+
+AI-WORKBENCH-EVIDENCE-RUNBOOK-v1 is implemented, fully runtime-validated, committed, and pushed. Context Suggestions now follows the active Evidence Runbook stage, shared Next Step Engine, and strict QA-source eligibility policy. The previously documented workflow-guidance inconsistency is closed.
+
+### Main Findings
+
+- Dashboard `MEP_QA_DASHBOARD_GREEN` advanced Context Suggestions to issue-index export with QA-source eligibility false.
+- Issue-index `MEP_QA_ISSUEINDEX_EXPORT_OK` advanced Context Suggestions to QA export with QA-source eligibility true.
+- `QA_REPORT_EXPORT_COMPLETE` advanced Context Suggestions, Next Step, Visual Preview, and Runbook to Console session-summary export.
+- `AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK` completed all four stages and produced terminal/restart state.
+- Completed-cycle Context Suggestions recommended a new dashboard and suppressed ineligible QA/session-summary actions.
+- A new dashboard result established the next cycle boundary.
+- Active-cycle fallback selected eligible issue-index evidence when raw latest was Context Suggestions, proving guidance output cannot contaminate QA evidence.
+
+### Runtime Evidence
+
+- Issue index: `C:\Users\User\Desktop\Results\AI_Workbench\MEP_Issue_Index_Exports\20260715_131747_export_mep_project_issue_index`
+- QA export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260715_131857`
+- Session summary: `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries\20260715_132010_console_session_summary`
+- Active-cycle fallback QA export: `C:\Users\User\Desktop\Results\AI_Workbench\QA_Exports\20260715_121544`
+
+### Commit
+
+`73c7f7916d54f79fccdf0ceda33f0cf6e47eca8d` - `Complete AI Workbench evidence runbook workflow alignment`; pushed `main -> origin/main`. Only `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py` was committed.
+
+### Safety
+
+No transaction, TransactionGroup, parameter write, Revit model/link mutation, active-view switch, direct selection API, or automatic execution was introduced. Context Suggestions and runbook/status surfaces write no evidence files. Export files require eligible state and explicit manual Run.
+
+### Administrative Record
+
+- Evidence: EV-AI-335 through EV-AI-337
+- Daily log: `DL-2026-07-15-01`
+- Week: `2026-W17`
+- Hours: unresolved; manual entry required because no supplied or project-local numeric value exists
+- KC note: `KC-045`
+
+## 2026-07-20 - AI Workbench Evidence Cycle Manifest Closure
+
+### Status
+
+AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1 is implemented, fully runtime-validated, committed, pushed, and source-control closed at `4797b5e2b7f1be3aac63bccb24f809c8fbe7476b`.
+
+### Validated Cycle
+
+- Cycle ID: `EVCYCLE-20260720-120400-fb9e254b78`
+- Boundary timestamp: `2026-07-20 12:04:00`
+- Boundary history index: 195
+- Model: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- View: `TEST [FloorPlan]`
+- Discipline: Piping
+
+### Results
+
+- Stage 2 retained two issue-index occurrences and selected `20260720_143938_export_mep_project_issue_index`.
+- Stage 3 retained two QA-export occurrences and selected `20260720_144454`.
+- Stage 4 selected `20260720_144617_console_session_summary` and linked the selected Stage 2/3 artifacts.
+- Cycle status complete; completed stages 4; artifact completeness complete; provenance valid; cross-stage cycle match true.
+- Duplicate stage artifacts count 2: one Stage 2 duplicate and one Stage 3 duplicate.
+- Terminal state and restart required are true; repeated Stage 4 export was blocked with no external files written.
+
+### Preserved Regression Evidence
+
+The initial Stage 3 `AI_WORKBENCH_CONSOLE_HISTORY_FAILED` result and `sequence item 18: expected string, int found` error remain recorded. The correction converts scalars with `safe_str` for text rendering while retaining native JSON integer/boolean types. Absent Stage 3/4 records now report awaiting upstream completion; superseded state requires an actual downstream artifact.
+
+### Safety and Closure
+
+Manifest reports are read-only and guidance controls are load-only. No Revit transaction, model/parameter/link mutation, UI selection change, active-view switch, automatic command execution, Console history rewrite, or historical artifact rewrite was introduced. Static validation and governance scans passed. The commit contains only `script.py` and `prompt_catalog.json`; WBSO and generated evidence were excluded.
+
+### Administrative Record
+
+- Evidence: EV-AI-338 through EV-AI-342
+- Daily log: `DL-2026-07-20-01`
+- Week: `2026-W18`
+- Hours: manual entry required; no supplied or project-local numeric value exists
+- KC note: `KC-046`

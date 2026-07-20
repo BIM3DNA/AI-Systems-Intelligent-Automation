@@ -1791,3 +1791,46 @@ Pass criteria:
 - package remains open until Context Suggestions follows the active stage.
 
 Result: Substantially passed with one known deterministic workflow-guidance inconsistency. See `WBSO/Testing_Validation/runs/2026-07-13_ai-workbench-evidence-runbook-substantially-validated/`.
+
+## 2026-07-15 AI-WORKBENCH-EVIDENCE-RUNBOOK-v1 Final Closure Plan
+
+Context: BUNGE loading building model, `TEST [FloorPlan]`, Piping, 97 pipe fittings, 18 pipes. Evidence EV-AI-335 through EV-AI-337.
+
+Tests:
+
+1. Stage A: run dashboard and Context Suggestions; expect `MEP_QA_DASHBOARD_GREEN`, stage 2, QA-source eligibility false, issue-index export ranked first, and ineligible actions suppressed.
+2. Stage B: run project issue-index export and Context Suggestions; expect `MEP_QA_ISSUEINDEX_EXPORT_OK`, stage 3, QA-source eligibility true, and QA export ranked first.
+3. Stage C: run QA export and inspect Context Suggestions, Next Step, Visual Preview, and Runbook; expect `QA_REPORT_EXPORT_COMPLETE`, stage 4, session-summary handoff allowed, and session-summary export recommended.
+4. Stage D: run Console session-summary export and inspect terminal state; expect `AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK`, four completed stages, terminal/restart true, and dashboard restart recommended.
+5. Stage E: run a new dashboard after terminal completion; expect a new evidence-cycle boundary with no model/UI/evidence write from the dashboard.
+6. Validate active-cycle eligible-source fallback when raw latest is Context Suggestions; expect eligible issue-index source selected and Context Suggestions rejected as QA evidence.
+7. Run `tabnanny`, supporting-module compilation, prompt catalog JSON parsing, `git diff --check`, focused stage harnesses, and governance scan.
+8. Confirm implementation commit contains only the primary runtime script and is pushed to `origin/main`.
+
+Pass criteria:
+
+- Context Suggestions and shared Next Step Engine agree at every stage;
+- QA export is not suggested before an eligible issue-index source exists;
+- completed cycles restart at dashboard and do not expose stale QA/session-summary actions;
+- no transaction, model/link/parameter/view/selection mutation or automatic execution;
+- implementation commit and push are traceable and scoped.
+
+Result: Passed. Package closed. See `WBSO/Testing_Validation/runs/2026-07-15_ai-workbench-evidence-runbook-validated/`.
+
+## 2026-07-20 - AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1
+
+Status: all tests passed. Evidence: EV-AI-338 through EV-AI-342.
+
+1. Cycle identity: run a valid dashboard and verify deterministic `EVCYCLE-YYYYMMDD-HHMMSS-<10-character SHA-256 suffix>`, boundary timestamp/index, document, and view metadata.
+2. Stage 2 duplicate handling: export issue index twice; preserve both folders, increment occurrence/revision state, count one duplicate, and select the latest successful artifact.
+3. Stage 3 regression chronology: retain the initial integer text-rendering failure, apply scalar conversion for report text only, and verify native JSON types remain intact.
+4. Stage 3 duplicate handling: export QA report twice under the same cycle; preserve both folders, select the latest successful artifact, retain strict issue-index source eligibility, and verify cross-stage cycle match.
+5. Absent-stage semantics: verify absent downstream stages report awaiting upstream completion rather than superseded.
+6. Stage 4 completion: export Console session summary, verify selected Stage 2/3 links, five generated files, complete provenance, and terminal/restart state.
+7. Duplicate terminal guard: repeat Stage 4 export and verify cycle-complete classification, zero generated files, and no external write.
+8. Manifest routes: validate `show ai workbench evidence cycle manifest` and `show current evidence cycle manifest` as read-only.
+9. Guidance routes: validate `reuse current evidence stage artifact` and `force new evidence stage export` as load-only with auto-run false.
+10. New-cycle boundary: manually run a new valid dashboard and verify a new cycle ID without changing historical cycle folders.
+11. Static/governance: run tabnanny, supporting-module compilation, prompt JSON parse, route lookup, diff check, staged scope verification, and no-mutation/no-history-rewrite scans.
+
+Runtime context: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, `TEST [FloorPlan]`, Piping. Validated cycle: `EVCYCLE-20260720-120400-fb9e254b78`.

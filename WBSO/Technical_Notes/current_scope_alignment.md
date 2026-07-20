@@ -881,3 +881,54 @@ Pending:
 - Context Suggestions must follow the active runbook/evidence gate and recommend issue-index export after the dashboard
 - working-tree gate/theme/eligibility/terminal corrections require a commit
 - package remains open until the guidance inconsistency is resolved
+
+### 2026-07-15 AI Workbench Evidence Runbook final scope alignment
+
+Status: Implemented, fully runtime-validated, committed, and pushed. The previously documented workflow-guidance inconsistency is closed.
+
+Validated scope:
+
+- four-stage dashboard -> issue index -> QA export -> Console session-summary cycle
+- active-cycle boundary isolation, ordered stage resolution, retry behavior, and gate precedence
+- strict QA-source eligibility and active-cycle eligible-source fallback
+- completed-cycle terminal/restart state and duplicate-summary guard
+- centralized Console dark/light theming
+- Context Suggestions alignment with the active runbook stage and shared Next Step Engine
+- suppression of ineligible workflow actions and deterministic next safe action
+- new dashboard boundary after terminal cycle completion
+
+Safety boundary:
+
+- no transaction, TransactionGroup, parameter write, model/link mutation, active-view switch, or direct selection API
+- no automatic execution; guidance and runbook controls remain load-only
+- Context Suggestions writes no external evidence files
+- eligible exports require manual Run
+- MEP-RO, MEP-SEL, Safe Catalog, selection confirmation, and reviewed-action guards remain preserved
+
+Commit: `73c7f7916d54f79fccdf0ceda33f0cf6e47eca8d`, pushed `main -> origin/main`.
+
+Package status: closed.
+
+## 2026-07-20 Scope Alignment - AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1
+
+Validated in scope:
+
+- deterministic evidence-cycle identity and persistent `cycle_manifest.json`;
+- Stage 1-4 provenance and Stage 2-4 cycle metadata propagation;
+- duplicate occurrence/revision tracking and latest successful artifact selection;
+- superseded-artifact handling without historical overwrite;
+- artifact completeness, provenance validity, and cross-stage cycle matching;
+- terminal-cycle and restart-required state;
+- read-only manifest reports and load-only reuse/force-new guidance;
+- backward compatibility for legacy Console history without cycle IDs;
+- Stage 3 text-rendering regression correction while retaining native JSON scalar types.
+
+Out of scope and not introduced:
+
+- automatic dashboard or export execution;
+- automatic reuse of a completed cycle;
+- Revit model, parameter, selection, active-view, or linked-document mutation;
+- deletion or rewriting of Console history or historical evidence artifacts;
+- installer/package changes or ZIP creation.
+
+Status: fully runtime-validated on cycle `EVCYCLE-20260720-120400-fb9e254b78`, committed as `4797b5e2b7f1be3aac63bccb24f809c8fbe7476b`, pushed, and aligned with `origin/main`. Evidence: EV-AI-338 through EV-AI-342.
