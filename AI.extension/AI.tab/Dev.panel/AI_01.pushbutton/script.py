@@ -111,6 +111,7 @@ QA_EXPORT_ACCEPTED_REPORT_HEADERS = (
     "[AI WORKBENCH GUIDED START HELP REPORT]",
     "[AI WORKBENCH GUIDED COACH REPORT]",
     "[AI WORKBENCH NEXT STEP REPORT]",
+    "[AI WORKBENCH EVIDENCE CYCLE MANIFEST REPORT]",
     "[BIM BASIS / LEVELS & GRIDS]",
     "[REVIEWED ACTION PROPOSAL]",
     "[SPLIT SELECTED PIPES DRY RUN]",
@@ -14495,6 +14496,19 @@ AI_WORKBENCH_EVIDENCE_RUNBOOK_STATUS_ROUTES = {
     "show mep qa evidence progress",
 }
 
+AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_STATUS_ROUTES = {
+    "show ai workbench evidence cycle manifest",
+    "show current evidence cycle manifest",
+}
+
+AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_REUSE_ROUTES = {
+    "reuse current evidence stage artifact",
+}
+
+AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_FORCE_NEW_ROUTES = {
+    "force new evidence stage export",
+}
+
 
 def _ai_workbench_console_history_viewer_route_kind(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
@@ -14545,6 +14559,17 @@ def _is_ai_workbench_next_step_status_prompt(prompt):
 def _is_ai_workbench_evidence_runbook_status_prompt(prompt):
     normalized = _normalize_deterministic_route_text(prompt)
     return normalized in AI_WORKBENCH_EVIDENCE_RUNBOOK_STATUS_ROUTES
+
+
+def _ai_workbench_evidence_cycle_manifest_route_kind(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    if normalized in AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_STATUS_ROUTES:
+        return "status"
+    if normalized in AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_REUSE_ROUTES:
+        return "reuse"
+    if normalized in AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_FORCE_NEW_ROUTES:
+        return "force_new"
+    return None
 
 
 def _is_mep_qa_issueindex_v1_prompt(prompt):
@@ -15446,6 +15471,7 @@ class OllamaAIChat(forms.WPFWindow):
         self.console_guided_coach_state = {}
         self.console_evidence_cycle_gate_state = {}
         self.console_context_suggestions_workflow_state = {}
+        self.latest_evidence_cycle_manifest_state = {}
         self.console_capture_active = False
         self.console_captured_reply = None
         self.console_captured_error = None
@@ -17678,7 +17704,8 @@ class OllamaAIChat(forms.WPFWindow):
             lines.append("- none")
         return lines
 
-    def _console_session_summary_files(self, prompt, records):
+    def _console_session_summary_files(self, prompt, records, cycle_context=None):
+        cycle_context = cycle_context or {}
         summaries_root = self._console_session_summaries_root()
         if not os.path.exists(summaries_root):
             os.makedirs(summaries_root)
@@ -17715,6 +17742,16 @@ class OllamaAIChat(forms.WPFWindow):
             "latest_export_folder_references": export_refs[:20],
             "prompts_executed": prompts,
             "records": included,
+            "cycle_id": cycle_context.get("cycle_id", "unavailable"),
+            "cycle_id_source": cycle_context.get("cycle_id_source", "legacy/unavailable"),
+            "cycle_manifest_path": cycle_context.get("manifest_path", "unavailable"),
+            "cycle_boundary_timestamp": cycle_context.get("cycle_boundary_timestamp", "unavailable"),
+            "cycle_boundary_history_index": cycle_context.get("cycle_boundary_history_index", -1),
+            "evidence_stage_number": 4,
+            "evidence_stage_occurrence_index": cycle_context.get("next_occurrence_index", 1),
+            "evidence_stage_revision": cycle_context.get("next_occurrence_index", 1),
+            "linked_issue_index_export_folder": (cycle_context.get("selected_folders") or {}).get("2") or "unavailable",
+            "linked_qa_export_folder": (cycle_context.get("selected_folders") or {}).get("3") or "unavailable",
         }
         md_lines = [
             "# AI Workbench Console Session Summary",
@@ -17726,6 +17763,12 @@ class OllamaAIChat(forms.WPFWindow):
             "- UI selection modified true count: {0}".format(ui_selection_count),
             "- Model modified true count: {0}".format(model_modified_count),
             "- External files written true count: {0}".format(external_write_count),
+            "- Evidence cycle ID: {0}".format(summary.get("cycle_id")),
+            "- Evidence cycle manifest path: {0}".format(summary.get("cycle_manifest_path")),
+            "- Evidence stage number: 4",
+            "- Evidence stage occurrence index: {0}".format(summary.get("evidence_stage_occurrence_index")),
+            "- Linked issue-index export folder: {0}".format(summary.get("linked_issue_index_export_folder")),
+            "- Linked QA export folder: {0}".format(summary.get("linked_qa_export_folder")),
             "",
         ]
         md_lines.extend(self._console_counts_lines("Counts by feature ID", feature_counts))
@@ -17753,6 +17796,14 @@ class OllamaAIChat(forms.WPFWindow):
         json_path = os.path.join(folder, "console_session_summary.json")
         csv_path = os.path.join(folder, "console_session_summary.csv")
         manifest_path = os.path.join(folder, "artifact_manifest.txt")
+        summary["generated_files"] = [
+            "console_session_summary.md",
+            "console_session_summary.txt",
+            "console_session_summary.json",
+            "console_session_summary.csv",
+            "artifact_manifest.txt",
+        ]
+        summary["total_files_generated"] = len(summary.get("generated_files") or [])
         self._write_utf8_file(md_path, "\n".join(md_lines))
         self._write_utf8_file(txt_path, txt_text)
         self._write_utf8_file(json_path, json.dumps(summary, indent=2, sort_keys=True))
@@ -17878,9 +17929,10 @@ class OllamaAIChat(forms.WPFWindow):
         classification = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_EMPTY"
         export_data = {"folder": "", "generated_files": [], "summary": {"entries_included": 0}}
         warning = "none"
+        cycle_context = self._evidence_cycle_context_for_export(4)
         if records:
             try:
-                export_data = self._console_session_summary_files(prompt, records)
+                export_data = self._console_session_summary_files(prompt, records, cycle_context)
                 classification = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK"
             except Exception as exc:
                 classification = "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_FAILED"
@@ -17902,6 +17954,23 @@ class OllamaAIChat(forms.WPFWindow):
             "",
             "Result classification:",
             classification,
+            "",
+            "Evidence cycle ID:",
+            cycle_context.get("cycle_id", "unavailable"),
+            "Evidence cycle manifest path:",
+            cycle_context.get("manifest_path", "unavailable"),
+            "Evidence cycle boundary timestamp:",
+            cycle_context.get("cycle_boundary_timestamp", "unavailable"),
+            "Evidence cycle boundary history index:",
+            cycle_context.get("cycle_boundary_history_index", -1),
+            "Evidence stage number:",
+            "4",
+            "Evidence stage occurrence index:",
+            cycle_context.get("next_occurrence_index", 1),
+            "Linked issue-index export folder:",
+            (cycle_context.get("selected_folders") or {}).get("2") or "unavailable",
+            "Linked QA export folder:",
+            (cycle_context.get("selected_folders") or {}).get("3") or "unavailable",
             "",
             "History source status:",
             source_status,
@@ -18000,6 +18069,8 @@ class OllamaAIChat(forms.WPFWindow):
                 "AI_WORKBENCH_STATUS_OK",
                 "AI_WORKBENCH_DEBUG_STATUS_OK",
                 "AI_WORKBENCH_EVIDENCE_RUNBOOK_OK",
+                "AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_OK",
+                "AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_NOT_AVAILABLE",
                 "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_NOT_READY",
                 "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_CYCLE_COMPLETE",
                 "QA_REPORT_EXPORT_NOT_READY",
@@ -18014,6 +18085,8 @@ class OllamaAIChat(forms.WPFWindow):
         if feature_lower == "ai-workbench-next-step-engine-v1":
             return True
         if feature_lower == "ai-workbench-evidence-runbook-v1":
+            return True
+        if feature_lower == "ai-workbench-evidence-cycle-manifest-v1":
             return True
         if feature_lower == "ai-workbench-visual-v1" and normalized_prompt in AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES:
             return True
@@ -18418,6 +18491,393 @@ class OllamaAIChat(forms.WPFWindow):
                 return definition.get("stage_number")
         return 0
 
+    def _evidence_cycle_manifest_schema_version(self):
+        return "1.0"
+
+    def _evidence_cycle_manifest_root(self):
+        user_profile = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+        return os.path.join(user_profile, "Desktop", "Results", "AI_Workbench", "Evidence_Cycles")
+
+    def _evidence_cycle_safe_id(self, cycle_id):
+        value = safe_str(cycle_id).strip()
+        if re.match(r"^EVCYCLE-[0-9]{8}-[0-9]{6}-[0-9a-f]{10}$", value):
+            return value
+        return ""
+
+    def _evidence_cycle_manifest_path(self, cycle_id):
+        safe_id = self._evidence_cycle_safe_id(cycle_id)
+        if not safe_id:
+            return ""
+        return os.path.join(self._evidence_cycle_manifest_root(), safe_id, "cycle_manifest.json")
+
+    def _evidence_cycle_id_from_boundary(self, document_title, active_view, report_id, timestamp, history_index):
+        timestamp_digits = "".join(re.findall(r"[0-9]", safe_str(timestamp)))[:14]
+        if len(timestamp_digits) != 14:
+            timestamp_digits = time.strftime("%Y%m%d%H%M%S")
+        seed = "|".join(
+            [
+                safe_str(document_title),
+                safe_str(active_view),
+                safe_str(report_id),
+                safe_str(timestamp),
+                safe_str(history_index),
+            ]
+        )
+        suffix = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:10]
+        return "EVCYCLE-{0}-{1}-{2}".format(timestamp_digits[:8], timestamp_digits[8:14], suffix)
+
+    def _evidence_cycle_stage_success_classification(self, stage_number):
+        values = {
+            1: ("MEP_QA_DASHBOARD_GREEN", "MEP_QA_DASHBOARD_YELLOW"),
+            2: ("MEP_QA_ISSUEINDEX_EXPORT_OK",),
+            3: ("QA_REPORT_EXPORT_COMPLETE",),
+            4: ("AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_EXPORT_OK",),
+        }
+        return values.get(int(stage_number or 0), ())
+
+    def _evidence_cycle_manifest_read(self, cycle_id):
+        path = self._evidence_cycle_manifest_path(cycle_id)
+        if not path or not os.path.isfile(path):
+            return {}, "missing", path
+        try:
+            stream = codecs.open(path, "r", "utf-8")
+            try:
+                loaded = json.loads(stream.read())
+            finally:
+                stream.close()
+            if isinstance(loaded, dict):
+                return loaded, "available", path
+            return {}, "invalid", path
+        except:
+            return {}, "unreadable", path
+
+    def _evidence_cycle_manifest_stage(self, manifest, stage_number):
+        stages = manifest.setdefault("stages", {})
+        key = safe_str(int(stage_number))
+        if key not in stages or not isinstance(stages.get(key), dict):
+            definition = self._console_evidence_runbook_stage_definitions()[int(stage_number) - 1]
+            stages[key] = {
+                "stage_number": int(stage_number),
+                "label": definition.get("label"),
+                "prompt": definition.get("prompt"),
+                "result_classification": "unavailable",
+                "report_id": "unavailable",
+                "history_index": -1,
+                "timestamp": "unavailable",
+                "document": "unavailable",
+                "view": "unavailable",
+                "selected_artifact_folder": "",
+                "artifacts": [],
+                "artifact_status": "not created",
+                "occurrence_count": 0,
+                "duplicate_count": 0,
+            }
+        return stages[key]
+
+    def _evidence_cycle_new_manifest(self, cycle_id, record, history_index):
+        created = safe_str(record.get("cycle_boundary_timestamp") or record.get("timestamp") or time.strftime("%Y-%m-%d %H:%M:%S"))
+        context = self.console_last_context or {}
+        manifest = {
+            "schema_version": self._evidence_cycle_manifest_schema_version(),
+            "feature_id": "AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1",
+            "cycle_id": cycle_id,
+            "document_title": safe_str(record.get("active_document_title") or _document_title(doc)),
+            "active_view": safe_str(record.get("active_view") or _active_view_title(doc, uidoc)),
+            "detected_discipline": safe_str(context.get("likely_discipline") or "unavailable"),
+            "cycle_boundary_timestamp": created,
+            "cycle_boundary_history_index": int(record.get("cycle_boundary_history_index") or history_index),
+            "cycle_start_dashboard_report_id": safe_str(record.get("report_id") or "unavailable"),
+            "cycle_status": "in progress",
+            "current_stage": 2,
+            "completed_stage_count": 1,
+            "terminal_state": False,
+            "restart_required": False,
+            "created_timestamp": created,
+            "last_updated_timestamp": created,
+            "safety_flags": {
+                "transaction_opened": False,
+                "transaction_group_opened": False,
+                "model_modified": False,
+                "linked_document_modified": False,
+                "ui_selection_modified": False,
+                "active_view_changed": False,
+                "auto_run": False,
+            },
+            "stages": {},
+            "artifact_completeness": "partial",
+            "provenance_valid": True,
+            "cross_stage_cycle_match": True,
+            "duplicate_stage_artifacts_present": False,
+            "latest_artifact_selected_per_stage": {},
+            "warnings": [],
+        }
+        for stage_number in (1, 2, 3, 4):
+            self._evidence_cycle_manifest_stage(manifest, stage_number)
+        return manifest
+
+    def _evidence_cycle_artifact_metadata(self, stage_number, export_folder):
+        if not export_folder or not os.path.isdir(export_folder):
+            return {}
+        filename = "console_session_summary.json" if int(stage_number) == 4 else "metadata.json"
+        path = os.path.join(export_folder, filename)
+        if not os.path.isfile(path):
+            return {}
+        try:
+            stream = codecs.open(path, "r", "utf-8")
+            try:
+                loaded = json.loads(stream.read())
+            finally:
+                stream.close()
+            return loaded if isinstance(loaded, dict) else {}
+        except:
+            return {}
+
+    def _evidence_cycle_artifact_summary(self, record, metadata):
+        metadata = metadata or {}
+        return {
+            "result_classification": safe_str(record.get("result_classification") or "unavailable"),
+            "document": safe_str(record.get("active_document_title") or metadata.get("document_title") or "unavailable"),
+            "view": safe_str(record.get("active_view") or metadata.get("current_active_view") or metadata.get("active_view_name") or "unavailable"),
+            "total_issue_candidates": safe_str(record.get("total_issue_candidates") or metadata.get("total_issue_candidates") or "unavailable"),
+            "total_mep_inventory_count": safe_str(metadata.get("total_mep_inventory_count") or "unavailable"),
+            "generated_files_count": safe_str(record.get("generated_files_count") or metadata.get("total_files_generated") or len(metadata.get("generated_files") or []) or "unavailable"),
+            "source_classification": safe_str(metadata.get("source_result_classification") or metadata.get("raw_latest_result_classification") or "unavailable"),
+        }
+
+    def _evidence_cycle_manifest_recalculate(self, manifest):
+        cycle_id = safe_str(manifest.get("cycle_id"))
+        completed = 0
+        selected = {}
+        duplicate_total = 0
+        provenance_valid = bool(self._evidence_cycle_safe_id(cycle_id))
+        warnings = []
+        for stage_number in (1, 2, 3, 4):
+            stage = self._evidence_cycle_manifest_stage(manifest, stage_number)
+            classification = safe_str(stage.get("result_classification")).upper()
+            stage_complete = classification in self._evidence_cycle_stage_success_classification(stage_number)
+            if stage_number > 1:
+                stage_complete = bool(stage_complete and stage.get("selected_artifact_folder"))
+            if stage_complete:
+                completed += 1
+            folder = safe_str(stage.get("selected_artifact_folder"))
+            selected[safe_str(stage_number)] = folder
+            artifacts = stage.get("artifacts") or []
+            stage["occurrence_count"] = len(artifacts)
+            stage["duplicate_count"] = max(0, len(artifacts) - 1)
+            duplicate_total += stage.get("duplicate_count", 0)
+            for artifact in artifacts:
+                artifact_cycle = safe_str(artifact.get("cycle_id"))
+                if artifact_cycle and artifact_cycle != cycle_id:
+                    provenance_valid = False
+                if artifact.get("cross_stage_cycle_match") is False:
+                    provenance_valid = False
+        if duplicate_total:
+            warnings.append("Repeated stage artifacts are present; latest successful occurrence is selected per stage.")
+        if not provenance_valid:
+            warnings.append("One or more artifact cycle identifiers do not match the manifest cycle.")
+        terminal = completed == 4
+        current_stage = 1 if terminal else min(4, completed + 1)
+        manifest["completed_stage_count"] = completed
+        manifest["cycle_status"] = "complete" if terminal else "in progress"
+        manifest["current_stage"] = current_stage
+        manifest["terminal_state"] = terminal
+        manifest["restart_required"] = terminal
+        manifest["artifact_completeness"] = "complete" if terminal else ("partial" if completed else "unavailable")
+        manifest["provenance_valid"] = bool(provenance_valid)
+        manifest["cross_stage_cycle_match"] = bool(provenance_valid)
+        manifest["duplicate_stage_artifacts_present"] = bool(duplicate_total)
+        manifest["latest_artifact_selected_per_stage"] = selected
+        manifest["warnings"] = warnings
+        return manifest
+
+    def _evidence_cycle_manifest_write(self, manifest):
+        cycle_id = self._evidence_cycle_safe_id(manifest.get("cycle_id"))
+        path = self._evidence_cycle_manifest_path(cycle_id)
+        if not path:
+            return {"ok": False, "warning": "Invalid evidence cycle ID.", "path": ""}
+        folder = os.path.dirname(path)
+        try:
+            if not os.path.isdir(folder):
+                os.makedirs(folder)
+            manifest["last_updated_timestamp"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            self._write_utf8_file(path, json.dumps(manifest, indent=2, sort_keys=True))
+            self.latest_evidence_cycle_manifest_state = dict(manifest)
+            return {"ok": True, "warning": "", "path": path}
+        except Exception as exc:
+            return {"ok": False, "warning": safe_str(exc), "path": path}
+
+    def _evidence_cycle_invalidate_downstream(self, manifest, stage_number):
+        for downstream in range(int(stage_number) + 1, 5):
+            stage = self._evidence_cycle_manifest_stage(manifest, downstream)
+            artifacts = stage.get("artifacts") or []
+            for artifact in artifacts:
+                artifact["selected_for_downstream"] = False
+            stage["selected_artifact_folder"] = ""
+            if artifacts:
+                stage["artifact_status"] = "superseded by upstream stage revision"
+            else:
+                stage["artifact_status"] = "not created; awaiting upstream completion"
+            stage["result_classification"] = "unavailable"
+
+    def _evidence_cycle_register_successful_record(self, record, history_index):
+        stage_number = self._console_evidence_runbook_stage_number(record.get("result_classification"))
+        classification = safe_str(record.get("result_classification")).upper()
+        if classification not in self._evidence_cycle_stage_success_classification(stage_number):
+            return {"ok": False, "skipped": True, "reason": "not a successful evidence stage"}
+        cycle_id = self._evidence_cycle_safe_id(record.get("cycle_id"))
+        if not cycle_id:
+            return {"ok": False, "skipped": True, "reason": "legacy or unavailable cycle id"}
+        manifest, source_status, path = self._evidence_cycle_manifest_read(cycle_id)
+        if stage_number == 1 and not manifest:
+            manifest = self._evidence_cycle_new_manifest(cycle_id, record, history_index)
+        elif not manifest:
+            return {"ok": False, "skipped": True, "reason": "cycle manifest unavailable"}
+        stage = self._evidence_cycle_manifest_stage(manifest, stage_number)
+        stage.update(
+            {
+                "result_classification": classification,
+                "report_id": safe_str(record.get("report_id") or "unavailable"),
+                "history_index": int(history_index),
+                "timestamp": safe_str(record.get("timestamp") or "unavailable"),
+                "document": safe_str(record.get("active_document_title") or "unavailable"),
+                "view": safe_str(record.get("active_view") or "unavailable"),
+            }
+        )
+        if stage_number > 1:
+            export_folder = safe_str(record.get("export_folder"))
+            if not export_folder or not os.path.isdir(export_folder):
+                return {"ok": False, "skipped": True, "reason": "successful artifact folder unavailable"}
+            metadata = self._evidence_cycle_artifact_metadata(stage_number, export_folder)
+            artifacts = stage.setdefault("artifacts", [])
+            previous = artifacts[-1] if artifacts else {}
+            summary = self._evidence_cycle_artifact_summary(record, metadata)
+            previous_summary = previous.get("content_summary") or {}
+            summary_match = bool(previous and summary == previous_summary)
+            for artifact in artifacts:
+                artifact["selected_for_downstream"] = False
+                if not artifact.get("superseded_by_artifact"):
+                    artifact["superseded_by_artifact"] = export_folder
+            occurrence = len(artifacts) + 1
+            artifact = {
+                "artifact_id": "{0}-S{1}-R{2:03d}".format(cycle_id, stage_number, occurrence),
+                "cycle_id": cycle_id,
+                "stage_number": stage_number,
+                "occurrence_index": occurrence,
+                "stage_revision": occurrence,
+                "export_folder": export_folder,
+                "generated_files": list(metadata.get("generated_files") or []),
+                "history_index": int(history_index),
+                "timestamp": safe_str(record.get("timestamp") or "unavailable"),
+                "result_classification": classification,
+                "artifact_status": "selected",
+                "selected_for_downstream": True,
+                "supersedes_artifact": safe_str(previous.get("export_folder")) if previous else "",
+                "superseded_by_artifact": "",
+                "exact_duplicate_candidate": bool(summary_match),
+                "content_summary_match": bool(summary_match),
+                "duplicate_reason": "content summary match" if summary_match else ("new revision candidate" if previous else "first artifact for stage"),
+                "content_summary": summary,
+                "source_cycle_id": safe_str(metadata.get("source_cycle_id") or "unavailable"),
+                "cross_stage_cycle_match": metadata.get("cross_stage_cycle_match", True),
+            }
+            artifacts.append(artifact)
+            stage["selected_artifact_folder"] = export_folder
+            stage["artifact_status"] = "selected latest successful occurrence"
+            stage["generated_files"] = list(metadata.get("generated_files") or [])
+            if stage_number == 3:
+                stage["source_classification"] = safe_str(metadata.get("source_result_classification") or metadata.get("raw_latest_result_classification") or "unavailable")
+                stage["source_history_index"] = metadata.get("active_cycle_source_history_index", -1)
+                stage["source_timestamp"] = safe_str(metadata.get("active_cycle_source_timestamp") or "unavailable")
+                stage["source_export_folder"] = safe_str(metadata.get("source_issue_index_export_folder") or "unavailable")
+            elif stage_number == 4:
+                stage["linked_qa_export_folder"] = safe_str(metadata.get("linked_qa_export_folder") or "unavailable")
+                stage["linked_issue_index_export_folder"] = safe_str(metadata.get("linked_issue_index_export_folder") or "unavailable")
+            self._evidence_cycle_invalidate_downstream(manifest, stage_number)
+        else:
+            stage["artifact_status"] = "dashboard boundary recorded; no external artifact expected"
+        self._evidence_cycle_manifest_recalculate(manifest)
+        return self._evidence_cycle_manifest_write(manifest)
+
+    def _evidence_cycle_manifest_snapshot(self, cycle_id):
+        manifest, source_status, path = self._evidence_cycle_manifest_read(cycle_id)
+        if not manifest:
+            return {
+                "available": False,
+                "source_status": source_status,
+                "cycle_id": safe_str(cycle_id) or "unavailable",
+                "manifest_path": path or "unavailable",
+                "schema_version": "unavailable",
+                "artifact_completeness": "unavailable",
+                "provenance_valid": False,
+                "cross_stage_cycle_match": False,
+                "duplicate_count": 0,
+                "warning_count": 0,
+                "warnings": ["Cycle manifest is unavailable; history may be legacy or the cycle has not started."],
+                "selected_folders": {"2": "", "3": "", "4": ""},
+                "manifest": {},
+            }
+        self._evidence_cycle_manifest_recalculate(manifest)
+        stages = manifest.get("stages") or {}
+        duplicate_count = sum([int((stages.get(safe_str(i)) or {}).get("duplicate_count") or 0) for i in (2, 3, 4)])
+        warnings = list(manifest.get("warnings") or [])
+        return {
+            "available": True,
+            "source_status": source_status,
+            "cycle_id": safe_str(manifest.get("cycle_id")),
+            "manifest_path": path,
+            "schema_version": manifest.get("schema_version", "unavailable"),
+            "artifact_completeness": manifest.get("artifact_completeness", "unavailable"),
+            "provenance_valid": bool(manifest.get("provenance_valid")),
+            "cross_stage_cycle_match": bool(manifest.get("cross_stage_cycle_match")),
+            "duplicate_count": duplicate_count,
+            "warning_count": len(warnings),
+            "warnings": warnings,
+            "selected_folders": {
+                "2": safe_str((stages.get("2") or {}).get("selected_artifact_folder")),
+                "3": safe_str((stages.get("3") or {}).get("selected_artifact_folder")),
+                "4": safe_str((stages.get("4") or {}).get("selected_artifact_folder")),
+            },
+            "manifest": manifest,
+        }
+
+    def _evidence_cycle_prepare_dashboard_data(self, data):
+        classification = safe_str(data.get("classification")).upper()
+        if classification not in self._evidence_cycle_stage_success_classification(1):
+            return data
+        records, malformed, source_status = self._console_load_history_records()
+        history_index = len(records)
+        active_view = "{0} [{1}]".format(data.get("active_view"), data.get("active_view_type"))
+        cycle_id = self._evidence_cycle_id_from_boundary(
+            data.get("document_title"),
+            active_view,
+            data.get("report_id"),
+            data.get("timestamp"),
+            history_index,
+        )
+        data["cycle_id"] = cycle_id
+        data["cycle_boundary_timestamp"] = data.get("timestamp")
+        data["cycle_boundary_history_index"] = history_index
+        data["cycle_manifest_path"] = self._evidence_cycle_manifest_path(cycle_id)
+        return data
+
+    def _evidence_cycle_context_for_export(self, stage_number):
+        records, malformed, source_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        runbook = self.resolve_ai_workbench_evidence_runbook(records, latest_result, None)
+        cycle_id = self._evidence_cycle_safe_id(runbook.get("cycle_id"))
+        snapshot = self._evidence_cycle_manifest_snapshot(cycle_id)
+        stage = ((snapshot.get("manifest") or {}).get("stages") or {}).get(safe_str(stage_number)) or {}
+        return {
+            "cycle_id": cycle_id or "unavailable",
+            "cycle_id_source": runbook.get("cycle_id_source", "legacy/unavailable"),
+            "cycle_boundary_timestamp": runbook.get("cycle_boundary_timestamp", "unavailable"),
+            "cycle_boundary_history_index": runbook.get("cycle_boundary_history_index", -1),
+            "manifest_path": self._evidence_cycle_manifest_path(cycle_id) or "unavailable",
+            "manifest_available": bool(snapshot.get("available")),
+            "next_occurrence_index": len(stage.get("artifacts") or []) + 1,
+            "selected_folders": snapshot.get("selected_folders") or {},
+        }
+
     def resolve_ai_workbench_evidence_runbook(self, history_records=None, latest_result=None, workflow_anchor=None):
         records = list(history_records or [])
         latest_result = latest_result or {}
@@ -18590,6 +19050,19 @@ class OllamaAIChat(forms.WPFWindow):
                 boundary_history_index = ordered.index(active_records[0])
             except:
                 boundary_history_index = -1
+        boundary_record = stage_latest.get(1) or {}
+        if boundary_record.get("cycle_boundary_timestamp"):
+            boundary_timestamp = safe_str(boundary_record.get("cycle_boundary_timestamp"))
+        try:
+            if safe_str(boundary_record.get("cycle_boundary_history_index")) not in ("", "unavailable"):
+                boundary_history_index = int(boundary_record.get("cycle_boundary_history_index"))
+        except:
+            pass
+        cycle_id = self._evidence_cycle_safe_id(boundary_record.get("cycle_id"))
+        cycle_id_source = "persisted" if cycle_id else "legacy/unavailable"
+        manifest_snapshot = self._evidence_cycle_manifest_snapshot(cycle_id)
+        manifest = manifest_snapshot.get("manifest") or {}
+        manifest_stages = manifest.get("stages") or {}
         return {
             "feature_id": "AI-WORKBENCH-EVIDENCE-RUNBOOK-v1",
             "qa_export_anchor_feature_id": "AI-WORKBENCH-QA-EXPORT-ANCHOR-v1",
@@ -18608,6 +19081,24 @@ class OllamaAIChat(forms.WPFWindow):
             "new_dashboard_boundary_required": bool(complete_cycle),
             "cycle_boundary_timestamp": boundary_timestamp,
             "cycle_boundary_history_index": boundary_history_index,
+            "cycle_id": cycle_id or "unavailable",
+            "cycle_id_source": cycle_id_source,
+            "cycle_manifest_available": bool(manifest_snapshot.get("available")),
+            "cycle_manifest_path": manifest_snapshot.get("manifest_path", "unavailable"),
+            "cycle_manifest_schema_version": manifest_snapshot.get("schema_version", "unavailable"),
+            "cycle_artifact_completeness": manifest_snapshot.get("artifact_completeness", "unavailable"),
+            "cycle_provenance_valid": bool(manifest_snapshot.get("provenance_valid")),
+            "cycle_cross_stage_match": bool(manifest_snapshot.get("cross_stage_cycle_match")),
+            "cycle_duplicate_artifact_count": manifest_snapshot.get("duplicate_count", 0),
+            "cycle_manifest_warning_count": manifest_snapshot.get("warning_count", 0),
+            "cycle_manifest_warnings": manifest_snapshot.get("warnings") or [],
+            "cycle_selected_stage2_folder": (manifest_snapshot.get("selected_folders") or {}).get("2") or "unavailable",
+            "cycle_selected_stage3_folder": (manifest_snapshot.get("selected_folders") or {}).get("3") or "unavailable",
+            "cycle_selected_stage4_folder": (manifest_snapshot.get("selected_folders") or {}).get("4") or "unavailable",
+            "cycle_stage2_duplicate_count": int((manifest_stages.get("2") or {}).get("duplicate_count") or 0),
+            "cycle_stage3_duplicate_count": int((manifest_stages.get("3") or {}).get("duplicate_count") or 0),
+            "cycle_stage4_duplicate_count": int((manifest_stages.get("4") or {}).get("duplicate_count") or 0),
+            "cycle_manifest_last_updated": manifest.get("last_updated_timestamp", "unavailable"),
             "active_cycle_entries_considered": len(active_records),
             "historical_entries_ignored": max(0, len(relevant) - len(active_records)),
             "recommended_restart_prompt": "show active view mep qa dashboard",
@@ -19217,6 +19708,20 @@ class OllamaAIChat(forms.WPFWindow):
             )
 
         add(["show active view mep qa dashboard"], "Baseline read-only active-view MEP status.", "MEP QA dashboard report", "yes")
+        if (
+            int(evidence_runbook.get("cycle_duplicate_artifact_count") or 0) > 0
+            or int(evidence_runbook.get("cycle_manifest_warning_count") or 0) > 0
+            or (
+                evidence_runbook.get("cycle_manifest_available")
+                and not evidence_runbook.get("cycle_provenance_valid")
+            )
+        ):
+            add(
+                ["show ai workbench evidence cycle manifest"],
+                "The active evidence cycle has duplicate artifacts or provenance warnings; review the manifest without changing workflow state.",
+                "Evidence cycle manifest status report",
+                "no",
+            )
         add(["show ai workbench console history", "show console history"], "Review recent deterministic Console commands.", "Console history viewer report", "no")
         add(["show latest console result"], "Inspect the latest Console result metadata and full report.", "Latest console result report", "no")
 
@@ -19295,6 +19800,10 @@ class OllamaAIChat(forms.WPFWindow):
             "ineligible_workflow_actions_suppressed": bool(suppressed_count[0] > 0),
             "ineligible_workflow_actions_suppressed_count": suppressed_count[0],
             "evidence_gate_active": gate_active,
+            "evidence_cycle_id": evidence_runbook.get("cycle_id", "unavailable"),
+            "evidence_cycle_manifest_available": bool(evidence_runbook.get("cycle_manifest_available")),
+            "evidence_cycle_duplicate_artifact_count": evidence_runbook.get("cycle_duplicate_artifact_count", 0),
+            "evidence_cycle_manifest_warning_count": evidence_runbook.get("cycle_manifest_warning_count", 0),
         }
 
         return suggestions[:10], latest_export_folder
@@ -19539,6 +20048,26 @@ class OllamaAIChat(forms.WPFWindow):
                 "true",
                 "Evidence Runbook auto-run:",
                 "false",
+                "Evidence cycle manifest enabled:",
+                "true",
+                "Evidence cycle manifest feature ID:",
+                "AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1",
+                "Evidence cycle ID:",
+                runbook.get("cycle_id", "unavailable"),
+                "Evidence artifact completeness:",
+                runbook.get("cycle_artifact_completeness", "unavailable"),
+                "Evidence selected Stage 2 folder:",
+                runbook.get("cycle_selected_stage2_folder", "unavailable"),
+                "Evidence selected Stage 3 folder:",
+                runbook.get("cycle_selected_stage3_folder", "unavailable"),
+                "Evidence selected Stage 4 folder:",
+                runbook.get("cycle_selected_stage4_folder", "unavailable"),
+                "Evidence duplicate stage artifact count:",
+                runbook.get("cycle_duplicate_artifact_count", 0),
+                "Evidence provenance valid:",
+                str(bool(runbook.get("cycle_provenance_valid"))).lower(),
+                "Evidence manifest warning count:",
+                runbook.get("cycle_manifest_warning_count", 0),
                 "",
                 "Evidence Runbook stages:",
                 "| Stage | Label | Prompt | Safety class | Status | Latest classification | Latest export folder | Auto-run |",
@@ -19848,6 +20377,174 @@ class OllamaAIChat(forms.WPFWindow):
             self.remember_latest_deterministic_report(prompt, report)
             return report
 
+    def _console_evidence_cycle_manifest_report(self, prompt):
+        route_kind = _ai_workbench_evidence_cycle_manifest_route_kind(prompt)
+        if not route_kind:
+            return None
+        context = self.refresh_console_context()
+        records, malformed, history_status = self._console_load_history_records()
+        latest_result, latest_status = self._console_latest_result_metadata()
+        runbook = self.resolve_ai_workbench_evidence_runbook(records, latest_result, None)
+        cycle_id = self._evidence_cycle_safe_id(runbook.get("cycle_id"))
+        snapshot = self._evidence_cycle_manifest_snapshot(cycle_id)
+        manifest = snapshot.get("manifest") or {}
+        stages = manifest.get("stages") or {}
+        available = bool(snapshot.get("available"))
+        classification = (
+            "AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_OK"
+            if available
+            else "AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_NOT_AVAILABLE"
+        )
+        required_prompt = runbook.get("current_stage_prompt", "show active view mep qa dashboard")
+        if route_kind == "reuse":
+            action_name = "Show selected current evidence stage artifact"
+            route_message = "Selected artifacts are reported only; no export is run and no file is changed."
+        elif route_kind == "force_new":
+            action_name = "Show manual force-new evidence stage command"
+            route_message = "Run the required prompt manually to create a new stage occurrence: {0}".format(required_prompt)
+        else:
+            action_name = "Show current evidence cycle manifest"
+            route_message = "Current manifest state was read without changing evidence artifacts."
+        lines = [
+            "[AI WORKBENCH EVIDENCE CYCLE MANIFEST REPORT]",
+            "",
+            "Report ID:",
+            "AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "",
+            "Feature ID:",
+            "AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1",
+            "",
+            "Feature name:",
+            "AI Workbench Evidence Cycle Manifest v1",
+            "",
+            "Action name:",
+            action_name,
+            "",
+            "Prompt:",
+            safe_str(prompt),
+            "",
+            "Result classification:",
+            classification,
+            "",
+            "Active document title:",
+            context.get("document_title", _document_title(doc)),
+            "",
+            "Active view:",
+            "{0} [{1}]".format(context.get("active_view_name", _active_view_title(doc, uidoc)), context.get("active_view_type", "unavailable")),
+            "",
+            "Evidence cycle ID:",
+            runbook.get("cycle_id", "unavailable"),
+            "Evidence cycle ID source:",
+            runbook.get("cycle_id_source", "legacy/unavailable"),
+            "Evidence cycle manifest available:",
+            str(available).lower(),
+            "Evidence cycle manifest path:",
+            snapshot.get("manifest_path", "unavailable"),
+            "Evidence cycle manifest source status:",
+            snapshot.get("source_status", "unavailable"),
+            "Manifest schema version:",
+            snapshot.get("schema_version", "unavailable"),
+            "Cycle status:",
+            manifest.get("cycle_status", runbook.get("cycle_status", "unavailable")),
+            "Current stage number:",
+            manifest.get("current_stage", runbook.get("current_stage_number", 1)),
+            "Current stage prompt:",
+            required_prompt,
+            "Artifact completeness:",
+            snapshot.get("artifact_completeness", "unavailable"),
+            "Provenance valid:",
+            str(bool(snapshot.get("provenance_valid"))).lower(),
+            "Cross-stage cycle match:",
+            str(bool(snapshot.get("cross_stage_cycle_match"))).lower(),
+            "Duplicate stage artifacts count:",
+            snapshot.get("duplicate_count", 0),
+            "Manifest warning count:",
+            snapshot.get("warning_count", 0),
+            "",
+            "Stage artifacts:",
+            "| Stage | Result | Selected artifact folder | Occurrences | Duplicates | Artifact status |",
+            "|---|---|---|---:|---:|---|",
+        ]
+        for stage_number in (1, 2, 3, 4):
+            stage = stages.get(safe_str(stage_number)) or {}
+            lines.append(
+                "| {0} | {1} | {2} | {3} | {4} | {5} |".format(
+                    stage_number,
+                    stage.get("result_classification", "unavailable"),
+                    safe_str(stage.get("selected_artifact_folder") or "not created").replace("|", "\\|"),
+                    stage.get("occurrence_count", 0),
+                    stage.get("duplicate_count", 0),
+                    stage.get("artifact_status", "not created"),
+                )
+            )
+        lines.extend(["", "Warnings:"])
+        for warning in snapshot.get("warnings") or []:
+            lines.append("- {0}".format(warning))
+        if not snapshot.get("warnings"):
+            lines.append("- none")
+        lines.extend(
+            [
+                "",
+                "Route result:",
+                route_message,
+                "",
+                "Load-only:",
+                "true",
+                "Auto-run:",
+                "false",
+                "",
+                "Safety flags:",
+                "- Transaction opened: false",
+                "- Transaction group opened: false",
+                "- Model modified: false",
+                "- Linked document modified: false",
+                "- UI selection modified: false",
+                "- Active view changed: false",
+                "- External files written: false",
+                "",
+                "Safety:",
+                "- Manifest status reads Console history and the current cycle_manifest.json only.",
+                "- Reuse and force-new routes do not execute exports automatically.",
+                "- Existing evidence artifacts are not deleted, replaced, or rewritten.",
+            ]
+        )
+        report = "\n".join([safe_str(line) for line in lines])
+        self.remember_latest_deterministic_report(prompt, report)
+        return report
+
+    def answer_ai_workbench_evidence_cycle_manifest_question(self, prompt):
+        if not _ai_workbench_evidence_cycle_manifest_route_kind(prompt):
+            return None
+        try:
+            return self._console_evidence_cycle_manifest_report(prompt)
+        except Exception as exc:
+            report = "\n".join(
+                [
+                    "[AI WORKBENCH EVIDENCE CYCLE MANIFEST REPORT]",
+                    "",
+                    "Feature ID:",
+                    "AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1",
+                    "",
+                    "Prompt:",
+                    safe_str(prompt),
+                    "",
+                    "Result classification:",
+                    "AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_NOT_AVAILABLE",
+                    "",
+                    "Warnings:",
+                    "- {0}".format(safe_str(exc)),
+                    "",
+                    "Safety flags:",
+                    "- Transaction opened: false",
+                    "- Model modified: false",
+                    "- UI selection modified: false",
+                    "- Active view changed: false",
+                    "- External files written: false",
+                ]
+            )
+            self.remember_latest_deterministic_report(prompt, report)
+            return report
+
     def _console_evidence_runbook_report(self, prompt):
         context = self.refresh_console_context()
         records, malformed, history_status = self._console_load_history_records()
@@ -19924,6 +20621,30 @@ class OllamaAIChat(forms.WPFWindow):
             runbook.get("cycle_boundary_timestamp", "unavailable"),
             "Evidence cycle boundary history index:",
             runbook.get("cycle_boundary_history_index", -1),
+            "Evidence cycle ID:",
+            runbook.get("cycle_id", "unavailable"),
+            "Evidence cycle ID source:",
+            runbook.get("cycle_id_source", "legacy/unavailable"),
+            "Evidence cycle manifest available:",
+            str(bool(runbook.get("cycle_manifest_available"))).lower(),
+            "Evidence cycle manifest path:",
+            runbook.get("cycle_manifest_path", "unavailable"),
+            "Evidence artifact completeness:",
+            runbook.get("cycle_artifact_completeness", "unavailable"),
+            "Evidence provenance valid:",
+            str(bool(runbook.get("cycle_provenance_valid"))).lower(),
+            "Evidence cross-stage cycle match:",
+            str(bool(runbook.get("cycle_cross_stage_match"))).lower(),
+            "Evidence duplicate stage artifact count:",
+            runbook.get("cycle_duplicate_artifact_count", 0),
+            "Evidence selected Stage 2 folder:",
+            runbook.get("cycle_selected_stage2_folder", "unavailable"),
+            "Evidence selected Stage 3 folder:",
+            runbook.get("cycle_selected_stage3_folder", "unavailable"),
+            "Evidence selected Stage 4 folder:",
+            runbook.get("cycle_selected_stage4_folder", "unavailable"),
+            "Evidence manifest warning count:",
+            runbook.get("cycle_manifest_warning_count", 0),
             "Active-cycle entries considered:",
             runbook.get("active_cycle_entries_considered", 0),
             "Historical entries ignored:",
@@ -20947,6 +21668,12 @@ class OllamaAIChat(forms.WPFWindow):
             "total_skipped_unreadable_count": self._console_extract_first_field(text, ["Total skipped/unreadable count", "Skipped/unreadable count"]),
             "export_folder": self._console_extract_export_folder(text),
             "generated_files_count": self._console_extract_first_field(text, ["Generated files count"]),
+            "cycle_id": self._console_extract_first_field(text, ["Evidence cycle ID", "Cycle ID"]),
+            "cycle_manifest_path": self._console_extract_first_field(text, ["Evidence cycle manifest path", "Cycle manifest path"]),
+            "cycle_boundary_timestamp": self._console_extract_first_field(text, ["Evidence cycle boundary timestamp", "Cycle boundary timestamp"]),
+            "cycle_boundary_history_index": self._console_extract_first_field(text, ["Evidence cycle boundary history index", "Cycle boundary history index"]),
+            "evidence_stage_number": self._console_extract_first_field(text, ["Evidence stage number", "Stage number"]),
+            "evidence_stage_occurrence_index": self._console_extract_first_field(text, ["Evidence stage occurrence index", "Stage occurrence index"]),
             "warnings": self._console_extract_warnings_summary(text),
             "transaction_opened": self._console_bool_text(self._console_extract_first_field(text, ["Transaction opened"])),
             "transaction_group_opened": self._console_bool_text(self._console_extract_first_field(text, ["Transaction group opened"])),
@@ -20997,6 +21724,27 @@ class OllamaAIChat(forms.WPFWindow):
         if not os.path.exists(root):
             os.makedirs(root)
         record = self._console_history_metadata(source_prompt, resolved_prompt, report_text, selection_before, selection_after)
+        existing_records, malformed, history_status = self._console_load_history_records()
+        stage_number = self._console_evidence_runbook_stage_number(record.get("result_classification"))
+        if stage_number and not self._evidence_cycle_safe_id(record.get("cycle_id")):
+            if stage_number == 1:
+                record["cycle_id"] = self._evidence_cycle_id_from_boundary(
+                    record.get("active_document_title"),
+                    record.get("active_view"),
+                    record.get("report_id"),
+                    record.get("timestamp"),
+                    len(existing_records),
+                )
+                record["cycle_boundary_timestamp"] = record.get("timestamp")
+                record["cycle_boundary_history_index"] = len(existing_records)
+            else:
+                runbook = self.resolve_ai_workbench_evidence_runbook(existing_records, None, None)
+                record["cycle_id"] = runbook.get("cycle_id", "unavailable")
+                record["cycle_boundary_timestamp"] = runbook.get("cycle_boundary_timestamp", "unavailable")
+                record["cycle_boundary_history_index"] = runbook.get("cycle_boundary_history_index", -1)
+            record["cycle_manifest_path"] = self._evidence_cycle_manifest_path(record.get("cycle_id")) or "unavailable"
+        if stage_number:
+            record["evidence_stage_number"] = stage_number
         self._remember_workflow_anchor_report(record, report_text)
         record["latest_result_txt_path"] = paths.get("latest_txt")
         record["latest_result_md_path"] = paths.get("latest_md")
@@ -21029,6 +21777,10 @@ class OllamaAIChat(forms.WPFWindow):
             csv_stream.write("\n")
         finally:
             csv_stream.close()
+        try:
+            self._evidence_cycle_register_successful_record(record, len(existing_records))
+        except:
+            pass
         self.console_last_history_record = dict(record)
         self.console_last_history_timestamp = safe_str(record.get("timestamp"))
         self.console_last_history_classification = safe_str(record.get("result_classification"))
@@ -22940,6 +23692,11 @@ class OllamaAIChat(forms.WPFWindow):
             "feature_id": safe_str(record.get("feature_id") or "unavailable"),
             "result_classification": safe_str(record.get("result_classification") or "unavailable"),
             "export_folder": safe_str(record.get("export_folder")),
+            "cycle_id": safe_str(record.get("cycle_id") or "unavailable"),
+            "cycle_manifest_path": safe_str(record.get("cycle_manifest_path") or "unavailable"),
+            "cycle_boundary_timestamp": safe_str(record.get("cycle_boundary_timestamp") or "unavailable"),
+            "cycle_boundary_history_index": record.get("cycle_boundary_history_index", -1),
+            "evidence_stage_number": record.get("evidence_stage_number", "unavailable"),
             "deterministic": True,
         }
         if not self._qa_export_workflow_report_valid(report_state):
@@ -23020,8 +23777,10 @@ class OllamaAIChat(forms.WPFWindow):
             "AI_WORKBENCH_NEXT_STEP_OK",
             "AI_WORKBENCH_VISUAL_PREVIEW_OK",
             "AI_WORKBENCH_EVIDENCE_RUNBOOK_OK",
+            "AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_OK",
+            "AI_WORKBENCH_EVIDENCE_CYCLE_MANIFEST_NOT_AVAILABLE",
         ):
-            reason = "Recommendation, recipe, next-step, preview, and runbook reports are workflow guidance, not QA evidence."
+            reason = "Recommendation, recipe, next-step, preview, runbook, and manifest status reports are workflow guidance, not QA evidence."
         elif classification in (
             "AI_WORKBENCH_LATEST_CONSOLE_RESULT_OK",
             "AI_WORKBENCH_CONSOLE_HISTORY_VIEWER_OK",
@@ -39263,6 +40022,7 @@ class OllamaAIChat(forms.WPFWindow):
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         timestamp_slug = time.strftime("%Y%m%d_%H%M%S")
         report_id = "MEP-QA-ISSUEINDEX-EXPORT-v1-{0}".format(timestamp_slug)
+        cycle_context = self._evidence_cycle_context_for_export(2)
         data = {
             "feature_id": "MEP-QA-ISSUEINDEX-EXPORT-v1",
             "feature_name": "MEP Project Issue Index Export v1",
@@ -39284,6 +40044,13 @@ class OllamaAIChat(forms.WPFWindow):
             "issue_index_rows_exported": 0,
             "warnings": [],
             "external_files_written": False,
+            "cycle_id": cycle_context.get("cycle_id", "unavailable"),
+            "cycle_id_source": cycle_context.get("cycle_id_source", "legacy/unavailable"),
+            "cycle_manifest_path": cycle_context.get("manifest_path", "unavailable"),
+            "cycle_boundary_timestamp": cycle_context.get("cycle_boundary_timestamp", "unavailable"),
+            "cycle_boundary_history_index": cycle_context.get("cycle_boundary_history_index", -1),
+            "evidence_stage_number": 2,
+            "evidence_stage_occurrence_index": cycle_context.get("next_occurrence_index", 1),
         }
         try:
             data["selection_count"] = len(list(uidoc.Selection.GetElementIds()))
@@ -39367,6 +40134,14 @@ class OllamaAIChat(forms.WPFWindow):
                 "total_issue_index_rows": len(issue_rows),
                 "total_skipped_unreadable_count": summary.get("total_skipped_unreadable_count", 0),
                 "issue_group_totals": group_rows,
+                "cycle_id": data.get("cycle_id"),
+                "cycle_id_source": data.get("cycle_id_source"),
+                "cycle_manifest_path": data.get("cycle_manifest_path"),
+                "cycle_boundary_timestamp": data.get("cycle_boundary_timestamp"),
+                "cycle_boundary_history_index": data.get("cycle_boundary_history_index"),
+                "evidence_stage_number": 2,
+                "evidence_stage_occurrence_index": data.get("evidence_stage_occurrence_index"),
+                "evidence_stage_revision": data.get("evidence_stage_occurrence_index"),
                 "transaction_opened": False,
                 "transaction_group_opened": False,
                 "model_modified": False,
@@ -39468,6 +40243,21 @@ class OllamaAIChat(forms.WPFWindow):
             "Result classification:",
             data.get("classification"),
             "",
+            "Evidence cycle ID:",
+            data.get("cycle_id", "unavailable"),
+            "Evidence cycle ID source:",
+            data.get("cycle_id_source", "legacy/unavailable"),
+            "Evidence cycle manifest path:",
+            data.get("cycle_manifest_path", "unavailable"),
+            "Evidence cycle boundary timestamp:",
+            data.get("cycle_boundary_timestamp", "unavailable"),
+            "Evidence cycle boundary history index:",
+            data.get("cycle_boundary_history_index", -1),
+            "Evidence stage number:",
+            data.get("evidence_stage_number", 2),
+            "Evidence stage occurrence index:",
+            data.get("evidence_stage_occurrence_index", 1),
+            "",
             "Export folder:",
             data.get("export_folder") or "not created",
             "",
@@ -39565,6 +40355,12 @@ class OllamaAIChat(forms.WPFWindow):
             "active_view_name": data.get("active_view"),
             "active_view_type": data.get("active_view_type"),
             "export_folder": data.get("export_folder"),
+            "cycle_id": data.get("cycle_id", "unavailable"),
+            "cycle_manifest_path": data.get("cycle_manifest_path", "unavailable"),
+            "cycle_boundary_timestamp": data.get("cycle_boundary_timestamp", "unavailable"),
+            "cycle_boundary_history_index": data.get("cycle_boundary_history_index", -1),
+            "evidence_stage_number": 2,
+            "evidence_stage_occurrence_index": data.get("evidence_stage_occurrence_index", 1),
             "deterministic": True,
             "model_modified": False,
             "transaction_opened": False,
@@ -39654,6 +40450,7 @@ class OllamaAIChat(forms.WPFWindow):
             data["overall_status"] = "RED"
             data["classification"] = "MEP_QA_DASHBOARD_FAILED"
             data["warnings"].append("Dashboard failed: {0}".format(safe_str(exc)))
+        self._evidence_cycle_prepare_dashboard_data(data)
         return data
 
     def _mep_qa_dashboard_v1_format_report(self, data):
@@ -39696,6 +40493,17 @@ class OllamaAIChat(forms.WPFWindow):
             "",
             "Overall dashboard status:",
             data.get("overall_status"),
+            "",
+            "Evidence cycle ID:",
+            data.get("cycle_id", "unavailable"),
+            "Evidence cycle boundary timestamp:",
+            data.get("cycle_boundary_timestamp", "unavailable"),
+            "Evidence cycle boundary history index:",
+            data.get("cycle_boundary_history_index", -1),
+            "Evidence cycle manifest path:",
+            data.get("cycle_manifest_path", "unavailable"),
+            "Evidence stage number:",
+            "1",
             "",
             "Dashboard summary table:",
             "| Check | Discipline | Elements checked | Issue candidates | Skipped/unreadable | Status | Notes |",
@@ -39790,6 +40598,11 @@ class OllamaAIChat(forms.WPFWindow):
             "document_title": data.get("document_title"),
             "active_view_name": data.get("active_view"),
             "active_view_type": data.get("active_view_type"),
+            "cycle_id": data.get("cycle_id", "unavailable"),
+            "cycle_manifest_path": data.get("cycle_manifest_path", "unavailable"),
+            "cycle_boundary_timestamp": data.get("cycle_boundary_timestamp", "unavailable"),
+            "cycle_boundary_history_index": data.get("cycle_boundary_history_index", -1),
+            "evidence_stage_number": 1,
             "deterministic": True,
             "model_modified": False,
             "transaction_opened": False,
@@ -43573,6 +44386,9 @@ class OllamaAIChat(forms.WPFWindow):
         raw_latest = source_resolution.get("raw_latest") or {}
         anchor_state = source_resolution.get("anchor_state") or {}
         source_eligibility = source_resolution.get("source_eligibility") or {}
+        cycle_context = self._evidence_cycle_context_for_export(3)
+        source_cycle_id = self._evidence_cycle_safe_id(report.get("cycle_id"))
+        current_cycle_id = self._evidence_cycle_safe_id(cycle_context.get("cycle_id"))
 
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         export_folder = os.path.join(self._qa_export_base_folder(), timestamp)
@@ -43630,6 +44446,19 @@ class OllamaAIChat(forms.WPFWindow):
             "active_cycle_source_search_used": bool(source_resolution.get("active_cycle_search_used")),
             "active_cycle_source_history_index": source_resolution.get("active_cycle_source_history_index", -1),
             "active_cycle_source_timestamp": source_resolution.get("active_cycle_source_timestamp", "unavailable"),
+            "cycle_id": cycle_context.get("cycle_id", "unavailable"),
+            "cycle_id_source": cycle_context.get("cycle_id_source", "legacy/unavailable"),
+            "cycle_manifest_path": cycle_context.get("manifest_path", "unavailable"),
+            "cycle_boundary_timestamp": cycle_context.get("cycle_boundary_timestamp", "unavailable"),
+            "cycle_boundary_history_index": cycle_context.get("cycle_boundary_history_index", -1),
+            "evidence_stage_number": 3,
+            "evidence_stage_occurrence_index": cycle_context.get("next_occurrence_index", 1),
+            "evidence_stage_revision": cycle_context.get("next_occurrence_index", 1),
+            "source_stage_number": 2,
+            "source_issue_index_export_folder": (cycle_context.get("selected_folders") or {}).get("2") or "unavailable",
+            "source_cycle_id": source_cycle_id or "unavailable",
+            "source_result_classification": source_eligibility.get("result_classification", "unavailable"),
+            "cross_stage_cycle_match": bool(source_cycle_id and current_cycle_id and source_cycle_id == current_cycle_id),
         }
 
         report_md = "\n".join(
@@ -43658,6 +44487,12 @@ class OllamaAIChat(forms.WPFWindow):
                 "- Active-cycle source search used: {0}".format(str(bool(metadata.get("active_cycle_source_search_used"))).lower()),
                 "- Active-cycle source history index: {0}".format(metadata.get("active_cycle_source_history_index")),
                 "- Active-cycle source timestamp: {0}".format(metadata.get("active_cycle_source_timestamp")),
+                "- Evidence cycle ID: {0}".format(metadata.get("cycle_id")),
+                "- Evidence cycle manifest path: {0}".format(metadata.get("cycle_manifest_path")),
+                "- Evidence stage number: 3",
+                "- Evidence stage occurrence index: {0}".format(metadata.get("evidence_stage_occurrence_index")),
+                "- Source issue-index export folder: {0}".format(metadata.get("source_issue_index_export_folder")),
+                "- Cross-stage cycle match: {0}".format(str(bool(metadata.get("cross_stage_cycle_match"))).lower()),
                 "- Safety: read-only; no model data modified.",
                 "",
                 "## Report",
@@ -43690,6 +44525,12 @@ class OllamaAIChat(forms.WPFWindow):
                 "Active-cycle source search used: {0}".format(str(bool(metadata.get("active_cycle_source_search_used"))).lower()),
                 "Active-cycle source history index: {0}".format(metadata.get("active_cycle_source_history_index")),
                 "Active-cycle source timestamp: {0}".format(metadata.get("active_cycle_source_timestamp")),
+                "Evidence cycle ID: {0}".format(metadata.get("cycle_id")),
+                "Evidence cycle manifest path: {0}".format(metadata.get("cycle_manifest_path")),
+                "Evidence stage number: 3",
+                "Evidence stage occurrence index: {0}".format(metadata.get("evidence_stage_occurrence_index")),
+                "Source issue-index export folder: {0}".format(metadata.get("source_issue_index_export_folder")),
+                "Cross-stage cycle match: {0}".format(str(bool(metadata.get("cross_stage_cycle_match"))).lower()),
                 "Safety: read-only; no model data modified.",
                 "",
                 report_text,
@@ -43749,6 +44590,19 @@ class OllamaAIChat(forms.WPFWindow):
             "Result classification:",
             "QA_REPORT_EXPORT_COMPLETE",
             "",
+            "Evidence cycle ID:",
+            metadata.get("cycle_id", "unavailable"),
+            "Evidence cycle manifest path:",
+            metadata.get("cycle_manifest_path", "unavailable"),
+            "Evidence cycle boundary timestamp:",
+            metadata.get("cycle_boundary_timestamp", "unavailable"),
+            "Evidence cycle boundary history index:",
+            metadata.get("cycle_boundary_history_index", -1),
+            "Evidence stage number:",
+            "3",
+            "Evidence stage occurrence index:",
+            metadata.get("evidence_stage_occurrence_index", 1),
+            "",
             "Export folder:",
             export_folder,
             "",
@@ -43805,7 +44659,7 @@ class OllamaAIChat(forms.WPFWindow):
                 "- Revit model data was not modified.",
             ]
         )
-        return "\n".join(lines)
+        return "\n".join([safe_str(line) for line in lines])
 
     def _context_tree_item(self, header, children=None):
         from System.Windows.Controls import TreeViewItem
@@ -45711,8 +46565,13 @@ class OllamaAIChat(forms.WPFWindow):
                 ai_workbench_next_step_reply = self.answer_ai_workbench_next_step_question(
                     prompt
                 )
-            ai_workbench_evidence_runbook_reply = None
+            ai_workbench_evidence_cycle_manifest_reply = None
             if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None:
+                ai_workbench_evidence_cycle_manifest_reply = self.answer_ai_workbench_evidence_cycle_manifest_question(
+                    prompt
+                )
+            ai_workbench_evidence_runbook_reply = None
+            if ai_workbench_console_v1_reply is None and ai_workbench_console_history_viewer_reply is None and ai_workbench_visual_preview_reply is None and ai_workbench_next_step_reply is None and ai_workbench_evidence_cycle_manifest_reply is None:
                 ai_workbench_evidence_runbook_reply = self.answer_ai_workbench_evidence_runbook_question(
                     prompt
                 )
@@ -45856,6 +46715,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif ai_workbench_next_step_reply is not None:
                 reply = ai_workbench_next_step_reply
+                preserve_latest_report_state = True
+            elif ai_workbench_evidence_cycle_manifest_reply is not None:
+                reply = ai_workbench_evidence_cycle_manifest_reply
                 preserve_latest_report_state = True
             elif ai_workbench_evidence_runbook_reply is not None:
                 reply = ai_workbench_evidence_runbook_reply

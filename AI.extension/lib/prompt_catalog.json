@@ -4808,6 +4808,37 @@
     "changes_active_view": false
   },
   {
+    "id": "ai-workbench-evidence-cycle-manifest-v1",
+    "title": "AI Workbench Evidence Cycle Manifest v1",
+    "category": "AI / ModelMind",
+    "group": "Console",
+    "discipline": "General",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "ai_workbench_evidence_cycle_manifest",
+    "canonical_prompt": "show ai workbench evidence cycle manifest",
+    "planner_aliases": [
+      "show ai workbench evidence cycle manifest",
+      "show current evidence cycle manifest",
+      "reuse current evidence stage artifact",
+      "force new evidence stage export"
+    ],
+    "deterministic_handler": "ai_workbench_evidence_cycle_manifest_v1_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "show ai workbench evidence cycle manifest",
+    "mode": "deterministic",
+    "feature_id": "AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1",
+    "feature_name": "AI Workbench Evidence Cycle Manifest v1",
+    "description": "Read-only evidence-cycle provenance manifest status with explicit reuse and force-new guidance; no stage command is executed automatically.",
+    "safety_class": "report-only",
+    "writes_external_files": false,
+    "modifies_model": false,
+    "modifies_ui_selection": false,
+    "changes_active_view": false
+  },
+  {
     "id": "ai-workbench-context-suggestions-v1",
     "title": "AI Workbench Context Suggestions v1",
     "category": "AI / ModelMind",
