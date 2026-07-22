@@ -932,3 +932,9 @@ Out of scope and not introduced:
 - installer/package changes or ZIP creation.
 
 Status: fully runtime-validated on cycle `EVCYCLE-20260720-120400-fb9e254b78`, committed as `4797b5e2b7f1be3aac63bccb24f809c8fbe7476b`, pushed, and aligned with `origin/main`. Evidence: EV-AI-338 through EV-AI-342.
+
+## 2026-07-22 MEP-RO-001 Scope Alignment
+
+Validated in scope: active-document existing-selection summary, identifiers, parameter availability, generic QA health, no-selection Not ready behavior, deterministic ordering/caps, alias routing, Context Suggestions visibility, textual Visual Preview context, workflow-anchor exclusion, strict QA-source exclusion, and no-write governance.
+
+Explicitly out of scope: selecting elements, pickers, model/parameter writes, active-view changes, linked-document inspection/mutation, 3D preview controls, Edit Group compatibility, discipline-specific QA, and automatic evidence progression. Assembly-member behavior, the live 200-row identifier boundary, unavailable-reference paths, and unreadable-parameter exception paths remain validation limitations. None block closure. Evidence: EV-AI-343 through EV-AI-347.

@@ -1608,3 +1608,11 @@ Runtime cycle `EVCYCLE-20260720-120400-fb9e254b78` retained two Stage 2 and two 
 The Stage 3 regression `sequence item 18: expected string, int found` is retained as R&D evidence. The boundary history index remains a native integer in JSON metadata and is converted with `safe_str` only for text rendering.
 
 Safety boundary: manifest reports are read-only; reuse/force-new controls are load-only; no transaction, model or parameter mutation, UI selection change, active-view switch, linked-document mutation, automatic execution, Console history rewrite, or historical artifact rewrite was introduced.
+
+## 2026-07-22 MEP-RO-001 Read-Only Selection Architecture
+
+MEP-RO-001 separates selection inspection from selection creation and model mutation. A shared collector reads only the current active-document selection, resolves each ID defensively, and returns deterministic records for four projections: category/type summary, stable identifiers, parameter availability, and generic QA health. It never opens a picker or changes the selection.
+
+Parameter reads use best-effort built-in/shared/project/family identities, safe value normalization, coverage/readability metadata, and deterministic prioritization. Stable checks `SEL-QA-001` through `SEL-QA-016` cover unavailable references, identity gaps, restrictions, owner/view context, Mark/Type Mark state, workset resolution, and unreadable access. Limits of 200 identifier rows, 100 parameter rows, 50 affected IDs, 160 normalized-value characters, and 50 distinct values bound output.
+
+No-selection is a first-class Not ready result. Every MEP-RO-001 classification is excluded from Workflow Anchor and strict QA-source eligibility, so Context Suggestions and textual Visual Preview display cannot advance the Evidence Runbook or Evidence Cycle Manifest. Visual Preview remains a textual context surface, not a Revit 3D viewport. Evidence: EV-AI-343 through EV-AI-347.

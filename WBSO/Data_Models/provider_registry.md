@@ -296,3 +296,7 @@ AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1 is a provider-independent deterministic 
 - Historical artifacts are preserved; no provider can rewrite prior cycle records.
 
 Status: fully runtime-validated and source-control closed at commit `4797b5e2b7f1be3aac63bccb24f809c8fbe7476b`. Evidence: EV-AI-338 through EV-AI-342.
+
+## 2026-07-22 MEP-RO-001 Provider Independence
+
+MEP-RO-001 is a provider-independent deterministic read-only selection-report layer. Its 20 catalog routes dispatch before generic Ollama/OpenAI fallback. Providers do not select elements, resolve identifiers, inspect parameters, classify `SEL-QA-001` through `SEL-QA-016`, rank Context Suggestions, or determine workflow/QA-source eligibility. Generic model output cannot replace these reports. Status: live validated and source-control closed at `9ad951cb7febc95506bfc023b360de59471e3e6a`; evidence EV-AI-343 through EV-AI-347.

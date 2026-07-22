@@ -1719,3 +1719,11 @@ Resolution: textual report scalars are converted with `safe_str`, while JSON met
 Related semantic correction: absent Stage 3/4 records now report `not created; awaiting upstream completion`; `superseded by upstream stage revision` is reserved for an actual downstream artifact invalidated by a newer upstream revision.
 
 Validation: Stage 3 occurrences `20260720_144247` and `20260720_144454` completed under the same cycle; the latest successful artifact was selected; cross-stage match remained true. Evidence: EV-AI-340.
+
+## 2026-07-22 - MEP-RO-001 Validation Boundaries and Invalid Type Mark Setup
+
+Status: Package closed; no implementation defect found.
+
+The different-type wall test was invalid because `RO001-DUP-TYPE` was entered into instance Mark, producing `SEL-QA-013`, while Type Mark remained blank and `SEL-QA-014` was not applicable. Existing pipe evidence confirmed the duplicate Type Mark detector with two issues. Revit Edit Group unavailability is a host modal-context limitation. Assembly-member behavior, unavailable references, unreadable-parameter exceptions, and the live 200-row identifier boundary were not practically exercised.
+
+The initial Git OpenSSL certificate failure was a development-environment transport issue; a command-local Windows schannel retry pushed successfully without configuration changes. Evidence: EV-AI-345 through EV-AI-347.

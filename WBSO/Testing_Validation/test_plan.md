@@ -1834,3 +1834,20 @@ Status: all tests passed. Evidence: EV-AI-338 through EV-AI-342.
 11. Static/governance: run tabnanny, supporting-module compilation, prompt JSON parse, route lookup, diff check, staged scope verification, and no-mutation/no-history-rewrite scans.
 
 Runtime context: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, `TEST [FloorPlan]`, Piping. Validated cycle: `EVCYCLE-20260720-120400-fb9e254b78`.
+
+## 2026-07-22 - MEP-RO-001 Read-Only Selection Action Pack
+
+Status: Passed with documented non-blocking validation limitations. Evidence: EV-AI-343 through EV-AI-347.
+
+1. Run all four canonical actions with no selection; expect `MEP_SELECTION_REPORT_NOT_READY`, `NO_ELEMENTS_SELECTED`, and no picker/write/workflow advancement.
+2. Select pipe `3061679`; validate category/type summary, identifiers, workset/pinned metadata, and 181-identity parameter matrix with 100 displayed and 81 omitted.
+3. Select Pipe `3063653`, Pipe Fitting `3063990`, and Wall `3130355`; validate deterministic three-category/type grouping and 268-identity parameter matrix with incomplete coverage prioritized.
+4. Validate blank and duplicate instance Mark using `SEL-QA-011` and `SEL-QA-013`; validate blank Type Mark using `SEL-QA-012`; retain pipe duplicate Type Mark evidence for `SEL-QA-014`.
+5. Validate pinned and group checks `SEL-QA-005`/`SEL-QA-006`, including group ID `3130574` for element `3003513`.
+6. Validate 149-element selection, 50-ID affected samples with 99 omitted, and static limits 200/100/50/160.
+7. Verify no-selection Context Suggestions omit MEP-RO-001 and selected context ranks the four reports after the evidence-cycle dashboard.
+8. Verify reports remain workflow-anchor and QA-source ineligible and do not update Runbook or manifest state.
+9. Verify textual Visual Preview separates Latest Result from authoritative Workflow Anchor.
+10. Run static, route, helper, diff, staged-scope, source-control, and governance checks; verify commit/push alignment.
+
+Limitations: invalid different-type Type Mark setup; assembly member not practically tested; live identifier selection did not exceed 200; unavailable/unreadable exception paths not encountered; Edit Group is a Revit modal limitation.

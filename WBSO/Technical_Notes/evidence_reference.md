@@ -2232,3 +2232,27 @@ Selected artifacts:
 - Stage 4: `C:\Users\User\Desktop\Results\AI_Workbench\Console_History\Session_Summaries\20260720_144617_console_session_summary`
 
 Technical conclusion: AI-WORKBENCH-EVIDENCE-CYCLE-MANIFEST-v1 provides persistent deterministic provenance for a complete four-stage evidence cycle while preserving every artifact occurrence and all historical failure/correction evidence. No known application defect remains. The malformed global Git `safe.directory` warnings are a development-environment configuration note only.
+
+## EV-AI-343 through EV-AI-347 - MEP-RO-001 Read-Only BIM/QA Selection Action Pack
+
+Status: Implemented, live Revit validated, committed, pushed, and source-control closed.
+
+Date: 2026-07-22
+
+Week: `2026-W18`
+
+Daily log: `DL-2026-07-22-01` (hours require manual entry; no supplied or project-local numeric value was found)
+
+Knowledge Capture: `KC-047`
+
+- EV-AI-343: Implementation and static validation. Commit `9ad951cb7febc95506bfc023b360de59471e3e6a` added four deterministic read-only selection actions and 20 uniquely owned canonical/alias routes in `script.py` and `prompt_catalog.json`. The shared collector, deterministic grouping/sorting, parameter matrix, stable `SEL-QA-001` through `SEL-QA-016`, limits 200/100/50/160, no-selection handling, dispatch precedence, workflow-anchor exclusion, and QA-source exclusion passed static and helper checks.
+- EV-AI-344: No-selection, single-element, and mixed-selection runtime evidence. All canonical actions returned `MEP_SELECTION_REPORT_NOT_READY` / `NO_ELEMENTS_SELECTED` without side effects when empty. Pipe `3061679` produced one category/family/type and a parameter matrix of 181 identities, 100 displayed, 81 omitted. Mixed IDs `3063653`, `3063990`, `3130355` produced three categories/families/types and 268 identities, 100 displayed, 168 omitted, with deterministic partial-coverage prioritization.
+- EV-AI-345: Mark and Type Mark QA evidence. Duplicate instance Mark `RO001-DUP-MARK` on `3063653` and `3063982` produced two `SEL-QA-013` issues; blank instance Mark produced `SEL-QA-011`; blank Type Mark on `3130726` produced `SEL-QA-012`; two pipe instances sharing a nonblank Type Mark produced two `SEL-QA-014` issues. The different-type wall attempt on `3130837` and `3130899` was invalid because `RO001-DUP-TYPE` was entered into instance Mark; it is not evidence that different-type duplicate Type Mark passed and is not an implementation defect.
+- EV-AI-346: Scale, restrictions, and workflow-isolation evidence. A 149-element selection returned 149 identifier rows without truncation. `SEL-QA-011` and `SEL-QA-014` each capped affected IDs at 50 with 99 omitted. Pinned checks found issues; group check resolved group `3130574` for element `3003513`. With selection, Context Suggestions retained dashboard rank 1 and placed the four report-only actions at ranks 2-5. Evidence Runbook advancement, Evidence Cycle Manifest update, workflow-anchor eligibility, QA-source eligibility, and external evidence writes remained false.
+- EV-AI-347: Governance and source-control closure. No transaction, TransactionGroup, model/parameter/UI-selection/active-view/linked-document mutation, automatic dispatch, evidence-manifest write, or external export generation was added. Commit `9ad951cb7febc95506bfc023b360de59471e3e6a` (`Add read-only BIM QA selection reports`) contains only `script.py` and `prompt_catalog.json`, was pushed `main -> origin/main`, and finished aligned at ahead/behind `0/0`. The initial OpenSSL certificate failure was a development-environment transport issue; command-local schannel retry succeeded without changing Git configuration.
+
+Runtime context: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`; `TEST [FloorPlan]`; `{3D - e.avdovicQREF7} [ThreeD]`; detected discipline Piping.
+
+Known limitations: Revit Edit Group remains modal/restricted; assembly-member path was not practically validated; the 200-row identifier boundary was not crossed live; unavailable-reference and unreadable-parameter exception paths were not encountered live; parameter identity is best-effort where Revit exposes no stable definition metadata; Visual Preview remains textual rather than a 3D viewport; and the different-type duplicate Type Mark setup was invalid because instance Mark was edited.
+
+Technical conclusion: MEP-RO-001 provides deterministic, bounded, provider-independent QA reporting over the user's existing active-document selection while remaining isolated from selection mutation, Revit writes, workflow progression, and strict QA evidence sourcing.

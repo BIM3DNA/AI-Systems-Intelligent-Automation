@@ -582,3 +582,13 @@ State/model relationship:
 - exposes terminal and restart-required state plus read-only/load-only manifest guidance.
 
 Validated cycle: `EVCYCLE-20260720-120400-fb9e254b78`; four stages complete; provenance valid; cross-stage match true; two duplicate stage artifacts; terminal and restart required. Evidence: EV-AI-338 through EV-AI-342.
+
+## MEP-RO-001 - ModelMind Read-Only BIM/QA Selection Action Pack
+
+Status: Implemented, live Revit validated, committed, pushed, and source-control closed.
+
+Commit: `9ad951cb7febc95506bfc023b360de59471e3e6a` - Add read-only BIM QA selection reports.
+
+The package adds four deterministic report models over the user's existing active-document selection: category/type summary, stable identifiers, parameter availability, and generic QA health. A shared safe collector resolves selected IDs without opening a picker and preserves unavailable references. Sorting is deterministic; output is bounded at 200 identifier rows, 100 parameter rows, 50 affected IDs, and 160 normalized-value characters.
+
+QA state uses stable checks `SEL-QA-001` through `SEL-QA-016`. No-selection returns `MEP_SELECTION_REPORT_NOT_READY` with `NO_ELEMENTS_SELECTED`. All result classifications are excluded from workflow-anchor and strict QA-source eligibility. No transaction, model/UI-selection/view/link mutation, automatic dispatch, evidence-manifest write, or external export is introduced. Evidence: EV-AI-343 through EV-AI-347.
