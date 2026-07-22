@@ -14220,6 +14220,68 @@ def _mep_ro_v1_action_key(prompt):
     return MEP_RO_V1_ROUTE_ACTIONS.get(normalized)
 
 
+MEP_RO_001_ROUTE_ACTIONS = {
+    "show selected elements summary": "selection_summary",
+    "summarize selected elements": "selection_summary",
+    "report selected elements": "selection_summary",
+    "inspect selected elements": "selection_summary",
+    "show selection summary": "selection_summary",
+    "show selected element identifiers": "selected_identifiers",
+    "list selected element ids": "selected_identifiers",
+    "report selected element ids": "selected_identifiers",
+    "show selected ids": "selected_identifiers",
+    "inspect selected identifiers": "selected_identifiers",
+    "check selected element parameter availability": "parameter_availability",
+    "report selected element parameters": "parameter_availability",
+    "inspect selected parameters": "parameter_availability",
+    "check selection parameters": "parameter_availability",
+    "show selected parameter availability": "parameter_availability",
+    "check selected elements qa health": "qa_health",
+    "run selected elements health check": "qa_health",
+    "inspect selected elements qa": "qa_health",
+    "check selection health": "qa_health",
+    "report selected element issues": "qa_health",
+}
+
+MEP_RO_001_ACTION_METADATA = {
+    "selection_summary": ("MEP-RO-001-A01", "show selected elements summary"),
+    "selected_identifiers": ("MEP-RO-001-A02", "show selected element identifiers"),
+    "parameter_availability": ("MEP-RO-001-A03", "check selected element parameter availability"),
+    "qa_health": ("MEP-RO-001-A04", "check selected elements qa health"),
+}
+
+# Stable generic selection QA checks. Discipline-specific checks belong to later packages.
+MEP_RO_001_QA_CHECKS = (
+    ("SEL-QA-001", "Invalid or unavailable selected element reference"),
+    ("SEL-QA-002", "Missing category"),
+    ("SEL-QA-003", "Missing resolvable element type"),
+    ("SEL-QA-004", "Missing expected family/type identity"),
+    ("SEL-QA-005", "Pinned element"),
+    ("SEL-QA-006", "Group membership"),
+    ("SEL-QA-007", "Assembly membership"),
+    ("SEL-QA-008", "Design-option membership"),
+    ("SEL-QA-009", "View-specific element"),
+    ("SEL-QA-010", "Owner-view mismatch"),
+    ("SEL-QA-011", "Missing or blank Mark"),
+    ("SEL-QA-012", "Missing or blank Type Mark"),
+    ("SEL-QA-013", "Duplicate nonblank Mark"),
+    ("SEL-QA-014", "Duplicate nonblank Type Mark"),
+    ("SEL-QA-015", "Missing workset resolution"),
+    ("SEL-QA-016", "Unreadable parameter access"),
+)
+
+MEP_RO_001_IDENTIFIER_LIMIT = 200
+MEP_RO_001_PARAMETER_LIMIT = 100
+MEP_RO_001_AFFECTED_ID_LIMIT = 50
+MEP_RO_001_VALUE_LENGTH_LIMIT = 160
+MEP_RO_001_DISTINCT_VALUE_LIMIT = 50
+
+
+def _mep_ro_001_action_key(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return MEP_RO_001_ROUTE_ACTIONS.get(normalized)
+
+
 MEP_SEL_V1_ROUTE_ACTIONS = {
     "select all pipes in active view": "select_pipes_active_view",
     "select active view pipes": "select_pipes_active_view",
@@ -18074,6 +18136,14 @@ class OllamaAIChat(forms.WPFWindow):
                 "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_NOT_READY",
                 "AI_WORKBENCH_CONSOLE_SESSION_SUMMARY_CYCLE_COMPLETE",
                 "QA_REPORT_EXPORT_NOT_READY",
+                "MEP_SELECTION_SUMMARY_OK",
+                "MEP_SELECTION_IDENTIFIERS_OK",
+                "MEP_SELECTION_PARAMETER_AVAILABILITY_OK",
+                "MEP_SELECTION_QA_HEALTH_GREEN",
+                "MEP_SELECTION_QA_HEALTH_YELLOW",
+                "MEP_SELECTION_QA_HEALTH_PARTIAL",
+                "MEP_SELECTION_REPORT_NOT_READY",
+                "MEP_SELECTION_REPORT_FAILED",
             ]
         )
         if classification in meta_classifications:
@@ -18087,6 +18157,8 @@ class OllamaAIChat(forms.WPFWindow):
         if feature_lower == "ai-workbench-evidence-runbook-v1":
             return True
         if feature_lower == "ai-workbench-evidence-cycle-manifest-v1":
+            return True
+        if feature_lower == "mep-ro-001":
             return True
         if feature_lower == "ai-workbench-visual-v1" and normalized_prompt in AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES:
             return True
@@ -19708,6 +19780,11 @@ class OllamaAIChat(forms.WPFWindow):
             )
 
         add(["show active view mep qa dashboard"], "Baseline read-only active-view MEP status.", "MEP QA dashboard report", "yes")
+        if int(context.get("selection_count") or 0) > 0:
+            add(["show selected elements summary"], "Current active-document selection can be summarized without changing it.", "Read-only selection summary", "yes")
+            add(["show selected element identifiers"], "Inspect stable identifiers for the current active-document selection.", "Read-only selected-element identifier report", "yes")
+            add(["check selected element parameter availability"], "Inspect parameter coverage/readability without writing values.", "Read-only parameter availability matrix", "yes")
+            add(["check selected elements qa health"], "Run generic discipline-neutral QA checks on the current selection.", "Read-only selected-element QA health report", "yes")
         if (
             int(evidence_runbook.get("cycle_duplicate_artifact_count") or 0) > 0
             or int(evidence_runbook.get("cycle_manifest_warning_count") or 0) > 0
@@ -35914,6 +35991,749 @@ class OllamaAIChat(forms.WPFWindow):
             lines.append("| {0} |".format(" | ".join(clean)))
         return lines
 
+    def _mep_ro_001_id_value(self, value):
+        try:
+            return int(value.IntegerValue)
+        except:
+            try:
+                return int(value)
+            except:
+                return None
+
+    def _mep_ro_001_id_text(self, value):
+        result = self._mep_ro_001_id_value(value)
+        return safe_str(result) if result is not None else "not available"
+
+    def _mep_ro_001_selection_snapshot(self):
+        selected_ids = []
+        read_error = None
+        try:
+            selected_ids = list(uidoc.Selection.GetElementIds())
+        except Exception as exc:
+            read_error = safe_str(exc)
+        selected_ids.sort(
+            key=lambda item: (
+                self._mep_ro_001_id_value(item) is None,
+                self._mep_ro_001_id_value(item) or 0,
+            )
+        )
+        records = []
+        unavailable = []
+        for element_id in selected_ids:
+            try:
+                elem = doc.GetElement(element_id)
+            except Exception as exc:
+                elem = None
+                unavailable.append(
+                    {
+                        "element_id": self._mep_ro_001_id_text(element_id),
+                        "reason": "element resolution failed: {0}".format(safe_str(exc)),
+                    }
+                )
+            if elem is None:
+                if not any(item.get("element_id") == self._mep_ro_001_id_text(element_id) for item in unavailable):
+                    unavailable.append(
+                        {
+                            "element_id": self._mep_ro_001_id_text(element_id),
+                            "reason": "selected element reference does not resolve",
+                        }
+                    )
+                continue
+            records.append(self._mep_ro_001_element_record(elem))
+        return {
+            "selected_ids": selected_ids,
+            "selected_id_texts": [self._mep_ro_001_id_text(item) for item in selected_ids],
+            "records": records,
+            "unavailable": unavailable,
+            "selection_read_error": read_error,
+        }
+
+    def _mep_ro_001_element_record(self, elem):
+        record = {
+            "element": elem,
+            "element_id": self._mep_ro_v1_element_id_text(elem),
+            "unique_id": "not available",
+            "category_name": "not available",
+            "category_id": "not available",
+            "family_name": "not available",
+            "type_name": "not available",
+            "type_id": "not available",
+            "type_element": None,
+            "element_name": "not available",
+            "workset": "not available",
+            "design_option": "not available",
+            "owner_view_id": "not available",
+            "pinned": "not available",
+            "group_id": "not available",
+            "assembly_id": "not available",
+            "view_specific": "not available",
+            "property_errors": [],
+        }
+        try:
+            record["unique_id"] = safe_str(elem.UniqueId) or "not available"
+        except Exception as exc:
+            record["property_errors"].append("UniqueId: {0}".format(safe_str(exc)))
+        try:
+            category = elem.Category
+            if category is not None:
+                record["category_name"] = get_elem_name(category) or "not available"
+                record["category_id"] = self._mep_ro_001_id_text(category.Id)
+        except Exception as exc:
+            record["property_errors"].append("Category: {0}".format(safe_str(exc)))
+        family_name, type_name, type_id = self._mep_ro_v1_type_info(elem)
+        record["family_name"] = family_name or "not available"
+        record["type_name"] = type_name or "not available"
+        record["type_id"] = type_id or "not available"
+        try:
+            type_id_obj = elem.GetTypeId()
+            if self._mep_ro_001_id_value(type_id_obj) is not None and self._mep_ro_001_id_value(type_id_obj) > 0:
+                record["type_element"] = doc.GetElement(type_id_obj)
+        except Exception as exc:
+            record["property_errors"].append("Type: {0}".format(safe_str(exc)))
+        try:
+            record["element_name"] = get_elem_name(elem) or "not available"
+        except Exception as exc:
+            record["property_errors"].append("Name: {0}".format(safe_str(exc)))
+        try:
+            workset_id = elem.WorksetId
+            workset_text = self._mep_ro_001_id_text(workset_id)
+            workset_name = None
+            try:
+                workset = doc.GetWorksetTable().GetWorkset(workset_id)
+                workset_name = safe_str(workset.Name) if workset else None
+            except:
+                workset_name = None
+            record["workset"] = "{0} [{1}]".format(workset_name, workset_text) if workset_name else workset_text
+        except Exception as exc:
+            record["property_errors"].append("Workset: {0}".format(safe_str(exc)))
+        try:
+            option = elem.DesignOption
+            if option is not None:
+                record["design_option"] = "{0} [{1}]".format(
+                    get_elem_name(option) or "not available",
+                    self._mep_ro_001_id_text(option.Id),
+                )
+        except Exception as exc:
+            record["property_errors"].append("Design option: {0}".format(safe_str(exc)))
+        for key, attr_name in (
+            ("owner_view_id", "OwnerViewId"),
+            ("group_id", "GroupId"),
+            ("assembly_id", "AssemblyInstanceId"),
+        ):
+            try:
+                value = getattr(elem, attr_name)
+                value_int = self._mep_ro_001_id_value(value)
+                record[key] = safe_str(value_int) if value_int is not None and value_int > 0 else "not available"
+            except Exception as exc:
+                record["property_errors"].append("{0}: {1}".format(attr_name, safe_str(exc)))
+        for key, attr_name in (("pinned", "Pinned"), ("view_specific", "ViewSpecific")):
+            try:
+                record[key] = "true" if bool(getattr(elem, attr_name)) else "false"
+            except Exception as exc:
+                record["property_errors"].append("{0}: {1}".format(attr_name, safe_str(exc)))
+        return record
+
+    def _mep_ro_001_normalized_value(self, value):
+        text = safe_str(value).replace("\r", " ").replace("\n", " ").strip()
+        if len(text) > MEP_RO_001_VALUE_LENGTH_LIMIT:
+            text = text[:MEP_RO_001_VALUE_LENGTH_LIMIT] + "..."
+        return text
+
+    def _mep_ro_001_parameter_identity(self, param, elem):
+        name = "not available"
+        storage = "not available"
+        param_id = None
+        guid_text = "not available"
+        try:
+            name = safe_str(param.Definition.Name) or "not available"
+        except:
+            pass
+        try:
+            storage = safe_str(param.StorageType) or "not available"
+        except:
+            pass
+        try:
+            param_id = int(param.Id.IntegerValue)
+        except:
+            param_id = None
+        try:
+            if param.IsShared:
+                guid_text = safe_str(param.GUID) or "not available"
+        except:
+            pass
+        if param_id is not None and param_id < 0:
+            classification = "built-in"
+            identity = "built-in:{0}".format(param_id)
+            built_in_id = safe_str(param_id)
+        elif guid_text != "not available":
+            classification = "shared"
+            identity = "shared:{0}".format(guid_text.lower())
+            built_in_id = "not available"
+        elif param_id is not None and param_id > 0:
+            classification = "project"
+            identity = "project:{0}".format(param_id)
+            built_in_id = "not available"
+        else:
+            try:
+                is_family = isinstance(elem, DB.FamilyInstance)
+            except:
+                is_family = False
+            classification = "family" if is_family else "unknown"
+            identity = "{0}:{1}:{2}".format(classification, name.lower(), storage.lower())
+            built_in_id = "not available"
+        return {
+            "identity": identity,
+            "name": name,
+            "classification": classification,
+            "built_in_id": built_in_id,
+            "shared_guid": guid_text,
+            "storage_type": storage,
+        }
+
+    def _mep_ro_001_read_parameter(self, param):
+        try:
+            storage = safe_str(param.StorageType)
+            if storage == "String":
+                value = param.AsString()
+            elif storage == "Integer":
+                value = param.AsInteger()
+            elif storage == "Double":
+                try:
+                    value = param.AsValueString()
+                except:
+                    value = None
+                if value in (None, ""):
+                    value = param.AsDouble()
+            elif storage == "ElementId":
+                value = self._mep_ro_001_id_text(param.AsElementId())
+            else:
+                try:
+                    value = param.AsValueString()
+                except:
+                    value = None
+            return True, self._mep_ro_001_normalized_value("" if value is None else value), None
+        except Exception as exc:
+            return False, "not available", safe_str(exc)
+
+    def _mep_ro_001_parameter_matrix(self, records):
+        matrix = {}
+        element_errors = {}
+        for record in records:
+            elem = record.get("element")
+            elem_id = record.get("element_id")
+            seen = set()
+            try:
+                parameters = list(elem.Parameters)
+            except Exception as exc:
+                element_errors.setdefault(elem_id, []).append("Parameters: {0}".format(safe_str(exc)))
+                continue
+            for param in parameters:
+                try:
+                    identity = self._mep_ro_001_parameter_identity(param, elem)
+                    key = identity.get("identity")
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    item = matrix.setdefault(
+                        key,
+                        {
+                            "name": identity.get("name"),
+                            "classification": identity.get("classification"),
+                            "built_in_id": identity.get("built_in_id"),
+                            "shared_guid": identity.get("shared_guid"),
+                            "storage_type": identity.get("storage_type"),
+                            "present": 0,
+                            "readable": 0,
+                            "unreadable": 0,
+                            "readonly_true": 0,
+                            "readonly_false": 0,
+                            "values": set(),
+                            "value_limit_exceeded": False,
+                        },
+                    )
+                    item["present"] += 1
+                    try:
+                        is_read_only = bool(param.IsReadOnly)
+                        item["readonly_true" if is_read_only else "readonly_false"] += 1
+                    except:
+                        pass
+                    readable, value, error = self._mep_ro_001_read_parameter(param)
+                    if readable:
+                        item["readable"] += 1
+                        if len(item["values"]) < MEP_RO_001_DISTINCT_VALUE_LIMIT:
+                            item["values"].add(value)
+                        elif value not in item["values"]:
+                            item["value_limit_exceeded"] = True
+                    else:
+                        item["unreadable"] += 1
+                        element_errors.setdefault(elem_id, []).append(
+                            "{0}: {1}".format(identity.get("name"), error)
+                        )
+                except Exception as exc:
+                    element_errors.setdefault(elem_id, []).append("Parameter metadata: {0}".format(safe_str(exc)))
+        total = len(records)
+        rows = []
+        for key, item in matrix.items():
+            item["missing"] = max(0, total - item.get("present", 0))
+            item["coverage"] = 0.0 if total == 0 else (100.0 * item.get("present", 0) / float(total))
+            item["all_read_only"] = bool(item.get("present") and item.get("readonly_true") == item.get("present"))
+            item["mixed_read_only"] = bool(item.get("readonly_true") and item.get("readonly_false"))
+            item["distinct_count"] = len(item.get("values") or [])
+            item["values_vary"] = bool(item.get("value_limit_exceeded") or item.get("distinct_count", 0) > 1)
+            rows.append(item)
+        rows.sort(
+            key=lambda item: (
+                0 if item.get("missing", 0) > 0 else 1,
+                0 if item.get("unreadable", 0) > 0 else 1,
+                0 if item.get("values_vary") else 1,
+                safe_str(item.get("name")).lower(),
+                safe_str(item.get("classification")),
+                safe_str(item.get("storage_type")),
+            )
+        )
+        return rows, element_errors
+
+    def _mep_ro_001_lookup_parameter_state(self, elem, names):
+        for name in names or []:
+            try:
+                param = elem.LookupParameter(name)
+            except Exception as exc:
+                return {"present": False, "readable": False, "value": "not available", "error": safe_str(exc)}
+            if param is None:
+                continue
+            readable, value, error = self._mep_ro_001_read_parameter(param)
+            return {"present": True, "readable": readable, "value": value, "error": error}
+        return {"present": False, "readable": False, "value": "not available", "error": None}
+
+    def _mep_ro_001_type_mark_state(self, record):
+        type_elem = record.get("type_element")
+        if type_elem is None:
+            return {"present": False, "readable": False, "value": "not available", "error": None}
+        return self._mep_ro_001_lookup_parameter_state(type_elem, ["Type Mark"])
+
+    def _mep_ro_001_qa_check(self, check_id, name, applicability, issues, skipped, affected, explanation):
+        applicability = int(applicability or 0)
+        issues = int(issues or 0)
+        skipped = int(skipped or 0)
+        if applicability == 0 and skipped == 0:
+            status = "NOT_APPLICABLE"
+        elif skipped > 0:
+            status = "PARTIAL"
+        elif issues > 0:
+            status = "ISSUES_FOUND"
+        else:
+            status = "PASS"
+        unique_ids = sorted(set([safe_str(item) for item in affected or []]), key=lambda item: (not item.isdigit(), int(item) if item.isdigit() else item))
+        displayed = unique_ids[:MEP_RO_001_AFFECTED_ID_LIMIT]
+        return {
+            "check_id": check_id,
+            "name": name,
+            "applicability": applicability,
+            "issues": issues,
+            "passed": max(0, applicability - issues - skipped),
+            "skipped": skipped,
+            "status": status,
+            "affected_ids": displayed,
+            "omitted_ids": max(0, len(unique_ids) - len(displayed)),
+            "explanation": explanation,
+        }
+
+    def _mep_ro_001_qa_checks(self, snapshot):
+        records = snapshot.get("records") or []
+        unavailable = snapshot.get("unavailable") or []
+        active_view_id = None
+        try:
+            active_view_id = int(uidoc.ActiveView.Id.IntegerValue)
+        except:
+            pass
+        checks = []
+        checks.append(
+            self._mep_ro_001_qa_check(
+                "SEL-QA-001",
+                "Invalid or unavailable selected element reference",
+                len(snapshot.get("selected_ids") or []),
+                len(unavailable),
+                0,
+                [item.get("element_id") for item in unavailable],
+                "Selected ElementIds are resolved only in the active document.",
+            )
+        )
+
+        missing_category = [item.get("element_id") for item in records if item.get("category_name") == "not available"]
+        checks.append(self._mep_ro_001_qa_check("SEL-QA-002", "Missing category", len(records), len(missing_category), 0, missing_category, "Elements with no readable category are reported."))
+
+        missing_type = [item.get("element_id") for item in records if item.get("type_element") is None]
+        checks.append(self._mep_ro_001_qa_check("SEL-QA-003", "Missing resolvable element type", len(records), len(missing_type), 0, missing_type, "Element type IDs must resolve in the active document."))
+
+        expected_type = [item for item in records if item.get("type_element") is not None]
+        missing_identity = [
+            item.get("element_id")
+            for item in expected_type
+            if item.get("type_name") in ("not available", "unavailable")
+            or item.get("family_name") in ("not available", "unavailable")
+        ]
+        checks.append(self._mep_ro_001_qa_check("SEL-QA-004", "Missing expected family/type identity", len(expected_type), len(missing_identity), 0, missing_identity, "Applied only where a resolvable element type exists."))
+
+        for check_id, name, key, positive_text in (
+            ("SEL-QA-005", "Pinned element", "pinned", "true"),
+            ("SEL-QA-009", "View-specific element", "view_specific", "true"),
+        ):
+            readable = [item for item in records if item.get(key) in ("true", "false")]
+            affected = [item.get("element_id") for item in readable if item.get(key) == positive_text]
+            checks.append(self._mep_ro_001_qa_check(check_id, name, len(records), len(affected), len(records) - len(readable), affected, "Read-only state count; no element state is changed."))
+
+        for check_id, name, key in (
+            ("SEL-QA-006", "Group membership", "group_id"),
+            ("SEL-QA-007", "Assembly membership", "assembly_id"),
+            ("SEL-QA-008", "Design-option membership", "design_option"),
+        ):
+            affected = [item.get("element_id") for item in records if item.get(key) != "not available"]
+            checks.append(self._mep_ro_001_qa_check(check_id, name, len(records), len(affected), 0, affected, "Membership is reported for review only."))
+
+        view_specific = [item for item in records if item.get("view_specific") == "true"]
+        owner_readable = [item for item in view_specific if safe_str(item.get("owner_view_id")).isdigit()]
+        owner_mismatch = [
+            item.get("element_id")
+            for item in owner_readable
+            if active_view_id is not None and int(item.get("owner_view_id")) != active_view_id
+        ]
+        checks.append(self._mep_ro_001_qa_check("SEL-QA-010", "Owner-view mismatch", len(view_specific), len(owner_mismatch), len(view_specific) - len(owner_readable), owner_mismatch, "View-specific owner view is compared with the active view without switching views."))
+
+        mark_states = []
+        type_mark_states = []
+        parameter_read_errors = {}
+        for item in records:
+            mark = self._mep_ro_001_lookup_parameter_state(item.get("element"), ["Mark"])
+            mark["element_id"] = item.get("element_id")
+            mark_states.append(mark)
+            type_mark = self._mep_ro_001_type_mark_state(item)
+            type_mark["element_id"] = item.get("element_id")
+            type_mark_states.append(type_mark)
+
+        for check_id, name, states in (
+            ("SEL-QA-011", "Missing or blank Mark", mark_states),
+            ("SEL-QA-012", "Missing or blank Type Mark", type_mark_states),
+        ):
+            applicable = [item for item in states if item.get("present")]
+            readable = [item for item in applicable if item.get("readable")]
+            blank = [item.get("element_id") for item in readable if not safe_str(item.get("value")).strip()]
+            checks.append(self._mep_ro_001_qa_check(check_id, name, len(applicable), len(blank), len(applicable) - len(readable), blank, "Elements without the parameter are not classified as blank."))
+            for item in applicable:
+                if not item.get("readable"):
+                    parameter_read_errors.setdefault(item.get("element_id"), []).append("{0}: {1}".format(name, item.get("error") or "unreadable"))
+
+        for check_id, name, states in (
+            ("SEL-QA-013", "Duplicate nonblank Mark", mark_states),
+            ("SEL-QA-014", "Duplicate nonblank Type Mark", type_mark_states),
+        ):
+            groups = {}
+            applicable = []
+            for item in states:
+                value = safe_str(item.get("value")).strip()
+                if item.get("present") and item.get("readable") and value:
+                    applicable.append(item)
+                    groups.setdefault(value, []).append(item.get("element_id"))
+            duplicate_ids = []
+            for value in sorted(groups.keys()):
+                if len(groups[value]) > 1:
+                    duplicate_ids.extend(groups[value])
+            checks.append(self._mep_ro_001_qa_check(check_id, name, len(applicable), len(set(duplicate_ids)), 0, duplicate_ids, "Duplicate detection is limited to nonblank normalized values in the current selection."))
+
+        worksharing_expected = False
+        try:
+            worksharing_expected = bool(doc.IsWorkshared)
+        except:
+            worksharing_expected = False
+        if worksharing_expected:
+            missing_workset = [item.get("element_id") for item in records if item.get("workset") == "not available"]
+            checks.append(self._mep_ro_001_qa_check("SEL-QA-015", "Missing workset resolution", len(records), len(missing_workset), 0, missing_workset, "Applied because the active document is workshared."))
+        else:
+            checks.append(self._mep_ro_001_qa_check("SEL-QA-015", "Missing workset resolution", 0, 0, 0, [], "Not applicable because worksharing is not enabled or readable."))
+
+        matrix, matrix_errors = self._mep_ro_001_parameter_matrix(records)
+        for elem_id, errors in matrix_errors.items():
+            parameter_read_errors.setdefault(elem_id, []).extend(errors)
+        unreadable_ids = sorted(parameter_read_errors.keys(), key=lambda item: (not safe_str(item).isdigit(), int(item) if safe_str(item).isdigit() else safe_str(item)))
+        unreadable_check = self._mep_ro_001_qa_check("SEL-QA-016", "Unreadable parameter access", len(records), len(unreadable_ids), 0, unreadable_ids, "An issue is recorded when one or more parameter reads throw for an element.")
+        if unreadable_ids:
+            unreadable_check["status"] = "PARTIAL"
+        checks.append(unreadable_check)
+        return checks, parameter_read_errors
+
+    def _mep_ro_001_base_data(self, prompt, action_key, snapshot):
+        action_id, canonical_prompt = MEP_RO_001_ACTION_METADATA.get(action_key)
+        return {
+            "feature_id": "MEP-RO-001",
+            "feature_name": "ModelMind Read-Only BIM/QA Selection Action Pack",
+            "action_id": action_id,
+            "canonical_prompt": canonical_prompt,
+            "prompt": safe_str(prompt),
+            "report_id": "MEP-RO-001-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "execution_mode": "read-only selection report",
+            "document_title": _document_title(doc),
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "selected_ids": snapshot.get("selected_id_texts") or [],
+            "selected_count": len(snapshot.get("selected_ids") or []),
+            "valid_count": len(snapshot.get("records") or []),
+            "unavailable_count": len(snapshot.get("unavailable") or []),
+            "classification": "MEP_SELECTION_REPORT_FAILED",
+            "reason_code": "none",
+            "summary": [],
+            "tables": [],
+            "warnings": [],
+            "next_guidance": "No model action required. Review the report in the Console.",
+        }
+
+    def _mep_ro_001_no_selection(self, data):
+        data["classification"] = "MEP_SELECTION_REPORT_NOT_READY"
+        data["reason_code"] = "NO_ELEMENTS_SELECTED"
+        data["next_guidance"] = "Select one or more elements in the active Revit document and run the command again."
+        data["summary"].extend(
+            [
+                "Selected element count: 0",
+                "Valid selected element count: 0",
+                "Unavailable selected element count: 0",
+            ]
+        )
+        return data
+
+    def _mep_ro_001_build_data(self, prompt, action_key):
+        snapshot = self._mep_ro_001_selection_snapshot()
+        data = self._mep_ro_001_base_data(prompt, action_key, snapshot)
+        records = snapshot.get("records") or []
+        if snapshot.get("selection_read_error"):
+            data["classification"] = "MEP_SELECTION_REPORT_FAILED"
+            data["reason_code"] = "SELECTION_READ_FAILED"
+            data["warnings"].append("Selection could not be read: {0}".format(snapshot.get("selection_read_error")))
+            return data
+        if not snapshot.get("selected_ids"):
+            return self._mep_ro_001_no_selection(data)
+        for item in snapshot.get("unavailable") or []:
+            data["warnings"].append("Element {0}: {1}".format(item.get("element_id"), item.get("reason")))
+        if not records:
+            data["classification"] = "MEP_SELECTION_REPORT_NOT_READY"
+            data["reason_code"] = "NO_VALID_SELECTED_ELEMENTS"
+            data["next_guidance"] = "Select one or more valid active-document elements and run the command again."
+            return data
+
+        if action_key == "selection_summary":
+            categories = {}
+            types = {}
+            families = set()
+            for item in records:
+                cat_key = (item.get("category_name"), item.get("category_id"))
+                categories.setdefault(cat_key, 0)
+                categories[cat_key] += 1
+                type_key = (item.get("category_name"), item.get("family_name"), item.get("type_name"), item.get("type_id"))
+                types.setdefault(type_key, 0)
+                types[type_key] += 1
+                if item.get("family_name") not in ("not available", "unavailable", "System family / unavailable"):
+                    families.add(item.get("family_name"))
+            category_rows = []
+            for key, count in sorted(categories.items(), key=lambda item: (-item[1], safe_str(item[0][0]).lower(), safe_str(item[0][1]))):
+                category_rows.append([key[0], key[1], count, "{0:.2f}%".format(100.0 * count / float(len(records)))])
+            ordered_types = sorted(types.items(), key=lambda item: (safe_str(item[0][0]).lower(), safe_str(item[0][1]).lower(), safe_str(item[0][2]).lower(), safe_str(item[0][3])))
+            displayed_types = ordered_types[:MEP_RO_001_IDENTIFIER_LIMIT]
+            type_rows = [[key[0], key[1], key[2], key[3], count] for key, count in displayed_types]
+            omitted_types = max(0, len(ordered_types) - len(displayed_types))
+            data["classification"] = "MEP_SELECTION_SUMMARY_OK"
+            data["summary"].extend([
+                "Selected element count: {0}".format(data.get("selected_count")),
+                "Valid selected element count: {0}".format(data.get("valid_count")),
+                "Unavailable selected element count: {0}".format(data.get("unavailable_count")),
+                "Unique category count: {0}".format(len(categories)),
+                "Unique family count: {0}".format(len(families)),
+                "Unique type count: {0}".format(len(types)),
+                "Displayed type groups: {0}".format(len(displayed_types)),
+                "Omitted type groups: {0}".format(omitted_types),
+                "Type grouping truncation: {0}".format("true" if omitted_types else "false"),
+            ])
+            data["tables"].append(("Category grouping", ["Category", "Category id", "Count", "Percent of valid selection"], category_rows))
+            data["tables"].append(("Type grouping", ["Category", "Family", "Type", "Type id", "Instance count"], type_rows))
+
+        elif action_key == "selected_identifiers":
+            ordered = sorted(records, key=lambda item: (safe_str(item.get("category_name")).lower(), safe_str(item.get("family_name")).lower(), safe_str(item.get("type_name")).lower(), int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id"))))
+            displayed = ordered[:MEP_RO_001_IDENTIFIER_LIMIT]
+            rows = []
+            for index, item in enumerate(displayed, 1):
+                rows.append([index, item.get("element_id"), item.get("unique_id"), item.get("category_name"), item.get("family_name"), item.get("type_name"), item.get("type_id"), item.get("element_name"), item.get("workset"), item.get("design_option"), item.get("owner_view_id"), item.get("pinned"), item.get("group_id"), item.get("assembly_id"), "active document only"])
+            omitted = max(0, len(ordered) - len(displayed))
+            data["classification"] = "MEP_SELECTION_IDENTIFIERS_OK"
+            data["summary"].extend([
+                "Total selected elements found: {0}".format(len(ordered)),
+                "Displayed element rows: {0}".format(len(displayed)),
+                "Omitted element rows: {0}".format(omitted),
+                "Truncation: {0}".format("true" if omitted else "false"),
+            ])
+            data["tables"].append(("Selected element identifiers", ["Seq", "Element id", "UniqueId", "Category", "Family", "Type", "Type id", "Element name", "Workset", "Design option", "Owner view id", "Pinned", "Group id", "Assembly id", "Source document"], rows))
+
+        elif action_key == "parameter_availability":
+            matrix, errors = self._mep_ro_001_parameter_matrix(records)
+            displayed = matrix[:MEP_RO_001_PARAMETER_LIMIT]
+            rows = []
+            for item in displayed:
+                distinct = ">{0}".format(MEP_RO_001_DISTINCT_VALUE_LIMIT) if item.get("value_limit_exceeded") else item.get("distinct_count")
+                rows.append([item.get("name"), item.get("classification"), item.get("built_in_id"), item.get("shared_guid"), item.get("storage_type"), item.get("present"), item.get("missing"), item.get("readable"), item.get("unreadable"), "{0:.2f}%".format(item.get("coverage")), str(bool(item.get("all_read_only"))).lower(), str(bool(item.get("mixed_read_only"))).lower(), str(bool(item.get("values_vary"))).lower(), distinct])
+            omitted = max(0, len(matrix) - len(displayed))
+            data["classification"] = "MEP_SELECTION_PARAMETER_AVAILABILITY_OK"
+            data["summary"].extend([
+                "Selected elements checked: {0}".format(len(records)),
+                "Total parameter identities found: {0}".format(len(matrix)),
+                "Parameter rows displayed: {0}".format(len(displayed)),
+                "Parameter rows omitted: {0}".format(omitted),
+                "Truncation: {0}".format("true" if omitted else "false"),
+                "Elements with unreadable parameter access: {0}".format(len(errors)),
+                "Normalized value display limit: {0} characters".format(MEP_RO_001_VALUE_LENGTH_LIMIT),
+                "Distinct value count limit: {0}".format(MEP_RO_001_DISTINCT_VALUE_LIMIT),
+            ])
+            if errors:
+                data["warnings"].append("Unreadable parameter access element ids: {0}".format(", ".join(sorted(errors.keys())[:MEP_RO_001_AFFECTED_ID_LIMIT])))
+            data["tables"].append(("Parameter availability matrix", ["Parameter", "Identity class", "Built-in id", "Shared GUID", "Storage", "Present", "Missing", "Readable", "Unreadable", "Coverage", "All read-only", "Mixed read-only", "Values vary", "Distinct values"], rows))
+
+        elif action_key == "qa_health":
+            checks, errors = self._mep_ro_001_qa_checks(snapshot)
+            issue_count = sum([item.get("issues", 0) for item in checks])
+            partial_count = len([item for item in checks if item.get("status") == "PARTIAL"])
+            if partial_count or data.get("unavailable_count"):
+                classification = "MEP_SELECTION_QA_HEALTH_PARTIAL"
+            elif issue_count:
+                classification = "MEP_SELECTION_QA_HEALTH_YELLOW"
+            else:
+                classification = "MEP_SELECTION_QA_HEALTH_GREEN"
+            data["classification"] = classification
+            data["summary"].extend([
+                "QA health classification: {0}".format(classification.replace("MEP_SELECTION_QA_HEALTH_", "")),
+                "Checks evaluated: {0}".format(len(checks)),
+                "Issue candidates found: {0}".format(issue_count),
+                "Partial checks: {0}".format(partial_count),
+                "Affected element id cap per check: {0}".format(MEP_RO_001_AFFECTED_ID_LIMIT),
+            ])
+            rows = []
+            for item in checks:
+                rows.append([item.get("check_id"), item.get("name"), item.get("applicability"), item.get("issues"), item.get("passed"), item.get("skipped"), item.get("status"), ", ".join(item.get("affected_ids") or []) or "none", item.get("omitted_ids"), item.get("explanation")])
+            data["tables"].append(("Generic selected-element QA checks", ["Check id", "Check name", "Applicable", "Issues", "Passed", "Skipped", "Status", "Affected ids", "Omitted ids", "Explanation"], rows))
+        return data
+
+    def _mep_ro_001_format_report(self, data):
+        selected_ids = data.get("selected_ids") or []
+        displayed_ids = selected_ids[:MEP_RO_001_IDENTIFIER_LIMIT]
+        lines = [
+            "[MODELMIND READ-ONLY BIM/QA SELECTION REPORT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "Feature name:",
+            data.get("feature_name"),
+            "Action ID:",
+            data.get("action_id"),
+            "Canonical prompt:",
+            data.get("canonical_prompt"),
+            "Requested prompt:",
+            data.get("prompt"),
+            "Result classification:",
+            data.get("classification"),
+            "Execution mode:",
+            data.get("execution_mode"),
+            "Report ID:",
+            data.get("report_id"),
+            "Report timestamp:",
+            data.get("timestamp"),
+            "Document title:",
+            data.get("document_title"),
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")),
+            "Selected IDs captured at execution start:",
+            ", ".join(displayed_ids) if displayed_ids else "none",
+            "Selected ID display omitted count:",
+            max(0, len(selected_ids) - len(displayed_ids)),
+            "Selected element count:",
+            data.get("selected_count"),
+            "Valid selected element count:",
+            data.get("valid_count"),
+            "Unavailable selected element count:",
+            data.get("unavailable_count"),
+            "Reason code:",
+            data.get("reason_code"),
+            "",
+            "Main summary:",
+        ]
+        lines.extend(["- {0}".format(item) for item in data.get("summary") or []] or ["- none"])
+        for title, headers, rows in data.get("tables") or []:
+            lines.extend(["", title + ":"])
+            lines.extend(self._mep_ro_v1_table(headers, rows) if rows else ["- none"])
+        lines.extend(["", "Warnings:"])
+        lines.extend(["- {0}".format(item) for item in data.get("warnings") or []] or ["- none"])
+        lines.extend([
+            "",
+            "Next guidance:",
+            data.get("next_guidance"),
+            "",
+            "Safety flags:",
+            "- model modified: false",
+            "- UI selection modified: false",
+            "- active view changed: false",
+            "- external files written: false",
+            "- transaction started: false",
+            "- transaction group started: false",
+            "- linked document modified: false",
+            "- auto-run: false",
+            "",
+            "Workflow isolation:",
+            "- Evidence Runbook advanced: false",
+            "- Evidence Cycle Manifest updated: false",
+            "- Workflow anchor eligible: false",
+            "- QA export source eligible: false",
+            "",
+            "Safety:",
+            "- The current active-document selection was read as input only.",
+            "- No selection picker was opened.",
+            "- Revit model data and UI selection were not modified.",
+        ])
+        return "\n".join([safe_str(item) for item in lines])
+
+    def answer_mep_ro_001_question(self, prompt):
+        action_key = _mep_ro_001_action_key(prompt)
+        if not action_key:
+            return None
+        try:
+            data = self._mep_ro_001_build_data(prompt, action_key)
+        except Exception as exc:
+            snapshot = {"selected_ids": [], "selected_id_texts": [], "records": [], "unavailable": []}
+            data = self._mep_ro_001_base_data(prompt, action_key, snapshot)
+            data["classification"] = "MEP_SELECTION_REPORT_FAILED"
+            data["reason_code"] = "UNEXPECTED_EXECUTION_FAILURE"
+            data["warnings"].append(safe_str(exc))
+            data["next_guidance"] = "Review the deterministic diagnostic and rerun after correcting the selection context."
+        report_text = self._mep_ro_001_format_report(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MODELMIND READ-ONLY BIM/QA SELECTION REPORT]",
+            "report_text": report_text,
+            "report_scope": "active-document user selection / deterministic read-only BIM QA",
+            "report_timestamp": data.get("timestamp"),
+            "created_timestamp_local": data.get("timestamp"),
+            "feature_id": "MEP-RO-001",
+            "feature_name": "ModelMind Read-Only BIM/QA Selection Action Pack",
+            "result_classification": data.get("classification"),
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view_name"),
+            "active_view_type": data.get("active_view_type"),
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "active_view_changed": False,
+            "external_files_written": False,
+            "workflow_anchor_eligible": False,
+            "qa_export_source_eligible": False,
+            "evidence_cycle_stage": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _mep_ro_v1_recommended_action(self, classification):
         if classification == "MEP_RO_REPORT_EMPTY_SELECTION":
             return "Select relevant elements and rerun the read-only report."
@@ -46643,8 +47463,11 @@ class OllamaAIChat(forms.WPFWindow):
                 mep_selection_v1_reply = self.answer_mep_selection_v1_question(
                     prompt
                 )
-            mep_read_only_v1_reply = None
+            mep_ro_001_reply = None
             if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
+                mep_ro_001_reply = self.answer_mep_ro_001_question(prompt)
+            mep_read_only_v1_reply = None
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and mep_ro_001_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -46763,6 +47586,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif mep_selection_v1_reply is not None:
                 reply = mep_selection_v1_reply
+                preserve_latest_report_state = True
+            elif mep_ro_001_reply is not None:
+                reply = mep_ro_001_reply
                 preserve_latest_report_state = True
             elif mep_read_only_v1_reply is not None:
                 reply = mep_read_only_v1_reply
