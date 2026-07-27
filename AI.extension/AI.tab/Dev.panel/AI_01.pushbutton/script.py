@@ -14282,6 +14282,79 @@ def _mep_ro_001_action_key(prompt):
     return MEP_RO_001_ROUTE_ACTIONS.get(normalized)
 
 
+PIPING_RO_001_ROUTE_ACTIONS = {
+    "show selected pipes summary": "pipes_summary",
+    "summarize selected pipes": "pipes_summary",
+    "report selected pipes summary": "pipes_summary",
+    "inspect selected pipes": "pipes_summary",
+    "show selected pipe connectors": "pipe_connectors",
+    "inspect selected pipe connectors": "pipe_connectors",
+    "report selected pipe connectors": "pipe_connectors",
+    "check selected pipe connections": "pipe_connectors",
+    "check selected pipes system assignment": "system_assignment",
+    "show selected pipes system assignment": "system_assignment",
+    "report selected pipe system assignment": "system_assignment",
+    "inspect selected pipe systems": "system_assignment",
+    "check selected pipes qa health": "qa_health",
+    "run selected pipes health check": "qa_health",
+    "inspect selected pipes qa": "qa_health",
+    "report selected pipe issues": "qa_health",
+}
+
+PIPING_RO_001_ACTION_METADATA = {
+    "pipes_summary": ("PIPING-RO-001-A01", "show selected pipes summary"),
+    "pipe_connectors": ("PIPING-RO-001-A02", "show selected pipe connectors"),
+    "system_assignment": ("PIPING-RO-001-A03", "check selected pipes system assignment"),
+    "qa_health": ("PIPING-RO-001-A04", "check selected pipes qa health"),
+}
+
+PIPING_RO_001_RESULT_CLASSIFICATIONS = (
+    "PIPING_SELECTION_SUMMARY_OK",
+    "PIPING_CONNECTOR_REPORT_OK",
+    "PIPING_SYSTEM_ASSIGNMENT_OK",
+    "PIPING_QA_HEALTH_GREEN",
+    "PIPING_QA_HEALTH_YELLOW",
+    "PIPING_QA_HEALTH_PARTIAL",
+    "PIPING_SELECTION_REPORT_PARTIAL",
+    "PIPING_SELECTION_REPORT_NOT_READY",
+    "PIPING_SELECTION_REPORT_FAILED",
+)
+
+PIPING_RO_001_QA_CHECKS = (
+    ("PIPING-QA-001", "Unsupported selected element"),
+    ("PIPING-QA-002", "Missing pipe type"),
+    ("PIPING-QA-003", "Missing pipe segment"),
+    ("PIPING-QA-004", "Missing system assignment"),
+    ("PIPING-QA-005", "Missing or zero diameter"),
+    ("PIPING-QA-006", "Missing or near-zero length"),
+    ("PIPING-QA-007", "Slope data unavailable"),
+    ("PIPING-QA-008", "Unconnected physical connector"),
+    ("PIPING-QA-009", "Abnormal physical connector count"),
+    ("PIPING-QA-010", "Connector read failure"),
+    ("PIPING-QA-011", "Inconsistent system metadata"),
+    ("PIPING-QA-012", "Unreadable required piping parameter"),
+)
+
+PIPING_RO_001_PIPE_PROCESS_LIMIT = 200
+PIPING_RO_001_PIPE_ROW_LIMIT = 200
+PIPING_RO_001_CONNECTOR_ROW_LIMIT = 400
+PIPING_RO_001_CONNECTORS_PER_PIPE_LIMIT = 8
+PIPING_RO_001_CONNECTED_OWNER_LIMIT = 20
+PIPING_RO_001_AFFECTED_ID_LIMIT = 50
+PIPING_RO_001_WARNING_LIMIT = 50
+PIPING_RO_001_VALUE_LENGTH_LIMIT = 160
+PIPING_RO_001_NEAR_ZERO_LENGTH_FT = 1.0 / 304.8
+PIPING_RO_001_VERTICAL_HORIZONTAL_TOLERANCE_FT = 1.0 / 304.8
+PIPING_RO_001_PHYSICAL_CONNECTOR_TYPES = set(
+    ["end", "curve", "physical", "blankend", "blank end"]
+)
+
+
+def _piping_ro_001_action_key(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return PIPING_RO_001_ROUTE_ACTIONS.get(normalized)
+
+
 MEP_SEL_V1_ROUTE_ACTIONS = {
     "select all pipes in active view": "select_pipes_active_view",
     "select active view pipes": "select_pipes_active_view",
@@ -17294,6 +17367,7 @@ class OllamaAIChat(forms.WPFWindow):
             "active_view_name": _active_view_title(doc, uidoc),
             "active_view_type": "unavailable",
             "selection_count": 0,
+            "selected_supported_pipe_count": 0,
             "selection_breakdown": {},
             "category_counts": {},
             "likely_discipline": "Unknown / Empty",
@@ -17307,6 +17381,7 @@ class OllamaAIChat(forms.WPFWindow):
             selection_count, selection_breakdown = self._console_selection_breakdown()
             context["selection_count"] = selection_count
             context["selection_breakdown"] = selection_breakdown
+            context["selected_supported_pipe_count"] = self._piping_ro_001_selected_supported_pipe_count()
             category_counts = {}
             for label, bic in self._console_context_category_specs():
                 category_counts[label] = self._console_active_view_category_count(active_view, bic)
@@ -18144,6 +18219,15 @@ class OllamaAIChat(forms.WPFWindow):
                 "MEP_SELECTION_QA_HEALTH_PARTIAL",
                 "MEP_SELECTION_REPORT_NOT_READY",
                 "MEP_SELECTION_REPORT_FAILED",
+                "PIPING_SELECTION_SUMMARY_OK",
+                "PIPING_CONNECTOR_REPORT_OK",
+                "PIPING_SYSTEM_ASSIGNMENT_OK",
+                "PIPING_QA_HEALTH_GREEN",
+                "PIPING_QA_HEALTH_YELLOW",
+                "PIPING_QA_HEALTH_PARTIAL",
+                "PIPING_SELECTION_REPORT_PARTIAL",
+                "PIPING_SELECTION_REPORT_NOT_READY",
+                "PIPING_SELECTION_REPORT_FAILED",
             ]
         )
         if classification in meta_classifications:
@@ -18159,6 +18243,8 @@ class OllamaAIChat(forms.WPFWindow):
         if feature_lower == "ai-workbench-evidence-cycle-manifest-v1":
             return True
         if feature_lower == "mep-ro-001":
+            return True
+        if feature_lower == "piping-ro-001":
             return True
         if feature_lower == "ai-workbench-visual-v1" and normalized_prompt in AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES:
             return True
@@ -19785,6 +19871,11 @@ class OllamaAIChat(forms.WPFWindow):
             add(["show selected element identifiers"], "Inspect stable identifiers for the current active-document selection.", "Read-only selected-element identifier report", "yes")
             add(["check selected element parameter availability"], "Inspect parameter coverage/readability without writing values.", "Read-only parameter availability matrix", "yes")
             add(["check selected elements qa health"], "Run generic discipline-neutral QA checks on the current selection.", "Read-only selected-element QA health report", "yes")
+        if int(context.get("selected_supported_pipe_count") or 0) > 0:
+            add(["show selected pipes summary"], "Current selection contains supported rigid pipes; summarize piping identity and read-only metadata.", "Read-only piping selection summary", "yes")
+            add(["show selected pipe connectors"], "Inspect one-hop physical piping connector metadata without changing connections.", "Read-only piping connector report", "yes")
+            add(["check selected pipes system assignment"], "Inspect normalized selected-pipe system assignment without assigning systems.", "Read-only piping system assignment report", "yes")
+            add(["check selected pipes qa health"], "Run stable piping and inherited generic QA checks on selected rigid pipes.", "Read-only piping QA health report", "yes")
         if (
             int(evidence_runbook.get("cycle_duplicate_artifact_count") or 0) > 0
             or int(evidence_runbook.get("cycle_manifest_warning_count") or 0) > 0
@@ -36734,6 +36825,1777 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _piping_ro_001_text(self, value, fallback="unavailable"):
+        text = safe_str(value).replace("\r", " ").replace("\n", " ").strip()
+        if not text:
+            return fallback
+        if len(text) > PIPING_RO_001_VALUE_LENGTH_LIMIT:
+            return text[:PIPING_RO_001_VALUE_LENGTH_LIMIT] + "..."
+        return text
+
+    def _piping_ro_001_finite(self, value):
+        try:
+            number = float(value)
+            return not math.isnan(number) and not math.isinf(number)
+        except:
+            return False
+
+    def _piping_ro_001_enum_text(self, value):
+        return self._piping_ro_001_text(value, "unavailable")
+
+    def _piping_ro_001_supported_pipe(self, elem):
+        if elem is None:
+            return False
+        try:
+            if not isinstance(elem, DB.Plumbing.Pipe):
+                return False
+        except:
+            return False
+        pipe_category = self._mep_ro_v1_category_id("OST_PipeCurves")
+        return self._mep_ro_v1_element_category_id(elem) == pipe_category
+
+    def _piping_ro_001_selected_supported_pipe_count(self):
+        count = 0
+        try:
+            for element_id in uidoc.Selection.GetElementIds():
+                if self._piping_ro_001_supported_pipe(doc.GetElement(element_id)):
+                    count += 1
+        except:
+            return 0
+        return count
+
+    def _piping_ro_001_scope_kind(self, elem):
+        if self._piping_ro_001_supported_pipe(elem):
+            return "SUPPORTED_PIPE"
+        category_id = self._mep_ro_v1_element_category_id(elem)
+        if category_id == self._mep_ro_v1_category_id("OST_PipeFitting"):
+            return "UNSUPPORTED_PIPE_FITTING"
+        if category_id == self._mep_ro_v1_category_id("OST_FlexPipeCurves"):
+            return "UNSUPPORTED_FLEX_PIPE"
+        try:
+            fabrication_class = getattr(DB, "FabricationPart", None)
+            if fabrication_class is not None and isinstance(elem, fabrication_class):
+                return "UNSUPPORTED_FABRICATION_PART"
+        except:
+            pass
+        return "UNSUPPORTED_NON_PIPE"
+
+    def _piping_ro_001_builtin_parameter(self, elem, builtin_names):
+        api_supported = False
+        errors = []
+        for name in builtin_names or []:
+            try:
+                builtin = getattr(DB.BuiltInParameter, name, None)
+            except:
+                builtin = None
+            if builtin is None:
+                continue
+            api_supported = True
+            try:
+                param = elem.get_Parameter(builtin)
+            except Exception as exc:
+                errors.append("{0}: {1}".format(name, safe_str(exc)))
+                continue
+            if param is None:
+                continue
+            result = {
+                "api_supported": True,
+                "present": True,
+                "readable": False,
+                "name": name,
+                "storage_type": "unavailable",
+                "double": None,
+                "element_id": None,
+                "text": "unavailable",
+                "errors": errors,
+            }
+            try:
+                storage = safe_str(param.StorageType)
+                result["storage_type"] = storage
+                if storage == "Double":
+                    result["double"] = float(param.AsDouble())
+                    try:
+                        display = param.AsValueString()
+                    except:
+                        display = None
+                    result["text"] = self._piping_ro_001_text(
+                        display if display not in (None, "") else result["double"]
+                    )
+                elif storage == "ElementId":
+                    element_id = self._mep_ro_001_id_value(param.AsElementId())
+                    result["element_id"] = element_id
+                    target = doc.GetElement(param.AsElementId()) if element_id and element_id > 0 else None
+                    result["text"] = self._piping_ro_001_text(
+                        get_elem_name(target) if target is not None else element_id
+                    )
+                elif storage == "Integer":
+                    result["text"] = self._piping_ro_001_text(param.AsInteger())
+                else:
+                    try:
+                        value = param.AsString()
+                    except:
+                        value = None
+                    if value in (None, ""):
+                        try:
+                            value = param.AsValueString()
+                        except:
+                            value = None
+                    result["text"] = self._piping_ro_001_text(value)
+                result["readable"] = True
+                return result
+            except Exception as exc:
+                result["errors"].append("{0}: {1}".format(name, safe_str(exc)))
+                return result
+        return {
+            "api_supported": api_supported,
+            "present": False,
+            "readable": False,
+            "name": "unavailable",
+            "storage_type": "unavailable",
+            "double": None,
+            "element_id": None,
+            "text": "unavailable",
+            "errors": errors,
+        }
+
+    def _piping_ro_001_named_parameter(self, elem, names):
+        for name in names or []:
+            try:
+                param = elem.LookupParameter(name)
+            except Exception as exc:
+                return {
+                    "present": False,
+                    "readable": False,
+                    "text": "unavailable",
+                    "error": safe_str(exc),
+                }
+            if param is None:
+                continue
+            readable, value, error = self._mep_ro_001_read_parameter(param)
+            return {
+                "present": True,
+                "readable": bool(readable),
+                "text": self._piping_ro_001_text(value),
+                "error": error,
+            }
+        return {"present": False, "readable": False, "text": "unavailable", "error": None}
+
+    def _piping_ro_001_pipe_segment(self, generic_record):
+        elem = generic_record.get("element")
+        targets = [elem]
+        if generic_record.get("type_element") is not None:
+            targets.append(generic_record.get("type_element"))
+        api_supported = False
+        errors = []
+        for target in targets:
+            result = self._piping_ro_001_builtin_parameter(
+                target,
+                ["RBS_PIPE_SEGMENT_PARAM", "RBS_PIPE_SEGMENT"],
+            )
+            api_supported = api_supported or result.get("api_supported")
+            errors.extend(result.get("errors") or [])
+            if result.get("present"):
+                if not result.get("readable"):
+                    return {
+                        "state": "UNREADABLE",
+                        "name": "unavailable",
+                        "element_id": None,
+                        "errors": errors,
+                    }
+                return {
+                    "state": "AVAILABLE",
+                    "name": result.get("text"),
+                    "element_id": result.get("element_id"),
+                    "blank": result.get("text") == "unavailable",
+                    "errors": errors,
+                }
+        if errors:
+            return {"state": "UNREADABLE", "name": "unavailable", "element_id": None, "errors": errors}
+        if not api_supported:
+            return {"state": "NOT_SUPPORTED", "name": "unavailable", "element_id": None, "errors": []}
+        return {"state": "UNAVAILABLE", "name": "unavailable", "element_id": None, "errors": []}
+
+    def _piping_ro_001_placeholder_system_text(self, value):
+        normalized = self._console_normalize(value)
+        return normalized in (
+            "",
+            "none",
+            "unavailable",
+            "not available",
+            "undefined",
+            "unassigned",
+            "<none>",
+        )
+
+    def _piping_ro_001_system_token(self, value):
+        return re.sub(r"[^a-z0-9]+", "", self._console_normalize(value))
+
+    def _piping_ro_001_system_assignment(self, elem):
+        errors = []
+        object_id = None
+        object_name = "unavailable"
+        object_type = "unavailable"
+        object_classification = "unavailable"
+        object_readable = False
+        try:
+            mep_system = elem.MEPSystem
+            object_readable = True
+            if mep_system is not None:
+                object_id = self._mep_ro_001_id_value(mep_system.Id)
+                object_name = self._piping_ro_001_text(get_elem_name(mep_system))
+                try:
+                    system_type_id = mep_system.GetTypeId()
+                    system_type = doc.GetElement(system_type_id)
+                    object_type = self._piping_ro_001_text(get_elem_name(system_type))
+                except Exception as exc:
+                    errors.append("MEPSystem type: {0}".format(safe_str(exc)))
+                try:
+                    object_classification = self._piping_ro_001_text(mep_system.SystemClassification)
+                except:
+                    object_classification = "unavailable"
+        except Exception as exc:
+            errors.append("MEPSystem: {0}".format(safe_str(exc)))
+
+        builtins = {
+            "name": self._piping_ro_001_builtin_parameter(elem, ["RBS_SYSTEM_NAME_PARAM"]),
+            "type": self._piping_ro_001_builtin_parameter(
+                elem,
+                ["RBS_PIPING_SYSTEM_TYPE_PARAM", "RBS_SYSTEM_TYPE_PARAM"],
+            ),
+            "classification": self._piping_ro_001_builtin_parameter(
+                elem,
+                ["RBS_SYSTEM_CLASSIFICATION_PARAM"],
+            ),
+        }
+        for item in builtins.values():
+            errors.extend(item.get("errors") or [])
+        fallback_status = "unavailable"
+        fallback_value = "unavailable"
+        try:
+            fallback_status, fallback_value = _system_assignment_read(elem, "Piping")
+            fallback_value = self._piping_ro_001_text(fallback_value)
+        except Exception as exc:
+            errors.append("Fallback system metadata: {0}".format(safe_str(exc)))
+
+        readable_sources = []
+        if object_readable:
+            readable_sources.append("MEPSystem")
+        for key, item in builtins.items():
+            if item.get("present") and item.get("readable"):
+                readable_sources.append("built-in {0}".format(key))
+        comparisons = [
+            ("name", object_name, builtins["name"].get("text")),
+            ("type", object_type, builtins["type"].get("text")),
+            ("classification", object_classification, builtins["classification"].get("text")),
+        ]
+        contradictions = []
+        for label, first, second in comparisons:
+            if self._piping_ro_001_placeholder_system_text(first):
+                continue
+            if self._piping_ro_001_placeholder_system_text(second):
+                continue
+            if self._piping_ro_001_system_token(first) != self._piping_ro_001_system_token(second):
+                contradictions.append("{0}: {1} != {2}".format(label, first, second))
+
+        identity_values = [
+            object_name,
+            builtins["name"].get("text"),
+            builtins["type"].get("text"),
+        ]
+        identity_found = bool(object_id and object_id > 0) or any(
+            not self._piping_ro_001_placeholder_system_text(item) for item in identity_values
+        )
+        authoritative_supported = object_readable or any(
+            item.get("api_supported") for item in builtins.values()
+        )
+        unreadable_authoritative = bool(errors) and not identity_found
+        if contradictions:
+            state = "INCONSISTENT"
+        elif identity_found:
+            state = "ASSIGNED"
+        elif unreadable_authoritative:
+            state = "UNREADABLE"
+        elif authoritative_supported:
+            state = "UNASSIGNED_REVIEW"
+        else:
+            state = "UNAVAILABLE"
+
+        system_name = object_name
+        if self._piping_ro_001_placeholder_system_text(system_name):
+            system_name = builtins["name"].get("text")
+        if self._piping_ro_001_placeholder_system_text(system_name) and fallback_status == "assigned":
+            system_name = fallback_value
+        system_type = object_type
+        if self._piping_ro_001_placeholder_system_text(system_type):
+            system_type = builtins["type"].get("text")
+        system_classification = object_classification
+        if self._piping_ro_001_placeholder_system_text(system_classification):
+            system_classification = builtins["classification"].get("text")
+        return {
+            "state": state,
+            "mep_system_id": object_id,
+            "mep_system_name": system_name,
+            "system_type": system_type,
+            "system_classification": system_classification,
+            "built_in_system_metadata": "; ".join(
+                [
+                    "{0}={1}".format(key, builtins[key].get("text"))
+                    for key in ("name", "type", "classification")
+                ]
+            ),
+            "fallback_system_metadata": "{0}: {1}".format(fallback_status, fallback_value),
+            "consistency_state": "INCONSISTENT" if contradictions else "CONSISTENT",
+            "authoritative_source_count": len(readable_sources),
+            "authoritative_sources": readable_sources,
+            "contradictions": contradictions,
+            "errors": errors,
+        }
+
+    def _piping_ro_001_geometry(self, generic_record):
+        elem = generic_record.get("element")
+        errors = []
+        curve = None
+        curve_state = "UNAVAILABLE"
+        curve_type = "unavailable"
+        start = None
+        end = None
+        try:
+            location = elem.Location
+            if location is not None and hasattr(location, "Curve"):
+                curve = location.Curve
+            if curve is not None:
+                curve_state = "AVAILABLE"
+                try:
+                    curve_type = self._piping_ro_001_text(curve.GetType().Name)
+                except:
+                    curve_type = self._piping_ro_001_text(type(curve).__name__)
+                start = curve.GetEndPoint(0)
+                end = curve.GetEndPoint(1)
+        except Exception as exc:
+            curve_state = "UNREADABLE"
+            errors.append("LocationCurve: {0}".format(safe_str(exc)))
+
+        length_value = None
+        length_state = "UNAVAILABLE"
+        if curve is not None:
+            try:
+                length_value = float(curve.Length)
+                length_state = "AVAILABLE"
+            except Exception as exc:
+                length_state = "UNREADABLE"
+                errors.append("Length: {0}".format(safe_str(exc)))
+
+        diameter_param = self._piping_ro_001_builtin_parameter(
+            elem,
+            ["RBS_PIPE_DIAMETER_PARAM"],
+        )
+        errors.extend(diameter_param.get("errors") or [])
+        diameter_value = diameter_param.get("double")
+        if diameter_param.get("present") and diameter_param.get("readable"):
+            diameter_state = "AVAILABLE"
+        elif diameter_param.get("errors"):
+            diameter_state = "UNREADABLE"
+        else:
+            diameter_state = "UNAVAILABLE"
+
+        is_line = False
+        horizontal_run = None
+        vertical = False
+        if curve is not None:
+            try:
+                is_line = isinstance(curve, DB.Line)
+            except:
+                is_line = curve_type.lower() == "line"
+        if is_line and start is not None and end is not None:
+            try:
+                dx = float(end.X - start.X)
+                dy = float(end.Y - start.Y)
+                horizontal_run = math.sqrt((dx * dx) + (dy * dy))
+                vertical = horizontal_run <= PIPING_RO_001_VERTICAL_HORIZONTAL_TOLERANCE_FT
+            except Exception as exc:
+                errors.append("Pipe direction: {0}".format(safe_str(exc)))
+
+        slope_param = self._piping_ro_001_builtin_parameter(elem, ["RBS_PIPE_SLOPE"])
+        errors.extend(slope_param.get("errors") or [])
+        slope_ratio = slope_param.get("double")
+        if not is_line:
+            slope_state = "UNREADABLE" if curve_state == "UNREADABLE" else "PARTIAL"
+        elif vertical:
+            slope_state = "NOT_APPLICABLE"
+        elif slope_param.get("present") and slope_param.get("readable") and self._piping_ro_001_finite(slope_ratio):
+            slope_state = "AVAILABLE"
+        elif slope_param.get("errors"):
+            slope_state = "UNREADABLE"
+        else:
+            slope_state = "UNAVAILABLE"
+
+        insulation = self._piping_ro_001_builtin_parameter(
+            elem,
+            ["RBS_PIPE_INSULATION_THICKNESS", "RBS_INSULATION_THICKNESS"],
+        )
+        optional_errors = list(insulation.get("errors") or [])
+        return {
+            "curve_state": curve_state,
+            "curve_type": curve_type,
+            "is_line": bool(is_line),
+            "is_vertical": bool(vertical),
+            "horizontal_run_ft": horizontal_run,
+            "diameter_state": diameter_state,
+            "diameter_ft": diameter_value,
+            "diameter_mm": diameter_value * 304.8 if self._piping_ro_001_finite(diameter_value) else None,
+            "length_state": length_state,
+            "length_ft": length_value,
+            "length_mm": length_value * 304.8 if self._piping_ro_001_finite(length_value) else None,
+            "slope_state": slope_state,
+            "slope_ratio": slope_ratio if slope_state == "AVAILABLE" else None,
+            "slope_percent": slope_ratio * 100.0 if slope_state == "AVAILABLE" else None,
+            "slope_per_mille": slope_ratio * 1000.0 if slope_state == "AVAILABLE" else None,
+            "slope_angle_degrees": math.degrees(math.atan(abs(slope_ratio))) if slope_state == "AVAILABLE" else None,
+            "start_elevation_ft": float(start.Z) if start is not None else None,
+            "start_elevation_mm": float(start.Z) * 304.8 if start is not None else None,
+            "end_elevation_ft": float(end.Z) if end is not None else None,
+            "end_elevation_mm": float(end.Z) * 304.8 if end is not None else None,
+            "reference_level": self._mep_ro_v1_level_name(elem),
+            "insulation_thickness_state": (
+                "AVAILABLE"
+                if insulation.get("present") and insulation.get("readable")
+                else ("UNREADABLE" if insulation.get("errors") else "UNAVAILABLE")
+            ),
+            "insulation_thickness_ft": insulation.get("double"),
+            "insulation_thickness_mm": (
+                insulation.get("double") * 304.8
+                if self._piping_ro_001_finite(insulation.get("double"))
+                else None
+            ),
+            "errors": errors,
+            "optional_errors": optional_errors,
+        }
+
+    def _piping_ro_001_xyz(self, value):
+        if value is None:
+            return None
+        try:
+            return (float(value.X), float(value.Y), float(value.Z))
+        except:
+            return None
+
+    def _piping_ro_001_connector_is_physical(self, connector, expected_owner=None):
+        try:
+            owner = connector.Owner
+            if expected_owner is not None:
+                if self._mep_ro_001_id_value(owner.Id) != self._mep_ro_001_id_value(expected_owner.Id):
+                    return False
+            domain = self._console_normalize(connector.Domain)
+            connector_type = self._console_normalize(connector.ConnectorType)
+            return (
+                "piping" in domain
+                and connector_type in PIPING_RO_001_PHYSICAL_CONNECTOR_TYPES
+            )
+        except:
+            return False
+
+    def _piping_ro_001_connector_detail(self, connector, owner, sequence):
+        warnings = []
+        unreadable = False
+        owner_id = self._mep_ro_001_id_value(owner.Id)
+        connector_type = "unavailable"
+        domain = "unavailable"
+        shape = "unavailable"
+        origin = None
+        raw_connected = "unavailable"
+        radius = None
+        width = None
+        height = None
+        direction = None
+        try:
+            connector_type = self._piping_ro_001_enum_text(connector.ConnectorType)
+            domain = self._piping_ro_001_enum_text(connector.Domain)
+            shape = self._piping_ro_001_enum_text(connector.Shape)
+            origin = self._piping_ro_001_xyz(connector.Origin)
+            raw_connected = "true" if bool(connector.IsConnected) else "false"
+        except Exception as exc:
+            unreadable = True
+            warnings.append("Connector metadata: {0}".format(safe_str(exc)))
+        for key, attr_name in (("radius", "Radius"), ("width", "Width"), ("height", "Height")):
+            try:
+                value = float(getattr(connector, attr_name))
+            except:
+                value = None
+            if key == "radius":
+                radius = value
+            elif key == "width":
+                width = value
+            else:
+                height = value
+        try:
+            direction = self._piping_ro_001_xyz(connector.CoordinateSystem.BasisZ)
+        except:
+            direction = None
+
+        connected_owner_ids = set()
+        reciprocal_proven = False
+        if self._piping_ro_001_connector_is_physical(connector, owner):
+            try:
+                references = list(connector.AllRefs)
+            except Exception as exc:
+                references = []
+                unreadable = True
+                warnings.append("AllRefs: {0}".format(safe_str(exc)))
+            for reference in references:
+                if not self._piping_ro_001_connector_is_physical(reference):
+                    continue
+                try:
+                    reference_owner = reference.Owner
+                    reference_owner_id = self._mep_ro_001_id_value(reference_owner.Id)
+                    if reference_owner_id is None or reference_owner_id == owner_id:
+                        continue
+                    reference_document = reference_owner.Document
+                    if reference_document is None or not reference_document.Equals(doc):
+                        continue
+                    active_owner = doc.GetElement(reference_owner.Id)
+                    if active_owner is None:
+                        continue
+                    forward = bool(connector.IsConnectedTo(reference))
+                    reverse = bool(reference.IsConnectedTo(connector))
+                    if forward and reverse:
+                        connected_owner_ids.add(reference_owner_id)
+                        reciprocal_proven = True
+                except Exception as exc:
+                    unreadable = True
+                    warnings.append("Reciprocity: {0}".format(safe_str(exc)))
+        else:
+            unreadable = True
+            warnings.append("Connector is not an eligible physical piping connector owned by the pipe.")
+        sorted_owner_ids = sorted(connected_owner_ids)
+        return {
+            "owner_pipe_id": owner_id,
+            "sequence": sequence,
+            "connector_type": connector_type,
+            "domain": domain,
+            "shape": shape,
+            "origin_ft": origin,
+            "origin_mm": tuple([item * 304.8 for item in origin]) if origin else None,
+            "radius_ft": radius,
+            "radius_mm": radius * 304.8 if self._piping_ro_001_finite(radius) else None,
+            "diameter_mm": radius * 2.0 * 304.8 if self._piping_ro_001_finite(radius) else None,
+            "width_mm": width * 304.8 if self._piping_ro_001_finite(width) else None,
+            "height_mm": height * 304.8 if self._piping_ro_001_finite(height) else None,
+            "direction": direction,
+            "raw_is_connected": raw_connected,
+            "reciprocal_connected": bool(reciprocal_proven),
+            "connected_owner_ids": sorted_owner_ids,
+            "connected_owner_count": len(sorted_owner_ids),
+            "unreadable": bool(unreadable),
+            "warnings": warnings,
+        }
+
+    def _piping_ro_001_connectors(self, elem):
+        result = {
+            "manager_state": "UNAVAILABLE",
+            "total_count": 0,
+            "physical_count": 0,
+            "connected_physical_count": 0,
+            "unconnected_physical_count": 0,
+            "unreadable_count": 0,
+            "details": [],
+            "errors": [],
+        }
+        manager = None
+        try:
+            manager = elem.ConnectorManager
+        except:
+            try:
+                manager = elem.MEPModel.ConnectorManager
+            except Exception as exc:
+                result["manager_state"] = "UNREADABLE"
+                result["errors"].append("ConnectorManager: {0}".format(safe_str(exc)))
+                return result
+        if manager is None:
+            return result
+        try:
+            connectors = list(manager.Connectors)
+            result["manager_state"] = "AVAILABLE"
+            result["total_count"] = len(connectors)
+        except Exception as exc:
+            result["manager_state"] = "UNREADABLE"
+            result["errors"].append("Connector enumeration: {0}".format(safe_str(exc)))
+            return result
+
+        ordered = []
+        for index, connector in enumerate(connectors):
+            try:
+                origin = self._piping_ro_001_xyz(connector.Origin) or (0.0, 0.0, 0.0)
+                connector_type = self._piping_ro_001_enum_text(connector.ConnectorType)
+                domain = self._piping_ro_001_enum_text(connector.Domain)
+            except:
+                origin = (0.0, 0.0, 0.0)
+                connector_type = "unavailable"
+                domain = "unavailable"
+            ordered.append((connector, origin, connector_type, domain, index))
+        ordered.sort(
+            key=lambda item: (
+                round(item[1][0], 9),
+                round(item[1][1], 9),
+                round(item[1][2], 9),
+                self._console_normalize(item[2]),
+                self._console_normalize(item[3]),
+                item[4],
+            )
+        )
+        for sequence, item in enumerate(ordered, 1):
+            connector = item[0]
+            if not self._piping_ro_001_connector_is_physical(connector, elem):
+                continue
+            detail = self._piping_ro_001_connector_detail(connector, elem, sequence)
+            result["details"].append(detail)
+            result["physical_count"] += 1
+            if detail.get("unreadable"):
+                result["unreadable_count"] += 1
+                result["errors"].extend(detail.get("warnings") or [])
+            if detail.get("reciprocal_connected"):
+                result["connected_physical_count"] += 1
+            else:
+                result["unconnected_physical_count"] += 1
+        return result
+
+    def _piping_ro_001_pipe_record(self, generic_record):
+        elem = generic_record.get("element")
+        segment = self._piping_ro_001_pipe_segment(generic_record)
+        system = self._piping_ro_001_system_assignment(elem)
+        geometry = self._piping_ro_001_geometry(generic_record)
+        connectors = self._piping_ro_001_connectors(elem)
+        required_errors = []
+        required_errors.extend(segment.get("errors") or [])
+        required_errors.extend(system.get("errors") or [])
+        required_errors.extend(geometry.get("errors") or [])
+        partial_conditions = []
+        if segment.get("state") == "UNREADABLE":
+            partial_conditions.append("pipe segment unreadable")
+        if system.get("state") in ("UNREADABLE", "INCONSISTENT"):
+            partial_conditions.append("system metadata {0}".format(system.get("state").lower()))
+        if geometry.get("diameter_state") == "UNREADABLE":
+            partial_conditions.append("diameter unreadable")
+        if geometry.get("length_state") == "UNREADABLE":
+            partial_conditions.append("length unreadable")
+        if geometry.get("slope_state") in ("PARTIAL", "UNAVAILABLE", "UNREADABLE"):
+            partial_conditions.append("slope {0}".format(geometry.get("slope_state").lower()))
+        if connectors.get("manager_state") == "UNREADABLE" or connectors.get("unreadable_count"):
+            partial_conditions.append("connector data incomplete")
+        if required_errors:
+            partial_conditions.append("required piping read errors")
+        return {
+            "element": elem,
+            "element_id": generic_record.get("element_id"),
+            "unique_id": generic_record.get("unique_id"),
+            "category_name": generic_record.get("category_name"),
+            "pipe_type_name": generic_record.get("type_name"),
+            "pipe_type_id": generic_record.get("type_id"),
+            "type_element": generic_record.get("type_element"),
+            "pipe_segment": segment,
+            "system": system,
+            "geometry": geometry,
+            "connectors": connectors,
+            "workset": generic_record.get("workset"),
+            "pinned": generic_record.get("pinned"),
+            "group_id": generic_record.get("group_id"),
+            "assembly_id": generic_record.get("assembly_id"),
+            "design_option": generic_record.get("design_option"),
+            "property_errors": list(generic_record.get("property_errors") or []),
+            "required_errors": required_errors,
+            "connector_errors": list(connectors.get("errors") or []),
+            "optional_errors": list(geometry.get("optional_errors") or []),
+            "partial_conditions": sorted(set(partial_conditions)),
+            "complete": not bool(partial_conditions),
+        }
+
+    def _piping_ro_001_display_number(self, value, decimals=3, suffix=""):
+        if not self._piping_ro_001_finite(value):
+            return "unavailable"
+        return ("{0:." + safe_str(decimals) + "f}{1}").format(float(value), suffix)
+
+    def _piping_ro_001_xyz_text(self, value, decimals=3):
+        if not value or len(value) != 3:
+            return "unavailable"
+        return "({0}, {1}, {2})".format(
+            self._piping_ro_001_display_number(value[0], decimals),
+            self._piping_ro_001_display_number(value[1], decimals),
+            self._piping_ro_001_display_number(value[2], decimals),
+        )
+
+    def _piping_ro_001_distribution(self, values):
+        grouped = {}
+        for value, stable_id in values or []:
+            label = self._piping_ro_001_text(value)
+            key = (label, self._piping_ro_001_text(stable_id, ""))
+            grouped[key] = grouped.get(key, 0) + 1
+        rows = []
+        for key, count in grouped.items():
+            rows.append([key[0], key[1] or "unavailable", count])
+        rows.sort(key=lambda row: (-row[2], self._console_normalize(row[0]), self._console_normalize(row[1])))
+        return rows
+
+    def _piping_ro_001_scope(self, snapshot):
+        supported = []
+        unsupported = []
+        counts = {
+            "SUPPORTED_PIPE": 0,
+            "UNSUPPORTED_NON_PIPE": 0,
+            "UNSUPPORTED_PIPE_FITTING": 0,
+            "UNSUPPORTED_FLEX_PIPE": 0,
+            "UNSUPPORTED_FABRICATION_PART": 0,
+            "UNRESOLVED_REFERENCE": len(snapshot.get("unavailable") or []),
+        }
+        for record in snapshot.get("records") or []:
+            kind = self._piping_ro_001_scope_kind(record.get("element"))
+            counts[kind] = counts.get(kind, 0) + 1
+            if kind == "SUPPORTED_PIPE":
+                supported.append(record)
+            else:
+                unsupported.append(
+                    {
+                        "element_id": record.get("element_id"),
+                        "category": record.get("category_name"),
+                        "scope_kind": kind,
+                    }
+                )
+        for item in snapshot.get("unavailable") or []:
+            unsupported.append(
+                {
+                    "element_id": item.get("element_id"),
+                    "category": "unresolved",
+                    "scope_kind": "UNRESOLVED_REFERENCE",
+                }
+            )
+        supported.sort(
+            key=lambda item: (
+                not safe_str(item.get("element_id")).isdigit(),
+                int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+            )
+        )
+        unsupported.sort(
+            key=lambda item: (
+                safe_str(item.get("scope_kind")),
+                not safe_str(item.get("element_id")).isdigit(),
+                int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+            )
+        )
+        return {"supported": supported, "unsupported": unsupported, "counts": counts}
+
+    def _piping_ro_001_check(self, check_id, name, applicability, issues, skipped, affected, explanation, force_partial=False):
+        result = self._mep_ro_001_qa_check(
+            check_id,
+            name,
+            applicability,
+            issues,
+            skipped,
+            affected,
+            explanation,
+        )
+        result["affected_ids"] = (result.get("affected_ids") or [])[:PIPING_RO_001_AFFECTED_ID_LIMIT]
+        if force_partial and (issues or skipped):
+            result["status"] = "PARTIAL"
+        return result
+
+    def _piping_ro_001_qa_checks(self, data, snapshot):
+        records = data.get("pipe_records") or []
+        scope = data.get("scope") or {}
+        unsupported = scope.get("unsupported") or []
+        checks = []
+        unsupported_ids = [item.get("element_id") for item in unsupported]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-001",
+                "Unsupported selected element",
+                data.get("selected_reference_count"),
+                len(unsupported),
+                0,
+                unsupported_ids,
+                "Only rigid DB.Plumbing.Pipe elements in OST_PipeCurves are supported.",
+            )
+        )
+
+        type_missing = [item.get("element_id") for item in records if item.get("type_element") is None]
+        type_read_errors = [
+            item.get("element_id")
+            for item in records
+            if any("Type:" in safe_str(error) for error in item.get("property_errors") or [])
+        ]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-002",
+                "Missing pipe type",
+                len(records),
+                len(type_missing),
+                len(type_read_errors),
+                type_missing + type_read_errors,
+                "The current pipe type must resolve in the active document.",
+                force_partial=bool(type_read_errors),
+            )
+        )
+
+        segment_applicable = [item for item in records if item.get("pipe_segment", {}).get("state") in ("AVAILABLE", "UNAVAILABLE", "UNREADABLE")]
+        segment_missing = [
+            item.get("element_id")
+            for item in segment_applicable
+            if item.get("pipe_segment", {}).get("state") in ("UNAVAILABLE",)
+            or item.get("pipe_segment", {}).get("blank")
+        ]
+        segment_unreadable = [
+            item.get("element_id")
+            for item in segment_applicable
+            if item.get("pipe_segment", {}).get("state") == "UNREADABLE"
+        ]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-003",
+                "Missing pipe segment",
+                len(segment_applicable),
+                len(segment_missing),
+                len(segment_unreadable),
+                segment_missing + segment_unreadable,
+                "API-unsupported segment metadata is not applicable; read failures are partial.",
+                force_partial=bool(segment_unreadable),
+            )
+        )
+
+        system_applicable = [item for item in records if item.get("system", {}).get("state") != "UNAVAILABLE"]
+        unassigned = [item.get("element_id") for item in records if item.get("system", {}).get("state") == "UNASSIGNED_REVIEW"]
+        system_partial = [
+            item.get("element_id")
+            for item in records
+            if item.get("system", {}).get("state") in ("UNREADABLE", "INCONSISTENT")
+        ]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-004",
+                "Missing system assignment",
+                len(system_applicable),
+                len(unassigned),
+                len(system_partial),
+                unassigned + system_partial,
+                "UNASSIGNED_REVIEW is an issue; unavailable metadata is not treated as intentional assignment.",
+                force_partial=bool(system_partial),
+            )
+        )
+
+        diameter_issues = [
+            item.get("element_id")
+            for item in records
+            if item.get("geometry", {}).get("diameter_state") != "UNREADABLE"
+            and (
+                not self._piping_ro_001_finite(item.get("geometry", {}).get("diameter_ft"))
+                or float(item.get("geometry", {}).get("diameter_ft") or 0.0) <= 0.0
+            )
+        ]
+        diameter_skipped = [
+            item.get("element_id")
+            for item in records
+            if item.get("geometry", {}).get("diameter_state") == "UNREADABLE"
+        ]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-005",
+                "Missing or zero diameter",
+                len(records),
+                len(diameter_issues),
+                len(diameter_skipped),
+                diameter_issues + diameter_skipped,
+                "Diameter must be finite and greater than zero.",
+                force_partial=bool(diameter_skipped),
+            )
+        )
+
+        length_issues = [
+            item.get("element_id")
+            for item in records
+            if item.get("geometry", {}).get("length_state") != "UNREADABLE"
+            and (
+                not self._piping_ro_001_finite(item.get("geometry", {}).get("length_ft"))
+                or float(item.get("geometry", {}).get("length_ft") or 0.0) < PIPING_RO_001_NEAR_ZERO_LENGTH_FT
+            )
+        ]
+        length_skipped = [
+            item.get("element_id")
+            for item in records
+            if item.get("geometry", {}).get("length_state") == "UNREADABLE"
+        ]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-006",
+                "Missing or near-zero length",
+                len(records),
+                len(length_issues),
+                len(length_skipped),
+                length_issues + length_skipped,
+                "Near-zero threshold is 1 / 304.8 internal feet (1 mm).",
+                force_partial=bool(length_skipped),
+            )
+        )
+
+        slope_applicable = [
+            item
+            for item in records
+            if item.get("geometry", {}).get("is_line") and not item.get("geometry", {}).get("is_vertical")
+        ]
+        slope_skipped = [
+            item.get("element_id")
+            for item in slope_applicable
+            if item.get("geometry", {}).get("slope_state") != "AVAILABLE"
+        ]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-007",
+                "Slope data unavailable",
+                len(slope_applicable),
+                0,
+                len(slope_skipped),
+                slope_skipped,
+                "Signed built-in slope is required for straight nonvertical pipes; unavailable data is partial, not a design defect.",
+                force_partial=bool(slope_skipped),
+            )
+        )
+
+        physical_count = sum([item.get("connectors", {}).get("physical_count", 0) for item in records])
+        unconnected_ids = []
+        unreadable_connector_occurrences = 0
+        for item in records:
+            for detail in item.get("connectors", {}).get("details") or []:
+                if detail.get("unreadable"):
+                    unreadable_connector_occurrences += 1
+                elif not detail.get("reciprocal_connected"):
+                    unconnected_ids.append(item.get("element_id"))
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-008",
+                "Unconnected physical connector",
+                physical_count,
+                len(unconnected_ids),
+                unreadable_connector_occurrences,
+                unconnected_ids,
+                "A connection requires reciprocal IsConnectedTo confirmation on eligible physical piping connectors.",
+                force_partial=bool(unreadable_connector_occurrences),
+            )
+        )
+
+        connector_complete = [
+            item
+            for item in records
+            if item.get("connectors", {}).get("manager_state") == "AVAILABLE"
+            and not item.get("connectors", {}).get("unreadable_count")
+        ]
+        abnormal = [
+            item.get("element_id")
+            for item in connector_complete
+            if item.get("connectors", {}).get("physical_count") != 2
+        ]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-009",
+                "Abnormal physical connector count",
+                len(connector_complete),
+                len(abnormal),
+                0,
+                abnormal,
+                "A standard supported rigid pipe is expected to expose two physical piping connectors.",
+            )
+        )
+
+        connector_failed = [
+            item.get("element_id")
+            for item in records
+            if item.get("connectors", {}).get("manager_state") != "AVAILABLE"
+            or item.get("connectors", {}).get("unreadable_count")
+        ]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-010",
+                "Connector read failure",
+                len(records),
+                len(connector_failed),
+                0,
+                connector_failed,
+                "Connector manager, metadata, AllRefs, owner resolution, and reciprocity reads are guarded.",
+                force_partial=bool(connector_failed),
+            )
+        )
+
+        system_consistency_applicable = [
+            item for item in records if item.get("system", {}).get("authoritative_source_count", 0) >= 2
+        ]
+        inconsistent = [
+            item.get("element_id")
+            for item in system_consistency_applicable
+            if item.get("system", {}).get("state") == "INCONSISTENT"
+        ]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-011",
+                "Inconsistent system metadata",
+                len(system_consistency_applicable),
+                len(inconsistent),
+                0,
+                inconsistent,
+                "Only contradictory authoritative metadata on the same pipe is inconsistent.",
+                force_partial=bool(inconsistent),
+            )
+        )
+
+        unreadable_required = [item.get("element_id") for item in records if item.get("required_errors")]
+        checks.append(
+            self._piping_ro_001_check(
+                "PIPING-QA-012",
+                "Unreadable required piping parameter",
+                len(records),
+                len(unreadable_required),
+                0,
+                unreadable_required,
+                "Caught required piping reads are reported instead of replaced with fabricated defaults.",
+                force_partial=bool(unreadable_required),
+            )
+        )
+
+        generic_snapshot = {
+            "selected_ids": snapshot.get("selected_ids") or [],
+            "selected_id_texts": snapshot.get("selected_id_texts") or [],
+            "records": data.get("processed_generic_records") or [],
+            "unavailable": snapshot.get("unavailable") or [],
+        }
+        generic_checks, generic_errors = self._mep_ro_001_qa_checks(generic_snapshot)
+        included_generic_ids = set(
+            [
+                "SEL-QA-001",
+                "SEL-QA-002",
+                "SEL-QA-003",
+                "SEL-QA-004",
+                "SEL-QA-005",
+                "SEL-QA-006",
+                "SEL-QA-007",
+                "SEL-QA-008",
+                "SEL-QA-011",
+                "SEL-QA-013",
+                "SEL-QA-015",
+                "SEL-QA-016",
+            ]
+        )
+        generic_checks = [item for item in generic_checks if item.get("check_id") in included_generic_ids]
+        generic_checks.sort(key=lambda item: item.get("check_id"))
+        checks.sort(key=lambda item: item.get("check_id"))
+        return checks, generic_checks, generic_errors
+
+    def _piping_ro_001_base_data(self, prompt, action_key, snapshot):
+        action_id, canonical_prompt = PIPING_RO_001_ACTION_METADATA.get(action_key)
+        return {
+            "feature_id": "PIPING-RO-001",
+            "feature_name": "ModelMind Read-Only Piping Selection Action Pack",
+            "action_id": action_id,
+            "canonical_prompt": canonical_prompt,
+            "prompt": safe_str(prompt),
+            "report_id": "PIPING-RO-001-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "classification": "PIPING_SELECTION_REPORT_NOT_READY",
+            "reason_code": "UNAVAILABLE",
+            "selected_reference_count": len(snapshot.get("selected_ids") or []),
+            "resolved_selected_count": len(snapshot.get("records") or []),
+            "scope": {},
+            "processed_generic_records": [],
+            "pipe_records": [],
+            "summary": [],
+            "tables": [],
+            "piping_checks": [],
+            "generic_checks": [],
+            "warnings": [],
+            "next_guidance": "Select one or more supported rigid pipes and rerun.",
+        }
+
+    def _piping_ro_001_build_data(self, prompt, action_key):
+        snapshot = self._mep_ro_001_selection_snapshot()
+        data = self._piping_ro_001_base_data(prompt, action_key, snapshot)
+        scope = self._piping_ro_001_scope(snapshot)
+        data["scope"] = scope
+        counts = scope.get("counts") or {}
+        supported = scope.get("supported") or []
+        if not snapshot.get("selected_ids"):
+            data["reason_code"] = "NO_ELEMENTS_SELECTED"
+            return data
+        if not supported:
+            data["reason_code"] = "NO_SUPPORTED_RIGID_PIPES"
+            data["summary"].append("Selected references exist, but none are supported rigid pipes.")
+            data["tables"].append(
+                (
+                    "Unsupported selection",
+                    ["Element id", "Category", "Scope classification"],
+                    [
+                        [item.get("element_id"), item.get("category"), item.get("scope_kind")]
+                        for item in scope.get("unsupported") or []
+                    ][:PIPING_RO_001_PIPE_ROW_LIMIT],
+                )
+            )
+            return data
+
+        processed_generic = supported[:PIPING_RO_001_PIPE_PROCESS_LIMIT]
+        skipped_supported = max(0, len(supported) - len(processed_generic))
+        data["processed_generic_records"] = processed_generic
+        pipe_records = []
+        for generic_record in processed_generic:
+            pipe_records.append(self._piping_ro_001_pipe_record(generic_record))
+        pipe_records.sort(
+            key=lambda item: (
+                not safe_str(item.get("element_id")).isdigit(),
+                int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+            )
+        )
+        data["pipe_records"] = pipe_records
+        unsupported_count = len(scope.get("unsupported") or [])
+        partial = bool(
+            unsupported_count
+            or skipped_supported
+            or any(not item.get("complete") for item in pipe_records)
+        )
+        data["reason_code"] = "PARTIAL_SCOPE_OR_READ" if partial else "COMPLETE"
+        data["summary"].extend(
+            [
+                "Total selected references: {0}".format(data.get("selected_reference_count")),
+                "Resolved selected elements: {0}".format(data.get("resolved_selected_count")),
+                "Supported rigid pipes: {0}".format(len(supported)),
+                "Supported pipes processed: {0}".format(len(pipe_records)),
+                "Supported pipes skipped by cap: {0}".format(skipped_supported),
+                "Unsupported or unresolved selected references: {0}".format(unsupported_count),
+                "Complete-read supported pipes: {0}".format(len([item for item in pipe_records if item.get("complete")])),
+                "Partial-read supported pipes: {0}".format(len([item for item in pipe_records if not item.get("complete")])),
+                "Pipe processing cap: {0}".format(PIPING_RO_001_PIPE_PROCESS_LIMIT),
+            ]
+        )
+        data["tables"].append(
+            (
+                "Selection scope classification",
+                ["Scope classification", "Count"],
+                [[key, counts.get(key, 0)] for key in sorted(counts.keys())],
+            )
+        )
+        if scope.get("unsupported"):
+            data["tables"].append(
+                (
+                    "Unsupported or unresolved selection",
+                    ["Element id", "Category", "Scope classification"],
+                    [
+                        [item.get("element_id"), item.get("category"), item.get("scope_kind")]
+                        for item in scope.get("unsupported") or []
+                    ][:PIPING_RO_001_PIPE_ROW_LIMIT],
+                )
+            )
+
+        for record in pipe_records:
+            for condition in record.get("partial_conditions") or []:
+                data["warnings"].append(
+                    "Pipe {0}: {1}.".format(record.get("element_id"), condition)
+                )
+            for error in record.get("required_errors") or []:
+                data["warnings"].append(
+                    "Pipe {0}: {1}".format(record.get("element_id"), error)
+                )
+            for error in record.get("connector_errors") or []:
+                data["warnings"].append(
+                    "Pipe {0} connector: {1}".format(record.get("element_id"), error)
+                )
+            for error in record.get("optional_errors") or []:
+                data["warnings"].append(
+                    "Pipe {0} optional metadata: {1}".format(record.get("element_id"), error)
+                )
+
+        if action_key == "pipes_summary":
+            total_length = sum(
+                [
+                    item.get("geometry", {}).get("length_ft")
+                    for item in pipe_records
+                    if self._piping_ro_001_finite(item.get("geometry", {}).get("length_ft"))
+                ]
+            )
+            data["summary"].extend(
+                [
+                    "Unsupported non-pipes: {0}".format(counts.get("UNSUPPORTED_NON_PIPE", 0)),
+                    "Unsupported pipe fittings: {0}".format(counts.get("UNSUPPORTED_PIPE_FITTING", 0)),
+                    "Unsupported FlexPipe elements: {0}".format(counts.get("UNSUPPORTED_FLEX_PIPE", 0)),
+                    "Unsupported fabrication parts: {0}".format(counts.get("UNSUPPORTED_FABRICATION_PART", 0)),
+                    "Unresolved selected references: {0}".format(counts.get("UNRESOLVED_REFERENCE", 0)),
+                    "Total readable pipe length: {0} ft / {1} mm".format(
+                        self._piping_ro_001_display_number(total_length),
+                        self._piping_ro_001_display_number(total_length * 304.8, 1),
+                    ),
+                ]
+            )
+            data["tables"].append(
+                (
+                    "Pipe type distribution",
+                    ["Pipe type", "Type id", "Count"],
+                    self._piping_ro_001_distribution(
+                        [(item.get("pipe_type_name"), item.get("pipe_type_id")) for item in pipe_records]
+                    ),
+                )
+            )
+            data["tables"].append(
+                (
+                    "Pipe segment distribution",
+                    ["Segment", "Segment id", "Count"],
+                    self._piping_ro_001_distribution(
+                        [
+                            (
+                                "{0}: {1}".format(
+                                    item.get("pipe_segment", {}).get("state"),
+                                    item.get("pipe_segment", {}).get("name"),
+                                ),
+                                item.get("pipe_segment", {}).get("element_id"),
+                            )
+                            for item in pipe_records
+                        ]
+                    ),
+                )
+            )
+            data["tables"].append(
+                (
+                    "System assignment distribution",
+                    ["Assignment state", "Stable id", "Count"],
+                    self._piping_ro_001_distribution(
+                        [(item.get("system", {}).get("state"), "") for item in pipe_records]
+                    ),
+                )
+            )
+            data["tables"].append(
+                (
+                    "Diameter distribution",
+                    ["Diameter", "Stable id", "Count"],
+                    self._piping_ro_001_distribution(
+                        [
+                            (
+                                "{0} mm".format(
+                                    self._piping_ro_001_display_number(
+                                        item.get("geometry", {}).get("diameter_mm"),
+                                        1,
+                                    )
+                                ),
+                                "",
+                            )
+                            for item in pipe_records
+                        ]
+                    ),
+                )
+            )
+            data["tables"].append(
+                (
+                    "Slope applicability distribution",
+                    ["Slope state", "Stable id", "Count"],
+                    self._piping_ro_001_distribution(
+                        [(item.get("geometry", {}).get("slope_state"), "") for item in pipe_records]
+                    ),
+                )
+            )
+            data["tables"].append(
+                (
+                    "Workset distribution",
+                    ["Workset", "Stable id", "Count"],
+                    self._piping_ro_001_distribution([(item.get("workset"), "") for item in pipe_records]),
+                )
+            )
+            data["summary"].extend(
+                [
+                    "Pinned pipes: {0}".format(len([item for item in pipe_records if item.get("pinned") == "true"])),
+                    "Grouped pipes: {0}".format(len([item for item in pipe_records if item.get("group_id") != "not available"])),
+                    "Assembly-member pipes: {0}".format(len([item for item in pipe_records if item.get("assembly_id") != "not available"])),
+                ]
+            )
+            pipe_rows = []
+            for item in pipe_records[:PIPING_RO_001_PIPE_ROW_LIMIT]:
+                geometry = item.get("geometry") or {}
+                system = item.get("system") or {}
+                pipe_rows.append(
+                    [
+                        item.get("element_id"),
+                        item.get("unique_id"),
+                        item.get("pipe_type_name"),
+                        item.get("pipe_type_id"),
+                        item.get("pipe_segment", {}).get("name"),
+                        item.get("pipe_segment", {}).get("state"),
+                        system.get("state"),
+                        system.get("mep_system_name"),
+                        self._piping_ro_001_display_number(geometry.get("diameter_mm"), 1),
+                        self._piping_ro_001_display_number(geometry.get("length_mm"), 1),
+                        self._piping_ro_001_display_number(geometry.get("slope_ratio"), 6),
+                        self._piping_ro_001_display_number(geometry.get("slope_percent"), 3),
+                        self._piping_ro_001_display_number(geometry.get("slope_per_mille"), 3),
+                        self._piping_ro_001_display_number(geometry.get("slope_angle_degrees"), 3),
+                        self._piping_ro_001_display_number(geometry.get("start_elevation_mm"), 1),
+                        self._piping_ro_001_display_number(geometry.get("end_elevation_mm"), 1),
+                        geometry.get("reference_level"),
+                        self._piping_ro_001_display_number(geometry.get("insulation_thickness_mm"), 1),
+                        item.get("workset"),
+                        item.get("pinned"),
+                        item.get("group_id"),
+                        item.get("assembly_id"),
+                        item.get("design_option"),
+                    ]
+                )
+            data["tables"].append(
+                (
+                    "Supported rigid pipe records",
+                    [
+                        "Element id",
+                        "UniqueId",
+                        "Pipe type",
+                        "Type id",
+                        "Segment",
+                        "Segment state",
+                        "System state",
+                        "System name",
+                        "Diameter mm",
+                        "Length mm",
+                        "Slope ratio",
+                        "Slope percent",
+                        "Slope per mille",
+                        "Slope angle deg",
+                        "Start elevation mm",
+                        "End elevation mm",
+                        "Reference level",
+                        "Insulation thickness mm",
+                        "Workset",
+                        "Pinned",
+                        "Group id",
+                        "Assembly id",
+                        "Design option",
+                    ],
+                    pipe_rows,
+                )
+            )
+            data["summary"].extend(
+                [
+                    "Displayed pipe rows: {0}".format(len(pipe_rows)),
+                    "Omitted pipe rows: {0}".format(max(0, len(pipe_records) - len(pipe_rows))),
+                    "Pipe-row truncation: {0}".format("true" if len(pipe_records) > len(pipe_rows) else "false"),
+                ]
+            )
+            data["classification"] = "PIPING_SELECTION_REPORT_PARTIAL" if partial else "PIPING_SELECTION_SUMMARY_OK"
+
+        elif action_key == "pipe_connectors":
+            total_raw = sum([item.get("connectors", {}).get("total_count", 0) for item in pipe_records])
+            total_physical = sum([item.get("connectors", {}).get("physical_count", 0) for item in pipe_records])
+            total_connected = sum([item.get("connectors", {}).get("connected_physical_count", 0) for item in pipe_records])
+            total_unconnected = sum([item.get("connectors", {}).get("unconnected_physical_count", 0) for item in pipe_records])
+            total_unreadable = sum([item.get("connectors", {}).get("unreadable_count", 0) for item in pipe_records])
+            abnormal = [item for item in pipe_records if item.get("connectors", {}).get("manager_state") == "AVAILABLE" and item.get("connectors", {}).get("physical_count") != 2]
+            data["summary"].extend(
+                [
+                    "Total raw connector count: {0}".format(total_raw),
+                    "Physical piping connector count: {0}".format(total_physical),
+                    "Reciprocally connected physical connector count: {0}".format(total_connected),
+                    "Unconnected physical connector count: {0}".format(total_unconnected),
+                    "Unreadable connector count: {0}".format(total_unreadable),
+                    "Abnormal connector-count pipes: {0}".format(len(abnormal)),
+                ]
+            )
+            per_pipe_rows = []
+            connector_rows = []
+            for item in pipe_records:
+                connector_data = item.get("connectors") or {}
+                per_pipe_rows.append(
+                    [
+                        item.get("element_id"),
+                        connector_data.get("manager_state"),
+                        connector_data.get("total_count"),
+                        connector_data.get("physical_count"),
+                        connector_data.get("connected_physical_count"),
+                        connector_data.get("unconnected_physical_count"),
+                        connector_data.get("unreadable_count"),
+                    ]
+                )
+                for detail in (connector_data.get("details") or [])[:PIPING_RO_001_CONNECTORS_PER_PIPE_LIMIT]:
+                    if len(connector_rows) >= PIPING_RO_001_CONNECTOR_ROW_LIMIT:
+                        break
+                    owner_ids = detail.get("connected_owner_ids") or []
+                    connector_rows.append(
+                        [
+                            detail.get("owner_pipe_id"),
+                            detail.get("sequence"),
+                            detail.get("connector_type"),
+                            detail.get("domain"),
+                            detail.get("shape"),
+                            self._piping_ro_001_xyz_text(detail.get("origin_ft"), 6),
+                            self._piping_ro_001_xyz_text(detail.get("origin_mm"), 1),
+                            self._piping_ro_001_display_number(detail.get("radius_ft"), 6),
+                            self._piping_ro_001_display_number(detail.get("radius_mm"), 1),
+                            self._piping_ro_001_display_number(detail.get("diameter_mm"), 1),
+                            self._piping_ro_001_display_number(detail.get("width_mm"), 1),
+                            self._piping_ro_001_display_number(detail.get("height_mm"), 1),
+                            self._piping_ro_001_xyz_text(detail.get("direction"), 6),
+                            detail.get("raw_is_connected"),
+                            str(bool(detail.get("reciprocal_connected"))).lower(),
+                            ", ".join([safe_str(value) for value in owner_ids[:PIPING_RO_001_CONNECTED_OWNER_LIMIT]]) or "none",
+                            detail.get("connected_owner_count"),
+                            str(bool(detail.get("unreadable"))).lower(),
+                            "; ".join(detail.get("warnings") or []) or "none",
+                        ]
+                    )
+            data["tables"].append(
+                (
+                    "Per-pipe connector summary",
+                    ["Pipe id", "Manager state", "Raw", "Physical", "Reciprocal connected", "Unconnected", "Unreadable"],
+                    per_pipe_rows,
+                )
+            )
+            data["tables"].append(
+                (
+                    "Physical piping connector details",
+                    [
+                        "Owner pipe id",
+                        "Sequence",
+                        "Connector type",
+                        "Domain",
+                        "Shape",
+                        "Origin ft",
+                        "Origin mm",
+                        "Radius ft",
+                        "Radius mm",
+                        "Diameter mm",
+                        "Width mm",
+                        "Height mm",
+                        "Direction",
+                        "Raw IsConnected",
+                        "Reciprocal physical connection",
+                        "Connected owner ids",
+                        "Connected owner count",
+                        "Unreadable",
+                        "Warning",
+                    ],
+                    connector_rows,
+                )
+            )
+            total_detail_count = sum([len(item.get("connectors", {}).get("details") or []) for item in pipe_records])
+            data["summary"].extend(
+                [
+                    "Displayed connector detail rows: {0}".format(len(connector_rows)),
+                    "Total physical connector detail records: {0}".format(total_detail_count),
+                    "Connector detail truncation: {0}".format("true" if total_detail_count > len(connector_rows) else "false"),
+                    "Displayed connector limit per pipe: {0}".format(PIPING_RO_001_CONNECTORS_PER_PIPE_LIMIT),
+                    "Displayed connected-owner ID limit per connector: {0}".format(PIPING_RO_001_CONNECTED_OWNER_LIMIT),
+                ]
+            )
+            data["classification"] = "PIPING_SELECTION_REPORT_PARTIAL" if partial else "PIPING_CONNECTOR_REPORT_OK"
+
+        elif action_key == "system_assignment":
+            system_rows = []
+            for item in pipe_records:
+                system = item.get("system") or {}
+                system_rows.append(
+                    [
+                        system.get("state"),
+                        system.get("system_type"),
+                        system.get("mep_system_name"),
+                        system.get("mep_system_id"),
+                        item.get("element_id"),
+                        system.get("system_classification"),
+                        system.get("built_in_system_metadata"),
+                        system.get("fallback_system_metadata"),
+                        system.get("consistency_state"),
+                        ", ".join(system.get("authoritative_sources") or []) or "none",
+                        "; ".join(system.get("contradictions") or []) or "none",
+                    ]
+                )
+            system_rows.sort(
+                key=lambda row: (
+                    self._console_normalize(row[0]),
+                    self._console_normalize(row[1]),
+                    self._console_normalize(row[2]),
+                    safe_str(row[3]),
+                    int(row[4]) if safe_str(row[4]).isdigit() else safe_str(row[4]),
+                )
+            )
+            for title, index in (
+                ("System assignment state distribution", 0),
+                ("System name distribution", 2),
+                ("System type distribution", 1),
+                ("System classification distribution", 5),
+            ):
+                data["tables"].append(
+                    (
+                        title,
+                        ["Value", "Stable id", "Count"],
+                        self._piping_ro_001_distribution([(row[index], "") for row in system_rows]),
+                    )
+                )
+            data["tables"].append(
+                (
+                    "Per-pipe normalized system metadata",
+                    [
+                        "Assignment state",
+                        "System type",
+                        "System name",
+                        "MEP system id",
+                        "Pipe id",
+                        "Classification",
+                        "Built-in metadata",
+                        "Fallback metadata",
+                        "Consistency",
+                        "Authoritative sources",
+                        "Contradictions",
+                    ],
+                    system_rows,
+                )
+            )
+            for state in ("UNASSIGNED_REVIEW", "INCONSISTENT", "UNREADABLE", "UNAVAILABLE"):
+                ids = [item.get("element_id") for item in pipe_records if item.get("system", {}).get("state") == state]
+                data["summary"].append("{0} pipe IDs: {1}".format(state, ", ".join(ids[:PIPING_RO_001_AFFECTED_ID_LIMIT]) or "none"))
+            data["classification"] = "PIPING_SELECTION_REPORT_PARTIAL" if partial else "PIPING_SYSTEM_ASSIGNMENT_OK"
+
+        elif action_key == "qa_health":
+            piping_checks, generic_checks, generic_errors = self._piping_ro_001_qa_checks(data, snapshot)
+            data["piping_checks"] = piping_checks
+            data["generic_checks"] = generic_checks
+            partial_check_count = len(
+                [
+                    item
+                    for item in piping_checks + generic_checks
+                    if item.get("status") == "PARTIAL"
+                ]
+            )
+            issue_count = sum(
+                [
+                    item.get("issues", 0)
+                    for item in piping_checks + generic_checks
+                    if item.get("status") == "ISSUES_FOUND"
+                ]
+            )
+            if partial or partial_check_count:
+                data["classification"] = "PIPING_QA_HEALTH_PARTIAL"
+            elif issue_count:
+                data["classification"] = "PIPING_QA_HEALTH_YELLOW"
+            else:
+                data["classification"] = "PIPING_QA_HEALTH_GREEN"
+            data["summary"].extend(
+                [
+                    "Overall QA classification: {0}".format(data.get("classification")),
+                    "Stable piping checks evaluated: {0}".format(len(piping_checks)),
+                    "Reused generic SEL-QA checks: {0}".format(len(generic_checks)),
+                    "Deterministic issue count: {0}".format(issue_count),
+                    "Partial check count: {0}".format(partial_check_count),
+                    "Generic parameter-read error elements: {0}".format(len(generic_errors)),
+                    "Affected ID display cap per check: {0}".format(PIPING_RO_001_AFFECTED_ID_LIMIT),
+                ]
+            )
+            data["next_guidance"] = (
+                "Review partial and issue candidates. No model action is performed by this report."
+                if data.get("classification") != "PIPING_QA_HEALTH_GREEN"
+                else "No model action required. Review the report manually."
+            )
+
+        if skipped_supported:
+            data["warnings"].append(
+                "{0} supported pipe(s) were skipped by the fixed processing cap.".format(skipped_supported)
+            )
+        if unsupported_count:
+            data["warnings"].append(
+                "{0} unsupported or unresolved selected reference(s) were reported.".format(unsupported_count)
+            )
+        data["warnings"] = data.get("warnings", [])[:PIPING_RO_001_WARNING_LIMIT]
+        if action_key != "qa_health":
+            data["next_guidance"] = (
+                "Review partial/unreadable records before relying on the report."
+                if data.get("classification") == "PIPING_SELECTION_REPORT_PARTIAL"
+                else "No model action required. Review the read-only report."
+            )
+        return data
+
+    def _piping_ro_001_check_rows(self, checks):
+        rows = []
+        for item in checks or []:
+            rows.append(
+                [
+                    item.get("check_id"),
+                    item.get("name"),
+                    item.get("applicability"),
+                    item.get("issues"),
+                    item.get("passed"),
+                    item.get("skipped"),
+                    item.get("status"),
+                    ", ".join(item.get("affected_ids") or []) or "none",
+                    item.get("omitted_ids"),
+                    item.get("explanation"),
+                ]
+            )
+        return rows
+
+    def _piping_ro_001_format_report(self, data):
+        scope_counts = (data.get("scope") or {}).get("counts") or {}
+        lines = [
+            "[MODELMIND READ-ONLY PIPING SELECTION REPORT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "Feature name:",
+            data.get("feature_name"),
+            "Action ID:",
+            data.get("action_id"),
+            "Canonical prompt:",
+            data.get("canonical_prompt"),
+            "Requested prompt:",
+            data.get("prompt"),
+            "Result classification:",
+            data.get("classification"),
+            "Reason code:",
+            data.get("reason_code"),
+            "Report ID:",
+            data.get("report_id"),
+            "Report timestamp:",
+            data.get("timestamp"),
+            "Scope:",
+            "current active-document selection / supported rigid pipes only",
+            "Document title:",
+            data.get("document_title"),
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")),
+            "",
+            "Selection state:",
+            "- total selected references: {0}".format(data.get("selected_reference_count")),
+            "- resolved selected elements: {0}".format(data.get("resolved_selected_count")),
+            "- supported rigid pipes: {0}".format(scope_counts.get("SUPPORTED_PIPE", 0)),
+            "- unsupported non-pipes: {0}".format(scope_counts.get("UNSUPPORTED_NON_PIPE", 0)),
+            "- unsupported pipe fittings: {0}".format(scope_counts.get("UNSUPPORTED_PIPE_FITTING", 0)),
+            "- unsupported FlexPipe elements: {0}".format(scope_counts.get("UNSUPPORTED_FLEX_PIPE", 0)),
+            "- unsupported fabrication parts: {0}".format(scope_counts.get("UNSUPPORTED_FABRICATION_PART", 0)),
+            "- unresolved references: {0}".format(scope_counts.get("UNRESOLVED_REFERENCE", 0)),
+            "",
+            "Main summary:",
+        ]
+        lines.extend(["- {0}".format(item) for item in data.get("summary") or []] or ["- none"])
+        for title, headers, rows in data.get("tables") or []:
+            lines.extend(["", "{0}:".format(title)])
+            lines.extend(self._mep_ro_v1_table(headers, rows) if rows else ["- none"])
+        if data.get("piping_checks"):
+            lines.extend(["", "Stable piping QA checks:"])
+            lines.extend(
+                self._mep_ro_v1_table(
+                    [
+                        "Check id",
+                        "Name",
+                        "Applicable",
+                        "Issues",
+                        "Passed",
+                        "Skipped",
+                        "Status",
+                        "Affected ids",
+                        "Omitted ids",
+                        "Explanation",
+                    ],
+                    self._piping_ro_001_check_rows(data.get("piping_checks")),
+                )
+            )
+        if data.get("generic_checks"):
+            lines.extend(["", "Reused generic MEP-RO-001 SEL-QA checks:"])
+            lines.extend(
+                self._mep_ro_v1_table(
+                    [
+                        "Check id",
+                        "Name",
+                        "Applicable",
+                        "Issues",
+                        "Passed",
+                        "Skipped",
+                        "Status",
+                        "Affected ids",
+                        "Omitted ids",
+                        "Explanation",
+                    ],
+                    self._piping_ro_001_check_rows(data.get("generic_checks")),
+                )
+            )
+        lines.extend(["", "Warnings:"])
+        lines.extend(["- {0}".format(item) for item in data.get("warnings") or []] or ["- none"])
+        lines.extend(
+            [
+                "",
+                "Next guidance:",
+                data.get("next_guidance"),
+                "",
+                "Caps:",
+                "- supported pipes processed: {0}".format(PIPING_RO_001_PIPE_PROCESS_LIMIT),
+                "- displayed pipe rows: {0}".format(PIPING_RO_001_PIPE_ROW_LIMIT),
+                "- displayed connector-detail rows: {0}".format(PIPING_RO_001_CONNECTOR_ROW_LIMIT),
+                "- displayed connectors per pipe: {0}".format(PIPING_RO_001_CONNECTORS_PER_PIPE_LIMIT),
+                "- displayed connected-owner IDs per connector: {0}".format(PIPING_RO_001_CONNECTED_OWNER_LIMIT),
+                "- displayed affected IDs per QA check: {0}".format(PIPING_RO_001_AFFECTED_ID_LIMIT),
+                "- displayed warnings: {0}".format(PIPING_RO_001_WARNING_LIMIT),
+                "- normalized displayed value characters: {0}".format(PIPING_RO_001_VALUE_LENGTH_LIMIT),
+                "",
+                "Safety metadata:",
+                "- model_modified: false",
+                "- ui_selection_modified: false",
+                "- active_view_changed: false",
+                "- external_files_written: false",
+                "- transaction_started: false",
+                "- transaction_group_started: false",
+                "- linked_document_modified: false",
+                "- selection_picker_opened: false",
+                "- auto_run: false",
+                "",
+                "Workflow isolation metadata:",
+                "- evidence_runbook_advanced: false",
+                "- evidence_cycle_manifest_updated: false",
+                "- workflow_anchor_eligible: false",
+                "- qa_export_source_eligible: false",
+                "- evidence_cycle_stage: false",
+                "",
+                "Safety:",
+                "- The current active-document selection was read as input only.",
+                "- Connector inspection was limited to one immediate AllRefs hop.",
+                "- No connector, model element, parameter, UI selection, active view, or linked document was modified.",
+                "- No external file or evidence artifact was created.",
+            ]
+        )
+        return "\n".join([safe_str(item) for item in lines])
+
+    def answer_piping_ro_001_question(self, prompt):
+        action_key = _piping_ro_001_action_key(prompt)
+        if not action_key:
+            return None
+        try:
+            data = self._piping_ro_001_build_data(prompt, action_key)
+        except Exception as exc:
+            snapshot = {"selected_ids": [], "records": [], "unavailable": []}
+            data = self._piping_ro_001_base_data(prompt, action_key, snapshot)
+            data["classification"] = "PIPING_SELECTION_REPORT_FAILED"
+            data["reason_code"] = "UNEXPECTED_EXECUTION_FAILURE"
+            data["warnings"].append(safe_str(exc))
+            data["next_guidance"] = "Review the deterministic failure diagnostic and rerun."
+        report_text = self._piping_ro_001_format_report(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MODELMIND READ-ONLY PIPING SELECTION REPORT]",
+            "report_text": report_text,
+            "report_scope": "current active-document selection / supported rigid pipes only",
+            "report_timestamp": data.get("timestamp"),
+            "created_timestamp_local": data.get("timestamp"),
+            "feature_id": "PIPING-RO-001",
+            "feature_name": "ModelMind Read-Only Piping Selection Action Pack",
+            "action_id": data.get("action_id"),
+            "result_classification": data.get("classification"),
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view_name"),
+            "active_view_type": data.get("active_view_type"),
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "active_view_changed": False,
+            "external_files_written": False,
+            "workflow_anchor_eligible": False,
+            "qa_export_source_eligible": False,
+            "evidence_cycle_stage": False,
+            "evidence_runbook_advanced": False,
+            "evidence_cycle_manifest_updated": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _mep_ro_v1_recommended_action(self, classification):
         if classification == "MEP_RO_REPORT_EMPTY_SELECTION":
             return "Select relevant elements and rerun the read-only report."
@@ -47466,8 +49328,11 @@ class OllamaAIChat(forms.WPFWindow):
             mep_ro_001_reply = None
             if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
                 mep_ro_001_reply = self.answer_mep_ro_001_question(prompt)
-            mep_read_only_v1_reply = None
+            piping_ro_001_reply = None
             if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and mep_ro_001_reply is None:
+                piping_ro_001_reply = self.answer_piping_ro_001_question(prompt)
+            mep_read_only_v1_reply = None
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -47589,6 +49454,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif mep_ro_001_reply is not None:
                 reply = mep_ro_001_reply
+                preserve_latest_report_state = True
+            elif piping_ro_001_reply is not None:
+                reply = piping_ro_001_reply
                 preserve_latest_report_state = True
             elif mep_read_only_v1_reply is not None:
                 reply = mep_read_only_v1_reply

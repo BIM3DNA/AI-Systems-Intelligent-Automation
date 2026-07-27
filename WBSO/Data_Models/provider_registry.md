@@ -300,3 +300,9 @@ Status: fully runtime-validated and source-control closed at commit `4797b5e2b7f
 ## 2026-07-22 MEP-RO-001 Provider Independence
 
 MEP-RO-001 is a provider-independent deterministic read-only selection-report layer. Its 20 catalog routes dispatch before generic Ollama/OpenAI fallback. Providers do not select elements, resolve identifiers, inspect parameters, classify `SEL-QA-001` through `SEL-QA-016`, rank Context Suggestions, or determine workflow/QA-source eligibility. Generic model output cannot replace these reports. Status: live validated and source-control closed at `9ad951cb7febc95506bfc023b360de59471e3e6a`; evidence EV-AI-343 through EV-AI-347.
+
+## 2026-07-24 PIPING-RO-001 Provider Independence
+
+PIPING-RO-001 is a provider-independent deterministic read-only piping-selection layer. Its 16 canonical/alias routes resolve locally before generic Ollama/OpenAI fallback. Providers do not classify supported pipes, resolve segment/system/slope metadata, inspect connectors, prove reciprocal physical connections, evaluate `PIPING-QA-001` through `PIPING-QA-012`, or determine workflow/QA-source eligibility.
+
+Generic model output cannot replace the deterministic reports. Context Suggestions may expose catalog prompts but does not execute them automatically. Current status is implemented and substantially live validated; the runtime source is uncommitted/unpushed and a six-command suggestion-cap exposure correction remains pending. Evidence: EV-AI-348 through EV-AI-352.

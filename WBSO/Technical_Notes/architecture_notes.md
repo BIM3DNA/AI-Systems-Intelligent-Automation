@@ -1616,3 +1616,13 @@ MEP-RO-001 separates selection inspection from selection creation and model muta
 Parameter reads use best-effort built-in/shared/project/family identities, safe value normalization, coverage/readability metadata, and deterministic prioritization. Stable checks `SEL-QA-001` through `SEL-QA-016` cover unavailable references, identity gaps, restrictions, owner/view context, Mark/Type Mark state, workset resolution, and unreadable access. Limits of 200 identifier rows, 100 parameter rows, 50 affected IDs, 160 normalized-value characters, and 50 distinct values bound output.
 
 No-selection is a first-class Not ready result. Every MEP-RO-001 classification is excluded from Workflow Anchor and strict QA-source eligibility, so Context Suggestions and textual Visual Preview display cannot advance the Evidence Runbook or Evidence Cycle Manifest. Visual Preview remains a textual context surface, not a Revit 3D viewport. Evidence: EV-AI-343 through EV-AI-347.
+
+## 2026-07-24 PIPING-RO-001 Read-Only Piping Selection Architecture
+
+PIPING-RO-001 composes the MEP-RO-001 selection snapshot, identity records, safe parameter reads, bounded tables, and generic QA checks into four piping-specific actions. Supported scope is deliberately narrow: rigid `DB.Plumbing.Pipe` in `OST_PipeCurves` from the existing active-document selection. Fittings, FlexPipe, fabrication parts, unrelated elements, and unresolved references remain visible as unsupported scope rather than being discarded.
+
+System assignment is a normalized per-pipe model using `MEPSystem`, built-in metadata, and coarse fallback only as supplementary evidence. Multiple systems across different pipes are a distribution; contradiction is evaluated only among authoritative sources for the same pipe. Signed slope is read from stable metadata and displayed as ratio, percent, per mille, and angle; vertical/near-vertical applicability uses a 1 mm horizontal tolerance.
+
+Connector evidence is one-hop and physical-only. Piping domain, positive connector type, selected-pipe ownership, active-document reference ownership, different owner, and reciprocal `IsConnectedTo` confirmation are required. Raw `IsConnected` is diagnostic and never establishes authoritative connection state.
+
+All reports are read-only, bounded, workflow-anchor ineligible, strict-QA-source ineligible, and evidence-stage false. Live Revit validation substantially passed. The package remains open because Context Suggestions currently displays only one of four piping prompts under the existing six-command cap. Visual Preview safety-field mapping also requires audit because it displayed unknown values for direct-report false flags. Source remains uncommitted and unpushed. Evidence: EV-AI-348 through EV-AI-352; KC-048.

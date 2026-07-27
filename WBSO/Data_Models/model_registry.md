@@ -592,3 +592,15 @@ Commit: `9ad951cb7febc95506bfc023b360de59471e3e6a` - Add read-only BIM QA select
 The package adds four deterministic report models over the user's existing active-document selection: category/type summary, stable identifiers, parameter availability, and generic QA health. A shared safe collector resolves selected IDs without opening a picker and preserves unavailable references. Sorting is deterministic; output is bounded at 200 identifier rows, 100 parameter rows, 50 affected IDs, and 160 normalized-value characters.
 
 QA state uses stable checks `SEL-QA-001` through `SEL-QA-016`. No-selection returns `MEP_SELECTION_REPORT_NOT_READY` with `NO_ELEMENTS_SELECTED`. All result classifications are excluded from workflow-anchor and strict QA-source eligibility. No transaction, model/UI-selection/view/link mutation, automatic dispatch, evidence-manifest write, or external export is introduced. Evidence: EV-AI-343 through EV-AI-347.
+
+## PIPING-RO-001 - ModelMind Read-Only Piping Selection Action Pack
+
+Status: Implemented and substantially live validated; source uncommitted/unpushed; targeted Context Suggestions exposure correction pending.
+
+The package extends MEP-RO-001 with four deterministic projections over supported rigid `DB.Plumbing.Pipe` elements in `OST_PipeCurves`: summary, reciprocal physical connectors, normalized system assignment, and piping QA health. Unsupported non-pipes, fittings, FlexPipe, fabrication parts, and unresolved references are retained as explicit scope classifications.
+
+The normalized pipe record contains identity/type/segment, workset and restriction metadata, authoritative/fallback system metadata, diameter/length/signed slope/elevations/reference level/optional insulation, and bounded one-hop connector records. Physical connections require active-document ownership plus reciprocal `IsConnectedTo` confirmation in both directions.
+
+Stable checks are `PIPING-QA-001` through `PIPING-QA-012`; generic checks `SEL-QA-001` through `008`, `011`, `013`, `015`, and `016` are reused. Limits are 200 processed pipes, 200 pipe rows, 400 connector rows, 8 connectors per pipe, 20 owner IDs, 50 affected IDs, 50 warnings, and 160 normalized characters.
+
+Live validation covered empty, supported sloped, mixed Wall, fitting-only, mixed fitting, vertical/open connector, assigned disconnected, and multi-system selections. The remaining integration defect is visibility: the six-command Context Suggestions cap exposes only the first piping action after higher-priority and generic actions. Visual Preview safety mapping also showed unknown values despite false values in direct reports. Evidence: EV-AI-348 through EV-AI-352; KC-048.

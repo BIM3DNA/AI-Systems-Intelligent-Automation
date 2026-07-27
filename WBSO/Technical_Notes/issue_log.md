@@ -1727,3 +1727,28 @@ Status: Package closed; no implementation defect found.
 The different-type wall test was invalid because `RO001-DUP-TYPE` was entered into instance Mark, producing `SEL-QA-013`, while Type Mark remained blank and `SEL-QA-014` was not applicable. Existing pipe evidence confirmed the duplicate Type Mark detector with two issues. Revit Edit Group unavailability is a host modal-context limitation. Assembly-member behavior, unavailable references, unreadable-parameter exceptions, and the live 200-row identifier boundary were not practically exercised.
 
 The initial Git OpenSSL certificate failure was a development-environment transport issue; a command-local Windows schannel retry pushed successfully without configuration changes. Evidence: EV-AI-345 through EV-AI-347.
+
+## 2026-07-24 - PIPING-RO-001 Context Suggestions Exposure and Visual Preview Mapping
+
+Status: Open targeted UI integration correction; core piping actions substantially live validated.
+
+Issue:
+
+- supported-pipe gating activates correctly, but only `show selected pipes summary` is visible;
+- the existing six-command Context Suggestions display cap is consumed by one higher-priority export action, four generic MEP-RO-001 actions, and one piping action;
+- the other three registered piping actions are not exposed;
+- Visual Preview shows unknown safety values although direct PIPING-RO-001 reports contain explicit false values.
+
+Impact:
+
+- prompt routes and actions remain valid and executable manually;
+- no supported-pipe gating, route ownership, runtime action, workflow-isolation, or model-safety failure was observed;
+- discoverability is incomplete and prevents package/source-control closure.
+
+Required correction:
+
+- retain all four piping suggestions after the higher-priority evidence/export item and four generic MEP-RO-001 actions when a supported rigid pipe is selected;
+- audit Visual Preview/history field mapping for PIPING-RO-001 safety metadata;
+- rerun focused Context Suggestions and Visual Preview validation before commit/push.
+
+Current source status: implementation modifies only `script.py` and `prompt_catalog.json`, remains uncommitted and unpushed. Evidence: EV-AI-352; KC-048.

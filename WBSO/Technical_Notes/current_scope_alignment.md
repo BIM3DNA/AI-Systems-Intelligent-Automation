@@ -938,3 +938,29 @@ Status: fully runtime-validated on cycle `EVCYCLE-20260720-120400-fb9e254b78`, c
 Validated in scope: active-document existing-selection summary, identifiers, parameter availability, generic QA health, no-selection Not ready behavior, deterministic ordering/caps, alias routing, Context Suggestions visibility, textual Visual Preview context, workflow-anchor exclusion, strict QA-source exclusion, and no-write governance.
 
 Explicitly out of scope: selecting elements, pickers, model/parameter writes, active-view changes, linked-document inspection/mutation, 3D preview controls, Edit Group compatibility, discipline-specific QA, and automatic evidence progression. Assembly-member behavior, the live 200-row identifier boundary, unavailable-reference paths, and unreadable-parameter exception paths remain validation limitations. None block closure. Evidence: EV-AI-343 through EV-AI-347.
+
+## 2026-07-24 PIPING-RO-001 Scope Alignment
+
+Status: Implemented and substantially live validated; open pending targeted UI integration correction; source uncommitted/unpushed.
+
+Validated in scope:
+
+- four deterministic selected-rigid-pipe reports and 16 uniquely owned prompt lookups;
+- empty selection and no-supported-rigid-pipe Not ready behavior;
+- supported sloped and vertical pipes;
+- segment, diameter, length, signed slope, endpoint, system, and connector metadata;
+- reciprocal physical connector proof and open-connector detection;
+- mixed Wall/fitting scope classification and PARTIAL precedence;
+- assigned disconnected pipe and multiple legitimate system distribution;
+- `PIPING-QA-001` through `PIPING-QA-012` plus reused generic SEL-QA checks;
+- no-write workflow isolation and retained dashboard Workflow Anchor.
+
+Pending or not practically validated:
+
+- all four piping prompts visible simultaneously in Context Suggestions;
+- Visual Preview false safety-field mapping;
+- `UNASSIGNED_REVIEW`, FlexPipe-only, fabrication-only, connector failure, inconsistent system metadata, missing segment, missing/zero diameter, sub-1-mm length, >200 pipes, and connector/owner display caps;
+- resolved system type name presentation;
+- runtime commit, push, and source-control closure.
+
+Explicitly out of scope: selection creation/pickers, model or connector mutation, parameter/system/slope writes, active-view changes, linked-document mutation, automatic execution, Evidence Runbook/Manifest advancement, QA-source eligibility, external evidence generation, 3D preview, installers, and packages. Evidence: EV-AI-348 through EV-AI-352.

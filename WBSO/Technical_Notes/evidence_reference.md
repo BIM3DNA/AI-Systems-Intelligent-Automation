@@ -2256,3 +2256,40 @@ Runtime context: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`; `TEST [Flo
 Known limitations: Revit Edit Group remains modal/restricted; assembly-member path was not practically validated; the 200-row identifier boundary was not crossed live; unavailable-reference and unreadable-parameter exception paths were not encountered live; parameter identity is best-effort where Revit exposes no stable definition metadata; Visual Preview remains textual rather than a 3D viewport; and the different-type duplicate Type Mark setup was invalid because instance Mark was edited.
 
 Technical conclusion: MEP-RO-001 provides deterministic, bounded, provider-independent QA reporting over the user's existing active-document selection while remaining isolated from selection mutation, Revit writes, workflow progression, and strict QA evidence sourcing.
+
+## EV-AI-348 through EV-AI-352 - PIPING-RO-001 Read-Only Piping Selection Action Pack
+
+Status: Implemented and substantially live validated; targeted Context Suggestions exposure correction pending; source uncommitted and unpushed.
+
+Date: 24-07-26 (`2026-07-24`)
+
+Week: `2026-W18`
+
+Daily log: `DL-2026-07-24-01` (hours require manual entry; no supplied or project-local numeric value was found)
+
+Knowledge Capture: `KC-048`
+
+- EV-AI-348: Implementation and static validation. PIPING-RO-001 adds four deterministic actions, action IDs `PIPING-RO-001-A01` through `A04`, 16 uniquely owned canonical/alias prompt lookups, nine result classifications, rigid-pipe scope classification, guarded segment/system/slope/connector records, fixed caps, deterministic sorting, `PIPING-QA-001` through `PIPING-QA-012`, generic SEL-QA reuse, Context Suggestions gating, Workflow Anchor exclusion, strict QA-source exclusion, and read-only report registration. Codex reported `tabnanny`, compatible supporting-module compilation, prompt catalog parsing with 227 entries, new-method AST parsing, `git diff --check`, route/legacy ownership checks, classification/QA/cap checks, dispatch ordering, and governance scans passed. The implementation changes only `script.py` and `prompt_catalog.json`, approximately 2001 insertions and one deletion, and remains uncommitted/unpushed.
+- EV-AI-349: No-selection and single-supported-pipe runtime validation. All four canonical actions returned `PIPING_SELECTION_REPORT_NOT_READY` / `NO_ELEMENTS_SELECTED` with no picker, transaction, model/UI/view/file/workflow change when empty. Sloped pipe `3060449`, type `ACO pipe 1.4301 OD (complex)` `[61549]`, segment `Stainless steel, 1.4301 - OD single socket` `[61519]`, diameter 160.0 mm, length 2868.0 mm, system `M531 7` `[3127711]`, and slope `-0.005114` returned summary, connector, and system OK. Two physical connectors were reciprocally connected to owners `3060448` and `3060245`; all piping checks passed; blank Mark produced `PIPING_QA_HEALTH_YELLOW` through reused `SEL-QA-011`.
+- EV-AI-350: Mixed and unsupported selection-scope runtime validation. Pipe `3060449` plus Wall `3130302` produced `PIPING_SELECTION_REPORT_PARTIAL` and `PIPING_QA_HEALTH_PARTIAL`; `PIPING-QA-001` reported the Wall while the pipe remained fully processed and PARTIAL correctly took precedence over blank-Mark YELLOW. Fitting `3060245` alone returned NOT_READY / `NO_SUPPORTED_RIGID_PIPES` with `UNSUPPORTED_PIPE_FITTING`. Pipe `3060110` plus fitting `3060245` produced PARTIAL and retained the supported pipe's vertical/open-connector and blank-Mark evidence.
+- EV-AI-351: Connector, vertical-slope, assigned-system, and multi-system runtime validation. Pipe `3060110` reported vertical/near-vertical slope `NOT_APPLICABLE`, two physical connectors, one reciprocal connection to fitting `3060245`, one open connector, and no unreadable connector. Standard pipe `3130534` retained assigned system `Domestic Cold Water 1` `[3136137]`, system type ID `3130536`, and Domestic Cold Water classification despite two open connectors. Pipes `3060449` and `3130534` produced two legitimate system distribution rows; each pipe was `ASSIGNED`/`CONSISTENT`; `PIPING-QA-011` applied to two pipes with zero issues.
+- EV-AI-352: Context Suggestions, Visual Preview, workflow-isolation, and pending-correction evidence. No-selection and Wall-only contexts correctly omitted PIPING-RO-001 suggestions. Pipe and Pipe+Wall contexts activated gating, but only `show selected pipes summary` was visible because the six-command display cap followed one higher-priority export action and four generic MEP-RO-001 actions. This is a suggestion exposure/prioritization-cap defect, not route, gating, action, workflow, or safety failure. Visual Preview showed document/view/discipline/selection/latest result and retained `MEP-QA-DASHBOARD-v1` as Workflow Anchor, but safety values appeared unknown despite false values in direct reports. Every tested direct report showed model/UI/view/file/transaction/link/picker/auto-run and evidence-workflow flags false.
+
+Runtime context:
+
+- Document: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- Views: `TEST [FloorPlan]`; `{3D - e.avdovicQREF7} [ThreeD]`
+- Discipline: Piping
+
+Known limitations: `UNASSIGNED_REVIEW`, FlexPipe-only, fabrication-part-only, connector-manager failure, inconsistent authoritative system metadata, missing/unreadable segment, missing/zero diameter, sub-1-mm length, >200 supported pipes, connector-detail cap, and owner-ID cap were not practically exercised. System type is displayed as ElementId rather than resolved type name.
+
+### Daily Log
+
+- Daily Log ID: `DL-2026-07-24-01`
+- Date: 24-07-26
+- Week: `2026-W18`
+- Hours: manual entry required; intentionally left without a numeric value
+- Work summary: implemented and statically validated PIPING-RO-001; live validated empty, supported, mixed, fitting, vertical/open-connector, assigned-system, and multi-system paths; validated reciprocal physical connector semantics and workflow isolation; discovered the Context Suggestions six-command exposure defect and Visual Preview safety-field mapping limitation; retained a targeted correction before source-control closure.
+- Evidence: EV-AI-348 through EV-AI-352
+
+Technical conclusion: PIPING-RO-001 is implemented and substantially live validated, but remains uncommitted and not source-control closed because a targeted Context Suggestions exposure correction is pending.

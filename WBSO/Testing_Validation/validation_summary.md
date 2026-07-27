@@ -1047,3 +1047,50 @@ No-selection tests returned `MEP_SELECTION_REPORT_NOT_READY` / `NO_ELEMENTS_SELE
 Static validation passed: tabnanny, supporting-module compilation, catalog parse with 223 entries, 20-route uniqueness, legacy-route checks, helper assertions, `SEL-QA-001` through `SEL-QA-016`, limits 200/100/50/160, resolver exclusions, dispatch precedence, and `git diff --check`. Governance found no new transaction, mutation, parameter write, selection/view/link change, automatic dispatch, manifest write, or export generation.
 
 Commit `9ad951cb7febc95506bfc023b360de59471e3e6a` (`Add read-only BIM QA selection reports`) contains only the runtime script and prompt catalog, was pushed `main -> origin/main`, and closed at ahead/behind `0/0`. Evidence: EV-AI-343 through EV-AI-347. Daily log: `DL-2026-07-22-01`; hours require manual entry. KC note: `KC-047`.
+
+## 2026-07-24 - PIPING-RO-001 Current Implementation and Validation State
+
+### Status
+
+PIPING-RO-001 is implemented and substantially live validated. It is not source-control closed: the runtime changes remain uncommitted and unpushed while a targeted Context Suggestions exposure correction is pending.
+
+### Implemented Scope
+
+Four deterministic read-only actions cover selected rigid-pipe summary, connector review, system assignment, and piping QA health. The package provides 16 canonical/alias routes, nine result classifications, guarded pipe/segment/system/slope/connector records, deterministic sorting and caps, `PIPING-QA-001` through `PIPING-QA-012`, generic `SEL-QA` reuse, Context Suggestions gating, Workflow Anchor exclusion, strict QA-source exclusion, and existing latest-report registration.
+
+### Runtime Validation
+
+- No selection returned NOT_READY safely for all four actions without picker, write, UI/view change, external file, or workflow progression.
+- Sloped pipe `3060449` resolved type `61549`, segment `61519`, 160.0 mm diameter, 2868.0 mm length, system `M531 7` `[3127711]`, slope `-0.005114`, and two reciprocal physical connector owners.
+- Mixed Pipe/Wall and Pipe/Fitting selections produced PARTIAL while preserving supported-pipe evidence; fitting-only produced NOT_READY / `NO_SUPPORTED_RIGID_PIPES`.
+- Vertical pipe `3060110` correctly reported slope as `NOT_APPLICABLE`, one connected and one open connector.
+- Standard pipe `3130534` retained Domestic Cold Water assignment and system type ID despite two open connectors.
+- Multi-system selection produced two consistent system rows without false inconsistency.
+- Blank Mark was reported through `SEL-QA-011`; piping-specific checks remained stable.
+- Workflow Anchor, Evidence Runbook, Evidence Cycle Manifest, strict QA-source eligibility, and external evidence state were not advanced by PIPING-RO-001 reports.
+
+Runtime context: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`; `TEST [FloorPlan]`; `{3D - e.avdovicQREF7} [ThreeD]`; detected discipline Piping.
+
+### Static Validation
+
+Codex reported `tabnanny`, compatible supporting-module compilation, prompt catalog parsing with 227 entries, new-method AST parsing, `git diff --check`, route ownership, classification/check/cap assertions, dispatch ordering, legacy-route checks, and governance scans passed. The intended implementation files are the primary AI Workbench script and prompt catalog; those runtime changes predate this documentation-only update.
+
+### Open Findings
+
+Context Suggestions gating works, but its six-command display cap exposes only `show selected pipes summary` after one higher-priority export action and four generic MEP-RO-001 actions. This is a deterministic suggestion exposure/prioritization defect, not a route, report, workflow, or Revit safety failure. Visual Preview also displayed safety values as unknown although direct piping reports stored false; this appears to be a field-mapping limitation and requires audit.
+
+Unvalidated paths include `UNASSIGNED_REVIEW`, FlexPipe-only, fabrication-part-only, connector-manager failure, inconsistent authoritative system metadata, missing/unreadable segment, invalid diameter/length thresholds, and configured selection/detail caps.
+
+### Safety
+
+No transaction, TransactionGroup, model/parameter/link mutation, active-view switch, UI selection change, picker, automatic execution, workflow advancement, manifest write, or external evidence generation was introduced by the package. Connector inspection is bounded read-only traversal for selected rigid pipes.
+
+### Administrative Record
+
+- Evidence: EV-AI-348 through EV-AI-352
+- Daily log: `DL-2026-07-24-01`
+- Week: `2026-W18`
+- Hours: manual entry required; no supplied or project-local numeric value exists
+- KC note: `KC-048`
+
+Technical conclusion: PIPING-RO-001 is implemented and substantially live validated, but remains uncommitted and not source-control closed because a targeted Context Suggestions exposure correction is pending.
