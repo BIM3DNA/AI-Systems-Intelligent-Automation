@@ -2259,7 +2259,7 @@ Technical conclusion: MEP-RO-001 provides deterministic, bounded, provider-indep
 
 ## EV-AI-348 through EV-AI-352 - PIPING-RO-001 Read-Only Piping Selection Action Pack
 
-Status: Implemented and substantially live validated; targeted Context Suggestions exposure correction pending; source uncommitted and unpushed.
+Status: Historical implementation and runtime evidence; targeted UI defect documented here was resolved by EV-AI-353.
 
 Date: 24-07-26 (`2026-07-24`)
 
@@ -2269,7 +2269,7 @@ Daily log: `DL-2026-07-24-01` (hours require manual entry; no supplied or projec
 
 Knowledge Capture: `KC-048`
 
-- EV-AI-348: Implementation and static validation. PIPING-RO-001 adds four deterministic actions, action IDs `PIPING-RO-001-A01` through `A04`, 16 uniquely owned canonical/alias prompt lookups, nine result classifications, rigid-pipe scope classification, guarded segment/system/slope/connector records, fixed caps, deterministic sorting, `PIPING-QA-001` through `PIPING-QA-012`, generic SEL-QA reuse, Context Suggestions gating, Workflow Anchor exclusion, strict QA-source exclusion, and read-only report registration. Codex reported `tabnanny`, compatible supporting-module compilation, prompt catalog parsing with 227 entries, new-method AST parsing, `git diff --check`, route/legacy ownership checks, classification/QA/cap checks, dispatch ordering, and governance scans passed. The implementation changes only `script.py` and `prompt_catalog.json`, approximately 2001 insertions and one deletion, and remains uncommitted/unpushed.
+- EV-AI-348: Implementation and static validation. PIPING-RO-001 adds four deterministic actions, action IDs `PIPING-RO-001-A01` through `A04`, 16 uniquely owned canonical/alias prompt lookups, nine result classifications, rigid-pipe scope classification, guarded segment/system/slope/connector records, fixed caps, deterministic sorting, `PIPING-QA-001` through `PIPING-QA-012`, generic SEL-QA reuse, Context Suggestions gating, Workflow Anchor exclusion, strict QA-source exclusion, and read-only report registration. Codex reported `tabnanny`, compatible supporting-module compilation, prompt catalog parsing with 227 entries, new-method AST parsing, `git diff --check`, route/legacy ownership checks, classification/QA/cap checks, dispatch ordering, and governance scans passed. The implementation changed only `script.py` and `prompt_catalog.json`, approximately 2001 insertions and one deletion. This entry records the source state at implementation time; later correction and local commit state are recorded in EV-AI-353.
 - EV-AI-349: No-selection and single-supported-pipe runtime validation. All four canonical actions returned `PIPING_SELECTION_REPORT_NOT_READY` / `NO_ELEMENTS_SELECTED` with no picker, transaction, model/UI/view/file/workflow change when empty. Sloped pipe `3060449`, type `ACO pipe 1.4301 OD (complex)` `[61549]`, segment `Stainless steel, 1.4301 - OD single socket` `[61519]`, diameter 160.0 mm, length 2868.0 mm, system `M531 7` `[3127711]`, and slope `-0.005114` returned summary, connector, and system OK. Two physical connectors were reciprocally connected to owners `3060448` and `3060245`; all piping checks passed; blank Mark produced `PIPING_QA_HEALTH_YELLOW` through reused `SEL-QA-011`.
 - EV-AI-350: Mixed and unsupported selection-scope runtime validation. Pipe `3060449` plus Wall `3130302` produced `PIPING_SELECTION_REPORT_PARTIAL` and `PIPING_QA_HEALTH_PARTIAL`; `PIPING-QA-001` reported the Wall while the pipe remained fully processed and PARTIAL correctly took precedence over blank-Mark YELLOW. Fitting `3060245` alone returned NOT_READY / `NO_SUPPORTED_RIGID_PIPES` with `UNSUPPORTED_PIPE_FITTING`. Pipe `3060110` plus fitting `3060245` produced PARTIAL and retained the supported pipe's vertical/open-connector and blank-Mark evidence.
 - EV-AI-351: Connector, vertical-slope, assigned-system, and multi-system runtime validation. Pipe `3060110` reported vertical/near-vertical slope `NOT_APPLICABLE`, two physical connectors, one reciprocal connection to fitting `3060245`, one open connector, and no unreadable connector. Standard pipe `3130534` retained assigned system `Domestic Cold Water 1` `[3136137]`, system type ID `3130536`, and Domestic Cold Water classification despite two open connectors. Pipes `3060449` and `3130534` produced two legitimate system distribution rows; each pipe was `ASSIGNED`/`CONSISTENT`; `PIPING-QA-011` applied to two pipes with zero issues.
@@ -2292,4 +2292,57 @@ Known limitations: `UNASSIGNED_REVIEW`, FlexPipe-only, fabrication-part-only, co
 - Work summary: implemented and statically validated PIPING-RO-001; live validated empty, supported, mixed, fitting, vertical/open-connector, assigned-system, and multi-system paths; validated reciprocal physical connector semantics and workflow isolation; discovered the Context Suggestions six-command exposure defect and Visual Preview safety-field mapping limitation; retained a targeted correction before source-control closure.
 - Evidence: EV-AI-348 through EV-AI-352
 
-Technical conclusion: PIPING-RO-001 is implemented and substantially live validated, but remains uncommitted and not source-control closed because a targeted Context Suggestions exposure correction is pending.
+Technical conclusion for EV-AI-348 through EV-AI-352: core PIPING-RO-001 behavior was substantially live validated, and the remaining Context Suggestions/Visual Preview defect was isolated for the targeted correction recorded in EV-AI-353.
+
+## EV-AI-353 - PIPING-RO-001 Context Suggestions and Visual Preview Closure
+
+Status: Passed; targeted integration defects resolved and committed locally; remote closure pending.
+
+Date: 30-07-26 (`2026-07-30`)
+
+Week: `2026-W18`
+
+Daily log: `DL-2026-07-30-01` (hours require manual entry; no numeric value supplied)
+
+Knowledge Capture: `KC-048`
+
+Source control:
+
+- Commit: `b3867636c0f5f7991da45a88362aacaab05a76f8`
+- Parent: `27b159998f1caa5637897a90712c4048cae10e91`
+- Subject: `Fix PIPING-RO-001 context suggestion exposure`
+- Branch: `main`
+- Commit scope: only `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
+- Commit diff: one file changed, 13 insertions, and 6 deletions
+- Post-commit/pre-documentation state: clean worktree; `main` ahead of `origin/main` by one and behind by zero
+- Remote state: local commit has not been pushed
+
+Correction evidence:
+
+- Root cause was inconsistent fixed limits in Context Suggestions and safe prompt-card projection. The six-item limit admitted one evidence/export action, four generic MEP-RO-001 actions, and only the first PIPING-RO-001 action.
+- Normal contexts retain capacity six. A supported-rigid-pipe context uses capacity ten on both suggestion surfaces.
+- Deterministic ordering preserves one highest-priority evidence/export action, four generic MEP-RO-001 actions, all four PIPING-RO-001 actions, then optional history.
+- No selection and Wall-only selection expose no piping suggestions. Pipe-only and Pipe+Wall expose all four piping suggestions.
+- All four direct actions executed successfully for pipe `3003513`: summary OK, connector report OK, system assignment OK, and QA YELLOW.
+- Visual Preview now recognizes `model_modified`, `ui_selection_modified`, and `external_files_written`; new PIPING-RO-001 reports displayed false for all three. Historical records were not rewritten.
+- Workflow Anchor remained `MEP-QA-DASHBOARD-v1` / GREEN. PIPING-RO-001 remained excluded from Workflow Anchor and strict QA-source eligibility.
+- Static validation passed for route uniqueness, suggestion ordering/capacity, report-only metadata, manual execution, `auto_run: false`, supporting compilation, prompt catalog parsing, `tabnanny`, governance, and `git diff --check`.
+- No transaction, TransactionGroup, model/parameter/connector/link mutation, picker, UI selection change, active-view switch, external write, or automatic command execution was introduced.
+
+Runtime context:
+
+- Document: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`
+- Views: `TEST [FloorPlan]`; `{3D - e.avdovicQREF7} [ThreeD]`
+- Discipline: Piping
+- Validated pipe: `3003513`
+
+### Daily Log
+
+- Daily Log ID: `DL-2026-07-30-01`
+- Date: 30-07-26
+- Week: `2026-W18`
+- Hours: manual entry required; intentionally left without a numeric value
+- Work summary: corrected PIPING-RO-001 Context Suggestions exposure with a deterministic selection-aware capacity, aligned safe prompt-card capacity, added targeted Visual Preview safety-field aliases, validated empty/Wall/Pipe/Pipe+Wall contexts and all four piping actions, and recorded local commit state.
+- Evidence: EV-AI-353
+
+Technical conclusion: PIPING-RO-001 is implemented, substantially live validated, targeted Context Suggestions and Visual Preview integration defects resolved, and committed locally in b386763. Remote source-control closure remains pending until the commit is pushed.

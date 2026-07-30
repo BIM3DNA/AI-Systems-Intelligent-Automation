@@ -595,7 +595,7 @@ QA state uses stable checks `SEL-QA-001` through `SEL-QA-016`. No-selection retu
 
 ## PIPING-RO-001 - ModelMind Read-Only Piping Selection Action Pack
 
-Status: Implemented and substantially live validated; source uncommitted/unpushed; targeted Context Suggestions exposure correction pending.
+Status: Implemented, live validated, targeted UI integration defects resolved, and committed locally; remote closure pending.
 
 The package extends MEP-RO-001 with four deterministic projections over supported rigid `DB.Plumbing.Pipe` elements in `OST_PipeCurves`: summary, reciprocal physical connectors, normalized system assignment, and piping QA health. Unsupported non-pipes, fittings, FlexPipe, fabrication parts, and unresolved references are retained as explicit scope classifications.
 
@@ -603,4 +603,4 @@ The normalized pipe record contains identity/type/segment, workset and restricti
 
 Stable checks are `PIPING-QA-001` through `PIPING-QA-012`; generic checks `SEL-QA-001` through `008`, `011`, `013`, `015`, and `016` are reused. Limits are 200 processed pipes, 200 pipe rows, 400 connector rows, 8 connectors per pipe, 20 owner IDs, 50 affected IDs, 50 warnings, and 160 normalized characters.
 
-Live validation covered empty, supported sloped, mixed Wall, fitting-only, mixed fitting, vertical/open connector, assigned disconnected, and multi-system selections. The remaining integration defect is visibility: the six-command Context Suggestions cap exposes only the first piping action after higher-priority and generic actions. Visual Preview safety mapping also showed unknown values despite false values in direct reports. Evidence: EV-AI-348 through EV-AI-352; KC-048.
+Live validation covered empty, supported sloped, mixed Wall, fitting-only, mixed fitting, vertical/open connector, assigned disconnected, and multi-system selections. The targeted integration correction uses capacity six normally and ten for supported-rigid-pipe contexts, preserving evidence/export precedence, four generic actions, and all four piping actions. Visual Preview now recognizes the package's snake-case safety fields. Correction commit `b3867636c0f5f7991da45a88362aacaab05a76f8` is local and not pushed. Evidence: EV-AI-348 through EV-AI-353; KC-048.

@@ -1730,7 +1730,7 @@ The initial Git OpenSSL certificate failure was a development-environment transp
 
 ## 2026-07-24 - PIPING-RO-001 Context Suggestions Exposure and Visual Preview Mapping
 
-Status: Open targeted UI integration correction; core piping actions substantially live validated.
+Status: Resolved and live validated; correction committed locally; remote closure pending.
 
 Issue:
 
@@ -1743,12 +1743,18 @@ Impact:
 
 - prompt routes and actions remain valid and executable manually;
 - no supported-pipe gating, route ownership, runtime action, workflow-isolation, or model-safety failure was observed;
-- discoverability is incomplete and prevents package/source-control closure.
+- discoverability was incomplete before the targeted correction.
 
-Required correction:
+Resolution:
 
-- retain all four piping suggestions after the higher-priority evidence/export item and four generic MEP-RO-001 actions when a supported rigid pipe is selected;
-- audit Visual Preview/history field mapping for PIPING-RO-001 safety metadata;
-- rerun focused Context Suggestions and Visual Preview validation before commit/push.
+- Context Suggestions exposure defect: RESOLVED.
+- Visual Preview PIPING safety-field mapping: RESOLVED FOR NEW REPORTS.
+- retained normal suggestion capacity six and introduced supported-rigid-pipe capacity ten;
+- retained the highest-priority evidence/export action, all four generic MEP-RO-001 actions, all four piping actions, and optional history in deterministic order;
+- used the same dynamic capacity for Context Suggestions and safe prompt-card projection;
+- mapped snake-case PIPING-RO-001 safety fields in Visual Preview;
+- live validated no-selection, Wall-only, Pipe-only, and Pipe+Wall contexts plus all four direct piping actions.
 
-Current source status: implementation modifies only `script.py` and `prompt_catalog.json`, remains uncommitted and unpushed. Evidence: EV-AI-352; KC-048.
+Historical note: reports generated before the parser-alias correction may still display unknown safety values in Visual Preview; newly generated reports resolve explicit false values correctly.
+
+Current source status: correction commit `b3867636c0f5f7991da45a88362aacaab05a76f8` changes only `script.py`, exists locally on `main`, and has not been pushed. Evidence: EV-AI-352 and EV-AI-353; KC-048.

@@ -941,7 +941,7 @@ Explicitly out of scope: selecting elements, pickers, model/parameter writes, ac
 
 ## 2026-07-24 PIPING-RO-001 Scope Alignment
 
-Status: Implemented and substantially live validated; open pending targeted UI integration correction; source uncommitted/unpushed.
+Status: Implemented, substantially live validated, targeted UI integration correction resolved, and committed locally; remote closure pending.
 
 Validated in scope:
 
@@ -954,13 +954,13 @@ Validated in scope:
 - assigned disconnected pipe and multiple legitimate system distribution;
 - `PIPING-QA-001` through `PIPING-QA-012` plus reused generic SEL-QA checks;
 - no-write workflow isolation and retained dashboard Workflow Anchor.
+- all four piping prompts exposed for supported Pipe-only and Pipe+Wall contexts through context-aware capacity while retaining evidence and generic-action precedence;
+- Visual Preview safety fields resolved to explicit false values for new PIPING-RO-001 reports.
 
 Pending or not practically validated:
 
-- all four piping prompts visible simultaneously in Context Suggestions;
-- Visual Preview false safety-field mapping;
 - `UNASSIGNED_REVIEW`, FlexPipe-only, fabrication-only, connector failure, inconsistent system metadata, missing segment, missing/zero diameter, sub-1-mm length, >200 pipes, and connector/owner display caps;
 - resolved system type name presentation;
-- runtime commit, push, and source-control closure.
+- remote push and source-control alignment for local commit `b3867636c0f5f7991da45a88362aacaab05a76f8`.
 
-Explicitly out of scope: selection creation/pickers, model or connector mutation, parameter/system/slope writes, active-view changes, linked-document mutation, automatic execution, Evidence Runbook/Manifest advancement, QA-source eligibility, external evidence generation, 3D preview, installers, and packages. Evidence: EV-AI-348 through EV-AI-352.
+Explicitly out of scope: selection creation/pickers, model or connector mutation, parameter/system/slope writes, active-view changes, linked-document mutation, automatic execution, Evidence Runbook/Manifest advancement, QA-source eligibility, external evidence generation, 3D preview, installers, and packages. Evidence: EV-AI-348 through EV-AI-353.

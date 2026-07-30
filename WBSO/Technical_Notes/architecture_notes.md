@@ -1625,4 +1625,8 @@ System assignment is a normalized per-pipe model using `MEPSystem`, built-in met
 
 Connector evidence is one-hop and physical-only. Piping domain, positive connector type, selected-pipe ownership, active-document reference ownership, different owner, and reciprocal `IsConnectedTo` confirmation are required. Raw `IsConnected` is diagnostic and never establishes authoritative connection state.
 
-All reports are read-only, bounded, workflow-anchor ineligible, strict-QA-source ineligible, and evidence-stage false. Live Revit validation substantially passed. The package remains open because Context Suggestions currently displays only one of four piping prompts under the existing six-command cap. Visual Preview safety-field mapping also requires audit because it displayed unknown values for direct-report false flags. Source remains uncommitted and unpushed. Evidence: EV-AI-348 through EV-AI-352; KC-048.
+All reports are read-only, bounded, workflow-anchor ineligible, strict-QA-source ineligible, and evidence-stage false. Live Revit validation substantially passed.
+
+The targeted UI integration correction replaces inconsistent fixed limits with one context-aware capacity policy shared by Context Suggestions and safe prompt-card projection. Normal contexts retain capacity six. A context containing at least one supported rigid pipe receives capacity ten, sufficient for the highest-priority evidence/export action, four generic MEP-RO-001 actions, all four PIPING-RO-001 actions, and an optional history action. Selection gating and evidence precedence are unchanged.
+
+Visual Preview now accepts the report's snake-case `model_modified`, `ui_selection_modified`, and `external_files_written` fields. This corrects new-result display without rewriting historical Console records. Commit `b3867636c0f5f7991da45a88362aacaab05a76f8` is local and not pushed. Evidence: EV-AI-348 through EV-AI-353; KC-048.

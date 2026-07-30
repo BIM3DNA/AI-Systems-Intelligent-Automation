@@ -4,13 +4,13 @@
 
 - Feature ID: PIPING-RO-001
 - Name: ModelMind Read-Only Piping Selection Action Pack
-- Status: Implemented and substantially live validated; targeted Context Suggestions exposure correction pending
-- Date: 24-07-26 (`2026-07-24`)
+- Status: Implemented, live validated, targeted UI integration defects resolved, and committed locally; remote closure pending
+- Date: 30-07-26 (`2026-07-30`)
 - Week: `2026-W18`
 - Branch: `main`
-- Evidence: EV-AI-348 through EV-AI-352
-- Daily log: `DL-2026-07-24-01`; hours require manual entry
-- Source-control status: runtime implementation is uncommitted and unpushed
+- Evidence: EV-AI-348 through EV-AI-353
+- Daily logs: `DL-2026-07-24-01`; `DL-2026-07-30-01`; hours require manual entry
+- Source-control status: correction commit `b3867636c0f5f7991da45a88362aacaab05a76f8` exists locally and has not been pushed
 
 ## Problem Statement
 
@@ -25,7 +25,7 @@ The implementation modifies only:
 - `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`
 - `AI.extension/lib/prompt_catalog.json`
 
-Implementation scope metadata reported by Codex was approximately 2001 insertions and one deletion across two files. This is scope metadata, not a quality result. The source remains uncommitted and unpushed.
+Implementation scope metadata reported by Codex was approximately 2001 insertions and one deletion across two files. This is scope metadata, not a quality result. The targeted correction commit changes only the primary AI Workbench script.
 
 ## Supported and Unsupported Scope
 
@@ -119,18 +119,26 @@ Validation used `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`, views `TEST
 
 Every tested report showed model, UI selection, active view, external files, transaction, TransactionGroup, linked document, picker, and auto-run flags false. Evidence Runbook advancement, Evidence Cycle Manifest update, Workflow Anchor eligibility, QA-source eligibility, and evidence-cycle stage were false. Visual Preview retained `MEP-QA-DASHBOARD-v1` as authoritative Workflow Anchor.
 
-## Context Suggestions Defect and Pending Correction
+## Context Suggestions and Visual Preview Correction
 
-Supported-pipe gating works: no piping suggestions appear with no selection or Wall-only selection. With a pipe selected, only `show selected pipes summary` is visible. The existing six-command display cap is consumed by the higher-priority export item, four generic MEP-RO-001 actions, and one piping action.
+The root cause was inconsistent fixed suggestion limits across Context Suggestions and safe prompt-card projection. The six-command limit was consumed by the highest-priority evidence/export item, four generic MEP-RO-001 actions, and the first piping action.
 
-This is a Context Suggestions exposure/prioritization-cap integration defect. It is not route ownership failure, gating failure, action failure, workflow-isolation failure, or model-safety failure. The targeted correction must keep all four piping actions visible after the higher-priority evidence/export item and four generic actions.
+The correction keeps the normal-context capacity at six and raises capacity to ten only when at least one supported rigid pipe is selected. Both Context Suggestions and safe prompt-card projection use the same dynamic capacity. Evidence/export precedence and the four generic MEP-RO-001 actions remain ahead of all four PIPING-RO-001 actions. No-selection, Wall-only, and fitting-only contexts retain the normal behavior and expose no piping suggestions.
 
-Visual Preview safety values appeared as unknown although direct reports contained false values. This is likely an existing history/field-mapping limitation and must be audited during the targeted correction. It is not evidence of model mutation.
+Visual Preview parsing now recognizes the PIPING-RO-001 snake-case safety fields `model_modified`, `ui_selection_modified`, and `external_files_written`. New reports display explicit false values. Historical Console records that already contain unknown values are retained and are not rewritten.
+
+Live correction validation on pipe `3003513` confirmed all four piping suggestions, all four generic selection suggestions, the higher-priority evidence/export suggestion, and the optional history suggestion in deterministic order. Pipe+Wall retained the same piping availability. Direct execution returned summary OK, connectors OK, system assignment OK, and QA YELLOW. Visual Preview showed model modification, UI selection modification, and external file writing as false.
+
+## Final Correction and Source Control
+
+Commit `b3867636c0f5f7991da45a88362aacaab05a76f8` (`Fix PIPING-RO-001 context suggestion exposure`) contains only `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`. It applies the context-aware suggestion capacity and the targeted Visual Preview safety-field aliases. The commit is local on `main`; remote closure remains pending because it has not been pushed.
+
+The commit parent is `27b159998f1caa5637897a90712c4048cae10e91`. Its diff is one file changed, 13 insertions, and 6 deletions. The worktree was clean immediately after the correction commit, and `main` was ahead of `origin/main` by one commit and behind by zero before this WBSO-only update. The correction commit excludes the prompt catalog, WBSO files, generated evidence, Console history, ZIP files, and package files.
 
 ## Limitations
 
-The following paths were not practically live validated: `UNASSIGNED_REVIEW`, FlexPipe-only, fabrication-part-only, connector-manager failure, inconsistent authoritative system metadata, missing/unreadable segment, missing/zero diameter, sub-1-mm length, more than 200 supported pipes, connector-detail cap, and connected-owner cap. System type currently displays as ElementId rather than resolved type name.
+The following paths were not practically live validated: `UNASSIGNED_REVIEW`, FlexPipe-only, fabrication-part-only, connector-manager failure, inconsistent authoritative system metadata, missing/unreadable segment, missing/zero diameter, sub-1-mm length, more than 200 supported pipes, connector-detail cap, and connected-owner cap. System type currently displays as ElementId rather than resolved type name. Historical Visual Preview records are not retroactively rewritten.
 
 ## Conclusion
 
-PIPING-RO-001 is implemented and substantially live validated, but remains uncommitted and not source-control closed because a targeted Context Suggestions exposure correction is pending.
+PIPING-RO-001 is implemented, substantially live validated, targeted Context Suggestions and Visual Preview integration defects resolved, and committed locally in b386763. Remote source-control closure remains pending until the commit is pushed.

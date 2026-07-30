@@ -1052,7 +1052,7 @@ Commit `9ad951cb7febc95506bfc023b360de59471e3e6a` (`Add read-only BIM QA selecti
 
 ### Status
 
-PIPING-RO-001 is implemented and substantially live validated. It is not source-control closed: the runtime changes remain uncommitted and unpushed while a targeted Context Suggestions exposure correction is pending.
+PIPING-RO-001 is implemented and substantially live validated. The targeted Context Suggestions and Visual Preview integration defects were resolved and committed locally in `b3867636c0f5f7991da45a88362aacaab05a76f8`; remote source-control closure remains pending because the commit has not been pushed.
 
 ### Implemented Scope
 
@@ -1075,9 +1075,14 @@ Runtime context: `BUNGE_BvdK_R24_3D_Loading Building_e.avdovicQREF7`; `TEST [Flo
 
 Codex reported `tabnanny`, compatible supporting-module compilation, prompt catalog parsing with 227 entries, new-method AST parsing, `git diff --check`, route ownership, classification/check/cap assertions, dispatch ordering, legacy-route checks, and governance scans passed. The intended implementation files are the primary AI Workbench script and prompt catalog; those runtime changes predate this documentation-only update.
 
-### Open Findings
+### Resolved Integration Findings
 
-Context Suggestions gating works, but its six-command display cap exposes only `show selected pipes summary` after one higher-priority export action and four generic MEP-RO-001 actions. This is a deterministic suggestion exposure/prioritization defect, not a route, report, workflow, or Revit safety failure. Visual Preview also displayed safety values as unknown although direct piping reports stored false; this appears to be a field-mapping limitation and requires audit.
+The fixed six-command exposure defect was corrected with a deterministic context-aware capacity: six in normal contexts and ten when a supported rigid pipe is selected. The supported-pipe ordering preserves the highest-priority evidence/export item, all four generic MEP-RO-001 actions, all four PIPING-RO-001 actions, and then optional history. No-selection and Wall-only contexts expose no piping actions.
+
+Visual Preview now maps PIPING-RO-001 snake-case safety fields to explicit false values. Historical records with unknown values are preserved rather than rewritten.
+
+- Context Suggestions exposure defect: RESOLVED.
+- Visual Preview PIPING safety-field mapping: RESOLVED FOR NEW REPORTS.
 
 Unvalidated paths include `UNASSIGNED_REVIEW`, FlexPipe-only, fabrication-part-only, connector-manager failure, inconsistent authoritative system metadata, missing/unreadable segment, invalid diameter/length thresholds, and configured selection/detail caps.
 
@@ -1087,10 +1092,10 @@ No transaction, TransactionGroup, model/parameter/link mutation, active-view swi
 
 ### Administrative Record
 
-- Evidence: EV-AI-348 through EV-AI-352
-- Daily log: `DL-2026-07-24-01`
+- Evidence: EV-AI-348 through EV-AI-353
+- Daily logs: `DL-2026-07-24-01`; `DL-2026-07-30-01`
 - Week: `2026-W18`
 - Hours: manual entry required; no supplied or project-local numeric value exists
 - KC note: `KC-048`
 
-Technical conclusion: PIPING-RO-001 is implemented and substantially live validated, but remains uncommitted and not source-control closed because a targeted Context Suggestions exposure correction is pending.
+Technical conclusion: PIPING-RO-001 is implemented, live validated, targeted UI integration defects resolved, and committed locally. Remote source-control closure remains pending because commit `b3867636c0f5f7991da45a88362aacaab05a76f8` has not yet been pushed.

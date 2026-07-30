@@ -1854,7 +1854,7 @@ Limitations: invalid different-type Type Mark setup; assembly member not practic
 
 ## 2026-07-24 - PIPING-RO-001 Read-Only Piping Selection Action Pack
 
-Status: Substantially passed; targeted Context Suggestions exposure correction remains pending. Evidence: EV-AI-348 through EV-AI-352.
+Status: Passed with documented unexercised edge paths; targeted Context Suggestions and Visual Preview corrections passed. Evidence: EV-AI-348 through EV-AI-353.
 
 1. Run all four canonical piping actions with no selection; expect `PIPING_SELECTION_REPORT_NOT_READY`, `NO_ELEMENTS_SELECTED`, and no picker, transaction, model/UI/view/file change, or workflow advancement.
 2. Select sloped rigid pipe `3060449`; validate summary, segment/type/diameter/length data, system `M531 7` `[3127711]`, slope `-0.005114`, and deterministic report registration.
@@ -1865,7 +1865,7 @@ Status: Substantially passed; targeted Context Suggestions exposure correction r
 7. Select pipe `3060110` with fitting `3060245`; expect PARTIAL while retaining vertical/near-vertical slope `NOT_APPLICABLE`, one reciprocal connection, one open connector, and blank-Mark evidence.
 8. Select standard pipe `3130534`; validate assigned system `Domestic Cold Water 1` `[3136137]`, system type ID `3130536`, Domestic Cold Water classification, and two open connectors.
 9. Select pipes `3060449` and `3130534`; expect two legitimate system rows, each `ASSIGNED`/`CONSISTENT`, and no false multi-system inconsistency.
-10. Validate Context Suggestions gating: no selection and Wall-only omit piping actions; Pipe and Pipe+Wall activate them. Record that the six-command display cap exposes only `show selected pipes summary` after higher-priority generic actions.
+10. Validate Context Suggestions gating: no selection and Wall-only omit piping actions; Pipe and Pipe+Wall expose all four piping actions after the highest-priority evidence/export action and four generic MEP-RO-001 actions. Confirm normal capacity six and supported-pipe capacity ten.
 11. Validate Visual Preview and Workflow Anchor isolation: latest piping report is visible, `MEP-QA-DASHBOARD-v1` remains authoritative, and no Evidence Runbook or Evidence Cycle Manifest progression occurs.
 12. Run static route, classification, QA-check, cap, dispatch-order, catalog, diff, and governance validation over the implementation.
 
@@ -1878,10 +1878,14 @@ Pass criteria:
 - piping reports remain workflow-anchor and strict QA-source ineligible;
 - no transaction, model/parameter/link/view/UI-selection mutation, picker, automatic execution, or external evidence write is introduced.
 
-Open validation items:
+Resolved correction checks:
 
-- correct Context Suggestions exposure so all four eligible PIPING-RO-001 actions can be reached despite the six-command display cap;
-- audit Visual Preview safety-field mapping, which displayed unknown while direct reports stored false;
+- all four eligible PIPING-RO-001 actions were visible for Pipe-only and Pipe+Wall selections without removing generic actions or changing evidence precedence;
+- Visual Preview displayed false for model modification, UI selection modification, and external file writing on new PIPING-RO-001 reports;
+- report-only metadata and manual execution boundaries remained intact, with auto-run false.
+
+Remaining validation limitations:
+
 - practically exercise `UNASSIGNED_REVIEW`, FlexPipe-only, fabrication-part-only, connector-manager failure, inconsistent system metadata, unreadable segment, invalid diameter/length, and configured display caps.
 
-Result: Substantially passed. PIPING-RO-001 remains uncommitted and not source-control closed pending the targeted Context Suggestions correction.
+Result: Passed for implemented and corrected scope. Commit `b3867636c0f5f7991da45a88362aacaab05a76f8` is local and not yet pushed.
