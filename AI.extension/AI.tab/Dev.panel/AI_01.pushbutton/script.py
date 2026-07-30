@@ -19419,6 +19419,11 @@ class OllamaAIChat(forms.WPFWindow):
         cards = self._console_safe_prompt_cards(context)
         return ["- {0} [{1}]".format(card.get("prompt"), card.get("safety_class")) for card in cards]
 
+    def _console_context_suggestion_limit(self, context):
+        if int((context or {}).get("selected_supported_pipe_count") or 0) > 0:
+            return 10
+        return 6
+
     def _console_safe_prompt_cards(self, context):
         records, malformed, history_status = self._console_load_history_records()
         latest_result, latest_status = self._console_latest_result_metadata()
@@ -19439,7 +19444,8 @@ class OllamaAIChat(forms.WPFWindow):
                     suggestions.append({"prompt": prompt, "safety_class": safety})
         cards = []
         seen = set()
-        for suggestion in suggestions[:6]:
+        card_limit = self._console_context_suggestion_limit(context)
+        for suggestion in suggestions[:card_limit]:
             prompt = suggestion.get("prompt")
             safety = suggestion.get("safety_class") or self._console_visual_prompt_safety(prompt)[0]
             normalized = self._console_normalize(prompt)
@@ -19457,7 +19463,7 @@ class OllamaAIChat(forms.WPFWindow):
                     }
                 )
                 seen.add(normalized)
-            if len(cards) >= 6:
+            if len(cards) >= card_limit:
                 break
         if not cards:
             cards.append(
@@ -19974,7 +19980,8 @@ class OllamaAIChat(forms.WPFWindow):
             "evidence_cycle_manifest_warning_count": evidence_runbook.get("cycle_manifest_warning_count", 0),
         }
 
-        return suggestions[:10], latest_export_folder
+        suggestion_limit = self._console_context_suggestion_limit(context)
+        return suggestions[:suggestion_limit], latest_export_folder
 
     def _console_recommendation_table(self, suggestions):
         lines = [
@@ -21845,11 +21852,11 @@ class OllamaAIChat(forms.WPFWindow):
             "warnings": self._console_extract_warnings_summary(text),
             "transaction_opened": self._console_bool_text(self._console_extract_first_field(text, ["Transaction opened"])),
             "transaction_group_opened": self._console_bool_text(self._console_extract_first_field(text, ["Transaction group opened"])),
-            "model_modified": self._console_bool_text(self._console_extract_first_field(text, ["Model modified"])),
+            "model_modified": self._console_bool_text(self._console_extract_first_field(text, ["Model modified", "model_modified"])),
             "linked_document_modified": self._console_bool_text(self._console_extract_first_field(text, ["Linked document modified"])),
-            "ui_selection_modified": self._console_bool_text(self._console_extract_first_field(text, ["UI selection modified"])),
+            "ui_selection_modified": self._console_bool_text(self._console_extract_first_field(text, ["UI selection modified", "ui_selection_modified"])),
             "active_view_changed": self._console_bool_text(self._console_extract_first_field(text, ["Active view changed"])),
-            "external_files_written": self._console_bool_text(self._console_extract_first_field(text, ["External files written"])),
+            "external_files_written": self._console_bool_text(self._console_extract_first_field(text, ["External files written", "external_files_written"])),
             "history_version": "AI-WORKBENCH-CONSOLE-HISTORY-v1",
         }
         if not record["result_classification"]:
