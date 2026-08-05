@@ -1889,3 +1889,92 @@ Remaining validation limitations:
 - practically exercise `UNASSIGNED_REVIEW`, FlexPipe-only, fabrication-part-only, connector-manager failure, inconsistent system metadata, unreadable segment, invalid diameter/length, and configured display caps.
 
 Result: Passed for implemented and corrected scope. Commit `b3867636c0f5f7991da45a88362aacaab05a76f8` is local and not yet pushed.
+
+## 2026-07-30 - HVAC-RO-001 Initial Implementation and Runtime Test Plan
+
+Status: Implemented and statically validated; Revit runtime validation required. Evidence: EV-AI-354 and EV-AI-355.
+
+Static validation completed:
+
+1. Verify baseline `main`, HEAD/origin hash, clean pre-implementation worktree, and allowed two-file runtime scope.
+2. Parse the catalog and confirm 231 entries, four HVAC-RO-001 entries, sixteen unique canonical/alias routes, deterministic/report-only/manual metadata, confirmation false, and auto-run false.
+3. Confirm legacy duct count/list/length/volume/system/QA/selection/export routes retain previous owners.
+4. Parse modified definitions and assert nine result classifications, `HVAC-QA-001` through `HVAC-QA-012`, approved generic SEL-QA reuse, scope states, shape/dimension states, system states, caps, and deterministic sorting.
+5. Confirm reciprocal physical HVAC connector rules require both `IsConnectedTo` directions and exclude links, self owners, nonphysical types, unsupported domains, and unresolved owners.
+6. Confirm Context Suggestions and safe cards use capacities six normally, ten for one eligible specialty, and fourteen for pipe plus duct, preserving evidence/export and generic-action ordering.
+7. Confirm all HVAC classifications are Workflow Anchor ineligible and strict QA-source eligibility remains false.
+8. Run tabnanny, compatible supporting-module compilation, sanitized AST parse, prompt JSON parse, `git diff --check`, and diff-scoped governance scans.
+
+Required first-stage live matrix:
+
+1. Empty selection: all four canonical actions return `HVAC_SELECTION_REPORT_NOT_READY` / `NO_ELEMENTS_SELECTED`; no HVAC suggestions.
+2. Wall-only selection: no supported rigid duct; explicit unsupported scope; no HVAC suggestions.
+3. Duct Fitting-only selection: explicit `UNSUPPORTED_DUCT_FITTING`; no HVAC suggestions.
+4. One rigid non-placeholder duct: all four actions route locally; all four HVAC suggestions are available.
+5. Rigid duct plus Wall: supported duct remains processed; unsupported Wall is explicit; result precedence is PARTIAL; all four HVAC suggestions remain available.
+
+Subsequent live matrix:
+
+- round, rectangular, oval-if-present, connected, one-open-end, two-open-end, assigned, unassigned-if-available, vertical, sloped-if-present, curved, insulated, lined, and multi-system ducts;
+- Pipe plus Duct Context Suggestions with fourteen-item capacity;
+- selection above 200 supported ducts if practical;
+- placeholder, FlexDuct, fabrication, connector-manager failure, inconsistent system metadata, volume discrepancy, and unsupported slope APIs where available.
+
+Pass criteria:
+
+- read-only values resolve without fabricated unavailable data;
+- reciprocal connector counts reflect physical HVAC evidence;
+- classification precedence matches the documented contract;
+- reports preserve false model/UI/view/file/transaction/link/picker/auto-run metadata;
+- no workflow/evidence advancement or strict QA-source eligibility;
+- no Revit mutation or external evidence generation.
+
+Runtime result: Not yet executed.
+
+## 2026-07-30 - HVAC-RO-001 Initial Live Validation and Remaining Matrix
+
+Status: Initial live Revit validation passed; targeted HVAC-QA-009 correction passed regression; additional coverage pending. Evidence: EV-AI-356.
+
+Passed live cases:
+
+1. Empty selection: all four actions returned `HVAC_SELECTION_REPORT_NOT_READY` / `NO_ELEMENTS_SELECTED`, with false safety/workflow metadata.
+2. Wall `3130291`: `UNSUPPORTED_NON_DUCT`; no supported duct.
+3. BUNGE Pipe Fitting `3063990`: correctly `UNSUPPORTED_NON_DUCT`.
+4. Snowdon Duct Fitting `1466961`: `UNSUPPORTED_DUCT_FITTING` and Not ready.
+5. Supported duct `1466955`: duct-only suggestion capacity ten retained evidence/export precedence, four generic actions, all four HVAC actions, and history; no piping actions or auto-run.
+6. Visual Preview: model/UI/file modification false; workflow anchor remained `MEP-QA-DASHBOARD-v1` / `MEP_QA_DASHBOARD_GREEN`; no QA-source or evidence-stage advancement.
+7. Round summary: ROUND, 203.2 mm, area `0.032429 m2`, length `4776.7 mm`, host volume `0.154897 m3`, discrepancy within tolerance, zero slope, level L5, assigned Return Air system, no insulation/lining, complete read.
+8. Connector report: five physical connectors, two End, three Curve, five reciprocal, zero open, zero unreadable.
+9. System assignment: `ASSIGNED`, Mechanical Return Air 29, system ID `1467037`, type `ElementId: 712042`, Return Air classification, consistent authoritative sources.
+10. QA regression: HVAC-QA-001 through HVAC-QA-012 passed after correction; HVAC-QA-009 passed from two physical End connectors; `SEL-QA-011` retained the one valid blank-Mark issue; overall YELLOW, issue count one, partial count zero.
+
+Additional live cases passed:
+
+1. rectangular rigid duct;
+2. oval rigid duct;
+3. vertical oval rigid duct;
+4. one open physical connector;
+5. two open physical connectors;
+6. assigned Supply Air system;
+7. mixed pipe plus duct Context Suggestions capacity fourteen;
+8. generic MEP-RO-001 and PIPING-RO-001 mixed-scope integration;
+9. insulation detected on host duct;
+10. insulation element classified `UNSUPPORTED_DUCT_INSULATION`;
+11. lining detected on host duct;
+12. lining element classified `UNSUPPORTED_DUCT_LINING`.
+
+Remaining limitations and non-blocking coverage gaps:
+
+1. `UNASSIGNED_REVIEW` was not practically reproducible in Snowdon Towers Sample HVAC; isolated ducts were assigned Supply Air, Return Air, or Exhaust Air by Revit, so this is not a defect;
+2. unreadable connector-manager path remains untested;
+3. unreadable connector-type path remains untested;
+4. processing above 200 supported ducts remains untested;
+5. connector/detail/owner display caps remain untested;
+6. human-readable system type remains unresolved where ElementId is displayed;
+7. non-zero sloped and curved-duct slope paths were not encountered;
+8. abnormal physical End-count topology beyond the validated open-connector states was not encountered live;
+9. FlexDuct-only, placeholder, fabrication, and accessory-only selections remain untested;
+10. pipe plus duct plus unsupported-element capacity fourteen remains untested;
+11. synthetic inconsistent-system, area/volume contradiction, invalid-dimension, and near-zero-length paths were not encountered.
+
+Final static and scope audit result: PASS. No new code defect was found after the HVAC-QA-009 correction. Runtime implementation is ready for commit; this audit does not commit or push.

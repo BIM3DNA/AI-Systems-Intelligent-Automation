@@ -1758,3 +1758,55 @@ Resolution:
 Historical note: reports generated before the parser-alias correction may still display unknown safety values in Visual Preview; newly generated reports resolve explicit false values correctly.
 
 Current source status: correction commit `b3867636c0f5f7991da45a88362aacaab05a76f8` changes only `script.py`, exists locally on `main`, and has not been pushed. Evidence: EV-AI-352 and EV-AI-353; KC-048.
+
+## 2026-07-30 - HVAC-RO-001 Runtime Evidence Pending
+
+Issue:
+
+The initial HVAC-RO-001 implementation is statically validated but has not yet been exercised in live Revit. Duct shape, direct volume, slope built-ins, insulation/lining APIs, reciprocal HVAC connector behavior, and specialty suggestion gating vary with Revit version and model content.
+
+Risk:
+
+Static checks prove deterministic ownership, guarded access, classification contracts, caps, sorting, workflow isolation, and no-write governance, but cannot prove actual runtime API availability or the observed values for representative duct shapes and connection states.
+
+Current resolution:
+
+- implementation architecture and static/governance evidence recorded as EV-AI-354 and EV-AI-355;
+- runtime status explicitly retained as pending;
+- first-stage live matrix defined for empty, Wall-only, fitting-only, rigid-Duct-only, and rigid-Duct-plus-Wall selections;
+- extended live matrix defined for shape, system, slope, connector, insulation/lining, mixed-specialty, and cap paths;
+- no runtime-validation evidence allocated.
+
+Result: Open validation item. HVAC-RO-001 is implemented and statically validated; Revit runtime validation required. Source remains uncommitted and unpushed. KC-049.
+
+## 2026-07-30 - HVAC-RO-001 Initial Live Findings
+
+### HVAC-QA-009 physical connector-count false positive
+
+Status: RESOLVED.
+
+Root cause: the initial rule required exactly two total physical HVAC connectors. Round duct `1466955` legitimately exposed five physical connectors: two End connectors and three Curve tap/branch connectors, all reciprocally connected.
+
+Resolution: stable ID `HVAC-QA-009` now evaluates exactly two physical End connectors. Additional accepted Curve connectors remain valid records, remain in total physical counts, and remain subject to HVAC-QA-008 reciprocity. Post-correction HVAC-QA-009 changed from `ISSUES_FOUND` to `PASS`; deterministic issue count changed from two to one and partial count remained zero.
+
+### Blank Mark on duct 1466955
+
+Status: OBSERVED / VALID QA FINDING.
+
+`SEL-QA-011` correctly reported a missing or blank Mark. This is model data and not an HVAC-RO-001 implementation defect.
+
+### Human-readable system type
+
+Status: OPEN LIMITATION.
+
+The selected duct's assignment is `ASSIGNED`, consistent, and identified as Return Air, but system type is displayed as `ElementId: 712042` rather than a resolved human-readable type name.
+
+The earlier runtime-evidence item is partially resolved by EV-AI-356. Additional shape, connector-failure/open-end, unassigned/inconsistent-system, unsupported-specialty, mixed-context, and cap-path coverage remains open; the package is not closed.
+
+### Final audit update
+
+Rectangular, oval, vertical oval, one-open, two-open, mixed pipe-plus-duct capacity fourteen, insulation, and lining paths subsequently passed. No new code defect was found after the HVAC-QA-009 correction.
+
+`UNASSIGNED_REVIEW` status: NOT PRACTICALLY LIVE VALIDATED IN THE TEST MODEL. Revit required Supply Air, Return Air, or Exhaust Air and created an assigned standalone system for isolated ducts. This is not an implementation defect.
+
+Remaining open limitations are unreadable connector-manager/type paths, processing/display caps, synthetic inconsistent/contradictory data paths, and human-readable system type resolution. These are recorded limitations rather than observed regressions.

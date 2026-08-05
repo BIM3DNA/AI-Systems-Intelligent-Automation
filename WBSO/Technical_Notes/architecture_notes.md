@@ -1630,3 +1630,41 @@ All reports are read-only, bounded, workflow-anchor ineligible, strict-QA-source
 The targeted UI integration correction replaces inconsistent fixed limits with one context-aware capacity policy shared by Context Suggestions and safe prompt-card projection. Normal contexts retain capacity six. A context containing at least one supported rigid pipe receives capacity ten, sufficient for the highest-priority evidence/export action, four generic MEP-RO-001 actions, all four PIPING-RO-001 actions, and an optional history action. Selection gating and evidence precedence are unchanged.
 
 Visual Preview now accepts the report's snake-case `model_modified`, `ui_selection_modified`, and `external_files_written` fields. This corrects new-result display without rewriting historical Console records. Commit `b3867636c0f5f7991da45a88362aacaab05a76f8` is local and not pushed. Evidence: EV-AI-348 through EV-AI-353; KC-048.
+
+## 2026-07-30 - HVAC-RO-001 Read-Only Duct Selection Architecture
+
+Status: Implemented and statically validated; Revit runtime validation required.
+
+HVAC-RO-001 reuses the MEP-RO-001 active-document selection snapshot, identity/restriction reads, parameter handling, deterministic tables, generic QA, report registration, and safety metadata. It adapts the PIPING-RO-001 specialty pattern without changing existing MEP, piping, workflow, selection, or export handlers.
+
+Supported scope requires `DB.Mechanical.Duct`, `OST_DuctCurves`, active-document resolution, and guarded `IsPlaceholder == false`. Unsupported placeholders, FlexDuct, fittings, accessories, insulation, lining, fabrication parts, links, non-ducts, and unresolved references are classified explicitly.
+
+Each supported duct produces guarded identity, type, workset/restriction, curve, length, endpoint elevation, horizontal run, direction, reference level, and slope-provenance fields. Shape is determined primarily by consensus across eligible physical HVAC end connectors and normalized to `ROUND`, `RECTANGULAR`, `OVAL`, `OTHER`, `INCONSISTENT`, `UNAVAILABLE`, or `UNREADABLE`. Built-in diameter/width/height values provide guarded fallback or cross-check evidence. Shape-specific area is calculated only from valid dimensions; unavailable dimensions are never replaced with fabricated zeroes.
+
+Volume resolution prefers a stable direct Revit value, then calculated section area multiplied by length. Direct and calculated values retain separate provenance. A contradiction requires both the absolute internal-unit tolerance and the two-percent relative tolerance to be exceeded. Optional direct-volume absence alone is not a defect.
+
+Slope handling is duct-specific. The implementation attempts guarded built-in slope access and independently reports endpoint elevation delta, horizontal run, and geometric ratio where meaningful. Vertical or near-vertical ducts use `NOT_APPLICABLE`; curved ducts retain curve metadata without a fabricated global slope.
+
+System assignment uses `Duct.MEPSystem`, then built-in system name/type/classification, with existing localized/fallback metadata only as supplementary evidence. Contradiction is evaluated per duct. Multiple legitimate systems across selected ducts remain distribution data.
+
+Connector inspection is bounded to selected-duct connectors and one immediate `AllRefs` hop. HVAC domain, positive physical connector type, selected owner, active-document reference owner, different owner, and reciprocal `IsConnectedTo` confirmation are required. Raw `IsConnected` is diagnostic only. Insulation and lining IDs/thicknesses are optional informational metadata.
+
+Stable checks are `HVAC-QA-001` through `HVAC-QA-012`, with approved generic `SEL-QA` reuse. Context Suggestions and safe cards share `min(14, 6 + 4 x eligible specialty count)`: normal six, pipe-only ten, duct-only ten, and pipe-plus-duct fourteen. Evidence/export precedence remains first, followed by four generic MEP actions, eligible piping actions, eligible HVAC actions, then optional/history actions.
+
+All reports declare model/UI/view/file/transaction/link/picker/auto-run safety flags false and remain Evidence Runbook, Evidence Cycle Manifest, Workflow Anchor, strict QA-source, and evidence-stage ineligible. Evidence: EV-AI-354 and EV-AI-355; KC-049.
+
+### Initial Live Validation and HVAC-QA-009 Refinement
+
+Live validation used Snowdon Towers Sample HVAC, view `Cover [ThreeD]`, with 1,053 ducts and 997 duct fittings visible. Empty selection, Wall-only, true Duct Fitting-only, and supported round rigid-duct paths confirmed deterministic scope gating. A BUNGE Pipe Fitting was correctly classified as `UNSUPPORTED_NON_DUCT`.
+
+Round duct `1466955` normalized as a 203.2 mm ROUND duct with coherent calculated area, host volume within the two-percent discrepancy tolerance, zero slope, L5 reference level, assigned Return Air system, and informational absence of insulation/lining. Its connector manager exposed five valid physical HVAC connectors: two `End` and three `Curve`, all reciprocally connected to Duct Fittings or Air Terminals.
+
+The initial HVAC-QA-009 rule incorrectly treated total physical connector count as the topology invariant. The corrected invariant is physical End connector count: exactly two readable physical End connectors pass; any other readable End count is an issue; an unavailable manager or unreadable connector type is partial. Additional accepted Curve connectors remain in total/detail counts and remain independently evaluated by HVAC-QA-008. Output now exposes physical End, physical non-End, and unreadable connector-type counts.
+
+Post-correction duct `1466955` produced HVAC-QA-009 PASS, HVAC-QA-008 PASS across all five connectors, one valid generic `SEL-QA-011` blank-Mark issue, `HVAC_QA_HEALTH_YELLOW`, deterministic issue count one, and partial count zero. Shape, system, slope, area/volume, connector details, classification precedence, suggestions, and workflow isolation remain unchanged. Evidence: EV-AI-356.
+
+### Final Runtime Coverage and Static Scope Audit
+
+Later live validation confirmed rectangular, oval, and vertical oval normalization; one-open and two-open physical connector reporting; assigned Supply Air alongside Return Air; mixed pipe-plus-duct Context Suggestions capacity fourteen; generic MEP-RO-001 and PIPING-RO-001 integration; insulation and lining discovery on host ducts; and explicit unsupported classification when insulation or lining elements themselves were selected.
+
+The open-connector tests confirmed HVAC-QA-008 still reports each non-reciprocal physical connector while HVAC-QA-009 remains based only on readable physical End count. No unreadable connector state or later code defect appeared. `UNASSIGNED_REVIEW` could not be reproduced through the standard UI because isolated ducts received a standalone assigned system; this is a model/UI constraint, not a defect. Final AST, route, catalog, PIPING-preservation, governance, safety, cap, ordering, and workflow-isolation audits passed. Evidence remains EV-AI-356.

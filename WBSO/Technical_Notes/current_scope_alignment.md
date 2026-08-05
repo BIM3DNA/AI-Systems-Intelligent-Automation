@@ -964,3 +964,51 @@ Pending or not practically validated:
 - remote push and source-control alignment for local commit `b3867636c0f5f7991da45a88362aacaab05a76f8`.
 
 Explicitly out of scope: selection creation/pickers, model or connector mutation, parameter/system/slope writes, active-view changes, linked-document mutation, automatic execution, Evidence Runbook/Manifest advancement, QA-source eligibility, external evidence generation, 3D preview, installers, and packages. Evidence: EV-AI-348 through EV-AI-353.
+
+## 2026-07-30 - HVAC-RO-001 Current Scope
+
+Status: Implemented and statically validated; Revit runtime validation required.
+
+Current implemented scope:
+
+- four deterministic actions for selected-duct summary, physical connector review, system assignment, and HVAC QA health;
+- sixteen uniquely owned canonical/alias routes with legacy duct routes preserved;
+- supported rigid, non-placeholder `DB.Mechanical.Duct` elements in `OST_DuctCurves`;
+- explicit unsupported and unresolved selection classifications;
+- guarded identity, restriction, geometry, shape/dimension, section, volume, slope, system, connector, insulation, and lining metadata;
+- reciprocal one-hop physical HVAC connector confirmation;
+- `HVAC-QA-001` through `HVAC-QA-012` plus approved generic SEL-QA reuse;
+- deterministic caps and sorting;
+- Context Suggestions and safe-card specialty capacities six/ten/fourteen;
+- workflow-anchor and strict-QA-source exclusion;
+- report-only/manual/auto-run-false catalog metadata.
+
+Pending runtime validation:
+
+- empty, Wall-only, Duct Fitting-only, rigid-Duct-only, and rigid-Duct-plus-Wall scope/classification behavior;
+- round, rectangular, oval, vertical, sloped, curved, insulated, and lined duct evidence;
+- connected, one-open-end, and two-open-end reciprocal connector behavior;
+- assigned, unassigned, multi-system, inconsistent, and unreadable system paths;
+- Context Suggestions gating and combined Pipe-plus-Duct fourteen-item capacity;
+- all nine result classifications and all twelve HVAC-specific QA checks;
+- processing and display boundaries above configured caps.
+
+Explicitly out of scope: selection picker or selection mutation, model/parameter/connector/system/slope writes, active-view changes, linked-document mutation, automatic execution, workflow/evidence advancement, QA-source eligibility, external export creation, installers, packages, and generated runtime evidence. The implementation remains uncommitted and unpushed. Evidence: EV-AI-354 and EV-AI-355; KC-049.
+
+## 2026-07-30 - HVAC-RO-001 Initial Live Validation Scope
+
+Validated now:
+
+- all four canonical actions with empty selection;
+- Wall-only, Pipe Fitting, and true Duct Fitting unsupported gating;
+- duct-only Context Suggestions capacity ten with four generic and four HVAC actions;
+- Visual Preview false safety values and retained MEP dashboard workflow anchor;
+- round rigid duct `1466955` summary, connector, assigned-system, and QA reports;
+- HVAC-QA-009 correction from total physical count to physical End count;
+- post-correction five-connector regression with two End, three Curve, five reciprocal connections, and no connector-count issue.
+
+Additional live coverage now passed for rectangular, oval, vertical oval, one-open-connector, two-open-connector, mixed pipe-plus-duct capacity fourteen, insulation host detection and unsupported insulation-element classification, and lining host detection and unsupported lining-element classification. Assigned Supply Air and Return Air systems both passed. No new code defect was found after the HVAC-QA-009 correction.
+
+Remaining limitations: `UNASSIGNED_REVIEW` was not practically reproducible through the standard Revit UI because isolated ducts received an assigned Supply/Return/Exhaust system; this is not a defect. Unreadable connector-manager/type paths and processing/display caps remain untested. Human-readable system type remains unresolved where the report displays ElementId. Non-zero/curved slope, abnormal End topology beyond open states, FlexDuct, placeholder, fabrication, accessory, pipe-plus-duct-plus-unsupported, inconsistent-system, area/volume contradiction, invalid-dimension, and near-zero-length paths remain outside the practically exercised model set.
+
+Current closure status: broad live coverage and final static scope audit passed. Runtime implementation is ready for commit, but no commit or push has been performed.

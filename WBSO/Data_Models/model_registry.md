@@ -604,3 +604,23 @@ The normalized pipe record contains identity/type/segment, workset and restricti
 Stable checks are `PIPING-QA-001` through `PIPING-QA-012`; generic checks `SEL-QA-001` through `008`, `011`, `013`, `015`, and `016` are reused. Limits are 200 processed pipes, 200 pipe rows, 400 connector rows, 8 connectors per pipe, 20 owner IDs, 50 affected IDs, 50 warnings, and 160 normalized characters.
 
 Live validation covered empty, supported sloped, mixed Wall, fitting-only, mixed fitting, vertical/open connector, assigned disconnected, and multi-system selections. The targeted integration correction uses capacity six normally and ten for supported-rigid-pipe contexts, preserving evidence/export precedence, four generic actions, and all four piping actions. Visual Preview now recognizes the package's snake-case safety fields. Correction commit `b3867636c0f5f7991da45a88362aacaab05a76f8` is local and not pushed. Evidence: EV-AI-348 through EV-AI-353; KC-048.
+
+## HVAC-RO-001 - ModelMind Read-Only Duct Selection Action Pack
+
+Status: Implemented and statically validated; Revit runtime validation required.
+
+The package extends MEP-RO-001 and the read-only specialty pattern established by PIPING-RO-001 with four deterministic projections over selected rigid, non-placeholder `DB.Mechanical.Duct` elements in `OST_DuctCurves`: summary, reciprocal physical HVAC connectors, normalized system assignment, and HVAC QA health. Sixteen canonical/alias routes are uniquely owned; legacy duct routes retain their previous handlers.
+
+The normalized duct record contains identity/type/restriction metadata, curve/length/elevation/direction/reference-level data, guarded duct slope provenance, connector-consensus shape, shape-specific dimensions and area, direct/calculated volume with discrepancy state, authoritative/supplementary system metadata, bounded one-hop connector evidence, and optional insulation/lining metadata. Unsupported placeholders, FlexDuct, fittings, accessories, insulation, lining, fabrication parts, link instances, non-ducts, and unresolved references remain explicit.
+
+Stable checks are `HVAC-QA-001` through `HVAC-QA-012`; generic checks `SEL-QA-001` through `008`, `011`, `013`, `015`, and `016` are reused. Limits are 200 processed ducts, 200 duct rows, 400 connector rows, 8 connectors per duct, 20 owner IDs, 50 affected IDs, 50 warnings, and 160 normalized characters.
+
+Context Suggestions and safe cards use a shared specialty-aware capacity: six normally, ten for pipe-only or duct-only, and fourteen for pipe-plus-duct contexts. Evidence/export precedence and the four generic MEP-RO-001 actions remain ahead of specialty actions. All HVAC classifications are workflow-anchor and strict-QA-source ineligible. The implementation is uncommitted and unpushed. Evidence: EV-AI-354 and EV-AI-355; KC-049.
+
+### Initial Live Validation Milestone
+
+Initial live validation passed for empty, unsupported, duct-fitting, round rigid-duct, connector, assigned-system, QA, Context Suggestions, Visual Preview, and workflow-isolation paths. Round duct `1466955` exposed five valid physical HVAC connectors: two End and three Curve, all reciprocally connected. The initial HVAC-QA-009 total-physical-count rule produced a false positive; the stable check now evaluates exactly two physical End connectors while accepting additional Curve tap/branch connectors. Post-correction QA retained one valid `SEL-QA-011` blank-Mark issue and no connector-count issue. Additional runtime coverage remains pending before final package closure. The implementation remains uncommitted and unpushed. Evidence: EV-AI-356.
+
+### Final Static and Scope Audit
+
+Subsequent live validation passed for rectangular, oval, vertical oval, one-open and two-open connectors, assigned Supply Air, mixed pipe-plus-duct capacity fourteen, generic MEP/PIPING integration, and insulation/lining host and unsupported-element paths. HVAC-QA-008 retained open-connector behavior and HVAC-QA-009 retained End-versus-Curve semantics. `UNASSIGNED_REVIEW` was not practically reproducible because Revit assigned isolated ducts to standalone systems; this is not a defect. Unreadable connector-manager/type paths, processing/display caps, and human-readable system type remain limitations. No new code defect was found. Final static and Git scope audit passed; runtime implementation is ready for commit and remains uncommitted/unpushed. Evidence remains EV-AI-356.
