@@ -2485,3 +2485,59 @@ Remaining limitations:
 - synthetic inconsistent-system, area/volume contradiction, invalid-dimension, and near-zero-length paths were not encountered.
 
 Milestone conclusion: broad live coverage and final static/Git scope audit passed. HVAC-RO-001 remains read-only, deterministic, workflow-isolated, and ready for commit. The implementation is not yet committed or pushed.
+
+## EV-AI-357 - ELECTRICAL-DISC-001 Discovery, Applicability Correction, and Live Retest
+
+Status: Implemented, corrected, and live validated for tested discovery scope.
+
+Date: 05-08-26 (`2026-08-05`)
+
+Daily log: `DL-2026-08-05-01` (hours intentionally blank; manual entry required)
+
+Knowledge Capture: `KC-050`
+
+Source-control status: runtime implementation in `script.py` and `prompt_catalog.json` is uncommitted and unpushed; no implementation commit hash is recorded.
+
+Implementation evidence:
+
+- feature `ELECTRICAL-DISC-001`, ModelMind Read-Only Electrical Selection Discovery;
+- canonical route `inspect selected electrical api data` plus three exact aliases;
+- classifications `ELECTRICAL_DISCOVERY_OK`, `ELECTRICAL_DISCOVERY_PARTIAL`, `ELECTRICAL_DISCOVERY_NOT_READY`, and `ELECTRICAL_DISCOVERY_FAILED`;
+- prompt catalog increased from 231 to 232 entries;
+- manual/report-only/current-selection behavior with no picker, auto-run, workflow-anchor eligibility, or QA-export-source eligibility.
+
+Initial Snowdon Towers Sample Electrical evidence:
+
+- Lighting Fixture `1460195` and Electrical Fixture `1495556` exposed MEPModel, ConnectorManager, one DomainElectrical End connector, assigned PowerCircuit, panel/circuit/load evidence, and connected references but incorrectly returned PARTIAL;
+- Electrical Equipment `1488616` exposed fourteen End/Logical/Surface/MasterSurface connectors and eight systems, with the panel acting as BaseEquipment downstream and load upstream, but non-applicable reads incorrectly returned PARTIAL;
+- Conduit `1562519` exposed two DomainCableTrayConduit End connectors and reciprocal fitting references and correctly remained unsupported, but absent electrical quantities incorrectly returned PARTIAL.
+
+Root cause and correction:
+
+- optional and non-applicable properties were aggregated into element-wide unreadable state;
+- normalized AVAILABLE/UNAVAILABLE/NOT_APPLICABLE/UNREADABLE states and connector applicability were added;
+- PARTIAL was restricted to meaningful required discovery failures, cap exceedance, unresolved references, and mixed candidate/unsupported scope;
+- phase-aware Room/Space, raw-indexer exclusion, level resolution, guarded Revit unit normalization, system roles, and circuit relationships were added.
+
+Corrected live retest:
+
+- Lighting Fixture `1605295`: OK / CANDIDATE_SUPPORTED; panel LP000, circuit 8, LOAD, upstream/load relationship, 120 V, 160 VA, 152 W, power factor 0.95;
+- Electrical Fixture `1631043`: OK / CANDIDATE_SUPPORTED; linked host preserved, panel P102, circuit 22, LOAD, 120 V, 180 VA, 180 W, power factor 1.0;
+- Electrical Equipment `1488616`: OK / CANDIDATE_CONDITIONAL; fourteen mixed connectors, eight systems, BASE_EQUIPMENT and LOAD roles, upstream/downstream relationships, NOT_APPLICABLE nonphysical fields;
+- Conduit `1604466`: OK / CANDIDATE_UNSUPPORTED for the initial device package; two conduit-domain End connectors, reciprocal fitting connectivity, zero systems, NOT_APPLICABLE electrical quantities;
+- all corrected retests reported no unreadable element state and no warnings.
+
+Static evidence: tabnanny, supporting-module compilation, sanitized AST, prompt JSON at 232 entries, route/alias ownership, classification/cap registration, applicability, Room/Space exclusion, unit normalization, PARTIAL precedence, deterministic ordering, governance, workflow/QA-source exclusion, unchanged 54 PIPING/HVAC handlers, and `git diff --check` passed.
+
+Safety evidence: model, UI selection, active view, linked document, and external files unchanged; no transaction, TransactionGroup, picker, auto-run, runbook advancement, or evidence-cycle manifest update.
+
+Scope conclusion: tested Lighting Fixtures and Electrical Fixtures are provisional supported candidates; tested Electrical Equipment is conditional; Conduit is unsupported for the initial device package. ELECTRICAL-RO-001 and final production routes/QA rules are not implemented. Untested categories and failure/cap/mixed-scope paths remain documented in KC-050.
+
+### Daily Log
+
+- Daily Log ID: `DL-2026-08-05-01`
+- Date: 05-08-26
+- Hours: blank; manual entry required
+- Work summary: documented ELECTRICAL-DISC-001 implementation, initial false-PARTIAL runtime evidence, applicability correction, corrected four-category live retest, provisional production-scope conclusions, route-collision consideration, static validation, safety, workflow isolation, and remaining limitations.
+- Evidence: EV-AI-357
+- Status: Discovery scope corrected and live validated; runtime source remains uncommitted and unpushed; ELECTRICAL-RO-001 not implemented.

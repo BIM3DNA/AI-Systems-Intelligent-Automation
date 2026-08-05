@@ -624,3 +624,11 @@ Initial live validation passed for empty, unsupported, duct-fitting, round rigid
 ### Final Static and Scope Audit
 
 Subsequent live validation passed for rectangular, oval, vertical oval, one-open and two-open connectors, assigned Supply Air, mixed pipe-plus-duct capacity fourteen, generic MEP/PIPING integration, and insulation/lining host and unsupported-element paths. HVAC-QA-008 retained open-connector behavior and HVAC-QA-009 retained End-versus-Curve semantics. `UNASSIGNED_REVIEW` was not practically reproducible because Revit assigned isolated ducts to standalone systems; this is not a defect. Unreadable connector-manager/type paths, processing/display caps, and human-readable system type remain limitations. No new code defect was found. Final static and Git scope audit passed; runtime implementation is ready for commit and remains uncommitted/unpushed. Evidence remains EV-AI-356.
+
+## ELECTRICAL-DISC-001 - ModelMind Read-Only Electrical Selection Discovery
+
+Status: Implemented, targeted false-PARTIAL behavior corrected, and live validated for the tested discovery scope. Runtime source remains uncommitted and unpushed.
+
+The feature adds one deterministic discovery report over the current active-document selection. It records candidate/unsupported scope, element identity and restrictions, guarded MEPModel and ConnectorManager exposure, bounded one-hop connector references, ElectricalSystems, selected-element system roles, relevant parameters, and provisional category capability. Discovery states are `AVAILABLE`, `UNAVAILABLE`, `NOT_APPLICABLE`, and `UNREADABLE`; report classifications are `ELECTRICAL_DISCOVERY_OK`, `ELECTRICAL_DISCOVERY_PARTIAL`, `ELECTRICAL_DISCOVERY_NOT_READY`, and `ELECTRICAL_DISCOVERY_FAILED`.
+
+Corrected runtime evidence supports `OST_LightingFixtures` and `OST_ElectricalFixtures` provisionally, treats `OST_ElectricalEquipment` as conditional because multi-system and mixed connector semantics require category-specific handling, and excludes `OST_Conduit` from the initial device-oriented production scope. ELECTRICAL-RO-001 is not implemented. Evidence: EV-AI-357; KC-050.

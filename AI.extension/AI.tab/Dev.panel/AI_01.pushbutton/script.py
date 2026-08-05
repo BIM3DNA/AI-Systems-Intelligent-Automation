@@ -14439,6 +14439,83 @@ def _hvac_ro_001_end_connector_count_status(manager_state, end_count, unreadable
     return "PASS" if int(end_count or 0) == 2 else "ISSUE"
 
 
+ELECTRICAL_DISC_001_ROUTE_ACTIONS = {
+    "inspect selected electrical api data": "electrical_discovery",
+    "inspect selected electrical elements": "electrical_discovery",
+    "discover selected electrical data": "electrical_discovery",
+    "show selected electrical discovery report": "electrical_discovery",
+}
+
+ELECTRICAL_DISC_001_RESULT_CLASSIFICATIONS = (
+    "ELECTRICAL_DISCOVERY_OK",
+    "ELECTRICAL_DISCOVERY_PARTIAL",
+    "ELECTRICAL_DISCOVERY_NOT_READY",
+    "ELECTRICAL_DISCOVERY_FAILED",
+)
+
+ELECTRICAL_DISC_001_CANDIDATE_CATEGORIES = (
+    "OST_ElectricalEquipment",
+    "OST_ElectricalFixtures",
+    "OST_LightingFixtures",
+    "OST_LightingDevices",
+    "OST_DataDevices",
+    "OST_CommunicationDevices",
+    "OST_FireAlarmDevices",
+    "OST_SecurityDevices",
+)
+
+ELECTRICAL_DISC_001_EXPLICIT_SCOPE_CATEGORIES = (
+    ("OST_CableTray", "CABLE_TRAY"),
+    ("OST_CableTrayFitting", "CABLE_TRAY_FITTING"),
+    ("OST_Conduit", "CONDUIT"),
+    ("OST_ConduitFitting", "CONDUIT_FITTING"),
+    ("OST_ElectricalCircuit", "ELECTRICAL_CIRCUIT_OR_SYSTEM"),
+    ("OST_Wire", "WIRE"),
+    ("OST_GenericModel", "GENERIC_MODEL"),
+)
+
+ELECTRICAL_DISC_001_RELEVANT_PARAMETER_NAMES = set(
+    [
+        "mark",
+        "type mark",
+        "panel",
+        "circuit number",
+        "system type",
+        "system name",
+        "voltage",
+        "apparent load",
+        "true load",
+        "active power",
+        "power factor",
+        "number of poles",
+        "phase",
+        "load classification",
+        "demand factor",
+        "connected load",
+        "comments",
+        "level",
+        "schedule level",
+        "host",
+        "room",
+        "space",
+    ]
+)
+
+ELECTRICAL_DISC_001_SELECTED_PROCESS_LIMIT = 200
+ELECTRICAL_DISC_001_ELEMENT_ROW_LIMIT = 200
+ELECTRICAL_DISC_001_CONNECTOR_ROW_LIMIT = 400
+ELECTRICAL_DISC_001_SYSTEMS_PER_ELEMENT_LIMIT = 20
+ELECTRICAL_DISC_001_CONNECTED_OWNER_LIMIT = 20
+ELECTRICAL_DISC_001_PARAMETER_ROW_LIMIT = 300
+ELECTRICAL_DISC_001_WARNING_LIMIT = 50
+ELECTRICAL_DISC_001_VALUE_LENGTH_LIMIT = 160
+
+
+def _electrical_disc_001_action_key(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return ELECTRICAL_DISC_001_ROUTE_ACTIONS.get(normalized)
+
+
 MEP_SEL_V1_ROUTE_ACTIONS = {
     "select all pipes in active view": "select_pipes_active_view",
     "select active view pipes": "select_pipes_active_view",
@@ -18323,6 +18400,10 @@ class OllamaAIChat(forms.WPFWindow):
                 "HVAC_SELECTION_REPORT_PARTIAL",
                 "HVAC_SELECTION_REPORT_NOT_READY",
                 "HVAC_SELECTION_REPORT_FAILED",
+                "ELECTRICAL_DISCOVERY_OK",
+                "ELECTRICAL_DISCOVERY_PARTIAL",
+                "ELECTRICAL_DISCOVERY_NOT_READY",
+                "ELECTRICAL_DISCOVERY_FAILED",
             ]
         )
         if classification in meta_classifications:
@@ -18342,6 +18423,8 @@ class OllamaAIChat(forms.WPFWindow):
         if feature_lower == "piping-ro-001":
             return True
         if feature_lower == "hvac-ro-001":
+            return True
+        if feature_lower == "electrical-disc-001":
             return True
         if feature_lower == "ai-workbench-visual-v1" and normalized_prompt in AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES:
             return True
@@ -40618,6 +40701,1216 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _electrical_disc_001_text(self, value, fallback="unavailable"):
+        text = safe_str(value).replace("\r", " ").replace("\n", " ").strip()
+        if not text:
+            return fallback
+        if len(text) > ELECTRICAL_DISC_001_VALUE_LENGTH_LIMIT:
+            return text[:ELECTRICAL_DISC_001_VALUE_LENGTH_LIMIT] + "..."
+        return text
+
+    def _electrical_disc_001_property(self, owner, attribute_name, expected=False, not_applicable=False):
+        if not_applicable:
+            return {
+                "status": "NOT_APPLICABLE",
+                "value": "not applicable",
+                "raw": None,
+                "error": None,
+                "affects_partial": False,
+            }
+        if owner is None:
+            return {"status": "UNAVAILABLE", "value": "unavailable", "raw": None, "error": None, "affects_partial": False}
+        try:
+            value = getattr(owner, attribute_name)
+        except AttributeError:
+            return {"status": "UNAVAILABLE", "value": "unavailable", "raw": None, "error": None, "affects_partial": False}
+        except Exception as exc:
+            return {
+                "status": "UNREADABLE" if expected else "UNAVAILABLE",
+                "value": "unreadable" if expected else "unavailable",
+                "raw": None,
+                "error": self._electrical_disc_001_text(exc),
+                "affects_partial": bool(expected),
+            }
+        if value is None:
+            return {"status": "UNAVAILABLE", "value": "unavailable", "raw": None, "error": None, "affects_partial": False}
+        return {
+            "status": "AVAILABLE",
+            "value": self._electrical_disc_001_text(value),
+            "raw": value,
+            "error": None,
+            "affects_partial": False,
+        }
+
+    def _electrical_disc_001_normalized_quantity(self, state, quantity_kind):
+        state = dict(state or {})
+        state["normalized_status"] = state.get("status")
+        state["normalized_value"] = "unavailable"
+        state["normalized_unit"] = ""
+        if state.get("status") != "AVAILABLE":
+            if state.get("status") == "NOT_APPLICABLE":
+                state["normalized_value"] = "not applicable"
+            return state
+        raw_value = state.get("raw")
+        if quantity_kind == "power_factor":
+            try:
+                state["normalized_value"] = "{0:.6g}".format(float(raw_value))
+                state["normalized_unit"] = "ratio"
+                return state
+            except:
+                state["normalized_status"] = "UNAVAILABLE"
+                return state
+        if quantity_kind == "number_of_poles":
+            try:
+                state["normalized_value"] = safe_str(int(raw_value))
+                state["normalized_unit"] = "integer"
+                return state
+            except:
+                state["normalized_status"] = "UNAVAILABLE"
+                return state
+        unit_names = {
+            "voltage": ("Volts", "DUT_VOLTS", "V"),
+            "apparent_load": ("VoltAmperes", "DUT_VOLT_AMPERES", "VA"),
+            "true_load": ("Watts", "DUT_WATTS", "W"),
+            "active_power": ("Watts", "DUT_WATTS", "W"),
+        }
+        unit_info = unit_names.get(quantity_kind)
+        if unit_info is None:
+            state["normalized_status"] = "UNAVAILABLE"
+            return state
+        unit_id = None
+        try:
+            unit_type_ids = getattr(DB, "UnitTypeId", None)
+            if unit_type_ids is not None:
+                unit_id = getattr(unit_type_ids, unit_info[0], None)
+        except:
+            unit_id = None
+        if unit_id is None:
+            try:
+                display_units = getattr(DB, "DisplayUnitType", None)
+                if display_units is not None:
+                    unit_id = getattr(display_units, unit_info[1], None)
+            except:
+                unit_id = None
+        if unit_id is None:
+            state["normalized_status"] = "UNAVAILABLE"
+            return state
+        try:
+            normalized = DB.UnitUtils.ConvertFromInternalUnits(float(raw_value), unit_id)
+            state["normalized_value"] = "{0:.6g}".format(float(normalized))
+            state["normalized_unit"] = unit_info[2]
+        except:
+            state["normalized_status"] = "UNAVAILABLE"
+        return state
+
+    def _electrical_disc_001_xyz(self, value):
+        if value is None:
+            return "unavailable"
+        try:
+            return "({0:.6f}, {1:.6f}, {2:.6f})".format(
+                float(value.X), float(value.Y), float(value.Z)
+            )
+        except:
+            return "unreadable"
+
+    def _electrical_disc_001_runtime_class(self, value):
+        if value is None:
+            return "unavailable"
+        try:
+            return self._electrical_disc_001_text(value.GetType().FullName)
+        except:
+            try:
+                return self._electrical_disc_001_text(type(value).__name__)
+            except:
+                return "unreadable"
+
+    def _electrical_disc_001_connector_kind(self, connector_type_state):
+        state = connector_type_state or {}
+        if state.get("status") == "UNAVAILABLE":
+            return "UNAVAILABLE"
+        if state.get("status") == "UNREADABLE":
+            return "UNREADABLE"
+        token = self._console_normalize(state.get("value"))
+        if token in ("end", "curve", "logical", "physical", "reference", "surface", "mastersurface", "master surface"):
+            return token.upper()
+        return "UNSUPPORTED:{0}".format(self._electrical_disc_001_text(state.get("value")))
+
+    def _electrical_disc_001_scope_kind(self, elem):
+        if elem is None:
+            return "UNRESOLVED_REFERENCE", False
+        try:
+            if isinstance(elem, DB.RevitLinkInstance):
+                return "LINK_INSTANCE", False
+        except:
+            pass
+        category_id = self._mep_ro_v1_element_category_id(elem)
+        for category_name in ELECTRICAL_DISC_001_CANDIDATE_CATEGORIES:
+            if category_id == self._mep_ro_v1_category_id(category_name):
+                return "CANDIDATE_{0}".format(category_name.replace("OST_", "").upper()), True
+        for category_name, scope_kind in ELECTRICAL_DISC_001_EXPLICIT_SCOPE_CATEGORIES:
+            if category_id == self._mep_ro_v1_category_id(category_name):
+                return scope_kind, False
+        try:
+            electrical_namespace = getattr(DB, "Electrical", None)
+            electrical_system_class = getattr(electrical_namespace, "ElectricalSystem", None)
+            if electrical_system_class is not None and isinstance(elem, electrical_system_class):
+                return "ELECTRICAL_CIRCUIT_OR_SYSTEM", False
+        except:
+            pass
+        return "UNSUPPORTED_NON_ELECTRICAL", False
+
+    def _electrical_disc_001_relationship(self, elem, attribute_names):
+        for attribute_name in attribute_names:
+            state = self._electrical_disc_001_property(elem, attribute_name)
+            if state.get("status") == "UNAVAILABLE":
+                continue
+            value = state.get("raw")
+            if state.get("status") == "AVAILABLE":
+                runtime_name = self._electrical_disc_001_runtime_class(value).lower()
+                if "indexer" in runtime_name or "<indexer#" in safe_str(value).lower():
+                    continue
+                try:
+                    state["value"] = "{0} [{1}]".format(
+                        get_elem_name(value) or self._electrical_disc_001_text(value),
+                        self._mep_ro_001_id_text(value.Id),
+                    )
+                except:
+                    state["value"] = self._electrical_disc_001_text(value)
+            state["source"] = attribute_name
+            return state
+        return {
+            "status": "UNAVAILABLE",
+            "value": "unavailable",
+            "raw": None,
+            "error": None,
+            "source": "none",
+        }
+
+    def _electrical_disc_001_phase_relationship(self, elem, relationship_name):
+        phase = None
+        try:
+            phase_id = elem.CreatedPhaseId
+            if self._mep_ro_001_id_value(phase_id) is not None and self._mep_ro_001_id_value(phase_id) > 0:
+                phase = doc.GetElement(phase_id)
+        except:
+            phase = None
+        if phase is None:
+            return {
+                "status": "UNAVAILABLE",
+                "value": "unavailable",
+                "raw": None,
+                "error": None,
+                "source": "no stable created phase",
+                "affects_partial": False,
+            }
+        getter_name = "get_{0}".format(relationship_name)
+        try:
+            getter = getattr(elem, getter_name)
+        except:
+            getter = None
+        if getter is None:
+            return {
+                "status": "NOT_APPLICABLE",
+                "value": "not applicable",
+                "raw": None,
+                "error": None,
+                "source": getter_name,
+                "affects_partial": False,
+            }
+        try:
+            related = getter(phase)
+        except:
+            return {
+                "status": "UNAVAILABLE",
+                "value": "unavailable",
+                "raw": None,
+                "error": None,
+                "source": "{0}(CreatedPhaseId)".format(getter_name),
+                "affects_partial": False,
+            }
+        if related is None:
+            return {
+                "status": "UNAVAILABLE",
+                "value": "unavailable",
+                "raw": None,
+                "error": None,
+                "source": "{0}(CreatedPhaseId)".format(getter_name),
+                "affects_partial": False,
+            }
+        return {
+            "status": "AVAILABLE",
+            "value": "{0} [{1}]".format(
+                get_elem_name(related) or self._electrical_disc_001_text(related),
+                self._mep_ro_001_id_text(getattr(related, "Id", None)),
+            ),
+            "raw": related,
+            "error": None,
+            "source": "{0}(CreatedPhaseId)".format(getter_name),
+            "affects_partial": False,
+        }
+
+    def _electrical_disc_001_level_relationship(self, elem):
+        level_id = None
+        for attribute_name in ("LevelId", "ReferenceLevelId"):
+            try:
+                candidate = getattr(elem, attribute_name)
+                if self._mep_ro_001_id_value(candidate) is not None and self._mep_ro_001_id_value(candidate) > 0:
+                    level_id = candidate
+                    break
+            except:
+                continue
+        if level_id is None:
+            direct = self._electrical_disc_001_relationship(elem, ["Level", "ReferenceLevel"])
+            if direct.get("status") == "AVAILABLE":
+                return direct
+            return {
+                "status": "UNAVAILABLE",
+                "value": "unavailable",
+                "raw": None,
+                "error": None,
+                "source": "none",
+                "affects_partial": False,
+            }
+        level_id_text = self._mep_ro_001_id_text(level_id)
+        try:
+            level = doc.GetElement(level_id)
+        except:
+            level = None
+        return {
+            "status": "AVAILABLE",
+            "value": "{0} [{1}]".format(get_elem_name(level) or "unavailable", level_id_text),
+            "raw": level,
+            "error": None,
+            "source": attribute_name,
+            "affects_partial": False,
+        }
+
+    def _electrical_disc_001_mep_model(self, elem):
+        state = self._electrical_disc_001_property(elem, "MEPModel", expected=True)
+        return state
+
+    def _electrical_disc_001_connector_manager(self, elem, mep_model_state):
+        owners = []
+        if mep_model_state.get("status") == "AVAILABLE":
+            owners.append(("MEPModel.ConnectorManager", mep_model_state.get("raw")))
+        owners.append(("Element.ConnectorManager", elem))
+        for source, owner in owners:
+            state = self._electrical_disc_001_property(owner, "ConnectorManager", expected=True)
+            if state.get("status") == "UNAVAILABLE":
+                continue
+            state["source"] = source
+            return state
+        return {
+            "status": "UNAVAILABLE",
+            "value": "unavailable",
+            "raw": None,
+            "error": None,
+            "source": "none",
+        }
+
+    def _electrical_disc_001_systems(self, elem, mep_model_state):
+        systems = []
+        errors = []
+        available = False
+        model = mep_model_state.get("raw") if mep_model_state.get("status") == "AVAILABLE" else None
+        if model is not None:
+            getter = None
+            try:
+                getter = getattr(model, "GetElectricalSystems")
+            except AttributeError:
+                getter = None
+            except Exception as exc:
+                errors.append("GetElectricalSystems: {0}".format(self._electrical_disc_001_text(exc)))
+            if getter is not None:
+                available = True
+                try:
+                    systems.extend(list(getter() or []))
+                except Exception as exc:
+                    errors.append("GetElectricalSystems(): {0}".format(self._electrical_disc_001_text(exc)))
+            property_state = self._electrical_disc_001_property(model, "ElectricalSystems", expected=True)
+            if property_state.get("status") == "AVAILABLE":
+                available = True
+                try:
+                    systems.extend(list(property_state.get("raw") or []))
+                except Exception as exc:
+                    errors.append("ElectricalSystems: {0}".format(self._electrical_disc_001_text(exc)))
+            elif property_state.get("status") == "UNREADABLE":
+                errors.append("ElectricalSystems: {0}".format(property_state.get("error")))
+        unique = {}
+        for system in systems:
+            try:
+                key = self._mep_ro_001_id_text(system.Id)
+            except:
+                key = "runtime:{0}".format(id(system))
+            unique[key] = system
+        ordered = list(unique.values())
+        ordered.sort(
+            key=lambda item: (
+                self._mep_ro_001_id_value(getattr(item, "Id", None)) is None,
+                self._mep_ro_001_id_value(getattr(item, "Id", None)) or 0,
+                self._electrical_disc_001_text(get_elem_name(item)).lower(),
+            )
+        )
+        cap_exceeded = len(ordered) > ELECTRICAL_DISC_001_SYSTEMS_PER_ELEMENT_LIMIT
+        return {
+            "status": "UNREADABLE" if errors else ("AVAILABLE" if available else "UNAVAILABLE"),
+            "systems": ordered[:ELECTRICAL_DISC_001_SYSTEMS_PER_ELEMENT_LIMIT],
+            "total": len(ordered),
+            "cap_exceeded": cap_exceeded,
+            "errors": errors,
+        }
+
+    def _electrical_disc_001_system_record(self, owner, system):
+        owner_id = self._mep_ro_001_id_text(getattr(owner, "Id", None))
+
+        def value(attribute_name, expected=False):
+            return self._electrical_disc_001_property(system, attribute_name, expected=expected)
+
+        panel = value("BaseEquipment")
+        elements = value("Elements", expected=True)
+        connected_count = "unavailable"
+        if elements.get("status") == "AVAILABLE":
+            try:
+                connected_count = len(list(elements.get("raw") or []))
+            except Exception as exc:
+                elements = {
+                    "status": "UNREADABLE",
+                    "value": "unreadable",
+                    "raw": None,
+                    "error": self._electrical_disc_001_text(exc),
+                }
+        panel_name = "unavailable"
+        panel_id = "unavailable"
+        if panel.get("status") == "AVAILABLE":
+            try:
+                panel_name = get_elem_name(panel.get("raw")) or "unavailable"
+                panel_id = self._mep_ro_001_id_text(panel.get("raw").Id)
+            except Exception as exc:
+                panel = {
+                    "status": "UNREADABLE",
+                    "value": "unreadable",
+                    "raw": None,
+                    "error": self._electrical_disc_001_text(exc),
+                }
+        properties = {}
+        for key, attribute_name in (
+            ("system_type", "SystemType"),
+            ("circuit_number", "CircuitNumber"),
+            ("load_name", "LoadName"),
+            ("voltage", "Voltage"),
+            ("apparent_load", "ApparentLoad"),
+            ("true_load", "TrueLoad"),
+            ("active_power", "ActivePower"),
+            ("power_factor", "PowerFactor"),
+            ("number_of_poles", "NumberOfPoles"),
+            ("phase", "Phase"),
+            ("balanced", "IsBalanced"),
+            ("classification", "SystemClassification"),
+            ("primary", "IsPrimary"),
+        ):
+            properties[key] = value(attribute_name, expected=(key == "system_type"))
+        for key in ("voltage", "apparent_load", "true_load", "active_power", "power_factor", "number_of_poles"):
+            properties[key] = self._electrical_disc_001_normalized_quantity(properties.get(key), key)
+        system_id_state = self._electrical_disc_001_property(system, "Id", expected=True)
+        system_id = self._mep_ro_001_id_text(system_id_state.get("raw")) if system_id_state.get("status") == "AVAILABLE" else "unavailable"
+        selected_role = "NOT_OBSERVED"
+        circuit_relationship = "UNDETERMINED"
+        if panel.get("status") == "AVAILABLE":
+            try:
+                if self._mep_ro_001_id_text(panel.get("raw").Id) == owner_id:
+                    selected_role = "BASE_EQUIPMENT"
+                    circuit_relationship = "DOWNSTREAM_BRANCH_CIRCUIT"
+            except:
+                pass
+        if selected_role == "NOT_OBSERVED" and elements.get("status") == "AVAILABLE":
+            try:
+                element_ids = set([self._mep_ro_001_id_text(item.Id) for item in list(elements.get("raw") or [])])
+                if owner_id in element_ids:
+                    selected_role = "LOAD"
+                    circuit_relationship = "UPSTREAM_OR_LOAD_CIRCUIT"
+            except:
+                pass
+        unreadable = bool(system_id_state.get("status") != "AVAILABLE")
+        unreadable = unreadable or elements.get("status") == "UNREADABLE"
+        unreadable = unreadable or properties.get("system_type", {}).get("status") == "UNREADABLE"
+        return {
+            "owner_id": owner_id,
+            "system_id": system_id,
+            "system_name": self._electrical_disc_001_text(get_elem_name(system)),
+            "runtime_class": self._electrical_disc_001_runtime_class(system),
+            "panel_status": panel.get("status"),
+            "panel_name": panel_name,
+            "panel_id": panel_id,
+            "connected_count": connected_count,
+            "properties": properties,
+            "selected_element_role": selected_role,
+            "circuit_relationship": circuit_relationship,
+            "unreadable": unreadable,
+        }
+
+    def _electrical_disc_001_connector_record(self, owner, connector, sequence):
+        owner_id = self._mep_ro_001_id_text(getattr(owner, "Id", None))
+        connector_type_state = self._electrical_disc_001_property(connector, "ConnectorType", expected=True)
+        domain_state = self._electrical_disc_001_property(connector, "Domain", expected=True)
+        connector_type_token = self._console_normalize(connector_type_state.get("value"))
+        domain_token = self._console_normalize(domain_state.get("value"))
+        logical = connector_type_token == "logical"
+        surface = connector_type_token in ("surface", "mastersurface", "master surface")
+        physical_end = connector_type_token in ("end", "curve", "physical")
+        electrical_domain = domain_token == "domainelectrical"
+        conduit_domain = domain_token == "domaincabletrayconduit"
+
+        values = {
+            "connector_type": connector_type_state,
+            "domain": domain_state,
+            "shape": self._electrical_disc_001_property(
+                connector, "Shape", not_applicable=logical
+            ),
+            "flow_direction": self._electrical_disc_001_property(
+                connector, "Direction", not_applicable=(logical or surface)
+            ),
+            "electrical_system_type": self._electrical_disc_001_property(
+                connector, "ElectricalSystemType", not_applicable=conduit_domain
+            ),
+            "voltage": self._electrical_disc_001_property(
+                connector, "Voltage", not_applicable=conduit_domain
+            ),
+            "number_of_poles": self._electrical_disc_001_property(
+                connector, "NumberOfPoles", not_applicable=conduit_domain
+            ),
+            "apparent_load": self._electrical_disc_001_property(
+                connector, "ApparentLoad", not_applicable=conduit_domain
+            ),
+            "active_power": self._electrical_disc_001_property(
+                connector, "ActivePower", not_applicable=conduit_domain
+            ),
+            "power_factor": self._electrical_disc_001_property(
+                connector, "PowerFactor", not_applicable=conduit_domain
+            ),
+            "is_connected": self._electrical_disc_001_property(
+                connector,
+                "IsConnected",
+                expected=(physical_end and electrical_domain),
+                not_applicable=(logical or surface),
+            ),
+        }
+        for key in ("voltage", "number_of_poles", "apparent_load", "active_power", "power_factor"):
+            values[key] = self._electrical_disc_001_normalized_quantity(values.get(key), key)
+        origin_state = self._electrical_disc_001_property(
+            connector,
+            "Origin",
+            expected=(physical_end and electrical_domain),
+            not_applicable=(logical or surface),
+        )
+        origin = self._electrical_disc_001_xyz(origin_state.get("raw")) if origin_state.get("status") == "AVAILABLE" else origin_state.get("value")
+        direction = "not applicable" if logical or surface else "unavailable"
+        direction_status = "NOT_APPLICABLE" if logical or surface else "UNAVAILABLE"
+        direction_affects_partial = False
+        if not (logical or surface):
+            try:
+                direction = self._electrical_disc_001_xyz(connector.CoordinateSystem.BasisZ)
+                direction_status = "AVAILABLE" if direction != "unreadable" else "UNREADABLE"
+                direction_affects_partial = bool(direction_status == "UNREADABLE" and physical_end and electrical_domain)
+            except AttributeError:
+                pass
+            except:
+                if physical_end and electrical_domain:
+                    direction = "unreadable"
+                    direction_status = "UNREADABLE"
+                    direction_affects_partial = True
+        references = []
+        refs_state = self._electrical_disc_001_property(connector, "AllRefs", expected=True)
+        if refs_state.get("status") == "AVAILABLE":
+            try:
+                references = list(refs_state.get("raw") or [])
+            except Exception as exc:
+                refs_state = {
+                    "status": "UNREADABLE",
+                    "value": "unreadable",
+                    "raw": None,
+                    "error": self._electrical_disc_001_text(exc),
+                    "affects_partial": True,
+                }
+        reference_rows = []
+        for reference in references:
+            reference_owner = None
+            try:
+                reference_owner = reference.Owner
+            except:
+                reference_owner = None
+            reference_owner_id = self._mep_ro_001_id_text(getattr(reference_owner, "Id", None))
+            if reference_owner_id == owner_id:
+                continue
+            reciprocal = "unavailable"
+            try:
+                reciprocal = "true" if bool(reference.IsConnectedTo(connector)) else "false"
+            except AttributeError:
+                reciprocal = "unavailable"
+            except:
+                reciprocal = "unreadable"
+            reference_rows.append(
+                {
+                    "owner_id": reference_owner_id,
+                    "owner_category": self._mep_ro_v1_element_category_name(reference_owner),
+                    "reciprocal": reciprocal,
+                }
+            )
+        reference_rows.sort(
+            key=lambda item: (
+                not safe_str(item.get("owner_id")).isdigit(),
+                int(item.get("owner_id")) if safe_str(item.get("owner_id")).isdigit() else safe_str(item.get("owner_id")),
+                safe_str(item.get("owner_category")).lower(),
+            )
+        )
+        refs_cap_exceeded = len(reference_rows) > ELECTRICAL_DISC_001_CONNECTED_OWNER_LIMIT
+        reference_rows = reference_rows[:ELECTRICAL_DISC_001_CONNECTED_OWNER_LIMIT]
+        if refs_state.get("status") == "UNAVAILABLE":
+            refs_state["affects_partial"] = True
+        required_states = [origin_state, refs_state] + list(values.values())
+        unreadable = bool(direction_affects_partial)
+        unreadable = unreadable or any(item.get("affects_partial") for item in required_states)
+        unreadable = unreadable or connector_type_state.get("status") != "AVAILABLE"
+        unreadable = unreadable or domain_state.get("status") != "AVAILABLE"
+        return {
+            "owner_id": owner_id,
+            "sequence": sequence,
+            "origin": origin,
+            "origin_status": origin_state.get("status"),
+            "direction": direction,
+            "direction_status": direction_status,
+            "direction_affects_partial": direction_affects_partial,
+            "values": values,
+            "connector_kind": self._electrical_disc_001_connector_kind(values.get("connector_type")),
+            "all_refs_count": len(references),
+            "reference_rows": reference_rows,
+            "refs_cap_exceeded": refs_cap_exceeded,
+            "unreadable": unreadable,
+        }
+
+    def _electrical_disc_001_connectors(self, elem, manager_state):
+        if manager_state.get("status") != "AVAILABLE":
+            return {
+                "status": manager_state.get("status"),
+                "records": [],
+                "total": 0,
+                "error": manager_state.get("error"),
+            }
+        connectors_state = self._electrical_disc_001_property(manager_state.get("raw"), "Connectors")
+        if connectors_state.get("status") != "AVAILABLE":
+            return {
+                "status": connectors_state.get("status"),
+                "records": [],
+                "total": 0,
+                "error": connectors_state.get("error"),
+            }
+        try:
+            connectors = list(connectors_state.get("raw") or [])
+        except Exception as exc:
+            return {
+                "status": "UNREADABLE",
+                "records": [],
+                "total": 0,
+                "error": self._electrical_disc_001_text(exc),
+            }
+        sortable = []
+        for original_sequence, connector in enumerate(connectors, 1):
+            try:
+                origin = connector.Origin
+                origin_key = (float(origin.X), float(origin.Y), float(origin.Z))
+            except:
+                origin_key = (0.0, 0.0, 0.0)
+            try:
+                connector_type = self._electrical_disc_001_text(connector.ConnectorType)
+            except:
+                connector_type = "unreadable"
+            sortable.append((origin_key, connector_type.lower(), original_sequence, connector))
+        sortable.sort(key=lambda item: (item[0], item[1], item[2]))
+        records = []
+        for stable_sequence, item in enumerate(sortable, 1):
+            records.append(self._electrical_disc_001_connector_record(elem, item[3], stable_sequence))
+        return {"status": "AVAILABLE", "records": records, "total": len(records), "error": None}
+
+    def _electrical_disc_001_parameter_match(self, name):
+        token = self._console_normalize(name)
+        if token in ELECTRICAL_DISC_001_RELEVANT_PARAMETER_NAMES:
+            return True
+        for relevant in ELECTRICAL_DISC_001_RELEVANT_PARAMETER_NAMES:
+            if token.endswith(" " + relevant) or token.startswith(relevant + " "):
+                return True
+        return False
+
+    def _electrical_disc_001_parameter_rows(self, record):
+        rows = []
+        errors = []
+        sources = [("instance", record.get("element"))]
+        if record.get("type_element") is not None:
+            sources.append(("type", record.get("type_element")))
+        for source, elem in sources:
+            try:
+                parameters = list(elem.Parameters)
+            except Exception as exc:
+                errors.append("{0} parameters: {1}".format(source, self._electrical_disc_001_text(exc)))
+                continue
+            for param in parameters:
+                identity = self._mep_ro_001_parameter_identity(param, elem)
+                if not self._electrical_disc_001_parameter_match(identity.get("name")):
+                    continue
+                readable, value, error = self._mep_ro_001_read_parameter(param)
+                rows.append(
+                    {
+                        "element_id": record.get("element_id"),
+                        "source": source,
+                        "identity": identity,
+                        "status": "AVAILABLE" if readable else "UNREADABLE",
+                        "value": self._electrical_disc_001_text(value),
+                        "error": self._electrical_disc_001_text(error, "none") if error else "none",
+                    }
+                )
+        rows.sort(
+            key=lambda item: (
+                safe_str(item.get("identity", {}).get("classification")),
+                safe_str(item.get("identity", {}).get("built_in_id")),
+                safe_str(item.get("identity", {}).get("shared_guid")),
+                safe_str(item.get("identity", {}).get("name")).lower(),
+                safe_str(item.get("source")),
+            )
+        )
+        return rows, errors
+
+    def _electrical_disc_001_element_record(self, generic_record):
+        elem = generic_record.get("element")
+        scope_kind, is_candidate = self._electrical_disc_001_scope_kind(elem)
+        mep_model = self._electrical_disc_001_mep_model(elem)
+        connector_manager = self._electrical_disc_001_connector_manager(elem, mep_model)
+        connectors = self._electrical_disc_001_connectors(elem, connector_manager)
+        systems = self._electrical_disc_001_systems(elem, mep_model)
+        system_records = [
+            self._electrical_disc_001_system_record(elem, item)
+            for item in systems.get("systems") or []
+        ]
+        system_records.sort(
+            key=lambda item: (
+                not safe_str(item.get("owner_id")).isdigit(),
+                int(item.get("owner_id")) if safe_str(item.get("owner_id")).isdigit() else safe_str(item.get("owner_id")),
+                not safe_str(item.get("system_id")).isdigit(),
+                int(item.get("system_id")) if safe_str(item.get("system_id")).isdigit() else safe_str(item.get("system_id")),
+                safe_str(item.get("panel_name")).lower(),
+                safe_str(item.get("properties", {}).get("circuit_number", {}).get("value")).lower(),
+                safe_str(item.get("system_name")).lower(),
+            )
+        )
+        parameter_rows, parameter_errors = self._electrical_disc_001_parameter_rows(generic_record)
+        relationships = {
+            "host": self._electrical_disc_001_relationship(elem, ["Host"]),
+            "level": self._electrical_disc_001_level_relationship(elem),
+            "space": self._electrical_disc_001_phase_relationship(elem, "Space"),
+            "room": self._electrical_disc_001_phase_relationship(elem, "Room"),
+        }
+        primary = self._electrical_disc_001_property(mep_model.get("raw"), "ElectricalSystem")
+        if primary.get("status") == "AVAILABLE":
+            try:
+                primary["value"] = "{0} [{1}]".format(
+                    get_elem_name(primary.get("raw")) or "unavailable",
+                    self._mep_ro_001_id_text(primary.get("raw").Id),
+                )
+            except:
+                primary["value"] = self._electrical_disc_001_text(primary.get("raw"))
+        required_identity_errors = [
+            error for error in (generic_record.get("property_errors") or [])
+            if safe_str(error).startswith("UniqueId:") or safe_str(error).startswith("Category:")
+        ]
+        if generic_record.get("element_id") in (None, "not available"):
+            required_identity_errors.append("ElementId: unavailable")
+        if generic_record.get("unique_id") in (None, "not available"):
+            required_identity_errors.append("UniqueId: unavailable")
+        if generic_record.get("category_id") in (None, "not available"):
+            required_identity_errors.append("Category: unavailable")
+        unreadable = bool(required_identity_errors)
+        unreadable = unreadable or mep_model.get("status") == "UNREADABLE"
+        unreadable = unreadable or connector_manager.get("status") == "UNREADABLE"
+        unreadable = unreadable or connectors.get("status") == "UNREADABLE"
+        unreadable = unreadable or systems.get("status") == "UNREADABLE"
+        unreadable = unreadable or any(item.get("unreadable") for item in connectors.get("records") or [])
+        unreadable = unreadable or any(item.get("unreadable") for item in system_records)
+        return {
+            "generic": generic_record,
+            "scope_kind": scope_kind,
+            "is_candidate": is_candidate,
+            "runtime_class": self._electrical_disc_001_runtime_class(elem),
+            "mep_model": mep_model,
+            "connector_manager": connector_manager,
+            "connectors": connectors,
+            "systems": systems,
+            "system_records": system_records,
+            "primary_system": primary,
+            "relationships": relationships,
+            "parameter_rows": parameter_rows,
+            "parameter_errors": parameter_errors,
+            "required_identity_errors": required_identity_errors,
+            "unreadable": unreadable,
+        }
+
+    def _electrical_disc_001_category_matrix(self, records):
+        matrix = {}
+        for record in records:
+            generic = record.get("generic") or {}
+            key = (generic.get("category_name"), generic.get("category_id"))
+            item = matrix.setdefault(
+                key,
+                {
+                    "category_name": key[0],
+                    "category_id": key[1],
+                    "selected": 0,
+                    "candidate": False,
+                    "mep_model": 0,
+                    "connector_manager": 0,
+                    "connectors": 0,
+                    "electrical_systems": 0,
+                    "zero_system": 0,
+                    "one_system": 0,
+                    "multi_system": 0,
+                    "panel": 0,
+                    "circuit": 0,
+                    "voltage": 0,
+                    "load": 0,
+                    "unreadable": 0,
+                    "connector_kinds": set(),
+                    "connector_domains": set(),
+                    "scope_kinds": set(),
+                },
+            )
+            item["selected"] += 1
+            item["candidate"] = item["candidate"] or bool(record.get("is_candidate"))
+            item["scope_kinds"].add(record.get("scope_kind"))
+            if record.get("mep_model", {}).get("status") == "AVAILABLE":
+                item["mep_model"] += 1
+            if record.get("connector_manager", {}).get("status") == "AVAILABLE":
+                item["connector_manager"] += 1
+            item["connectors"] += len(record.get("connectors", {}).get("records") or [])
+            if record.get("systems", {}).get("status") == "AVAILABLE":
+                item["electrical_systems"] += 1
+            system_count = int(record.get("systems", {}).get("total") or 0)
+            if system_count == 0:
+                item["zero_system"] += 1
+            elif system_count == 1:
+                item["one_system"] += 1
+            else:
+                item["multi_system"] += 1
+            if any(system.get("panel_status") == "AVAILABLE" for system in record.get("system_records") or []):
+                item["panel"] += 1
+            if any(system.get("properties", {}).get("circuit_number", {}).get("status") == "AVAILABLE" for system in record.get("system_records") or []):
+                item["circuit"] += 1
+            connector_values = [connector.get("values") or {} for connector in record.get("connectors", {}).get("records") or []]
+            for connector in record.get("connectors", {}).get("records") or []:
+                item["connector_kinds"].add(safe_str(connector.get("connector_kind")))
+                item["connector_domains"].add(safe_str((connector.get("values") or {}).get("domain", {}).get("value")))
+            if any(values.get("voltage", {}).get("status") == "AVAILABLE" for values in connector_values) or any(system.get("properties", {}).get("voltage", {}).get("status") == "AVAILABLE" for system in record.get("system_records") or []):
+                item["voltage"] += 1
+            if any(values.get("apparent_load", {}).get("status") == "AVAILABLE" or values.get("active_power", {}).get("status") == "AVAILABLE" for values in connector_values) or any(system.get("properties", {}).get("apparent_load", {}).get("status") == "AVAILABLE" or system.get("properties", {}).get("active_power", {}).get("status") == "AVAILABLE" for system in record.get("system_records") or []):
+                item["load"] += 1
+            if record.get("unreadable"):
+                item["unreadable"] += 1
+        rows = list(matrix.values())
+        for item in rows:
+            if not item.get("candidate"):
+                recommendation = "CANDIDATE_UNSUPPORTED"
+                reason = "Selected category is outside the candidate electrical family-instance categories."
+            elif item.get("unreadable"):
+                recommendation = "CANDIDATE_CONDITIONAL"
+                reason = "Candidate category exposed guarded electrical data, but a required discovery read was unreadable."
+            elif "CANDIDATE_ELECTRICALEQUIPMENT" in (item.get("scope_kinds") or set()) and (
+                item.get("multi_system") or len(item.get("connector_kinds") or []) > 1 or len(item.get("connector_domains") or []) > 1
+            ):
+                recommendation = "CANDIDATE_CONDITIONAL"
+                reason = "Observed electrical equipment has multi-system or mixed connector semantics requiring category-specific production handling."
+            elif item.get("mep_model") == item.get("selected") and (item.get("connector_manager") or item.get("electrical_systems")):
+                recommendation = "CANDIDATE_SUPPORTED"
+                reason = "All observed elements exposed MEPModel and at least one connector/system API path without read failure."
+            elif item.get("mep_model") or item.get("connector_manager") or item.get("electrical_systems"):
+                recommendation = "CANDIDATE_CONDITIONAL"
+                reason = "Electrical API exposure varied across the observed category sample."
+            else:
+                recommendation = "INSUFFICIENT_EVIDENCE"
+                reason = "Observed elements did not expose enough connector or circuit API data for a production recommendation."
+            item["recommendation"] = recommendation
+            item["recommendation_reason"] = reason
+            item["scope_kinds"] = sorted([safe_str(value) for value in item.get("scope_kinds") or []])
+            item["connector_kinds"] = sorted([safe_str(value) for value in item.get("connector_kinds") or []])
+            item["connector_domains"] = sorted([safe_str(value) for value in item.get("connector_domains") or []])
+        rows.sort(key=lambda item: (safe_str(item.get("category_name")).lower(), safe_str(item.get("category_id"))))
+        return rows
+
+    def _electrical_disc_001_build_data(self, prompt):
+        snapshot = self._mep_ro_001_selection_snapshot()
+        active_view = doc.ActiveView if doc else None
+        selected_total = len(snapshot.get("selected_ids") or [])
+        data = {
+            "feature_id": "ELECTRICAL-DISC-001",
+            "feature_name": "ModelMind Read-Only Electrical Selection Discovery",
+            "prompt": safe_str(prompt),
+            "canonical_prompt": "inspect selected electrical api data",
+            "classification": "ELECTRICAL_DISCOVERY_OK",
+            "reason_code": "DISCOVERY_COMPLETE",
+            "report_id": "ELECTRICAL-DISC-001-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": safe_str(doc.Title) if doc else "unavailable",
+            "active_view_name": get_elem_name(active_view) if active_view else "unavailable",
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "selected_reference_count": selected_total,
+            "processed_reference_count": 0,
+            "records": [],
+            "connector_rows": [],
+            "system_rows": [],
+            "parameter_rows": [],
+            "category_matrix": [],
+            "warnings": [],
+            "caps_exceeded": [],
+            "next_guidance": "Review observed API capability before defining ELECTRICAL-RO-001 production scope.",
+        }
+        if snapshot.get("selection_read_error"):
+            data["classification"] = "ELECTRICAL_DISCOVERY_FAILED"
+            data["reason_code"] = "SELECTION_READ_FAILED"
+            data["warnings"].append(("SELECTION_READ_FAILED", "none", snapshot.get("selection_read_error")))
+            return data
+        if selected_total == 0:
+            data["classification"] = "ELECTRICAL_DISCOVERY_NOT_READY"
+            data["reason_code"] = "NO_SELECTED_ELEMENTS"
+            data["next_guidance"] = "Select electrical discovery candidates in the active document and rerun."
+            return data
+        source_records = snapshot.get("records") or []
+        if selected_total > ELECTRICAL_DISC_001_SELECTED_PROCESS_LIMIT:
+            data["caps_exceeded"].append("selected elements processed")
+            source_records = source_records[:ELECTRICAL_DISC_001_SELECTED_PROCESS_LIMIT]
+        for generic_record in source_records:
+            record = self._electrical_disc_001_element_record(generic_record)
+            data["records"].append(record)
+            if record.get("unreadable"):
+                data["warnings"].append(("GUARDED_READ_UNREADABLE", generic_record.get("element_id"), "One or more guarded discovery paths were unreadable."))
+            for connector in record.get("connectors", {}).get("records") or []:
+                if len(data["connector_rows"]) >= ELECTRICAL_DISC_001_CONNECTOR_ROW_LIMIT:
+                    if "connector detail rows" not in data["caps_exceeded"]:
+                        data["caps_exceeded"].append("connector detail rows")
+                    break
+                data["connector_rows"].append(connector)
+                if connector.get("refs_cap_exceeded"):
+                    data["caps_exceeded"].append("connected owner IDs per connector")
+            if record.get("systems", {}).get("cap_exceeded"):
+                data["caps_exceeded"].append("systems displayed per element")
+            data["system_rows"].extend(record.get("system_records") or [])
+            for parameter in record.get("parameter_rows") or []:
+                if len(data["parameter_rows"]) >= ELECTRICAL_DISC_001_PARAMETER_ROW_LIMIT:
+                    if "parameter rows" not in data["caps_exceeded"]:
+                        data["caps_exceeded"].append("parameter rows")
+                    break
+                data["parameter_rows"].append(parameter)
+        data["processed_reference_count"] = len(data["records"])
+        for unavailable in snapshot.get("unavailable") or []:
+            data["warnings"].append(("UNRESOLVED_REFERENCE", unavailable.get("element_id"), unavailable.get("reason")))
+        data["records"].sort(
+            key=lambda item: (
+                not safe_str(item.get("generic", {}).get("element_id")).isdigit(),
+                int(item.get("generic", {}).get("element_id")) if safe_str(item.get("generic", {}).get("element_id")).isdigit() else safe_str(item.get("generic", {}).get("element_id")),
+            )
+        )
+        data["connector_rows"].sort(
+            key=lambda item: (
+                not safe_str(item.get("owner_id")).isdigit(),
+                int(item.get("owner_id")) if safe_str(item.get("owner_id")).isdigit() else safe_str(item.get("owner_id")),
+                safe_str(item.get("origin")),
+                safe_str(item.get("values", {}).get("connector_type", {}).get("value")),
+                int(item.get("sequence") or 0),
+            )
+        )
+        data["system_rows"].sort(
+            key=lambda item: (
+                not safe_str(item.get("owner_id")).isdigit(),
+                int(item.get("owner_id")) if safe_str(item.get("owner_id")).isdigit() else safe_str(item.get("owner_id")),
+                not safe_str(item.get("system_id")).isdigit(),
+                int(item.get("system_id")) if safe_str(item.get("system_id")).isdigit() else safe_str(item.get("system_id")),
+                safe_str(item.get("panel_name")).lower(),
+                safe_str(item.get("properties", {}).get("circuit_number", {}).get("value")).lower(),
+                safe_str(item.get("system_name")).lower(),
+            )
+        )
+        data["parameter_rows"].sort(
+            key=lambda item: (
+                safe_str(item.get("identity", {}).get("classification")),
+                safe_str(item.get("identity", {}).get("built_in_id")),
+                safe_str(item.get("identity", {}).get("shared_guid")),
+                safe_str(item.get("identity", {}).get("name")).lower(),
+                not safe_str(item.get("element_id")).isdigit(),
+                int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+            )
+        )
+        data["category_matrix"] = self._electrical_disc_001_category_matrix(data["records"])
+        has_candidate = any(item.get("is_candidate") for item in data["records"])
+        has_unsupported = any(not item.get("is_candidate") for item in data["records"])
+        has_unreadable = any(item.get("unreadable") for item in data["records"])
+        if has_candidate and has_unsupported:
+            for item in data["records"]:
+                if item.get("is_candidate"):
+                    continue
+                data["warnings"].append(
+                    (
+                        "UNSUPPORTED_SCOPE_INCLUDED",
+                        item.get("generic", {}).get("element_id"),
+                        "{0} was identity-inspected but is outside the candidate electrical discovery categories.".format(
+                            item.get("scope_kind")
+                        ),
+                    )
+                )
+        data["caps_exceeded"] = sorted(set(data["caps_exceeded"]))
+        partial = bool(snapshot.get("unavailable") or data["caps_exceeded"] or has_unreadable or (has_candidate and has_unsupported))
+        if partial:
+            data["classification"] = "ELECTRICAL_DISCOVERY_PARTIAL"
+            data["reason_code"] = "DISCOVERY_PARTIAL"
+        data["warnings"].sort(
+            key=lambda item: (
+                safe_str(item[0]),
+                not safe_str(item[1]).isdigit(),
+                int(item[1]) if safe_str(item[1]).isdigit() else safe_str(item[1]),
+                safe_str(item[2]),
+            )
+        )
+        return data
+
+    def _electrical_disc_001_status_text(self, state):
+        state = state or {}
+        value = state.get("value")
+        if state.get("status") == "AVAILABLE":
+            text = "AVAILABLE: {0}".format(self._electrical_disc_001_text(value))
+            if "normalized_status" in state:
+                text = "AVAILABLE: raw internal {0}".format(self._electrical_disc_001_text(value))
+                normalized_status = state.get("normalized_status") or "UNAVAILABLE"
+                normalized_value = self._electrical_disc_001_text(state.get("normalized_value"))
+                normalized_unit = self._electrical_disc_001_text(state.get("normalized_unit"), "")
+                if normalized_status == "AVAILABLE":
+                    text += " | normalized: {0}{1}".format(
+                        normalized_value,
+                        " " + normalized_unit if normalized_unit else "",
+                    )
+                else:
+                    text += " | normalized: {0}".format(normalized_status)
+            return text
+        return safe_str(state.get("status") or "UNAVAILABLE")
+
+    def _electrical_disc_001_format_report(self, data):
+        element_rows = []
+        for record in (data.get("records") or [])[:ELECTRICAL_DISC_001_ELEMENT_ROW_LIMIT]:
+            generic = record.get("generic") or {}
+            relationships = record.get("relationships") or {}
+            element_rows.append(
+                [
+                    generic.get("element_id"), generic.get("unique_id"), generic.get("category_name"),
+                    generic.get("category_id"), record.get("scope_kind"), record.get("runtime_class"),
+                    generic.get("family_name"), generic.get("type_name"), generic.get("type_id"),
+                    generic.get("element_name"), generic.get("workset"), generic.get("pinned"),
+                    generic.get("group_id"), generic.get("assembly_id"), generic.get("design_option"),
+                    generic.get("owner_view_id"), generic.get("view_specific"),
+                    self._electrical_disc_001_status_text(relationships.get("host")),
+                    self._electrical_disc_001_status_text(relationships.get("level")),
+                    self._electrical_disc_001_status_text(relationships.get("space")),
+                    self._electrical_disc_001_status_text(relationships.get("room")),
+                    record.get("mep_model", {}).get("status"),
+                    record.get("connector_manager", {}).get("status"),
+                    record.get("systems", {}).get("status"),
+                    record.get("systems", {}).get("total"),
+                    self._electrical_disc_001_status_text(record.get("primary_system")),
+                    "true" if record.get("unreadable") else "false",
+                ]
+            )
+        connector_rows = []
+        for record in data.get("connector_rows") or []:
+            values = record.get("values") or {}
+            refs = record.get("reference_rows") or []
+            connector_rows.append(
+                [
+                    record.get("owner_id"), record.get("sequence"),
+                    record.get("connector_kind"),
+                    self._electrical_disc_001_status_text(values.get("connector_type")),
+                    self._electrical_disc_001_status_text(values.get("domain")),
+                    self._electrical_disc_001_status_text(values.get("shape")),
+                    "{0}: {1}".format(record.get("origin_status"), record.get("origin")),
+                    "{0}: {1}".format(record.get("direction_status"), record.get("direction")),
+                    self._electrical_disc_001_status_text(values.get("flow_direction")),
+                    self._electrical_disc_001_status_text(values.get("electrical_system_type")),
+                    self._electrical_disc_001_status_text(values.get("voltage")),
+                    self._electrical_disc_001_status_text(values.get("number_of_poles")),
+                    self._electrical_disc_001_status_text(values.get("apparent_load")),
+                    self._electrical_disc_001_status_text(values.get("active_power")),
+                    self._electrical_disc_001_status_text(values.get("power_factor")),
+                    self._electrical_disc_001_status_text(values.get("is_connected")),
+                    record.get("all_refs_count"),
+                    ", ".join([item.get("owner_id") for item in refs]) or "none",
+                    ", ".join([item.get("owner_category") for item in refs]) or "none",
+                    ", ".join([item.get("reciprocal") for item in refs]) or "none",
+                    "true" if record.get("unreadable") else "false",
+                ]
+            )
+        system_rows = []
+        for record in data.get("system_rows") or []:
+            properties = record.get("properties") or {}
+            system_rows.append(
+                [
+                    record.get("owner_id"), record.get("system_id"), record.get("system_name"),
+                    record.get("runtime_class"), self._electrical_disc_001_status_text(properties.get("system_type")),
+                    self._electrical_disc_001_status_text(properties.get("circuit_number")),
+                    "{0}: {1} [{2}]".format(record.get("panel_status"), record.get("panel_name"), record.get("panel_id")),
+                    record.get("selected_element_role"), record.get("circuit_relationship"),
+                    self._electrical_disc_001_status_text(properties.get("load_name")),
+                    self._electrical_disc_001_status_text(properties.get("voltage")),
+                    self._electrical_disc_001_status_text(properties.get("apparent_load")),
+                    self._electrical_disc_001_status_text(properties.get("true_load")),
+                    self._electrical_disc_001_status_text(properties.get("active_power")),
+                    self._electrical_disc_001_status_text(properties.get("power_factor")),
+                    self._electrical_disc_001_status_text(properties.get("number_of_poles")),
+                    self._electrical_disc_001_status_text(properties.get("phase")),
+                    self._electrical_disc_001_status_text(properties.get("balanced")),
+                    record.get("connected_count"),
+                    self._electrical_disc_001_status_text(properties.get("classification")),
+                    self._electrical_disc_001_status_text(properties.get("primary")),
+                    "true" if record.get("unreadable") else "false",
+                ]
+            )
+        parameter_rows = []
+        for record in data.get("parameter_rows") or []:
+            identity = record.get("identity") or {}
+            parameter_rows.append(
+                [
+                    record.get("element_id"), record.get("source"), identity.get("classification"),
+                    identity.get("built_in_id"), identity.get("shared_guid"), identity.get("name"),
+                    identity.get("storage_type"), record.get("status"), record.get("value"), record.get("error"),
+                ]
+            )
+        matrix_rows = []
+        recommendation_rows = []
+        for item in data.get("category_matrix") or []:
+            matrix_rows.append(
+                [
+                    item.get("category_name"), item.get("category_id"), item.get("selected"), item.get("mep_model"),
+                    item.get("connector_manager"), item.get("connectors"), item.get("electrical_systems"),
+                    item.get("zero_system"), item.get("one_system"), item.get("multi_system"), item.get("panel"),
+                    item.get("circuit"), item.get("voltage"), item.get("load"), item.get("unreadable"),
+                ]
+            )
+            recommendation_rows.append(
+                [item.get("category_name"), item.get("category_id"), ", ".join(item.get("scope_kinds") or []), item.get("recommendation"), item.get("recommendation_reason")]
+            )
+        displayed_warnings = (data.get("warnings") or [])[:ELECTRICAL_DISC_001_WARNING_LIMIT]
+        lines = [
+            "[MODELMIND READ-ONLY ELECTRICAL SELECTION DISCOVERY REPORT]", "",
+            "Feature ID:", data.get("feature_id"), "Feature name:", data.get("feature_name"),
+            "Canonical prompt:", data.get("canonical_prompt"), "Requested prompt:", data.get("prompt"),
+            "Result classification:", data.get("classification"), "Reason code:", data.get("reason_code"),
+            "Report ID:", data.get("report_id"), "Report timestamp:", data.get("timestamp"),
+            "Scope:", "current active-document selection / electrical API discovery only",
+            "Document title:", data.get("document_title"), "Active view:", "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")), "",
+            "Selection summary:",
+            "- selected references: {0}".format(data.get("selected_reference_count")),
+            "- processed references: {0}".format(data.get("processed_reference_count")),
+            "- displayed element rows: {0}".format(len(element_rows)),
+            "- connector detail rows: {0}".format(len(connector_rows)),
+            "- circuit/system rows: {0}".format(len(system_rows)),
+            "- parameter rows: {0}".format(len(parameter_rows)),
+            "- processing caps exceeded: {0}".format(", ".join(data.get("caps_exceeded") or []) or "none"),
+        ]
+        sections = [
+            ("A. Identity and electrical API exposure", ["ElementId", "UniqueId", "Category", "Category ID", "Scope", "Runtime class", "Family", "Type", "Type ID", "Element name", "Workset", "Pinned", "Group", "Assembly", "Design option", "Owner view", "View-specific", "Host", "Level", "Space", "Room", "MEPModel", "ConnectorManager", "ElectricalSystems", "Assigned system count", "MEPModel ElectricalSystem", "Unreadable"], element_rows),
+            ("B/C. Connector discovery", ["Owner ID", "Sequence", "Discovery connector kind", "Connector type", "Domain", "Shape", "Origin", "Direction", "Flow direction", "Electrical system type", "Voltage", "Poles", "Apparent load", "Active power", "Power factor", "IsConnected", "AllRefs count", "Connected owner IDs", "Connected owner categories", "Reciprocal IsConnectedTo", "Unreadable"], connector_rows),
+            ("D. Circuit/system discovery", ["Selected owner ID", "System ID", "System name", "Runtime class", "System type", "Circuit number", "Panel", "Selected element role", "Circuit relationship", "Load name", "Voltage", "Apparent load", "True load", "Active power", "Power factor", "Poles", "Phase", "Balanced", "Connected elements", "Classification", "Primary", "Unreadable"], system_rows),
+            ("E. Relevant parameter discovery", ["Element ID", "Source", "Identity class", "Built-in ID", "Shared GUID", "Display name", "Storage", "Status", "Value", "Read error"], parameter_rows),
+            ("F. Category and API capability matrix", ["Category", "Category ID", "Selected", "MEPModel available", "ConnectorManager available", "Readable connectors", "ElectricalSystems available", "Zero system", "One system", "Multi system", "Panel metadata", "Circuit metadata", "Voltage metadata", "Load metadata", "Unreadable elements"], matrix_rows),
+            ("G. Candidate production recommendations", ["Category", "Category ID", "Observed scope", "Discovery recommendation", "Observed reason"], recommendation_rows),
+        ]
+        for title, headers, rows in sections:
+            lines.extend(["", title + ":"])
+            lines.extend(self._mep_ro_v1_table(headers, rows) if rows else ["- none"])
+        lines.extend(["", "Warnings:"])
+        lines.extend(["- {0} | ElementId {1} | {2}".format(item[0], item[1], item[2]) for item in displayed_warnings] or ["- none"])
+        if len(data.get("warnings") or []) > len(displayed_warnings):
+            lines.append("- Warning display truncated; omitted: {0}".format(len(data.get("warnings") or []) - len(displayed_warnings)))
+        lines.extend(
+            [
+                "", "Next guidance:", data.get("next_guidance"), "", "Caps:",
+                "- selected elements processed: {0}".format(ELECTRICAL_DISC_001_SELECTED_PROCESS_LIMIT),
+                "- displayed element rows: {0}".format(ELECTRICAL_DISC_001_ELEMENT_ROW_LIMIT),
+                "- connector detail rows: {0}".format(ELECTRICAL_DISC_001_CONNECTOR_ROW_LIMIT),
+                "- systems displayed per element: {0}".format(ELECTRICAL_DISC_001_SYSTEMS_PER_ELEMENT_LIMIT),
+                "- connected owner IDs per connector: {0}".format(ELECTRICAL_DISC_001_CONNECTED_OWNER_LIMIT),
+                "- parameter rows: {0}".format(ELECTRICAL_DISC_001_PARAMETER_ROW_LIMIT),
+                "- displayed warnings: {0}".format(ELECTRICAL_DISC_001_WARNING_LIMIT),
+                "- normalized value characters: {0}".format(ELECTRICAL_DISC_001_VALUE_LENGTH_LIMIT),
+                "", "Safety metadata:",
+                "- model_modified: false", "- ui_selection_modified: false", "- active_view_changed: false",
+                "- external_files_written: false", "- transaction_started: false", "- transaction_group_started: false",
+                "- linked_document_modified: false", "- selection_picker_opened: false", "- auto_run: false",
+                "", "Workflow isolation metadata:",
+                "- evidence_runbook_advanced: false", "- evidence_cycle_manifest_updated: false",
+                "- workflow_anchor_eligible: false", "- qa_export_source_eligible: false", "- evidence_cycle_stage: false",
+                "", "Safety:",
+                "- Discovery recommendations describe only observed API behavior; they do not define ELECTRICAL-RO-001 production scope.",
+                "- The active-document selection was read without a picker or selection change.",
+                "- Connector references were inspected for one immediate AllRefs hop only.",
+                "- No model, parameter, UI selection, active view, linked document, workflow, or external file was modified.",
+            ]
+        )
+        return "\n".join([safe_str(item) for item in lines])
+
+    def answer_electrical_disc_001_question(self, prompt):
+        if not _electrical_disc_001_action_key(prompt):
+            return None
+        try:
+            data = self._electrical_disc_001_build_data(prompt)
+        except Exception as exc:
+            data = {
+                "feature_id": "ELECTRICAL-DISC-001",
+                "feature_name": "ModelMind Read-Only Electrical Selection Discovery",
+                "prompt": safe_str(prompt),
+                "canonical_prompt": "inspect selected electrical api data",
+                "classification": "ELECTRICAL_DISCOVERY_FAILED",
+                "reason_code": "UNEXPECTED_DISCOVERY_FAILURE",
+                "report_id": "ELECTRICAL-DISC-001-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "document_title": safe_str(doc.Title) if doc else "unavailable",
+                "active_view_name": get_elem_name(doc.ActiveView) if doc and doc.ActiveView else "unavailable",
+                "active_view_type": self._mep_ro_v1_active_view_type(),
+                "selected_reference_count": 0,
+                "processed_reference_count": 0,
+                "records": [], "connector_rows": [], "system_rows": [], "parameter_rows": [], "category_matrix": [],
+                "warnings": [("UNEXPECTED_DISCOVERY_FAILURE", "none", self._electrical_disc_001_text(exc))],
+                "caps_exceeded": [],
+                "next_guidance": "Review the deterministic failure diagnostic before further electrical discovery.",
+            }
+        report_text = self._electrical_disc_001_format_report(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MODELMIND READ-ONLY ELECTRICAL SELECTION DISCOVERY REPORT]",
+            "report_text": report_text,
+            "report_scope": "current active-document selection / electrical API discovery only",
+            "report_timestamp": data.get("timestamp"),
+            "created_timestamp_local": data.get("timestamp"),
+            "feature_id": "ELECTRICAL-DISC-001",
+            "feature_name": "ModelMind Read-Only Electrical Selection Discovery",
+            "result_classification": data.get("classification"),
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view_name"),
+            "active_view_type": data.get("active_view_type"),
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "active_view_changed": False,
+            "external_files_written": False,
+            "workflow_anchor_eligible": False,
+            "qa_export_source_eligible": False,
+            "evidence_cycle_stage": False,
+            "evidence_runbook_advanced": False,
+            "evidence_cycle_manifest_updated": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _mep_ro_v1_recommended_action(self, classification):
         if classification == "MEP_RO_REPORT_EMPTY_SELECTION":
             return "Select relevant elements and rerun the read-only report."
@@ -51347,17 +52640,20 @@ class OllamaAIChat(forms.WPFWindow):
                 mep_selection_v1_reply = self.answer_mep_selection_v1_question(
                     prompt
                 )
-            mep_ro_001_reply = None
+            electrical_disc_001_reply = None
             if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
+                electrical_disc_001_reply = self.answer_electrical_disc_001_question(prompt)
+            mep_ro_001_reply = None
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None:
                 mep_ro_001_reply = self.answer_mep_ro_001_question(prompt)
             piping_ro_001_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and mep_ro_001_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None and mep_ro_001_reply is None:
                 piping_ro_001_reply = self.answer_piping_ro_001_question(prompt)
             hvac_ro_001_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None:
                 hvac_ro_001_reply = self.answer_hvac_ro_001_question(prompt)
             mep_read_only_v1_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None and hvac_ro_001_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None and hvac_ro_001_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -51476,6 +52772,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif mep_selection_v1_reply is not None:
                 reply = mep_selection_v1_reply
+                preserve_latest_report_state = True
+            elif electrical_disc_001_reply is not None:
+                reply = electrical_disc_001_reply
                 preserve_latest_report_state = True
             elif mep_ro_001_reply is not None:
                 reply = mep_ro_001_reply

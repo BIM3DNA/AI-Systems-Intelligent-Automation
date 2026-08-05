@@ -1810,3 +1810,19 @@ Rectangular, oval, vertical oval, one-open, two-open, mixed pipe-plus-duct capac
 `UNASSIGNED_REVIEW` status: NOT PRACTICALLY LIVE VALIDATED IN THE TEST MODEL. Revit required Supply Air, Return Air, or Exhaust Air and created an assigned standalone system for isolated ducts. This is not an implementation defect.
 
 Remaining open limitations are unreadable connector-manager/type paths, processing/display caps, synthetic inconsistent/contradictory data paths, and human-readable system type resolution. These are recorded limitations rather than observed regressions.
+
+## 2026-08-05 - ELECTRICAL-DISC-001 Initial False PARTIAL Classification
+
+Status: RESOLVED AND LIVE RETESTED.
+
+Issue: optional or non-applicable connector/API reads were treated as required unreadable evidence. Lighting Fixtures, Electrical Fixtures, Electrical Equipment, and Conduit therefore returned `ELECTRICAL_DISCOVERY_PARTIAL` despite retaining meaningful identity, connector, and system data.
+
+Resolution: introduced AVAILABLE/UNAVAILABLE/NOT_APPLICABLE/UNREADABLE states, connector type/domain applicability, required-read-only PARTIAL precedence, phase-aware Room/Space handling, level normalization, guarded electrical unit conversion, and selected-element system roles. Corrected retests returned `ELECTRICAL_DISCOVERY_OK` with no unreadable state or warnings for the four tested elements. Evidence: EV-AI-357.
+
+## 2026-08-05 - Electrical Production-Like Prompt Collision
+
+Status: OPEN IMPLEMENTATION CONSIDERATION; NOT A CURRENT DISCOVERY DEFECT.
+
+Before exact discovery registration, selected-electrical summary, connector, circuit-assignment, and QA-health wording could rank against generic MEP or HVAC actions because token-prefix fuzzy ranking matched overlapping terms. ELECTRICAL-DISC-001 now owns only its four exact discovery routes. Global fuzzy dispatch was intentionally not changed, and the four future ELECTRICAL-RO-001 routes remain unregistered. A future production package must resolve route ownership narrowly without weakening global dispatch safety.
+
+Observed production-like prompts were `show selected electrical elements summary`, `show selected electrical connectors`, `check selected electrical circuit assignment`, and `check selected electrical elements qa health`.

@@ -5394,5 +5394,41 @@
     "modifies_model": false,
     "modifies_ui_selection": false,
     "changes_active_view": false
+  },
+  {
+    "id": "electrical-disc-001-selected-electrical-api-discovery",
+    "title": "Selected Electrical API Discovery",
+    "category": "BIM QA",
+    "group": "Read-Only Electrical Discovery",
+    "discipline": "Electrical",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_document_selection_read_only",
+    "canonical_prompt": "inspect selected electrical api data",
+    "planner_aliases": [
+      "inspect selected electrical elements",
+      "discover selected electrical data",
+      "show selected electrical discovery report"
+    ],
+    "deterministic_handler": "electrical_disc_001_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "inspect selected electrical api data",
+    "mode": "deterministic",
+    "feature_id": "ELECTRICAL-DISC-001",
+    "feature_name": "ModelMind Read-Only Electrical Selection Discovery",
+    "description": "Bounded guarded discovery of selected electrical identity, API exposure, connectors, circuits, parameters, and observed category capabilities.",
+    "safety_class": "report-only",
+    "selection_aware": true,
+    "manual_execution": true,
+    "auto_run": false,
+    "writes_external_files": false,
+    "modifies_model": false,
+    "modifies_ui_selection": false,
+    "changes_active_view": false,
+    "workflow_anchor_eligible": false,
+    "qa_export_source_eligible": false,
+    "evidence_cycle_stage": false
   }
 ]

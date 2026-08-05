@@ -1012,3 +1012,23 @@ Additional live coverage now passed for rectangular, oval, vertical oval, one-op
 Remaining limitations: `UNASSIGNED_REVIEW` was not practically reproducible through the standard Revit UI because isolated ducts received an assigned Supply/Return/Exhaust system; this is not a defect. Unreadable connector-manager/type paths and processing/display caps remain untested. Human-readable system type remains unresolved where the report displays ElementId. Non-zero/curved slope, abnormal End topology beyond open states, FlexDuct, placeholder, fabrication, accessory, pipe-plus-duct-plus-unsupported, inconsistent-system, area/volume contradiction, invalid-dimension, and near-zero-length paths remain outside the practically exercised model set.
 
 Current closure status: broad live coverage and final static scope audit passed. Runtime implementation is ready for commit, but no commit or push has been performed.
+
+## 2026-08-05 - ELECTRICAL-DISC-001 Current Scope
+
+Status: discovery implementation corrected and live validated for tested categories; production action pack not implemented.
+
+Validated in scope:
+
+- four exact deterministic read-only discovery routes and four report classifications;
+- current active-document selection with no picker or selection change;
+- Lighting Fixture and Electrical Fixture MEPModel, connector, circuit, panel, role, relationship, voltage, load, and power-factor evidence;
+- Electrical Equipment mixed End/Logical/Surface/MasterSurface connectors and eight-system panel/load semantics;
+- Conduit DomainCableTrayConduit connectors, reciprocal fitting references, zero-system state, and NOT_APPLICABLE electrical quantities;
+- explicit AVAILABLE/UNAVAILABLE/NOT_APPLICABLE/UNREADABLE states and corrected PARTIAL precedence;
+- phase-aware Room/Space, normalized Level, guarded unit conversion, deterministic caps/sorting, and no-write workflow isolation.
+
+Provisional production-scope conclusions only: `OST_LightingFixtures` and `OST_ElectricalFixtures` are `CANDIDATE_SUPPORTED`; `OST_ElectricalEquipment` is `CANDIDATE_CONDITIONAL`; `OST_Conduit` is `CANDIDATE_UNSUPPORTED` for an initial device package.
+
+Remaining limitations include untested Lighting/Data/Communication/Fire Alarm/Security Devices, additional equipment families, zero-system and multi-system candidate-device paths, unresolved/enumeration/cap/mixed-scope paths, wire/circuit/cable-tray/fitting/link selections, unavailable system properties, demand-factor semantics, final QA rules, final production routes, and fuzzy-route collision mitigation.
+
+Explicitly out of scope: ELECTRICAL-RO-001 implementation, production QA thresholds, selection or picker operations, model/parameter/connector/system writes, active-view or linked-document changes, external evidence writes, and workflow/evidence advancement. Evidence: EV-AI-357; KC-050.

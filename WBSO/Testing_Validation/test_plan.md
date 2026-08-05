@@ -1978,3 +1978,24 @@ Remaining limitations and non-blocking coverage gaps:
 11. synthetic inconsistent-system, area/volume contradiction, invalid-dimension, and near-zero-length paths were not encountered.
 
 Final static and scope audit result: PASS. No new code defect was found after the HVAC-QA-009 correction. Runtime implementation is ready for commit; this audit does not commit or push.
+
+## 2026-08-05 - ELECTRICAL-DISC-001 Discovery Validation Plan and Result
+
+Status: Completed for the tested discovery scope. Evidence: EV-AI-357.
+
+Executed live cases in Snowdon Towers Sample Electrical:
+
+1. Initial Lighting Fixture `1460195`: confirm MEPModel, ConnectorManager, DomainElectrical End connector, PowerCircuit, panel/circuit/load, and references; identify false PARTIAL from optional reads.
+2. Initial Electrical Fixture `1495556`: confirm linked host and circuit evidence; identify false PARTIAL from optional reads.
+3. Initial Electrical Equipment `1488616`: enumerate fourteen End/Logical/Surface/MasterSurface connectors and eight systems; distinguish panel/load roles; identify false PARTIAL from non-applicable reads.
+4. Initial Conduit `1562519`: confirm two conduit-domain End connectors, reciprocal fitting references, zero systems, unsupported recommendation, and false PARTIAL from electrical-only reads.
+5. Corrected Lighting Fixture `1605295`: expect OK, supported recommendation, normalized 120 V / 160 VA / 152 W / 0.95, and no unreadable state or warnings.
+6. Corrected Electrical Fixture `1631043`: expect OK, supported recommendation, linked host, normalized 120 V / 180 VA / 180 W / 1.0, and no unreadable state or warnings.
+7. Corrected Electrical Equipment `1488616`: expect OK, conditional recommendation, exact mixed connector types, eight systems, role/relationship distinction, NOT_APPLICABLE nonphysical fields, and no warnings.
+8. Corrected Conduit `1604466`: expect OK, unsupported initial-device recommendation, reciprocal conduit-fitting connectivity, NOT_APPLICABLE electrical quantities, and no warnings.
+9. Verify the four discovery routes are exact and unique and the four future production-like routes remain unregistered.
+10. Verify report-only safety metadata, workflow isolation, deterministic caps/sorting, catalog count 232, and unchanged PIPING/HVAC handlers.
+
+Pass criteria: meaningful discovery evidence remains readable; non-applicable/optional values do not force PARTIAL; required failures still can; category recommendations remain provisional; no picker, transaction, model/UI/view/link/file mutation, auto-run, or workflow advancement occurs.
+
+Remaining matrix: untested candidate categories, additional equipment families, zero/multi-system device cases, unresolved/enumeration/cap/mixed-scope failures, wire/circuit/tray/fitting/link selections, unavailable system-property APIs, demand factors, production QA rules, production routes, and fuzzy-collision mitigation.

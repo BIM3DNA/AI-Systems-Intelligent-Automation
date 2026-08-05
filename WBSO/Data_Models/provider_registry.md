@@ -316,3 +316,9 @@ Generic model output cannot replace these reports. Context Suggestions and safe 
 Initial live validation preserved provider independence. Empty, unsupported, fitting-only, supported round-duct, connector, assigned-system, QA, suggestion, Visual Preview, and workflow-isolation paths all resolved deterministically. The HVAC-QA-009 correction locally counts physical End connectors separately while retaining all eligible physical connectors for HVAC-QA-008 reciprocity. No provider decision, automatic execution, workflow advancement, or QA-source eligibility was introduced. Additional runtime coverage remains pending. Evidence: EV-AI-356.
 
 Final scope validation added rectangular, oval, vertical, open-connector, assigned Supply Air, mixed pipe/duct, insulation, and lining paths without changing provider boundaries. Context Suggestions remained deterministic/load-only at capacities six, ten, ten, and fourteen. No provider controls scope classification, connector QA, safety metadata, Workflow Anchor exclusion, or strict QA-source exclusion. Evidence remains EV-AI-356.
+
+## 2026-08-05 ELECTRICAL-DISC-001 Provider Independence
+
+ELECTRICAL-DISC-001 is a provider-independent deterministic read-only discovery layer. Its four exact routes resolve locally before generic Ollama/OpenAI fallback. Providers do not determine selected scope, API availability, connector applicability, system roles, normalized electrical quantities, report classification, candidate recommendation, or safety metadata.
+
+The report is manual, report-only, non-auto-run, workflow-anchor ineligible, and strict-QA-source ineligible. Generic model output cannot replace this discovery evidence. Global fuzzy dispatch remains unchanged; future ELECTRICAL-RO-001 routes are not registered. Status: corrected and live validated for tested discovery scope. Evidence: EV-AI-357; KC-050.
