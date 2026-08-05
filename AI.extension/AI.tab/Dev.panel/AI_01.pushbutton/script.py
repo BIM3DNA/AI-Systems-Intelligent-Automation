@@ -14355,6 +14355,90 @@ def _piping_ro_001_action_key(prompt):
     return PIPING_RO_001_ROUTE_ACTIONS.get(normalized)
 
 
+HVAC_RO_001_ROUTE_ACTIONS = {
+    "show selected ducts summary": "ducts_summary",
+    "summarize selected ducts": "ducts_summary",
+    "report selected ducts summary": "ducts_summary",
+    "inspect selected ducts": "ducts_summary",
+    "show selected duct connectors": "duct_connectors",
+    "inspect selected duct connectors": "duct_connectors",
+    "report selected duct connectors": "duct_connectors",
+    "check selected duct connections": "duct_connectors",
+    "check selected ducts system assignment": "system_assignment",
+    "show selected ducts system assignment": "system_assignment",
+    "report selected duct system assignment": "system_assignment",
+    "inspect selected duct systems": "system_assignment",
+    "check selected ducts qa health": "qa_health",
+    "run selected ducts health check": "qa_health",
+    "inspect selected ducts qa": "qa_health",
+    "report selected duct issues": "qa_health",
+}
+
+HVAC_RO_001_ACTION_METADATA = {
+    "ducts_summary": ("HVAC-RO-001-A01", "show selected ducts summary"),
+    "duct_connectors": ("HVAC-RO-001-A02", "show selected duct connectors"),
+    "system_assignment": ("HVAC-RO-001-A03", "check selected ducts system assignment"),
+    "qa_health": ("HVAC-RO-001-A04", "check selected ducts qa health"),
+}
+
+HVAC_RO_001_RESULT_CLASSIFICATIONS = (
+    "HVAC_SELECTION_SUMMARY_OK",
+    "HVAC_CONNECTOR_REPORT_OK",
+    "HVAC_SYSTEM_ASSIGNMENT_OK",
+    "HVAC_QA_HEALTH_GREEN",
+    "HVAC_QA_HEALTH_YELLOW",
+    "HVAC_QA_HEALTH_PARTIAL",
+    "HVAC_SELECTION_REPORT_PARTIAL",
+    "HVAC_SELECTION_REPORT_NOT_READY",
+    "HVAC_SELECTION_REPORT_FAILED",
+)
+
+HVAC_RO_001_QA_CHECKS = (
+    ("HVAC-QA-001", "Unsupported selected element"),
+    ("HVAC-QA-002", "Missing duct type"),
+    ("HVAC-QA-003", "Invalid or inconsistent duct shape"),
+    ("HVAC-QA-004", "Missing system assignment"),
+    ("HVAC-QA-005", "Missing or nonpositive required dimensions"),
+    ("HVAC-QA-006", "Missing or near-zero length"),
+    ("HVAC-QA-007", "Section or volume evidence inconsistent"),
+    ("HVAC-QA-008", "Unconnected physical connector"),
+    ("HVAC-QA-009", "Abnormal physical end connector count"),
+    ("HVAC-QA-010", "Connector read failure"),
+    ("HVAC-QA-011", "Inconsistent system metadata"),
+    ("HVAC-QA-012", "Unreadable required HVAC parameter"),
+)
+
+HVAC_RO_001_DUCT_PROCESS_LIMIT = 200
+HVAC_RO_001_DUCT_ROW_LIMIT = 200
+HVAC_RO_001_CONNECTOR_ROW_LIMIT = 400
+HVAC_RO_001_CONNECTORS_PER_DUCT_LIMIT = 8
+HVAC_RO_001_CONNECTED_OWNER_LIMIT = 20
+HVAC_RO_001_AFFECTED_ID_LIMIT = 50
+HVAC_RO_001_WARNING_LIMIT = 50
+HVAC_RO_001_VALUE_LENGTH_LIMIT = 160
+HVAC_RO_001_NEAR_ZERO_LENGTH_FT = 1.0 / 304.8
+HVAC_RO_001_VERTICAL_HORIZONTAL_TOLERANCE_FT = 1.0 / 304.8
+HVAC_RO_001_VOLUME_ABSOLUTE_TOLERANCE_FT3 = 1.0e-6
+HVAC_RO_001_VOLUME_RELATIVE_TOLERANCE = 0.02
+HVAC_RO_001_PHYSICAL_CONNECTOR_TYPES = set(
+    ["end", "curve", "physical", "blankend", "blank end"]
+)
+HVAC_RO_001_SHAPE_VALUES = set(
+    ["ROUND", "RECTANGULAR", "OVAL", "OTHER", "INCONSISTENT", "UNAVAILABLE", "UNREADABLE"]
+)
+
+
+def _hvac_ro_001_action_key(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return HVAC_RO_001_ROUTE_ACTIONS.get(normalized)
+
+
+def _hvac_ro_001_end_connector_count_status(manager_state, end_count, unreadable_type_count):
+    if safe_str(manager_state) != "AVAILABLE" or int(unreadable_type_count or 0) > 0:
+        return "PARTIAL"
+    return "PASS" if int(end_count or 0) == 2 else "ISSUE"
+
+
 MEP_SEL_V1_ROUTE_ACTIONS = {
     "select all pipes in active view": "select_pipes_active_view",
     "select active view pipes": "select_pipes_active_view",
@@ -17368,6 +17452,7 @@ class OllamaAIChat(forms.WPFWindow):
             "active_view_type": "unavailable",
             "selection_count": 0,
             "selected_supported_pipe_count": 0,
+            "selected_supported_duct_count": 0,
             "selection_breakdown": {},
             "category_counts": {},
             "likely_discipline": "Unknown / Empty",
@@ -17382,6 +17467,7 @@ class OllamaAIChat(forms.WPFWindow):
             context["selection_count"] = selection_count
             context["selection_breakdown"] = selection_breakdown
             context["selected_supported_pipe_count"] = self._piping_ro_001_selected_supported_pipe_count()
+            context["selected_supported_duct_count"] = self._hvac_ro_001_selected_supported_duct_count()
             category_counts = {}
             for label, bic in self._console_context_category_specs():
                 category_counts[label] = self._console_active_view_category_count(active_view, bic)
@@ -18228,6 +18314,15 @@ class OllamaAIChat(forms.WPFWindow):
                 "PIPING_SELECTION_REPORT_PARTIAL",
                 "PIPING_SELECTION_REPORT_NOT_READY",
                 "PIPING_SELECTION_REPORT_FAILED",
+                "HVAC_SELECTION_SUMMARY_OK",
+                "HVAC_CONNECTOR_REPORT_OK",
+                "HVAC_SYSTEM_ASSIGNMENT_OK",
+                "HVAC_QA_HEALTH_GREEN",
+                "HVAC_QA_HEALTH_YELLOW",
+                "HVAC_QA_HEALTH_PARTIAL",
+                "HVAC_SELECTION_REPORT_PARTIAL",
+                "HVAC_SELECTION_REPORT_NOT_READY",
+                "HVAC_SELECTION_REPORT_FAILED",
             ]
         )
         if classification in meta_classifications:
@@ -18245,6 +18340,8 @@ class OllamaAIChat(forms.WPFWindow):
         if feature_lower == "mep-ro-001":
             return True
         if feature_lower == "piping-ro-001":
+            return True
+        if feature_lower == "hvac-ro-001":
             return True
         if feature_lower == "ai-workbench-visual-v1" and normalized_prompt in AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES:
             return True
@@ -19420,9 +19517,13 @@ class OllamaAIChat(forms.WPFWindow):
         return ["- {0} [{1}]".format(card.get("prompt"), card.get("safety_class")) for card in cards]
 
     def _console_context_suggestion_limit(self, context):
-        if int((context or {}).get("selected_supported_pipe_count") or 0) > 0:
-            return 10
-        return 6
+        context = context or {}
+        eligible_specialty_count = 0
+        if int(context.get("selected_supported_pipe_count") or 0) > 0:
+            eligible_specialty_count += 1
+        if int(context.get("selected_supported_duct_count") or 0) > 0:
+            eligible_specialty_count += 1
+        return min(14, 6 + (4 * eligible_specialty_count))
 
     def _console_safe_prompt_cards(self, context):
         records, malformed, history_status = self._console_load_history_records()
@@ -19882,6 +19983,11 @@ class OllamaAIChat(forms.WPFWindow):
             add(["show selected pipe connectors"], "Inspect one-hop physical piping connector metadata without changing connections.", "Read-only piping connector report", "yes")
             add(["check selected pipes system assignment"], "Inspect normalized selected-pipe system assignment without assigning systems.", "Read-only piping system assignment report", "yes")
             add(["check selected pipes qa health"], "Run stable piping and inherited generic QA checks on selected rigid pipes.", "Read-only piping QA health report", "yes")
+        if int(context.get("selected_supported_duct_count") or 0) > 0:
+            add(["show selected ducts summary"], "Current selection contains supported rigid ducts; summarize HVAC identity and read-only metadata.", "Read-only duct selection summary", "yes")
+            add(["show selected duct connectors"], "Inspect one-hop physical HVAC connector metadata without changing connections.", "Read-only duct connector report", "yes")
+            add(["check selected ducts system assignment"], "Inspect normalized selected-duct system assignment without assigning systems.", "Read-only duct system assignment report", "yes")
+            add(["check selected ducts qa health"], "Run stable HVAC and inherited generic QA checks on selected rigid ducts.", "Read-only duct QA health report", "yes")
         if (
             int(evidence_runbook.get("cycle_duplicate_artifact_count") or 0) > 0
             or int(evidence_runbook.get("cycle_manifest_warning_count") or 0) > 0
@@ -38603,6 +38709,1915 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _hvac_ro_001_supported_duct(self, elem):
+        if elem is None:
+            return False
+        try:
+            if not isinstance(elem, DB.Mechanical.Duct):
+                return False
+        except:
+            return False
+        if self._mep_ro_v1_element_category_id(elem) != self._mep_ro_v1_category_id("OST_DuctCurves"):
+            return False
+        try:
+            return not bool(elem.IsPlaceholder)
+        except:
+            return False
+
+    def _hvac_ro_001_selected_supported_duct_count(self):
+        count = 0
+        try:
+            for element_id in uidoc.Selection.GetElementIds():
+                if self._hvac_ro_001_supported_duct(doc.GetElement(element_id)):
+                    count += 1
+        except:
+            return 0
+        return count
+
+    def _hvac_ro_001_scope_kind(self, elem):
+        if elem is None:
+            return "UNRESOLVED_REFERENCE"
+        try:
+            if isinstance(elem, DB.RevitLinkInstance):
+                return "UNSUPPORTED_LINK_INSTANCE"
+        except:
+            pass
+        try:
+            fabrication_class = getattr(DB, "FabricationPart", None)
+            if fabrication_class is not None and isinstance(elem, fabrication_class):
+                return "UNSUPPORTED_FABRICATION_PART"
+        except:
+            pass
+        category_id = self._mep_ro_v1_element_category_id(elem)
+        category_map = (
+            ("OST_FlexDuctCurves", "UNSUPPORTED_FLEX_DUCT"),
+            ("OST_DuctFitting", "UNSUPPORTED_DUCT_FITTING"),
+            ("OST_DuctAccessory", "UNSUPPORTED_DUCT_ACCESSORY"),
+            ("OST_DuctInsulations", "UNSUPPORTED_DUCT_INSULATION"),
+            ("OST_DuctLinings", "UNSUPPORTED_DUCT_LINING"),
+        )
+        for category_name, classification in category_map:
+            if category_id == self._mep_ro_v1_category_id(category_name):
+                return classification
+        try:
+            if isinstance(elem, DB.Mechanical.Duct):
+                try:
+                    if bool(elem.IsPlaceholder):
+                        return "UNSUPPORTED_DUCT_PLACEHOLDER"
+                except:
+                    return "UNSUPPORTED_DUCT_PLACEHOLDER"
+        except:
+            pass
+        if self._hvac_ro_001_supported_duct(elem):
+            return "SUPPORTED_DUCT"
+        return "UNSUPPORTED_NON_DUCT"
+
+    def _hvac_ro_001_scope(self, snapshot):
+        labels = [
+            "SUPPORTED_DUCT",
+            "UNSUPPORTED_DUCT_PLACEHOLDER",
+            "UNSUPPORTED_FLEX_DUCT",
+            "UNSUPPORTED_DUCT_FITTING",
+            "UNSUPPORTED_DUCT_ACCESSORY",
+            "UNSUPPORTED_DUCT_INSULATION",
+            "UNSUPPORTED_DUCT_LINING",
+            "UNSUPPORTED_FABRICATION_PART",
+            "UNSUPPORTED_LINK_INSTANCE",
+            "UNSUPPORTED_NON_DUCT",
+            "UNRESOLVED_REFERENCE",
+        ]
+        counts = dict([(label, 0) for label in labels])
+        supported = []
+        unsupported = []
+        for record in snapshot.get("records") or []:
+            kind = self._hvac_ro_001_scope_kind(record.get("element"))
+            counts[kind] = counts.get(kind, 0) + 1
+            if kind == "SUPPORTED_DUCT":
+                supported.append(record)
+            else:
+                unsupported.append(
+                    {
+                        "element_id": record.get("element_id"),
+                        "category": record.get("category_name"),
+                        "scope_kind": kind,
+                    }
+                )
+        for item in snapshot.get("unavailable") or []:
+            counts["UNRESOLVED_REFERENCE"] += 1
+            unsupported.append(
+                {
+                    "element_id": item.get("element_id"),
+                    "category": "unresolved",
+                    "scope_kind": "UNRESOLVED_REFERENCE",
+                }
+            )
+        supported.sort(
+            key=lambda item: (
+                not safe_str(item.get("element_id")).isdigit(),
+                int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+            )
+        )
+        unsupported.sort(
+            key=lambda item: (
+                safe_str(item.get("scope_kind")),
+                not safe_str(item.get("element_id")).isdigit(),
+                int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+            )
+        )
+        return {"supported": supported, "unsupported": unsupported, "counts": counts}
+
+    def _hvac_ro_001_shape_token(self, value):
+        token = self._console_normalize(value)
+        if "round" in token:
+            return "ROUND"
+        if "rect" in token:
+            return "RECTANGULAR"
+        if "oval" in token:
+            return "OVAL"
+        if token in ("", "unavailable", "undefined", "invalid"):
+            return "UNAVAILABLE"
+        return "OTHER"
+
+    def _hvac_ro_001_connector_is_physical(self, connector, expected_owner=None):
+        try:
+            owner = connector.Owner
+            if expected_owner is not None:
+                if self._mep_ro_001_id_value(owner.Id) != self._mep_ro_001_id_value(expected_owner.Id):
+                    return False
+            domain = self._console_normalize(connector.Domain)
+            connector_type = self._console_normalize(connector.ConnectorType)
+            return "hvac" in domain and connector_type in HVAC_RO_001_PHYSICAL_CONNECTOR_TYPES
+        except:
+            return False
+
+    def _hvac_ro_001_connector_detail(self, connector, owner, sequence):
+        warnings = []
+        unreadable = False
+        owner_id = self._mep_ro_001_id_value(owner.Id)
+        connector_type = "unavailable"
+        connector_type_readable = False
+        domain = "unavailable"
+        shape = "UNAVAILABLE"
+        origin = None
+        direction = None
+        flow_direction = "unavailable"
+        raw_connected = "unavailable"
+        radius = None
+        width = None
+        height = None
+        try:
+            connector_type = self._piping_ro_001_enum_text(connector.ConnectorType)
+            connector_type_readable = self._console_normalize(connector_type) not in (
+                "",
+                "unavailable",
+                "undefined",
+                "invalid",
+            )
+        except Exception as exc:
+            unreadable = True
+            warnings.append("Connector type: {0}".format(safe_str(exc)))
+        try:
+            domain = self._piping_ro_001_enum_text(connector.Domain)
+            shape = self._hvac_ro_001_shape_token(connector.Shape)
+            origin = self._piping_ro_001_xyz(connector.Origin)
+            raw_connected = "true" if bool(connector.IsConnected) else "false"
+        except Exception as exc:
+            unreadable = True
+            warnings.append("Connector metadata: {0}".format(safe_str(exc)))
+        for key, attr_name in (("radius", "Radius"), ("width", "Width"), ("height", "Height")):
+            try:
+                value = float(getattr(connector, attr_name))
+            except:
+                value = None
+            if key == "radius":
+                radius = value
+            elif key == "width":
+                width = value
+            else:
+                height = value
+        try:
+            direction = self._piping_ro_001_xyz(connector.CoordinateSystem.BasisZ)
+        except:
+            direction = None
+        try:
+            flow_direction = self._piping_ro_001_enum_text(connector.Direction)
+        except:
+            flow_direction = "unavailable"
+
+        connected_owner_ids = set()
+        connected_owner_categories = {}
+        connected_owner_classes = {}
+        reciprocal_proven = False
+        if self._hvac_ro_001_connector_is_physical(connector, owner):
+            try:
+                references = list(connector.AllRefs)
+            except Exception as exc:
+                references = []
+                unreadable = True
+                warnings.append("AllRefs: {0}".format(safe_str(exc)))
+            for reference in references:
+                if not self._hvac_ro_001_connector_is_physical(reference):
+                    continue
+                try:
+                    reference_owner = reference.Owner
+                    reference_owner_id = self._mep_ro_001_id_value(reference_owner.Id)
+                    if reference_owner_id is None or reference_owner_id == owner_id:
+                        continue
+                    reference_document = reference_owner.Document
+                    if reference_document is None or not reference_document.Equals(doc):
+                        continue
+                    active_owner = doc.GetElement(reference_owner.Id)
+                    if active_owner is None:
+                        continue
+                    forward = bool(connector.IsConnectedTo(reference))
+                    reverse = bool(reference.IsConnectedTo(connector))
+                    if forward and reverse:
+                        connected_owner_ids.add(reference_owner_id)
+                        connected_owner_categories[reference_owner_id] = _category_name(active_owner)
+                        connected_owner_classes[reference_owner_id] = safe_str(type(active_owner).__name__)
+                        reciprocal_proven = True
+                except Exception as exc:
+                    unreadable = True
+                    warnings.append("Reciprocity: {0}".format(safe_str(exc)))
+        else:
+            unreadable = True
+            warnings.append("Connector is not an eligible physical HVAC connector owned by the duct.")
+        sorted_owner_ids = sorted(connected_owner_ids)
+        return {
+            "owner_duct_id": owner_id,
+            "sequence": sequence,
+            "connector_type": connector_type,
+            "connector_type_readable": bool(connector_type_readable),
+            "domain": domain,
+            "shape": shape,
+            "origin_ft": origin,
+            "origin_mm": tuple([item * 304.8 for item in origin]) if origin else None,
+            "radius_ft": radius,
+            "radius_mm": radius * 304.8 if self._piping_ro_001_finite(radius) else None,
+            "diameter_mm": radius * 2.0 * 304.8 if self._piping_ro_001_finite(radius) else None,
+            "width_mm": width * 304.8 if self._piping_ro_001_finite(width) else None,
+            "height_mm": height * 304.8 if self._piping_ro_001_finite(height) else None,
+            "direction": direction,
+            "flow_direction": flow_direction,
+            "raw_is_connected": raw_connected,
+            "reciprocal_connected": bool(reciprocal_proven),
+            "connected_owner_ids": sorted_owner_ids,
+            "connected_owner_categories": [connected_owner_categories.get(item, "unavailable") for item in sorted_owner_ids],
+            "connected_owner_classes": [connected_owner_classes.get(item, "unavailable") for item in sorted_owner_ids],
+            "connected_owner_count": len(sorted_owner_ids),
+            "unreadable": bool(unreadable),
+            "warnings": warnings,
+        }
+
+    def _hvac_ro_001_connectors(self, elem):
+        result = {
+            "manager_state": "UNAVAILABLE",
+            "total_count": 0,
+            "physical_count": 0,
+            "physical_end_count": 0,
+            "physical_non_end_count": 0,
+            "physical_connector_type_unreadable_count": 0,
+            "connected_physical_count": 0,
+            "unconnected_physical_count": 0,
+            "unreadable_count": 0,
+            "details": [],
+            "errors": [],
+        }
+        try:
+            manager = elem.ConnectorManager
+        except:
+            try:
+                manager = elem.MEPModel.ConnectorManager
+            except Exception as exc:
+                result["manager_state"] = "UNREADABLE"
+                result["errors"].append("ConnectorManager: {0}".format(safe_str(exc)))
+                return result
+        if manager is None:
+            return result
+        try:
+            connectors = list(manager.Connectors)
+            result["manager_state"] = "AVAILABLE"
+            result["total_count"] = len(connectors)
+        except Exception as exc:
+            result["manager_state"] = "UNREADABLE"
+            result["errors"].append("Connector enumeration: {0}".format(safe_str(exc)))
+            return result
+        ordered = []
+        for index, connector in enumerate(connectors):
+            try:
+                origin = self._piping_ro_001_xyz(connector.Origin) or (0.0, 0.0, 0.0)
+            except:
+                origin = (0.0, 0.0, 0.0)
+            try:
+                connector_type = self._piping_ro_001_enum_text(connector.ConnectorType)
+                connector_type_readable = self._console_normalize(connector_type) not in (
+                    "",
+                    "unavailable",
+                    "undefined",
+                    "invalid",
+                )
+            except:
+                connector_type = "unavailable"
+                connector_type_readable = False
+            try:
+                domain = self._piping_ro_001_enum_text(connector.Domain)
+            except:
+                domain = "unavailable"
+            ordered.append((connector, origin, connector_type, domain, connector_type_readable, index))
+        ordered.sort(
+            key=lambda item: (
+                round(item[1][0], 9),
+                round(item[1][1], 9),
+                round(item[1][2], 9),
+                self._console_normalize(item[2]),
+                self._console_normalize(item[3]),
+                item[5],
+            )
+        )
+        for sequence, item in enumerate(ordered, 1):
+            connector = item[0]
+            if not item[4]:
+                result["physical_connector_type_unreadable_count"] += 1
+                result["errors"].append("Connector type is unreadable; physical End connector count is indeterminate.")
+                continue
+            if not self._hvac_ro_001_connector_is_physical(connector, elem):
+                continue
+            detail = self._hvac_ro_001_connector_detail(connector, elem, sequence)
+            result["details"].append(detail)
+            result["physical_count"] += 1
+            if not detail.get("connector_type_readable"):
+                result["physical_connector_type_unreadable_count"] += 1
+            elif self._console_normalize(detail.get("connector_type")) == "end":
+                result["physical_end_count"] += 1
+            else:
+                result["physical_non_end_count"] += 1
+            if detail.get("unreadable"):
+                result["unreadable_count"] += 1
+                result["errors"].extend(detail.get("warnings") or [])
+            if detail.get("reciprocal_connected"):
+                result["connected_physical_count"] += 1
+            else:
+                result["unconnected_physical_count"] += 1
+        return result
+
+    def _hvac_ro_001_consensus_dimension(self, values):
+        readable = [float(item) for item in values or [] if self._piping_ro_001_finite(item) and float(item) > 0.0]
+        if not readable:
+            return None, "UNAVAILABLE"
+        first = readable[0]
+        tolerance = max(1.0e-9, abs(first) * 1.0e-6)
+        if any(abs(item - first) > tolerance for item in readable[1:]):
+            return first, "INCONSISTENT"
+        return first, "AVAILABLE"
+
+    def _hvac_ro_001_shape_dimensions(self, elem, connectors):
+        errors = []
+        details = connectors.get("details") or []
+        readable_shapes = [
+            item.get("shape")
+            for item in details
+            if item.get("shape") not in ("UNAVAILABLE", "UNREADABLE")
+        ]
+        unique_shapes = sorted(set(readable_shapes))
+        if len(unique_shapes) > 1:
+            shape = "INCONSISTENT"
+            shape_state = "INCONSISTENT"
+            shape_source = "PHYSICAL_CONNECTOR_CONSENSUS"
+        elif unique_shapes:
+            shape = unique_shapes[0]
+            shape_state = "AVAILABLE"
+            shape_source = "PHYSICAL_CONNECTOR_CONSENSUS"
+        else:
+            shape = "UNAVAILABLE"
+            shape_state = "UNAVAILABLE"
+            shape_source = "unavailable"
+
+        diameter_param = self._piping_ro_001_builtin_parameter(elem, ["RBS_CURVE_DIAMETER_PARAM"])
+        width_param = self._piping_ro_001_builtin_parameter(elem, ["RBS_CURVE_WIDTH_PARAM"])
+        height_param = self._piping_ro_001_builtin_parameter(elem, ["RBS_CURVE_HEIGHT_PARAM"])
+        for item in (diameter_param, width_param, height_param):
+            errors.extend(item.get("errors") or [])
+        connector_diameters = [
+            item.get("radius_ft") * 2.0
+            for item in details
+            if self._piping_ro_001_finite(item.get("radius_ft"))
+        ]
+        connector_widths = [
+            item.get("width_mm") / 304.8
+            for item in details
+            if self._piping_ro_001_finite(item.get("width_mm"))
+        ]
+        connector_heights = [
+            item.get("height_mm") / 304.8
+            for item in details
+            if self._piping_ro_001_finite(item.get("height_mm"))
+        ]
+        diameter = diameter_param.get("double")
+        width = width_param.get("double")
+        height = height_param.get("double")
+        diameter_source = "RBS_CURVE_DIAMETER_PARAM" if self._piping_ro_001_finite(diameter) else "unavailable"
+        width_source = "RBS_CURVE_WIDTH_PARAM" if self._piping_ro_001_finite(width) else "unavailable"
+        height_source = "RBS_CURVE_HEIGHT_PARAM" if self._piping_ro_001_finite(height) else "unavailable"
+        if not self._piping_ro_001_finite(diameter):
+            diameter, diameter_state = self._hvac_ro_001_consensus_dimension(connector_diameters)
+            if diameter is not None:
+                diameter_source = "PHYSICAL_CONNECTOR_CONSENSUS"
+        else:
+            diameter_state = "AVAILABLE"
+        if not self._piping_ro_001_finite(width):
+            width, width_state = self._hvac_ro_001_consensus_dimension(connector_widths)
+            if width is not None:
+                width_source = "PHYSICAL_CONNECTOR_CONSENSUS"
+        else:
+            width_state = "AVAILABLE"
+        if not self._piping_ro_001_finite(height):
+            height, height_state = self._hvac_ro_001_consensus_dimension(connector_heights)
+            if height is not None:
+                height_source = "PHYSICAL_CONNECTOR_CONSENSUS"
+        else:
+            height_state = "AVAILABLE"
+        if diameter_param.get("errors"):
+            diameter_state = "UNREADABLE"
+        if width_param.get("errors"):
+            width_state = "UNREADABLE"
+        if height_param.get("errors"):
+            height_state = "UNREADABLE"
+
+        if shape == "UNAVAILABLE":
+            if self._piping_ro_001_finite(diameter) and float(diameter) > 0.0:
+                shape = "ROUND"
+                shape_state = "AVAILABLE"
+                shape_source = diameter_source
+            elif (
+                self._piping_ro_001_finite(width)
+                and float(width) > 0.0
+                and self._piping_ro_001_finite(height)
+                and float(height) > 0.0
+            ):
+                shape = "RECTANGULAR"
+                shape_state = "AVAILABLE"
+                shape_source = "{0}+{1}".format(width_source, height_source)
+        required_dimensions_valid = False
+        area = None
+        area_source = "unavailable"
+        if shape == "ROUND":
+            required_dimensions_valid = self._piping_ro_001_finite(diameter) and float(diameter) > 0.0
+            if required_dimensions_valid:
+                area = math.pi * float(diameter) * float(diameter) / 4.0
+                area_source = "CALCULATED_CIRCLE"
+        elif shape == "RECTANGULAR":
+            required_dimensions_valid = (
+                self._piping_ro_001_finite(width)
+                and float(width) > 0.0
+                and self._piping_ro_001_finite(height)
+                and float(height) > 0.0
+            )
+            if required_dimensions_valid:
+                area = float(width) * float(height)
+                area_source = "CALCULATED_RECTANGLE"
+        elif shape == "OVAL":
+            required_dimensions_valid = (
+                self._piping_ro_001_finite(width)
+                and float(width) > 0.0
+                and self._piping_ro_001_finite(height)
+                and float(height) > 0.0
+            )
+            if required_dimensions_valid:
+                area = math.pi * float(width) * float(height) / 4.0
+                area_source = "CALCULATED_ELLIPSE"
+        return {
+            "shape_state": shape_state,
+            "normalized_shape": shape,
+            "shape_source": shape_source,
+            "diameter_state": diameter_state,
+            "diameter_ft": diameter,
+            "diameter_mm": diameter * 304.8 if self._piping_ro_001_finite(diameter) else None,
+            "width_state": width_state,
+            "width_ft": width,
+            "width_mm": width * 304.8 if self._piping_ro_001_finite(width) else None,
+            "height_state": height_state,
+            "height_ft": height,
+            "height_mm": height * 304.8 if self._piping_ro_001_finite(height) else None,
+            "major_dimension_mm": max(width, height) * 304.8 if self._piping_ro_001_finite(width) and self._piping_ro_001_finite(height) else None,
+            "minor_dimension_mm": min(width, height) * 304.8 if self._piping_ro_001_finite(width) and self._piping_ro_001_finite(height) else None,
+            "required_dimensions_valid": bool(required_dimensions_valid),
+            "cross_section_area_ft2": area,
+            "cross_section_area_m2": area * 0.09290304 if self._piping_ro_001_finite(area) else None,
+            "cross_section_area_source": area_source,
+            "errors": errors,
+        }
+
+    def _hvac_ro_001_system_assignment(self, elem):
+        errors = []
+        object_id = None
+        object_name = "unavailable"
+        object_type = "unavailable"
+        object_classification = "unavailable"
+        object_readable = False
+        try:
+            mep_system = elem.MEPSystem
+            object_readable = True
+            if mep_system is not None:
+                object_id = self._mep_ro_001_id_value(mep_system.Id)
+                object_name = self._piping_ro_001_text(get_elem_name(mep_system))
+                try:
+                    system_type = doc.GetElement(mep_system.GetTypeId())
+                    object_type = self._piping_ro_001_text(get_elem_name(system_type))
+                except Exception as exc:
+                    errors.append("MEPSystem type: {0}".format(safe_str(exc)))
+                try:
+                    object_classification = self._piping_ro_001_text(mep_system.SystemClassification)
+                except:
+                    object_classification = "unavailable"
+        except Exception as exc:
+            errors.append("MEPSystem: {0}".format(safe_str(exc)))
+        builtins = {
+            "name": self._piping_ro_001_builtin_parameter(elem, ["RBS_SYSTEM_NAME_PARAM"]),
+            "type": self._piping_ro_001_builtin_parameter(
+                elem,
+                ["RBS_DUCT_SYSTEM_TYPE_PARAM", "RBS_SYSTEM_TYPE_PARAM"],
+            ),
+            "classification": self._piping_ro_001_builtin_parameter(elem, ["RBS_SYSTEM_CLASSIFICATION_PARAM"]),
+        }
+        for item in builtins.values():
+            errors.extend(item.get("errors") or [])
+        fallback_status = "unavailable"
+        fallback_value = "unavailable"
+        try:
+            fallback_status, fallback_value = _system_assignment_read(elem, "HVAC")
+            fallback_value = self._piping_ro_001_text(fallback_value)
+        except Exception as exc:
+            errors.append("Fallback system metadata: {0}".format(safe_str(exc)))
+        readable_sources = []
+        if object_readable:
+            readable_sources.append("MEPSystem")
+        for key, item in builtins.items():
+            if item.get("present") and item.get("readable"):
+                readable_sources.append("built-in {0}".format(key))
+        comparisons = [
+            ("name", object_name, builtins["name"].get("text")),
+            ("type", object_type, builtins["type"].get("text")),
+            ("classification", object_classification, builtins["classification"].get("text")),
+        ]
+        contradictions = []
+        for label, first, second in comparisons:
+            if self._piping_ro_001_placeholder_system_text(first):
+                continue
+            if self._piping_ro_001_placeholder_system_text(second):
+                continue
+            if self._piping_ro_001_system_token(first) != self._piping_ro_001_system_token(second):
+                contradictions.append("{0}: {1} != {2}".format(label, first, second))
+        identity_values = [object_name, builtins["name"].get("text"), builtins["type"].get("text")]
+        identity_found = bool(object_id and object_id > 0) or any(
+            not self._piping_ro_001_placeholder_system_text(item) for item in identity_values
+        )
+        authoritative_supported = object_readable or any(item.get("api_supported") for item in builtins.values())
+        if contradictions:
+            state = "INCONSISTENT"
+        elif identity_found:
+            state = "ASSIGNED"
+        elif errors and not identity_found:
+            state = "UNREADABLE"
+        elif authoritative_supported:
+            state = "UNASSIGNED_REVIEW"
+        else:
+            state = "UNAVAILABLE"
+        system_name = object_name
+        if self._piping_ro_001_placeholder_system_text(system_name):
+            system_name = builtins["name"].get("text")
+        if self._piping_ro_001_placeholder_system_text(system_name) and fallback_status == "assigned":
+            system_name = fallback_value
+        system_type = object_type
+        if self._piping_ro_001_placeholder_system_text(system_type):
+            system_type = builtins["type"].get("text")
+        system_classification = object_classification
+        if self._piping_ro_001_placeholder_system_text(system_classification):
+            system_classification = builtins["classification"].get("text")
+        return {
+            "state": state,
+            "mep_system_id": object_id,
+            "mep_system_name": system_name,
+            "system_type": system_type,
+            "system_classification": system_classification,
+            "built_in_system_metadata": "; ".join(
+                ["{0}={1}".format(key, builtins[key].get("text")) for key in ("name", "type", "classification")]
+            ),
+            "fallback_system_metadata": "{0}: {1}".format(fallback_status, fallback_value),
+            "consistency_state": "INCONSISTENT" if contradictions else "CONSISTENT",
+            "authoritative_source_count": len(readable_sources),
+            "authoritative_sources": readable_sources,
+            "contradictions": contradictions,
+            "errors": errors,
+        }
+
+    def _hvac_ro_001_related_layers(self, elem):
+        result = {
+            "insulation_state": "UNAVAILABLE",
+            "insulation_ids": [],
+            "insulation_thickness_mm": [],
+            "lining_state": "UNAVAILABLE",
+            "lining_ids": [],
+            "lining_thickness_mm": [],
+            "errors": [],
+        }
+        mechanical_namespace = getattr(DB, "Mechanical", None)
+        base = getattr(mechanical_namespace, "InsulationLiningBase", None)
+        if base is None:
+            base = getattr(DB, "InsulationLiningBase", None)
+        if base is None:
+            return result
+        for label, method_name, id_key, thickness_key in (
+            ("insulation", "GetInsulationIds", "insulation_ids", "insulation_thickness_mm"),
+            ("lining", "GetLiningIds", "lining_ids", "lining_thickness_mm"),
+        ):
+            method = getattr(base, method_name, None)
+            if method is None:
+                continue
+            try:
+                related_ids = list(method(doc, elem.Id))
+                normalized_ids = sorted(
+                    [
+                        self._mep_ro_001_id_value(item)
+                        for item in related_ids
+                        if self._mep_ro_001_id_value(item) is not None
+                    ]
+                )
+                result[id_key] = normalized_ids
+                result[label + "_state"] = "AVAILABLE" if normalized_ids else "NONE"
+                for related_id in related_ids:
+                    related = doc.GetElement(related_id)
+                    if related is None:
+                        continue
+                    thickness = self._piping_ro_001_builtin_parameter(
+                        related,
+                        [
+                            "RBS_INSULATION_THICKNESS_FOR_DUCT",
+                            "RBS_DUCT_INSULATION_THICKNESS",
+                            "RBS_INSULATION_THICKNESS",
+                        ],
+                    )
+                    if self._piping_ro_001_finite(thickness.get("double")):
+                        result[thickness_key].append(float(thickness.get("double")) * 304.8)
+            except Exception as exc:
+                result[label + "_state"] = "UNREADABLE"
+                result["errors"].append("{0}: {1}".format(method_name, safe_str(exc)))
+        return result
+
+    def _hvac_ro_001_geometry(self, generic_record, connectors):
+        elem = generic_record.get("element")
+        errors = []
+        optional_errors = []
+        curve = None
+        curve_state = "UNAVAILABLE"
+        curve_type = "unavailable"
+        start = None
+        end = None
+        direction = None
+        try:
+            location = elem.Location
+            if location is not None and hasattr(location, "Curve"):
+                curve = location.Curve
+            if curve is not None:
+                curve_state = "AVAILABLE"
+                try:
+                    curve_type = self._piping_ro_001_text(curve.GetType().Name)
+                except:
+                    curve_type = self._piping_ro_001_text(type(curve).__name__)
+                start = curve.GetEndPoint(0)
+                end = curve.GetEndPoint(1)
+                try:
+                    direction = self._piping_ro_001_xyz((end - start).Normalize())
+                except:
+                    direction = None
+        except Exception as exc:
+            curve_state = "UNREADABLE"
+            errors.append("LocationCurve: {0}".format(safe_str(exc)))
+
+        length_param = self._piping_ro_001_builtin_parameter(
+            elem,
+            ["CURVE_ELEM_LENGTH", "RBS_CURVE_ELEM_LENGTH"],
+        )
+        errors.extend(length_param.get("errors") or [])
+        length_value = length_param.get("double")
+        length_source = length_param.get("name")
+        if not self._piping_ro_001_finite(length_value) and curve is not None:
+            try:
+                length_value = float(curve.Length)
+                length_source = "LocationCurve.Length"
+            except Exception as exc:
+                errors.append("Length: {0}".format(safe_str(exc)))
+        if self._piping_ro_001_finite(length_value):
+            length_state = "AVAILABLE"
+        elif errors:
+            length_state = "UNREADABLE"
+        else:
+            length_state = "UNAVAILABLE"
+
+        is_line = False
+        if curve is not None:
+            try:
+                is_line = isinstance(curve, DB.Line)
+            except:
+                is_line = curve_type.lower() == "line"
+        horizontal_run = None
+        elevation_delta = None
+        geometric_slope = None
+        vertical = False
+        if is_line and start is not None and end is not None:
+            try:
+                dx = float(end.X - start.X)
+                dy = float(end.Y - start.Y)
+                elevation_delta = float(end.Z - start.Z)
+                horizontal_run = math.sqrt((dx * dx) + (dy * dy))
+                vertical = horizontal_run <= HVAC_RO_001_VERTICAL_HORIZONTAL_TOLERANCE_FT
+                if not vertical:
+                    geometric_slope = elevation_delta / horizontal_run
+            except Exception as exc:
+                errors.append("Duct direction: {0}".format(safe_str(exc)))
+
+        slope_param = self._piping_ro_001_builtin_parameter(
+            elem,
+            ["RBS_DUCT_SLOPE", "RBS_CURVE_SLOPE", "RBS_CURVE_UTSLOPE"],
+        )
+        optional_errors.extend(slope_param.get("errors") or [])
+        authored_slope = slope_param.get("double")
+        if not is_line:
+            slope_state = "UNREADABLE" if curve_state == "UNREADABLE" else "UNAVAILABLE"
+            slope_ratio = None
+            slope_source = "unavailable"
+        elif vertical:
+            slope_state = "NOT_APPLICABLE"
+            slope_ratio = None
+            slope_source = "vertical_or_near_vertical"
+        elif slope_param.get("present") and slope_param.get("readable") and self._piping_ro_001_finite(authored_slope):
+            slope_state = "AVAILABLE"
+            slope_ratio = authored_slope
+            slope_source = slope_param.get("name")
+        elif self._piping_ro_001_finite(geometric_slope):
+            slope_state = "AVAILABLE"
+            slope_ratio = geometric_slope
+            slope_source = "CALCULATED"
+        elif slope_param.get("errors"):
+            slope_state = "UNREADABLE"
+            slope_ratio = None
+            slope_source = "unavailable"
+        else:
+            slope_state = "UNAVAILABLE"
+            slope_ratio = None
+            slope_source = "unavailable"
+
+        shape = self._hvac_ro_001_shape_dimensions(elem, connectors)
+        errors.extend(shape.get("errors") or [])
+        direct_volume_param = self._piping_ro_001_builtin_parameter(
+            elem,
+            ["RBS_DUCT_VOLUME_PARAM", "RBS_CURVE_VOLUME_PARAM", "HOST_VOLUME_COMPUTED"],
+        )
+        optional_errors.extend(direct_volume_param.get("errors") or [])
+        direct_volume = direct_volume_param.get("double")
+        if not self._piping_ro_001_finite(direct_volume):
+            direct_volume = None
+        calculated_volume = None
+        if self._piping_ro_001_finite(shape.get("cross_section_area_ft2")) and self._piping_ro_001_finite(length_value):
+            calculated_volume = float(shape.get("cross_section_area_ft2")) * float(length_value)
+        if direct_volume is not None:
+            selected_volume = direct_volume
+            volume_source = direct_volume_param.get("name")
+        elif calculated_volume is not None:
+            selected_volume = calculated_volume
+            volume_source = "CALCULATED_AREA_X_LENGTH"
+        else:
+            selected_volume = None
+            volume_source = "unavailable"
+        discrepancy_state = "NOT_APPLICABLE"
+        discrepancy_ratio = None
+        discrepancy_percent = None
+        if direct_volume is not None and calculated_volume is not None:
+            delta = abs(float(direct_volume) - float(calculated_volume))
+            denominator = max(abs(float(direct_volume)), abs(float(calculated_volume)), HVAC_RO_001_VOLUME_ABSOLUTE_TOLERANCE_FT3)
+            discrepancy_ratio = delta / denominator
+            discrepancy_percent = discrepancy_ratio * 100.0
+            discrepancy_state = (
+                "CONTRADICTORY"
+                if delta > HVAC_RO_001_VOLUME_ABSOLUTE_TOLERANCE_FT3
+                and discrepancy_ratio > HVAC_RO_001_VOLUME_RELATIVE_TOLERANCE
+                else "WITHIN_TOLERANCE"
+            )
+
+        return {
+            "curve_state": curve_state,
+            "curve_type": curve_type,
+            "is_line": bool(is_line),
+            "is_vertical": bool(vertical),
+            "length_state": length_state,
+            "length_source": length_source,
+            "length_ft": length_value,
+            "length_mm": length_value * 304.8 if self._piping_ro_001_finite(length_value) else None,
+            "length_m": length_value * 0.3048 if self._piping_ro_001_finite(length_value) else None,
+            "start_elevation_ft": float(start.Z) if start is not None else None,
+            "start_elevation_mm": float(start.Z) * 304.8 if start is not None else None,
+            "end_elevation_ft": float(end.Z) if end is not None else None,
+            "end_elevation_mm": float(end.Z) * 304.8 if end is not None else None,
+            "elevation_delta_ft": elevation_delta,
+            "elevation_delta_mm": elevation_delta * 304.8 if self._piping_ro_001_finite(elevation_delta) else None,
+            "horizontal_run_ft": horizontal_run,
+            "horizontal_run_mm": horizontal_run * 304.8 if self._piping_ro_001_finite(horizontal_run) else None,
+            "direction": direction,
+            "reference_level": self._mep_ro_v1_level_name(elem),
+            "slope_state": slope_state,
+            "slope_source": slope_source,
+            "slope_ratio": slope_ratio,
+            "slope_percent": slope_ratio * 100.0 if self._piping_ro_001_finite(slope_ratio) else None,
+            "slope_per_mille": slope_ratio * 1000.0 if self._piping_ro_001_finite(slope_ratio) else None,
+            "slope_angle_degrees": math.degrees(math.atan(abs(slope_ratio))) if self._piping_ro_001_finite(slope_ratio) else None,
+            "shape": shape,
+            "direct_volume_ft3": direct_volume,
+            "direct_volume_m3": direct_volume * 0.028316846592 if direct_volume is not None else None,
+            "calculated_volume_ft3": calculated_volume,
+            "calculated_volume_m3": calculated_volume * 0.028316846592 if calculated_volume is not None else None,
+            "selected_volume_ft3": selected_volume,
+            "selected_volume_m3": selected_volume * 0.028316846592 if selected_volume is not None else None,
+            "volume_source": volume_source,
+            "volume_discrepancy_state": discrepancy_state,
+            "volume_discrepancy_ratio": discrepancy_ratio,
+            "volume_discrepancy_percent": discrepancy_percent,
+            "errors": errors,
+            "optional_errors": optional_errors,
+        }
+
+    def _hvac_ro_001_duct_record(self, generic_record):
+        elem = generic_record.get("element")
+        connectors = self._hvac_ro_001_connectors(elem)
+        system = self._hvac_ro_001_system_assignment(elem)
+        geometry = self._hvac_ro_001_geometry(generic_record, connectors)
+        layers = self._hvac_ro_001_related_layers(elem)
+        required_errors = []
+        required_errors.extend(system.get("errors") or [])
+        required_errors.extend(geometry.get("errors") or [])
+        partial_conditions = []
+        shape = geometry.get("shape") or {}
+        if shape.get("shape_state") in ("INCONSISTENT", "UNREADABLE"):
+            partial_conditions.append("duct shape {0}".format(shape.get("shape_state").lower()))
+        if shape.get("normalized_shape") in ("ROUND", "RECTANGULAR", "OVAL") and not shape.get("required_dimensions_valid"):
+            partial_conditions.append("required duct dimensions unavailable or invalid")
+        if system.get("state") in ("UNREADABLE", "INCONSISTENT"):
+            partial_conditions.append("system metadata {0}".format(system.get("state").lower()))
+        if geometry.get("length_state") == "UNREADABLE":
+            partial_conditions.append("length unreadable")
+        if (
+            connectors.get("manager_state") == "UNREADABLE"
+            or connectors.get("unreadable_count")
+            or connectors.get("physical_connector_type_unreadable_count")
+        ):
+            partial_conditions.append("connector data incomplete")
+        if required_errors:
+            partial_conditions.append("required HVAC read errors")
+        return {
+            "element": elem,
+            "element_id": generic_record.get("element_id"),
+            "unique_id": generic_record.get("unique_id"),
+            "category_name": generic_record.get("category_name"),
+            "family_name": generic_record.get("family_name"),
+            "duct_type_name": generic_record.get("type_name"),
+            "duct_type_id": generic_record.get("type_id"),
+            "type_element": generic_record.get("type_element"),
+            "workset": generic_record.get("workset"),
+            "pinned": generic_record.get("pinned"),
+            "group_id": generic_record.get("group_id"),
+            "assembly_id": generic_record.get("assembly_id"),
+            "design_option": generic_record.get("design_option"),
+            "placeholder_state": "false",
+            "system": system,
+            "geometry": geometry,
+            "connectors": connectors,
+            "layers": layers,
+            "property_errors": list(generic_record.get("property_errors") or []),
+            "required_errors": required_errors,
+            "connector_errors": list(connectors.get("errors") or []),
+            "optional_errors": list(geometry.get("optional_errors") or []) + list(layers.get("errors") or []),
+            "partial_conditions": sorted(set(partial_conditions)),
+            "complete": not bool(partial_conditions),
+        }
+
+    def _hvac_ro_001_check(self, check_id, name, applicability, issues, skipped, affected, explanation, force_partial=False):
+        result = self._mep_ro_001_qa_check(
+            check_id,
+            name,
+            applicability,
+            issues,
+            skipped,
+            affected,
+            explanation,
+        )
+        result["affected_ids"] = (result.get("affected_ids") or [])[:HVAC_RO_001_AFFECTED_ID_LIMIT]
+        if force_partial and (issues or skipped):
+            result["status"] = "PARTIAL"
+        return result
+
+    def _hvac_ro_001_qa_checks(self, data, snapshot):
+        records = data.get("duct_records") or []
+        unsupported = (data.get("scope") or {}).get("unsupported") or []
+        checks = []
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-001",
+                "Unsupported selected element",
+                data.get("selected_reference_count"),
+                len(unsupported),
+                0,
+                [item.get("element_id") for item in unsupported],
+                "Only rigid non-placeholder DB.Mechanical.Duct elements in OST_DuctCurves are supported.",
+            )
+        )
+        type_missing = [item.get("element_id") for item in records if item.get("type_element") is None]
+        type_unreadable = [
+            item.get("element_id")
+            for item in records
+            if any("Type:" in safe_str(error) for error in item.get("property_errors") or [])
+        ]
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-002",
+                "Missing duct type",
+                len(records),
+                len(type_missing),
+                len(type_unreadable),
+                type_missing + type_unreadable,
+                "The selected duct type must resolve in the active document.",
+                force_partial=bool(type_unreadable),
+            )
+        )
+        shape_issues = [
+            item.get("element_id")
+            for item in records
+            if item.get("geometry", {}).get("shape", {}).get("normalized_shape") == "INCONSISTENT"
+        ]
+        shape_partial = [
+            item.get("element_id")
+            for item in records
+            if item.get("geometry", {}).get("shape", {}).get("shape_state") == "UNREADABLE"
+        ]
+        shape_applicable = [
+            item
+            for item in records
+            if item.get("geometry", {}).get("shape", {}).get("normalized_shape") != "UNAVAILABLE"
+        ]
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-003",
+                "Invalid or inconsistent duct shape",
+                len(shape_applicable),
+                len(shape_issues),
+                len(shape_partial),
+                shape_issues + shape_partial,
+                "Physical HVAC connector consensus is authoritative; unavailable optional shape evidence is not a defect.",
+                force_partial=bool(shape_partial),
+            )
+        )
+        system_applicable = [item for item in records if item.get("system", {}).get("state") != "UNAVAILABLE"]
+        unassigned = [item.get("element_id") for item in records if item.get("system", {}).get("state") == "UNASSIGNED_REVIEW"]
+        system_partial = [
+            item.get("element_id")
+            for item in records
+            if item.get("system", {}).get("state") in ("UNREADABLE", "INCONSISTENT")
+        ]
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-004",
+                "Missing system assignment",
+                len(system_applicable),
+                len(unassigned),
+                len(system_partial),
+                unassigned + system_partial,
+                "UNASSIGNED_REVIEW is an issue; unavailable APIs are not treated as an assignment defect.",
+                force_partial=bool(system_partial),
+            )
+        )
+        dimension_applicable = [
+            item
+            for item in records
+            if item.get("geometry", {}).get("shape", {}).get("normalized_shape") in ("ROUND", "RECTANGULAR", "OVAL")
+        ]
+        dimension_issues = [
+            item.get("element_id")
+            for item in dimension_applicable
+            if not item.get("geometry", {}).get("shape", {}).get("required_dimensions_valid")
+            and not item.get("geometry", {}).get("shape", {}).get("errors")
+        ]
+        dimension_partial = [
+            item.get("element_id")
+            for item in dimension_applicable
+            if item.get("geometry", {}).get("shape", {}).get("errors")
+        ]
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-005",
+                "Missing or nonpositive required dimensions",
+                len(dimension_applicable),
+                len(dimension_issues),
+                len(dimension_partial),
+                dimension_issues + dimension_partial,
+                "ROUND requires diameter; RECTANGULAR and OVAL require two positive finite dimensions.",
+                force_partial=bool(dimension_partial),
+            )
+        )
+        length_issues = [
+            item.get("element_id")
+            for item in records
+            if item.get("geometry", {}).get("length_state") != "UNREADABLE"
+            and (
+                not self._piping_ro_001_finite(item.get("geometry", {}).get("length_ft"))
+                or float(item.get("geometry", {}).get("length_ft") or 0.0) < HVAC_RO_001_NEAR_ZERO_LENGTH_FT
+            )
+        ]
+        length_partial = [
+            item.get("element_id")
+            for item in records
+            if item.get("geometry", {}).get("length_state") == "UNREADABLE"
+        ]
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-006",
+                "Missing or near-zero length",
+                len(records),
+                len(length_issues),
+                len(length_partial),
+                length_issues + length_partial,
+                "Length must be finite and at least 1 mm.",
+                force_partial=bool(length_partial),
+            )
+        )
+        section_volume_applicable = [
+            item
+            for item in records
+            if self._piping_ro_001_finite(item.get("geometry", {}).get("shape", {}).get("cross_section_area_ft2"))
+            or self._piping_ro_001_finite(item.get("geometry", {}).get("direct_volume_ft3"))
+            or self._piping_ro_001_finite(item.get("geometry", {}).get("calculated_volume_ft3"))
+        ]
+        section_volume_issues = []
+        section_volume_partial = []
+        for item in section_volume_applicable:
+            geometry = item.get("geometry") or {}
+            area = geometry.get("shape", {}).get("cross_section_area_ft2")
+            direct = geometry.get("direct_volume_ft3")
+            if self._piping_ro_001_finite(area) and float(area) <= 0.0:
+                section_volume_issues.append(item.get("element_id"))
+            elif self._piping_ro_001_finite(direct) and float(direct) < 0.0:
+                section_volume_issues.append(item.get("element_id"))
+            elif geometry.get("volume_discrepancy_state") == "CONTRADICTORY":
+                section_volume_issues.append(item.get("element_id"))
+            if geometry.get("optional_errors"):
+                section_volume_partial.append(item.get("element_id"))
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-007",
+                "Section or volume evidence inconsistent",
+                len(section_volume_applicable),
+                len(section_volume_issues),
+                len(section_volume_partial),
+                section_volume_issues + section_volume_partial,
+                "Missing optional volume is not a defect; direct/calculated contradiction must exceed absolute and 2 percent relative tolerance.",
+                force_partial=bool(section_volume_partial),
+            )
+        )
+        physical_count = sum([item.get("connectors", {}).get("physical_count", 0) for item in records])
+        unconnected_ids = []
+        connector_partial_occurrences = 0
+        for item in records:
+            for detail in item.get("connectors", {}).get("details") or []:
+                if detail.get("unreadable"):
+                    connector_partial_occurrences += 1
+                elif not detail.get("reciprocal_connected"):
+                    unconnected_ids.append(item.get("element_id"))
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-008",
+                "Unconnected physical connector",
+                physical_count,
+                len(unconnected_ids),
+                connector_partial_occurrences,
+                unconnected_ids,
+                "A physical HVAC connection requires reciprocal IsConnectedTo confirmation.",
+                force_partial=bool(connector_partial_occurrences),
+            )
+        )
+        connector_count_statuses = [
+            (
+                item,
+                _hvac_ro_001_end_connector_count_status(
+                    item.get("connectors", {}).get("manager_state"),
+                    item.get("connectors", {}).get("physical_end_count"),
+                    item.get("connectors", {}).get("physical_connector_type_unreadable_count"),
+                ),
+            )
+            for item in records
+        ]
+        connector_complete = [item for item, status in connector_count_statuses if status != "PARTIAL"]
+        abnormal = [
+            item.get("element_id")
+            for item, status in connector_count_statuses
+            if status == "ISSUE"
+        ]
+        connector_count_partial = [
+            item.get("element_id")
+            for item, status in connector_count_statuses
+            if status == "PARTIAL"
+        ]
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-009",
+                "Abnormal physical end connector count",
+                len(connector_complete),
+                len(abnormal),
+                len(connector_count_partial),
+                abnormal + connector_count_partial,
+                "A supported rigid duct is expected to expose two physical End connectors. Additional physical Curve connectors used for taps or branches are valid and do not make the duct abnormal.",
+                force_partial=bool(connector_count_partial),
+            )
+        )
+        connector_failed = [
+            item.get("element_id")
+            for item in records
+            if item.get("connectors", {}).get("manager_state") != "AVAILABLE"
+            or item.get("connectors", {}).get("unreadable_count")
+            or item.get("connectors", {}).get("physical_connector_type_unreadable_count")
+        ]
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-010",
+                "Connector read failure",
+                len(records),
+                len(connector_failed),
+                0,
+                connector_failed,
+                "Connector manager, metadata, AllRefs, owner resolution, and reciprocal reads are guarded.",
+                force_partial=bool(connector_failed),
+            )
+        )
+        system_consistency_applicable = [
+            item for item in records if item.get("system", {}).get("authoritative_source_count", 0) >= 2
+        ]
+        inconsistent = [
+            item.get("element_id")
+            for item in system_consistency_applicable
+            if item.get("system", {}).get("state") == "INCONSISTENT"
+        ]
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-011",
+                "Inconsistent system metadata",
+                len(system_consistency_applicable),
+                len(inconsistent),
+                0,
+                inconsistent,
+                "Only contradictory authoritative metadata on the same duct is inconsistent.",
+                force_partial=bool(inconsistent),
+            )
+        )
+        unreadable_required = [item.get("element_id") for item in records if item.get("required_errors")]
+        checks.append(
+            self._hvac_ro_001_check(
+                "HVAC-QA-012",
+                "Unreadable required HVAC parameter",
+                len(records),
+                len(unreadable_required),
+                0,
+                unreadable_required,
+                "Caught required HVAC reads remain explicit; optional insulation, lining, and absent volume are excluded.",
+                force_partial=bool(unreadable_required),
+            )
+        )
+        generic_snapshot = {
+            "selected_ids": snapshot.get("selected_ids") or [],
+            "selected_id_texts": snapshot.get("selected_id_texts") or [],
+            "records": data.get("processed_generic_records") or [],
+            "unavailable": snapshot.get("unavailable") or [],
+        }
+        generic_checks, generic_errors = self._mep_ro_001_qa_checks(generic_snapshot)
+        included_generic_ids = set(
+            [
+                "SEL-QA-001",
+                "SEL-QA-002",
+                "SEL-QA-003",
+                "SEL-QA-004",
+                "SEL-QA-005",
+                "SEL-QA-006",
+                "SEL-QA-007",
+                "SEL-QA-008",
+                "SEL-QA-011",
+                "SEL-QA-013",
+                "SEL-QA-015",
+                "SEL-QA-016",
+            ]
+        )
+        generic_checks = [item for item in generic_checks if item.get("check_id") in included_generic_ids]
+        checks.sort(key=lambda item: item.get("check_id"))
+        generic_checks.sort(key=lambda item: item.get("check_id"))
+        return checks, generic_checks, generic_errors
+
+    def _hvac_ro_001_base_data(self, prompt, action_key, snapshot):
+        action_id, canonical_prompt = HVAC_RO_001_ACTION_METADATA.get(action_key)
+        return {
+            "feature_id": "HVAC-RO-001",
+            "feature_name": "ModelMind Read-Only Duct Selection Action Pack",
+            "action_id": action_id,
+            "canonical_prompt": canonical_prompt,
+            "prompt": safe_str(prompt),
+            "report_id": "HVAC-RO-001-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "classification": "HVAC_SELECTION_REPORT_NOT_READY",
+            "reason_code": "UNAVAILABLE",
+            "selected_reference_count": len(snapshot.get("selected_ids") or []),
+            "resolved_selected_count": len(snapshot.get("records") or []),
+            "scope": {},
+            "processed_generic_records": [],
+            "duct_records": [],
+            "summary": [],
+            "tables": [],
+            "hvac_checks": [],
+            "generic_checks": [],
+            "warnings": [],
+            "next_guidance": "Select one or more supported rigid non-placeholder ducts and rerun.",
+        }
+
+    def _hvac_ro_001_duct_rows(self, records):
+        rows = []
+        for item in (records or [])[:HVAC_RO_001_DUCT_ROW_LIMIT]:
+            geometry = item.get("geometry") or {}
+            shape = geometry.get("shape") or {}
+            system = item.get("system") or {}
+            layers = item.get("layers") or {}
+            rows.append(
+                [
+                    item.get("element_id"),
+                    item.get("unique_id"),
+                    item.get("family_name"),
+                    item.get("duct_type_name"),
+                    item.get("duct_type_id"),
+                    shape.get("shape_state"),
+                    shape.get("normalized_shape"),
+                    self._piping_ro_001_display_number(shape.get("diameter_mm"), 1),
+                    self._piping_ro_001_display_number(shape.get("width_mm"), 1),
+                    self._piping_ro_001_display_number(shape.get("height_mm"), 1),
+                    self._piping_ro_001_display_number(shape.get("cross_section_area_m2"), 6),
+                    shape.get("cross_section_area_source"),
+                    self._piping_ro_001_display_number(geometry.get("length_mm"), 1),
+                    self._piping_ro_001_display_number(geometry.get("selected_volume_m3"), 6),
+                    geometry.get("volume_source"),
+                    geometry.get("volume_discrepancy_state"),
+                    geometry.get("curve_type"),
+                    geometry.get("slope_state"),
+                    geometry.get("slope_source"),
+                    self._piping_ro_001_display_number(geometry.get("slope_percent"), 3),
+                    self._piping_ro_001_display_number(geometry.get("start_elevation_mm"), 1),
+                    self._piping_ro_001_display_number(geometry.get("end_elevation_mm"), 1),
+                    geometry.get("reference_level"),
+                    system.get("state"),
+                    system.get("mep_system_name"),
+                    layers.get("insulation_state"),
+                    layers.get("lining_state"),
+                    item.get("workset"),
+                    item.get("pinned"),
+                    item.get("group_id"),
+                    item.get("assembly_id"),
+                    item.get("design_option"),
+                ]
+            )
+        return rows
+
+    def _hvac_ro_001_build_data(self, prompt, action_key):
+        snapshot = self._mep_ro_001_selection_snapshot()
+        data = self._hvac_ro_001_base_data(prompt, action_key, snapshot)
+        scope = self._hvac_ro_001_scope(snapshot)
+        data["scope"] = scope
+        supported = scope.get("supported") or []
+        counts = scope.get("counts") or {}
+        if not snapshot.get("selected_ids"):
+            data["reason_code"] = "NO_ELEMENTS_SELECTED"
+            return data
+        if not supported:
+            data["reason_code"] = "NO_SUPPORTED_RIGID_DUCTS"
+            data["summary"].append("Selected references exist, but none are supported rigid non-placeholder ducts.")
+            data["tables"].append(
+                (
+                    "Unsupported selection",
+                    ["Element id", "Category", "Scope classification"],
+                    [
+                        [item.get("element_id"), item.get("category"), item.get("scope_kind")]
+                        for item in scope.get("unsupported") or []
+                    ][:HVAC_RO_001_DUCT_ROW_LIMIT],
+                )
+            )
+            return data
+        processed_generic = supported[:HVAC_RO_001_DUCT_PROCESS_LIMIT]
+        skipped_supported = max(0, len(supported) - len(processed_generic))
+        data["processed_generic_records"] = processed_generic
+        records = [self._hvac_ro_001_duct_record(item) for item in processed_generic]
+        records.sort(
+            key=lambda item: (
+                not safe_str(item.get("element_id")).isdigit(),
+                int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+            )
+        )
+        data["duct_records"] = records
+        unsupported_count = len(scope.get("unsupported") or [])
+        partial = bool(
+            unsupported_count
+            or skipped_supported
+            or any(not item.get("complete") for item in records)
+        )
+        data["reason_code"] = "PARTIAL_SCOPE_OR_READ" if partial else "COMPLETE"
+        data["summary"].extend(
+            [
+                "Total selected references: {0}".format(data.get("selected_reference_count")),
+                "Resolved selected elements: {0}".format(data.get("resolved_selected_count")),
+                "Supported rigid non-placeholder ducts: {0}".format(len(supported)),
+                "Supported ducts processed: {0}".format(len(records)),
+                "Supported ducts skipped by cap: {0}".format(skipped_supported),
+                "Unsupported or unresolved selected references: {0}".format(unsupported_count),
+                "Complete-read supported ducts: {0}".format(len([item for item in records if item.get("complete")])),
+                "Partial-read supported ducts: {0}".format(len([item for item in records if not item.get("complete")])),
+                "Duct processing cap: {0}".format(HVAC_RO_001_DUCT_PROCESS_LIMIT),
+            ]
+        )
+        data["tables"].append(
+            (
+                "Selection scope classification",
+                ["Scope classification", "Count"],
+                [[key, counts.get(key, 0)] for key in sorted(counts.keys())],
+            )
+        )
+        if scope.get("unsupported"):
+            data["tables"].append(
+                (
+                    "Unsupported or unresolved selection",
+                    ["Element id", "Category", "Scope classification"],
+                    [
+                        [item.get("element_id"), item.get("category"), item.get("scope_kind")]
+                        for item in scope.get("unsupported") or []
+                    ][:HVAC_RO_001_DUCT_ROW_LIMIT],
+                )
+            )
+        for record in records:
+            for condition in record.get("partial_conditions") or []:
+                data["warnings"].append("Duct {0}: {1}.".format(record.get("element_id"), condition))
+            for error in record.get("required_errors") or []:
+                data["warnings"].append("Duct {0}: {1}".format(record.get("element_id"), error))
+            for error in record.get("connector_errors") or []:
+                data["warnings"].append("Duct {0} connector: {1}".format(record.get("element_id"), error))
+            for error in record.get("optional_errors") or []:
+                data["warnings"].append("Duct {0} optional metadata: {1}".format(record.get("element_id"), error))
+
+        if action_key == "ducts_summary":
+            total_length = sum(
+                [
+                    item.get("geometry", {}).get("length_ft")
+                    for item in records
+                    if self._piping_ro_001_finite(item.get("geometry", {}).get("length_ft"))
+                ]
+            )
+            data["summary"].extend(
+                [
+                    "Total readable duct length: {0} ft / {1} mm / {2} m".format(
+                        self._piping_ro_001_display_number(total_length),
+                        self._piping_ro_001_display_number(total_length * 304.8, 1),
+                        self._piping_ro_001_display_number(total_length * 0.3048, 3),
+                    ),
+                    "Pinned ducts: {0}".format(len([item for item in records if item.get("pinned") == "true"])),
+                    "Grouped ducts: {0}".format(len([item for item in records if item.get("group_id") != "not available"])),
+                    "Assembly-member ducts: {0}".format(len([item for item in records if item.get("assembly_id") != "not available"])),
+                ]
+            )
+            distributions = (
+                ("Duct type distribution", [(item.get("duct_type_name"), item.get("duct_type_id")) for item in records]),
+                ("Shape distribution", [(item.get("geometry", {}).get("shape", {}).get("normalized_shape"), "") for item in records]),
+                (
+                    "Dimension distribution",
+                    [
+                        (
+                            "{0}: D={1} W={2} H={3} mm".format(
+                                item.get("geometry", {}).get("shape", {}).get("normalized_shape"),
+                                self._piping_ro_001_display_number(item.get("geometry", {}).get("shape", {}).get("diameter_mm"), 1),
+                                self._piping_ro_001_display_number(item.get("geometry", {}).get("shape", {}).get("width_mm"), 1),
+                                self._piping_ro_001_display_number(item.get("geometry", {}).get("shape", {}).get("height_mm"), 1),
+                            ),
+                            "",
+                        )
+                        for item in records
+                    ],
+                ),
+                ("System assignment distribution", [(item.get("system", {}).get("state"), "") for item in records]),
+                ("Workset distribution", [(item.get("workset"), "") for item in records]),
+                (
+                    "Insulation and lining state distribution",
+                    [
+                        (
+                            "{0} / {1}".format(
+                                item.get("layers", {}).get("insulation_state"),
+                                item.get("layers", {}).get("lining_state"),
+                            ),
+                            "",
+                        )
+                        for item in records
+                    ],
+                ),
+            )
+            for title, values in distributions:
+                data["tables"].append(
+                    (title, ["Value", "Stable id", "Count"], self._piping_ro_001_distribution(values))
+                )
+            duct_rows = self._hvac_ro_001_duct_rows(records)
+            data["tables"].append(
+                (
+                    "Supported rigid duct records",
+                    [
+                        "Element id",
+                        "UniqueId",
+                        "Family",
+                        "Duct type",
+                        "Type id",
+                        "Shape state",
+                        "Shape",
+                        "Diameter mm",
+                        "Width mm",
+                        "Height mm",
+                        "Area m2",
+                        "Area source",
+                        "Length mm",
+                        "Volume m3",
+                        "Volume source",
+                        "Volume discrepancy",
+                        "Curve type",
+                        "Slope state",
+                        "Slope source",
+                        "Slope percent",
+                        "Start elevation mm",
+                        "End elevation mm",
+                        "Reference level",
+                        "System state",
+                        "System name",
+                        "Insulation",
+                        "Lining",
+                        "Workset",
+                        "Pinned",
+                        "Group id",
+                        "Assembly id",
+                        "Design option",
+                    ],
+                    duct_rows,
+                )
+            )
+            data["summary"].extend(
+                [
+                    "Displayed duct rows: {0}".format(len(duct_rows)),
+                    "Omitted duct rows: {0}".format(max(0, len(records) - len(duct_rows))),
+                    "Duct-row truncation: {0}".format("true" if len(records) > len(duct_rows) else "false"),
+                ]
+            )
+            data["classification"] = "HVAC_SELECTION_REPORT_PARTIAL" if partial else "HVAC_SELECTION_SUMMARY_OK"
+
+        elif action_key == "duct_connectors":
+            total_raw = sum([item.get("connectors", {}).get("total_count", 0) for item in records])
+            total_physical = sum([item.get("connectors", {}).get("physical_count", 0) for item in records])
+            total_physical_end = sum([item.get("connectors", {}).get("physical_end_count", 0) for item in records])
+            total_physical_non_end = sum([item.get("connectors", {}).get("physical_non_end_count", 0) for item in records])
+            total_type_unreadable = sum(
+                [item.get("connectors", {}).get("physical_connector_type_unreadable_count", 0) for item in records]
+            )
+            total_connected = sum([item.get("connectors", {}).get("connected_physical_count", 0) for item in records])
+            total_unconnected = sum([item.get("connectors", {}).get("unconnected_physical_count", 0) for item in records])
+            total_unreadable = sum([item.get("connectors", {}).get("unreadable_count", 0) for item in records])
+            abnormal = [
+                item
+                for item in records
+                if _hvac_ro_001_end_connector_count_status(
+                    item.get("connectors", {}).get("manager_state"),
+                    item.get("connectors", {}).get("physical_end_count"),
+                    item.get("connectors", {}).get("physical_connector_type_unreadable_count"),
+                )
+                == "ISSUE"
+            ]
+            data["summary"].extend(
+                [
+                    "Total raw connector count: {0}".format(total_raw),
+                    "Physical HVAC connector count: {0}".format(total_physical),
+                    "Physical End connector count: {0}".format(total_physical_end),
+                    "Physical non-End connector count: {0}".format(total_physical_non_end),
+                    "Unreadable physical connector-type count: {0}".format(total_type_unreadable),
+                    "Reciprocally connected physical connector count: {0}".format(total_connected),
+                    "Unconnected physical connector count: {0}".format(total_unconnected),
+                    "Unreadable connector count: {0}".format(total_unreadable),
+                    "Abnormal physical End connector-count ducts: {0}".format(len(abnormal)),
+                ]
+            )
+            per_duct_rows = []
+            connector_rows = []
+            for item in records:
+                connector_data = item.get("connectors") or {}
+                per_duct_rows.append(
+                    [
+                        item.get("element_id"),
+                        connector_data.get("manager_state"),
+                        connector_data.get("total_count"),
+                        connector_data.get("physical_count"),
+                        connector_data.get("physical_end_count"),
+                        connector_data.get("physical_non_end_count"),
+                        connector_data.get("physical_connector_type_unreadable_count"),
+                        connector_data.get("connected_physical_count"),
+                        connector_data.get("unconnected_physical_count"),
+                        connector_data.get("unreadable_count"),
+                    ]
+                )
+                for detail in (connector_data.get("details") or [])[:HVAC_RO_001_CONNECTORS_PER_DUCT_LIMIT]:
+                    if len(connector_rows) >= HVAC_RO_001_CONNECTOR_ROW_LIMIT:
+                        break
+                    owner_ids = detail.get("connected_owner_ids") or []
+                    connector_rows.append(
+                        [
+                            detail.get("owner_duct_id"),
+                            detail.get("sequence"),
+                            detail.get("connector_type"),
+                            detail.get("domain"),
+                            detail.get("shape"),
+                            self._piping_ro_001_xyz_text(detail.get("origin_ft"), 6),
+                            self._piping_ro_001_xyz_text(detail.get("origin_mm"), 1),
+                            self._piping_ro_001_display_number(detail.get("diameter_mm"), 1),
+                            self._piping_ro_001_display_number(detail.get("width_mm"), 1),
+                            self._piping_ro_001_display_number(detail.get("height_mm"), 1),
+                            self._piping_ro_001_xyz_text(detail.get("direction"), 6),
+                            detail.get("flow_direction"),
+                            detail.get("raw_is_connected"),
+                            str(bool(detail.get("reciprocal_connected"))).lower(),
+                            ", ".join([safe_str(value) for value in owner_ids[:HVAC_RO_001_CONNECTED_OWNER_LIMIT]]) or "none",
+                            ", ".join(detail.get("connected_owner_categories") or []) or "none",
+                            ", ".join(detail.get("connected_owner_classes") or []) or "none",
+                            detail.get("connected_owner_count"),
+                            str(bool(detail.get("unreadable"))).lower(),
+                            "; ".join(detail.get("warnings") or []) or "none",
+                        ]
+                    )
+            data["tables"].append(
+                (
+                    "Per-duct connector summary",
+                    [
+                        "Duct id",
+                        "Manager state",
+                        "Raw",
+                        "Physical",
+                        "Physical End",
+                        "Physical non-End",
+                        "Unreadable connector type",
+                        "Reciprocal connected",
+                        "Unconnected",
+                        "Unreadable",
+                    ],
+                    per_duct_rows,
+                )
+            )
+            data["tables"].append(
+                (
+                    "Physical HVAC connector details",
+                    [
+                        "Owner duct id",
+                        "Sequence",
+                        "Connector type",
+                        "Domain",
+                        "Shape",
+                        "Origin ft",
+                        "Origin mm",
+                        "Diameter mm",
+                        "Width mm",
+                        "Height mm",
+                        "Direction",
+                        "Flow direction",
+                        "Raw IsConnected",
+                        "Reciprocal physical connection",
+                        "Connected owner ids",
+                        "Connected owner categories",
+                        "Connected owner classes",
+                        "Connected owner count",
+                        "Unreadable",
+                        "Warning",
+                    ],
+                    connector_rows,
+                )
+            )
+            total_detail_count = sum([len(item.get("connectors", {}).get("details") or []) for item in records])
+            data["summary"].extend(
+                [
+                    "Displayed connector detail rows: {0}".format(len(connector_rows)),
+                    "Total physical connector detail records: {0}".format(total_detail_count),
+                    "Connector detail truncation: {0}".format("true" if total_detail_count > len(connector_rows) else "false"),
+                ]
+            )
+            data["classification"] = "HVAC_SELECTION_REPORT_PARTIAL" if partial else "HVAC_CONNECTOR_REPORT_OK"
+
+        elif action_key == "system_assignment":
+            system_rows = []
+            for item in records:
+                system = item.get("system") or {}
+                system_rows.append(
+                    [
+                        system.get("state"),
+                        system.get("system_type"),
+                        system.get("mep_system_name"),
+                        system.get("mep_system_id"),
+                        item.get("element_id"),
+                        system.get("system_classification"),
+                        system.get("built_in_system_metadata"),
+                        system.get("fallback_system_metadata"),
+                        system.get("consistency_state"),
+                        ", ".join(system.get("authoritative_sources") or []) or "none",
+                        "; ".join(system.get("contradictions") or []) or "none",
+                    ]
+                )
+            system_rows.sort(
+                key=lambda row: (
+                    self._console_normalize(row[0]),
+                    self._console_normalize(row[1]),
+                    self._console_normalize(row[2]),
+                    safe_str(row[3]),
+                    int(row[4]) if safe_str(row[4]).isdigit() else safe_str(row[4]),
+                )
+            )
+            for title, index in (
+                ("System assignment state distribution", 0),
+                ("System name distribution", 2),
+                ("System type distribution", 1),
+                ("System classification distribution", 5),
+            ):
+                data["tables"].append(
+                    (title, ["Value", "Stable id", "Count"], self._piping_ro_001_distribution([(row[index], "") for row in system_rows]))
+                )
+            data["tables"].append(
+                (
+                    "Per-duct normalized system metadata",
+                    [
+                        "Assignment state",
+                        "System type",
+                        "System name",
+                        "MEP system id",
+                        "Duct id",
+                        "Classification",
+                        "Built-in metadata",
+                        "Fallback metadata",
+                        "Consistency",
+                        "Authoritative sources",
+                        "Contradictions",
+                    ],
+                    system_rows,
+                )
+            )
+            for state in ("UNASSIGNED_REVIEW", "INCONSISTENT", "UNREADABLE", "UNAVAILABLE"):
+                ids = [item.get("element_id") for item in records if item.get("system", {}).get("state") == state]
+                data["summary"].append("{0} duct IDs: {1}".format(state, ", ".join(ids[:HVAC_RO_001_AFFECTED_ID_LIMIT]) or "none"))
+            data["classification"] = "HVAC_SELECTION_REPORT_PARTIAL" if partial else "HVAC_SYSTEM_ASSIGNMENT_OK"
+
+        elif action_key == "qa_health":
+            hvac_checks, generic_checks, generic_errors = self._hvac_ro_001_qa_checks(data, snapshot)
+            data["hvac_checks"] = hvac_checks
+            data["generic_checks"] = generic_checks
+            partial_check_count = len(
+                [item for item in hvac_checks + generic_checks if item.get("status") == "PARTIAL"]
+            )
+            issue_count = sum(
+                [
+                    item.get("issues", 0)
+                    for item in hvac_checks + generic_checks
+                    if item.get("status") == "ISSUES_FOUND"
+                ]
+            )
+            if partial or partial_check_count:
+                data["classification"] = "HVAC_QA_HEALTH_PARTIAL"
+            elif issue_count:
+                data["classification"] = "HVAC_QA_HEALTH_YELLOW"
+            else:
+                data["classification"] = "HVAC_QA_HEALTH_GREEN"
+            data["summary"].extend(
+                [
+                    "Overall QA classification: {0}".format(data.get("classification")),
+                    "Stable HVAC checks evaluated: {0}".format(len(hvac_checks)),
+                    "Reused generic SEL-QA checks: {0}".format(len(generic_checks)),
+                    "Deterministic issue count: {0}".format(issue_count),
+                    "Partial check count: {0}".format(partial_check_count),
+                    "Generic parameter-read error elements: {0}".format(len(generic_errors)),
+                ]
+            )
+            data["next_guidance"] = (
+                "Review partial and issue candidates. No model action is performed by this report."
+                if data.get("classification") != "HVAC_QA_HEALTH_GREEN"
+                else "No model action required. Review the report manually."
+            )
+
+        if skipped_supported:
+            data["warnings"].append(
+                "{0} supported duct(s) were skipped by the fixed processing cap.".format(skipped_supported)
+            )
+        if unsupported_count:
+            data["warnings"].append(
+                "{0} unsupported or unresolved selected reference(s) were reported.".format(unsupported_count)
+            )
+        data["warnings"] = data.get("warnings", [])[:HVAC_RO_001_WARNING_LIMIT]
+        if action_key != "qa_health":
+            data["next_guidance"] = (
+                "Review partial/unreadable records before relying on the report."
+                if data.get("classification") == "HVAC_SELECTION_REPORT_PARTIAL"
+                else "No model action required. Review the read-only report."
+            )
+        return data
+
+    def _hvac_ro_001_check_rows(self, checks):
+        rows = []
+        for item in checks or []:
+            rows.append(
+                [
+                    item.get("check_id"),
+                    item.get("name"),
+                    item.get("applicability"),
+                    item.get("issues"),
+                    item.get("passed"),
+                    item.get("skipped"),
+                    item.get("status"),
+                    ", ".join(item.get("affected_ids") or []) or "none",
+                    item.get("omitted_ids"),
+                    item.get("explanation"),
+                ]
+            )
+        return rows
+
+    def _hvac_ro_001_format_report(self, data):
+        scope_counts = (data.get("scope") or {}).get("counts") or {}
+        lines = [
+            "[MODELMIND READ-ONLY HVAC DUCT SELECTION REPORT]",
+            "",
+            "Feature ID:",
+            data.get("feature_id"),
+            "Feature name:",
+            data.get("feature_name"),
+            "Action ID:",
+            data.get("action_id"),
+            "Canonical prompt:",
+            data.get("canonical_prompt"),
+            "Requested prompt:",
+            data.get("prompt"),
+            "Result classification:",
+            data.get("classification"),
+            "Reason code:",
+            data.get("reason_code"),
+            "Report ID:",
+            data.get("report_id"),
+            "Report timestamp:",
+            data.get("timestamp"),
+            "Scope:",
+            "current active-document selection / supported rigid non-placeholder ducts only",
+            "Document title:",
+            data.get("document_title"),
+            "Active view:",
+            "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")),
+            "",
+            "Selection state:",
+            "- total selected references: {0}".format(data.get("selected_reference_count")),
+            "- resolved selected elements: {0}".format(data.get("resolved_selected_count")),
+            "- supported rigid ducts: {0}".format(scope_counts.get("SUPPORTED_DUCT", 0)),
+        ]
+        for key in sorted(scope_counts.keys()):
+            if key == "SUPPORTED_DUCT":
+                continue
+            lines.append("- {0}: {1}".format(key, scope_counts.get(key, 0)))
+        lines.extend(["", "Main summary:"])
+        lines.extend(["- {0}".format(item) for item in data.get("summary") or []] or ["- none"])
+        for title, headers, rows in data.get("tables") or []:
+            lines.extend(["", "{0}:".format(title)])
+            lines.extend(self._mep_ro_v1_table(headers, rows) if rows else ["- none"])
+        if data.get("hvac_checks"):
+            lines.extend(["", "Stable HVAC QA checks:"])
+            lines.extend(
+                self._mep_ro_v1_table(
+                    [
+                        "Check id",
+                        "Name",
+                        "Applicable",
+                        "Issues",
+                        "Passed",
+                        "Skipped",
+                        "Status",
+                        "Affected ids",
+                        "Omitted ids",
+                        "Explanation",
+                    ],
+                    self._hvac_ro_001_check_rows(data.get("hvac_checks")),
+                )
+            )
+        if data.get("generic_checks"):
+            lines.extend(["", "Reused generic MEP-RO-001 SEL-QA checks:"])
+            lines.extend(
+                self._mep_ro_v1_table(
+                    [
+                        "Check id",
+                        "Name",
+                        "Applicable",
+                        "Issues",
+                        "Passed",
+                        "Skipped",
+                        "Status",
+                        "Affected ids",
+                        "Omitted ids",
+                        "Explanation",
+                    ],
+                    self._hvac_ro_001_check_rows(data.get("generic_checks")),
+                )
+            )
+        lines.extend(["", "Warnings:"])
+        lines.extend(["- {0}".format(item) for item in data.get("warnings") or []] or ["- none"])
+        lines.extend(
+            [
+                "",
+                "Next guidance:",
+                data.get("next_guidance"),
+                "",
+                "Caps:",
+                "- supported ducts processed: {0}".format(HVAC_RO_001_DUCT_PROCESS_LIMIT),
+                "- displayed duct rows: {0}".format(HVAC_RO_001_DUCT_ROW_LIMIT),
+                "- displayed connector-detail rows: {0}".format(HVAC_RO_001_CONNECTOR_ROW_LIMIT),
+                "- displayed connectors per duct: {0}".format(HVAC_RO_001_CONNECTORS_PER_DUCT_LIMIT),
+                "- displayed connected-owner IDs per connector: {0}".format(HVAC_RO_001_CONNECTED_OWNER_LIMIT),
+                "- displayed affected IDs per QA check: {0}".format(HVAC_RO_001_AFFECTED_ID_LIMIT),
+                "- displayed warnings: {0}".format(HVAC_RO_001_WARNING_LIMIT),
+                "- normalized displayed value characters: {0}".format(HVAC_RO_001_VALUE_LENGTH_LIMIT),
+                "",
+                "Safety metadata:",
+                "- model_modified: false",
+                "- ui_selection_modified: false",
+                "- active_view_changed: false",
+                "- external_files_written: false",
+                "- transaction_started: false",
+                "- transaction_group_started: false",
+                "- linked_document_modified: false",
+                "- selection_picker_opened: false",
+                "- auto_run: false",
+                "",
+                "Workflow isolation metadata:",
+                "- evidence_runbook_advanced: false",
+                "- evidence_cycle_manifest_updated: false",
+                "- workflow_anchor_eligible: false",
+                "- qa_export_source_eligible: false",
+                "- evidence_cycle_stage: false",
+                "",
+                "Safety:",
+                "- The current active-document selection was read as input only.",
+                "- Connector inspection was limited to one immediate AllRefs hop.",
+                "- No connector, model element, parameter, UI selection, active view, or linked document was modified.",
+                "- No external file or evidence artifact was created.",
+            ]
+        )
+        return "\n".join([safe_str(item) for item in lines])
+
+    def answer_hvac_ro_001_question(self, prompt):
+        action_key = _hvac_ro_001_action_key(prompt)
+        if not action_key:
+            return None
+        try:
+            data = self._hvac_ro_001_build_data(prompt, action_key)
+        except Exception as exc:
+            snapshot = {"selected_ids": [], "records": [], "unavailable": []}
+            data = self._hvac_ro_001_base_data(prompt, action_key, snapshot)
+            data["classification"] = "HVAC_SELECTION_REPORT_FAILED"
+            data["reason_code"] = "UNEXPECTED_EXECUTION_FAILURE"
+            data["warnings"].append(safe_str(exc))
+            data["next_guidance"] = "Review the deterministic failure diagnostic and rerun."
+        report_text = self._hvac_ro_001_format_report(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MODELMIND READ-ONLY HVAC DUCT SELECTION REPORT]",
+            "report_text": report_text,
+            "report_scope": "current active-document selection / supported rigid non-placeholder ducts only",
+            "report_timestamp": data.get("timestamp"),
+            "created_timestamp_local": data.get("timestamp"),
+            "feature_id": "HVAC-RO-001",
+            "feature_name": "ModelMind Read-Only Duct Selection Action Pack",
+            "action_id": data.get("action_id"),
+            "result_classification": data.get("classification"),
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view_name"),
+            "active_view_type": data.get("active_view_type"),
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "active_view_changed": False,
+            "external_files_written": False,
+            "workflow_anchor_eligible": False,
+            "qa_export_source_eligible": False,
+            "evidence_cycle_stage": False,
+            "evidence_runbook_advanced": False,
+            "evidence_cycle_manifest_updated": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _mep_ro_v1_recommended_action(self, classification):
         if classification == "MEP_RO_REPORT_EMPTY_SELECTION":
             return "Select relevant elements and rerun the read-only report."
@@ -49338,8 +51353,11 @@ class OllamaAIChat(forms.WPFWindow):
             piping_ro_001_reply = None
             if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and mep_ro_001_reply is None:
                 piping_ro_001_reply = self.answer_piping_ro_001_question(prompt)
-            mep_read_only_v1_reply = None
+            hvac_ro_001_reply = None
             if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None:
+                hvac_ro_001_reply = self.answer_hvac_ro_001_question(prompt)
+            mep_read_only_v1_reply = None
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None and hvac_ro_001_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -49464,6 +51482,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif piping_ro_001_reply is not None:
                 reply = piping_ro_001_reply
+                preserve_latest_report_state = True
+            elif hvac_ro_001_reply is not None:
+                reply = hvac_ro_001_reply
                 preserve_latest_report_state = True
             elif mep_read_only_v1_reply is not None:
                 reply = mep_read_only_v1_reply
