@@ -1999,3 +1999,55 @@ Executed live cases in Snowdon Towers Sample Electrical:
 Pass criteria: meaningful discovery evidence remains readable; non-applicable/optional values do not force PARTIAL; required failures still can; category recommendations remain provisional; no picker, transaction, model/UI/view/link/file mutation, auto-run, or workflow advancement occurs.
 
 Remaining matrix: untested candidate categories, additional equipment families, zero/multi-system device cases, unresolved/enumeration/cap/mixed-scope failures, wire/circuit/tray/fitting/link selections, unavailable system-property APIs, demand factors, production QA rules, production routes, and fuzzy-collision mitigation.
+
+## 2026-08-08 - ELECTRICAL-RO-001 Interim Validation Plan and Results
+
+Status: live validation in progress. Evidence: EV-AI-358; KC-051. This is not final closure.
+
+### PASSED
+
+1. Static implementation contract: two runtime files, catalog 232 to 236, four entries, sixteen unique routes, nine result classifications, eleven electrical QA checks, exact generic QA reuse, caps/order/context capacities, workflow/QA-source exclusion, governance, and unchanged closed handlers.
+2. Empty selection A01-A04: Not ready / `NO_ELEMENTS_SELECTED`, exact production ownership, no picker/write/workflow progression.
+3. Conduit `1587195` A01-A04: explicit `UNSUPPORTED_CONDUIT`, Not ready / `NO_SUPPORTED_ELECTRICAL_ELEMENTS`, no false processing.
+4. Conduit-only Context Suggestions: capacity six and no ELECTRICAL-RO actions.
+5. Lighting Fixture `1589469` A01-A04: `DEVICE_PROFILE`, assigned circuit 4 / LP000, physical electrical connector, normalized quantities, GREEN QA, no warnings; suggestion capacity ten with all four electrical actions.
+6. Electrical Fixture `1416364` A01-A04: `DEVICE_PROFILE`, circuit 13 / P102, linked host retained, normalized quantities, GREEN QA, no warnings.
+7. Transformer `1484849` A01-A04: zero-system `EQUIPMENT_DISTRIBUTION_EMPTY_REVIEW`, seven mixed physical/interface connectors, no false PARTIAL or QA defect.
+8. Panelboard `1482544` A01: eight systems, one upstream LOAD, seven downstream BASE_EQUIPMENT records, duplicate visible circuit label retained without false inconsistency.
+9. Panelboard `1482544` A02: one physical End, seven Logical, one Surface, five MasterSurface connectors across Electrical/Undefined/CableTrayConduit domains; no false unreadable/PARTIAL or count/open QA.
+10. Safety/workflow metadata: all model/UI/view/file/transaction/link/picker/auto-run/runbook/manifest/anchor/QA-source flags remained false.
+
+### PENDING
+
+- panelboard A03 and A04;
+- Lighting Fixture plus Electrical Fixture, device plus equipment, and supported plus Conduit mixed selections;
+- pipe plus electrical, duct plus electrical, and all-three-specialty Context Suggestions;
+- genuine connector/API unreadable failures and processing/connector/system cap paths;
+- unsupported Lighting/Data/Communication/Fire Alarm/Security categories, Wire, Electrical Circuit, Cable Tray/Fitting, Conduit Fitting, and linked instances;
+- phase, poles, classification, balancing, and demand-factor semantics.
+
+### NOT PRACTICALLY REPRODUCED
+
+- unassigned `DEVICE_PROFILE` and multi-system `DEVICE_PROFILE` have not yet been reproduced in the current test model; absence of reproduction is not a pass or defect.
+
+### OPEN LIMITATION
+
+- initial QA intentionally excludes connector-count/open-state, phase, balancing, demand factor, pole validity, active-power availability, Room/Space, Mark, and Type Mark defects;
+- unavailable optional APIs remain informational unless a required authoritative read fails.
+
+### Immediate Next Runtime Sequence
+
+1. Run multi-system panelboard A03.
+2. Run multi-system panelboard A04.
+3. Test mixed Lighting Fixture plus Electrical Fixture.
+4. Test mixed device plus Electrical Equipment.
+5. Test supported plus Conduit.
+6. Regress electrical-only Context Suggestions if needed.
+7. Test pipe plus electrical Context Suggestions.
+8. Test duct plus electrical Context Suggestions.
+9. Test all-three-specialty Context Suggestions if practical.
+10. Attempt unassigned/multi-system device paths where practical.
+11. Run final static regression.
+12. Run final Git scope audit.
+13. Finalize project-local WBSO records.
+14. Commit/push only after explicit approval.

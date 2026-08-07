@@ -322,3 +322,9 @@ Final scope validation added rectangular, oval, vertical, open-connector, assign
 ELECTRICAL-DISC-001 is a provider-independent deterministic read-only discovery layer. Its four exact routes resolve locally before generic Ollama/OpenAI fallback. Providers do not determine selected scope, API availability, connector applicability, system roles, normalized electrical quantities, report classification, candidate recommendation, or safety metadata.
 
 The report is manual, report-only, non-auto-run, workflow-anchor ineligible, and strict-QA-source ineligible. Generic model output cannot replace this discovery evidence. Global fuzzy dispatch remains unchanged; future ELECTRICAL-RO-001 routes are not registered. Status: corrected and live validated for tested discovery scope. Evidence: EV-AI-357; KC-050.
+
+## 2026-08-08 ELECTRICAL-RO-001 Provider Independence
+
+ELECTRICAL-RO-001 is a provider-independent deterministic read-only electrical selection layer. Its sixteen canonical/alias routes resolve locally after exact ELECTRICAL-DISC ownership and before generic MEP/fuzzy fallback. Ollama/OpenAI does not classify electrical scope, interpret connector applicability, assign device/equipment profiles, resolve circuit roles, normalize electrical quantities, evaluate QA, or determine report status.
+
+All four reports are manual, report-only, non-auto-run, workflow-anchor ineligible, strict-QA-source ineligible, and evidence-stage false. Context Suggestions exposes electrical actions only when a supported Lighting Fixture, Electrical Fixture, or Electrical Equipment element is selected; unsupported Conduit alone does not activate the specialty gate. Status: implementation and static validation complete; live validation in progress; source uncommitted and unpushed. Evidence: EV-AI-358; KC-051.

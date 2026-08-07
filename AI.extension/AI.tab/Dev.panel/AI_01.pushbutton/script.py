@@ -14516,6 +14516,89 @@ def _electrical_disc_001_action_key(prompt):
     return ELECTRICAL_DISC_001_ROUTE_ACTIONS.get(normalized)
 
 
+ELECTRICAL_RO_001_ROUTE_ACTIONS = {
+    "show selected electrical elements summary": "elements_summary",
+    "summarize selected electrical elements": "elements_summary",
+    "report selected electrical elements summary": "elements_summary",
+    "inspect selected electrical element summary": "elements_summary",
+    "show selected electrical connectors": "electrical_connectors",
+    "inspect selected electrical connectors": "electrical_connectors",
+    "report selected electrical connectors": "electrical_connectors",
+    "check selected electrical connections": "electrical_connectors",
+    "check selected electrical circuit assignment": "circuit_assignment",
+    "show selected electrical circuit assignment": "circuit_assignment",
+    "report selected electrical circuit assignment": "circuit_assignment",
+    "inspect selected electrical circuit assignments": "circuit_assignment",
+    "check selected electrical elements qa health": "qa_health",
+    "run selected electrical elements health check": "qa_health",
+    "inspect selected electrical elements qa": "qa_health",
+    "report selected electrical element issues": "qa_health",
+}
+
+ELECTRICAL_RO_001_ACTION_METADATA = {
+    "elements_summary": ("ELECTRICAL-RO-001-A01", "show selected electrical elements summary"),
+    "electrical_connectors": ("ELECTRICAL-RO-001-A02", "show selected electrical connectors"),
+    "circuit_assignment": ("ELECTRICAL-RO-001-A03", "check selected electrical circuit assignment"),
+    "qa_health": ("ELECTRICAL-RO-001-A04", "check selected electrical elements qa health"),
+}
+
+ELECTRICAL_RO_001_RESULT_CLASSIFICATIONS = (
+    "ELECTRICAL_SELECTION_SUMMARY_OK",
+    "ELECTRICAL_CONNECTOR_REPORT_OK",
+    "ELECTRICAL_CIRCUIT_ASSIGNMENT_OK",
+    "ELECTRICAL_QA_HEALTH_GREEN",
+    "ELECTRICAL_QA_HEALTH_YELLOW",
+    "ELECTRICAL_QA_HEALTH_PARTIAL",
+    "ELECTRICAL_SELECTION_REPORT_PARTIAL",
+    "ELECTRICAL_SELECTION_REPORT_NOT_READY",
+    "ELECTRICAL_SELECTION_REPORT_FAILED",
+)
+
+ELECTRICAL_RO_001_QA_CHECKS = (
+    ("ELECTRICAL-QA-001", "Unsupported selected element"),
+    ("ELECTRICAL-QA-002", "Required electrical API unreadable"),
+    ("ELECTRICAL-QA-003", "Missing device circuit assignment"),
+    ("ELECTRICAL-QA-004", "Assigned device panel missing"),
+    ("ELECTRICAL-QA-005", "Assigned device circuit number missing"),
+    ("ELECTRICAL-QA-006", "Equipment role distribution unreadable"),
+    ("ELECTRICAL-QA-007", "Role and circuit relationship inconsistent"),
+    ("ELECTRICAL-QA-008", "Invalid system voltage"),
+    ("ELECTRICAL-QA-009", "Invalid system load"),
+    ("ELECTRICAL-QA-010", "Invalid power factor"),
+    ("ELECTRICAL-QA-011", "Connector read failure"),
+)
+
+ELECTRICAL_RO_001_ELEMENT_PROCESS_LIMIT = 200
+ELECTRICAL_RO_001_ELEMENT_ROW_LIMIT = 200
+ELECTRICAL_RO_001_CONNECTOR_ROW_LIMIT = 400
+ELECTRICAL_RO_001_CONNECTORS_PER_ELEMENT_LIMIT = 20
+ELECTRICAL_RO_001_SYSTEMS_PER_ELEMENT_LIMIT = 20
+ELECTRICAL_RO_001_CONNECTED_OWNER_LIMIT = 20
+ELECTRICAL_RO_001_AFFECTED_ID_LIMIT = 50
+ELECTRICAL_RO_001_WARNING_LIMIT = 50
+ELECTRICAL_RO_001_VALUE_LENGTH_LIMIT = 160
+
+ELECTRICAL_RO_001_CONNECTOR_APPLICABILITY_ORDER = {
+    "PHYSICAL_ELECTRICAL": 0,
+    "LOGICAL_REFERENCE": 1,
+    "SURFACE_INTERFACE": 2,
+    "MASTER_SURFACE_INTERFACE": 3,
+    "CONDUIT_INTERFACE": 4,
+    "OTHER": 5,
+}
+
+ELECTRICAL_RO_001_RELATIONSHIP_ORDER = {
+    "UPSTREAM_OR_LOAD_CIRCUIT": 0,
+    "DOWNSTREAM_BRANCH_CIRCUIT": 1,
+    "UNDETERMINED": 2,
+}
+
+
+def _electrical_ro_001_action_key(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return ELECTRICAL_RO_001_ROUTE_ACTIONS.get(normalized)
+
+
 MEP_SEL_V1_ROUTE_ACTIONS = {
     "select all pipes in active view": "select_pipes_active_view",
     "select active view pipes": "select_pipes_active_view",
@@ -17530,6 +17613,7 @@ class OllamaAIChat(forms.WPFWindow):
             "selection_count": 0,
             "selected_supported_pipe_count": 0,
             "selected_supported_duct_count": 0,
+            "selected_supported_electrical_count": 0,
             "selection_breakdown": {},
             "category_counts": {},
             "likely_discipline": "Unknown / Empty",
@@ -17545,6 +17629,7 @@ class OllamaAIChat(forms.WPFWindow):
             context["selection_breakdown"] = selection_breakdown
             context["selected_supported_pipe_count"] = self._piping_ro_001_selected_supported_pipe_count()
             context["selected_supported_duct_count"] = self._hvac_ro_001_selected_supported_duct_count()
+            context["selected_supported_electrical_count"] = self._electrical_ro_001_selected_supported_element_count()
             category_counts = {}
             for label, bic in self._console_context_category_specs():
                 category_counts[label] = self._console_active_view_category_count(active_view, bic)
@@ -18400,6 +18485,15 @@ class OllamaAIChat(forms.WPFWindow):
                 "HVAC_SELECTION_REPORT_PARTIAL",
                 "HVAC_SELECTION_REPORT_NOT_READY",
                 "HVAC_SELECTION_REPORT_FAILED",
+                "ELECTRICAL_SELECTION_SUMMARY_OK",
+                "ELECTRICAL_CONNECTOR_REPORT_OK",
+                "ELECTRICAL_CIRCUIT_ASSIGNMENT_OK",
+                "ELECTRICAL_QA_HEALTH_GREEN",
+                "ELECTRICAL_QA_HEALTH_YELLOW",
+                "ELECTRICAL_QA_HEALTH_PARTIAL",
+                "ELECTRICAL_SELECTION_REPORT_PARTIAL",
+                "ELECTRICAL_SELECTION_REPORT_NOT_READY",
+                "ELECTRICAL_SELECTION_REPORT_FAILED",
                 "ELECTRICAL_DISCOVERY_OK",
                 "ELECTRICAL_DISCOVERY_PARTIAL",
                 "ELECTRICAL_DISCOVERY_NOT_READY",
@@ -19606,7 +19700,9 @@ class OllamaAIChat(forms.WPFWindow):
             eligible_specialty_count += 1
         if int(context.get("selected_supported_duct_count") or 0) > 0:
             eligible_specialty_count += 1
-        return min(14, 6 + (4 * eligible_specialty_count))
+        if int(context.get("selected_supported_electrical_count") or 0) > 0:
+            eligible_specialty_count += 1
+        return min(18, 6 + (4 * eligible_specialty_count))
 
     def _console_safe_prompt_cards(self, context):
         records, malformed, history_status = self._console_load_history_records()
@@ -20071,6 +20167,11 @@ class OllamaAIChat(forms.WPFWindow):
             add(["show selected duct connectors"], "Inspect one-hop physical HVAC connector metadata without changing connections.", "Read-only duct connector report", "yes")
             add(["check selected ducts system assignment"], "Inspect normalized selected-duct system assignment without assigning systems.", "Read-only duct system assignment report", "yes")
             add(["check selected ducts qa health"], "Run stable HVAC and inherited generic QA checks on selected rigid ducts.", "Read-only duct QA health report", "yes")
+        if int(context.get("selected_supported_electrical_count") or 0) > 0:
+            add(["show selected electrical elements summary"], "Current selection contains supported electrical fixtures or equipment; summarize identity and read-only electrical metadata.", "Read-only electrical selection summary", "yes")
+            add(["show selected electrical connectors"], "Inspect one-hop electrical connector metadata without changing connections.", "Read-only electrical connector report", "yes")
+            add(["check selected electrical circuit assignment"], "Inspect profile-aware circuit assignment without assigning systems or panels.", "Read-only electrical circuit assignment report", "yes")
+            add(["check selected electrical elements qa health"], "Run stable electrical and inherited generic QA checks on supported selected elements.", "Read-only electrical QA health report", "yes")
         if (
             int(evidence_runbook.get("cycle_duplicate_artifact_count") or 0) > 0
             or int(evidence_runbook.get("cycle_manifest_warning_count") or 0) > 0
@@ -41911,6 +42012,1021 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _electrical_ro_001_scope_kind(self, elem):
+        if elem is None:
+            return "UNRESOLVED_REFERENCE", None
+        try:
+            if isinstance(elem, DB.RevitLinkInstance):
+                return "UNSUPPORTED_LINK_INSTANCE", None
+        except:
+            pass
+        category_id = self._mep_ro_v1_element_category_id(elem)
+        supported = (
+            ("OST_LightingFixtures", "SUPPORTED_LIGHTING_FIXTURE", "DEVICE_PROFILE"),
+            ("OST_ElectricalFixtures", "SUPPORTED_ELECTRICAL_FIXTURE", "DEVICE_PROFILE"),
+            ("OST_ElectricalEquipment", "SUPPORTED_ELECTRICAL_EQUIPMENT", "EQUIPMENT_PROFILE"),
+        )
+        for category_name, scope_kind, profile in supported:
+            if category_id == self._mep_ro_v1_category_id(category_name):
+                return scope_kind, profile
+        unsupported = (
+            ("OST_LightingDevices", "UNSUPPORTED_LIGHTING_DEVICE"),
+            ("OST_DataDevices", "UNSUPPORTED_DATA_DEVICE"),
+            ("OST_CommunicationDevices", "UNSUPPORTED_COMMUNICATION_DEVICE"),
+            ("OST_FireAlarmDevices", "UNSUPPORTED_FIRE_ALARM_DEVICE"),
+            ("OST_SecurityDevices", "UNSUPPORTED_SECURITY_DEVICE"),
+            ("OST_Conduit", "UNSUPPORTED_CONDUIT"),
+            ("OST_ConduitFitting", "UNSUPPORTED_CONDUIT_FITTING"),
+            ("OST_CableTray", "UNSUPPORTED_CABLE_TRAY"),
+            ("OST_CableTrayFitting", "UNSUPPORTED_CABLE_TRAY_FITTING"),
+            ("OST_Wire", "UNSUPPORTED_WIRE"),
+        )
+        for category_name, scope_kind in unsupported:
+            if category_id == self._mep_ro_v1_category_id(category_name):
+                return scope_kind, None
+        try:
+            electrical_namespace = getattr(DB, "Electrical", None)
+            electrical_system_class = getattr(electrical_namespace, "ElectricalSystem", None)
+            if electrical_system_class is not None and isinstance(elem, electrical_system_class):
+                return "UNSUPPORTED_ELECTRICAL_CIRCUIT", None
+        except:
+            pass
+        other_electrical = (
+            "OST_NurseCallDevices",
+            "OST_TelephoneDevices",
+            "OST_ElectricalCircuit",
+        )
+        for category_name in other_electrical:
+            if category_id == self._mep_ro_v1_category_id(category_name):
+                return "UNSUPPORTED_OTHER_ELECTRICAL", None
+        return "UNSUPPORTED_NON_ELECTRICAL", None
+
+    def _electrical_ro_001_selected_supported_element_count(self):
+        count = 0
+        try:
+            selected_ids = list(uidoc.Selection.GetElementIds())
+        except:
+            return 0
+        for element_id in selected_ids:
+            try:
+                elem = doc.GetElement(element_id)
+            except:
+                elem = None
+            scope_kind, profile = self._electrical_ro_001_scope_kind(elem)
+            if profile in ("DEVICE_PROFILE", "EQUIPMENT_PROFILE") and safe_str(scope_kind).startswith("SUPPORTED_"):
+                count += 1
+        return count
+
+    def _electrical_ro_001_scope(self, snapshot):
+        supported = []
+        unsupported = []
+        counts = {
+            "SUPPORTED_LIGHTING_FIXTURE": 0,
+            "SUPPORTED_ELECTRICAL_FIXTURE": 0,
+            "SUPPORTED_ELECTRICAL_EQUIPMENT": 0,
+            "UNRESOLVED_REFERENCE": len(snapshot.get("unavailable") or []),
+        }
+        for generic_record in snapshot.get("records") or []:
+            scope_kind, profile = self._electrical_ro_001_scope_kind(generic_record.get("element"))
+            counts[scope_kind] = counts.get(scope_kind, 0) + 1
+            if profile:
+                item = dict(generic_record)
+                item["electrical_scope_kind"] = scope_kind
+                item["electrical_profile"] = profile
+                supported.append(item)
+            else:
+                unsupported.append(
+                    {
+                        "element_id": generic_record.get("element_id"),
+                        "category": generic_record.get("category_name"),
+                        "scope_kind": scope_kind,
+                    }
+                )
+        for item in snapshot.get("unavailable") or []:
+            unsupported.append(
+                {
+                    "element_id": item.get("element_id"),
+                    "category": "unresolved",
+                    "scope_kind": "UNRESOLVED_REFERENCE",
+                }
+            )
+        supported.sort(
+            key=lambda item: (
+                not safe_str(item.get("element_id")).isdigit(),
+                int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+            )
+        )
+        unsupported.sort(
+            key=lambda item: (
+                safe_str(item.get("scope_kind")),
+                not safe_str(item.get("element_id")).isdigit(),
+                int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+            )
+        )
+        return {"supported": supported, "unsupported": unsupported, "counts": counts}
+
+    def _electrical_ro_001_connector_applicability(self, connector_record):
+        values = (connector_record or {}).get("values") or {}
+        connector_type = self._console_normalize((values.get("connector_type") or {}).get("value"))
+        domain = self._console_normalize((values.get("domain") or {}).get("value"))
+        if connector_type == "logical":
+            return "LOGICAL_REFERENCE"
+        if connector_type in ("mastersurface", "master surface"):
+            return "MASTER_SURFACE_INTERFACE"
+        if connector_type == "surface":
+            return "SURFACE_INTERFACE"
+        if domain == "domaincabletrayconduit":
+            return "CONDUIT_INTERFACE"
+        if connector_type in ("end", "curve", "physical") and domain == "domainelectrical":
+            return "PHYSICAL_ELECTRICAL"
+        return "OTHER"
+
+    def _electrical_ro_001_connector_record(self, source, profile):
+        record = dict(source or {})
+        values = record.get("values") or {}
+        applicability = self._electrical_ro_001_connector_applicability(record)
+        owner_rows = []
+        circuit_ids = []
+        wire_ids = []
+        other_ids = []
+        for item in record.get("reference_rows") or []:
+            owner_category = safe_str(item.get("owner_category"))
+            category_token = self._console_normalize(owner_category)
+            if "wire" in category_token:
+                owner_kind = "WIRE"
+                wire_ids.append(safe_str(item.get("owner_id")))
+            elif "circuit" in category_token or "electrical system" in category_token:
+                owner_kind = "CIRCUIT"
+                circuit_ids.append(safe_str(item.get("owner_id")))
+            else:
+                owner_kind = "OTHER"
+                other_ids.append(safe_str(item.get("owner_id")))
+            owner_rows.append(
+                {
+                    "owner_kind": owner_kind,
+                    "owner_id": safe_str(item.get("owner_id")),
+                    "owner_category": owner_category,
+                    "reciprocal": safe_str(item.get("reciprocal")),
+                }
+            )
+        owner_rows.sort(
+            key=lambda item: (
+                item.get("owner_kind"),
+                self._console_normalize(item.get("owner_category")),
+                not safe_str(item.get("owner_id")).isdigit(),
+                int(item.get("owner_id")) if safe_str(item.get("owner_id")).isdigit() else safe_str(item.get("owner_id")),
+            )
+        )
+        def ordered_owner_ids(values):
+            return sorted(
+                set(values),
+                key=lambda value: (
+                    not safe_str(value).isdigit(),
+                    int(value) if safe_str(value).isdigit() else safe_str(value),
+                ),
+            )
+        type_status = (values.get("connector_type") or {}).get("status")
+        domain_status = (values.get("domain") or {}).get("status")
+        read_state = "AVAILABLE" if type_status == "AVAILABLE" and domain_status == "AVAILABLE" else (
+            "UNREADABLE" if "UNREADABLE" in (type_status, domain_status) else "UNAVAILABLE"
+        )
+        reciprocal_state = "NOT_APPLICABLE"
+        if applicability == "PHYSICAL_ELECTRICAL":
+            reciprocal_values = [item.get("reciprocal") for item in owner_rows]
+            if "true" in reciprocal_values:
+                reciprocal_state = "CONNECTED"
+            elif "unreadable" in reciprocal_values:
+                reciprocal_state = "UNREADABLE"
+            elif owner_rows:
+                reciprocal_state = "NOT_RECIPROCAL"
+            else:
+                reciprocal_state = "NO_REFERENCES"
+        record.update(
+            {
+                "owner_profile": profile,
+                "applicability_class": applicability,
+                "physical_logical_state": "PHYSICAL" if applicability == "PHYSICAL_ELECTRICAL" else "NONPHYSICAL_OR_INTERFACE",
+                "read_state": read_state,
+                "owner_rows": owner_rows,
+                "circuit_owner_ids": ordered_owner_ids(circuit_ids),
+                "wire_owner_ids": ordered_owner_ids(wire_ids),
+                "other_owner_ids": ordered_owner_ids(other_ids),
+                "reciprocal_state": reciprocal_state,
+            }
+        )
+        return record
+
+    def _electrical_ro_001_role_consistency(self, system_record):
+        role = safe_str((system_record or {}).get("selected_element_role"))
+        relationship = safe_str((system_record or {}).get("circuit_relationship"))
+        if role == "LOAD" and relationship == "UPSTREAM_OR_LOAD_CIRCUIT":
+            return "CONSISTENT"
+        if role == "BASE_EQUIPMENT" and relationship == "DOWNSTREAM_BRANCH_CIRCUIT":
+            return "CONSISTENT"
+        if role in ("LOAD", "BASE_EQUIPMENT") and relationship not in ("", "UNDETERMINED"):
+            return "INCONSISTENT"
+        return "UNREADABLE"
+
+    def _electrical_ro_001_assignment_state(self, profile, systems_state, system_records):
+        systems_state = systems_state or {}
+        if systems_state.get("status") == "UNREADABLE":
+            return "UNREADABLE"
+        if systems_state.get("status") != "AVAILABLE":
+            return "UNAVAILABLE"
+        records = list(system_records or [])
+        if profile == "DEVICE_PROFILE":
+            if not records:
+                return "DEVICE_UNASSIGNED_REVIEW"
+            if len(records) > 1:
+                return "DEVICE_MULTI_SYSTEM_REVIEW"
+            consistency = self._electrical_ro_001_role_consistency(records[0])
+            if consistency == "CONSISTENT" and records[0].get("selected_element_role") == "LOAD":
+                return "DEVICE_ASSIGNED"
+            if consistency == "INCONSISTENT":
+                return "INCONSISTENT"
+            return "UNREADABLE"
+        if not records:
+            return "EQUIPMENT_DISTRIBUTION_EMPTY_REVIEW"
+        consistency = [self._electrical_ro_001_role_consistency(item) for item in records]
+        if "INCONSISTENT" in consistency:
+            return "INCONSISTENT"
+        if "UNREADABLE" in consistency or any(item.get("unreadable") for item in records):
+            return "EQUIPMENT_DISTRIBUTION_PARTIAL"
+        return "EQUIPMENT_DISTRIBUTION_ASSIGNED"
+
+    def _electrical_ro_001_quantity_text(self, state):
+        state = state or {}
+        status = state.get("status") or "UNAVAILABLE"
+        if status != "AVAILABLE":
+            return status
+        normalized_status = state.get("normalized_status") or status
+        if normalized_status != "AVAILABLE":
+            return normalized_status
+        value = self._electrical_disc_001_text(state.get("normalized_value"))
+        unit = self._electrical_disc_001_text(state.get("normalized_unit"), "")
+        return "{0} {1}".format(value, unit).strip()
+
+    def _electrical_ro_001_element_record(self, generic_record):
+        discovery = self._electrical_disc_001_element_record(generic_record)
+        profile = generic_record.get("electrical_profile")
+        scope_kind = generic_record.get("electrical_scope_kind")
+        source_connectors = list((discovery.get("connectors") or {}).get("records") or [])
+        connector_cap_exceeded = len(source_connectors) > ELECTRICAL_RO_001_CONNECTORS_PER_ELEMENT_LIMIT
+        connectors = [
+            self._electrical_ro_001_connector_record(item, profile)
+            for item in source_connectors[:ELECTRICAL_RO_001_CONNECTORS_PER_ELEMENT_LIMIT]
+        ]
+        connectors.sort(
+            key=lambda item: (
+                ELECTRICAL_RO_001_CONNECTOR_APPLICABILITY_ORDER.get(item.get("applicability_class"), 99),
+                safe_str(item.get("origin")),
+                self._console_normalize((item.get("values") or {}).get("connector_type", {}).get("value")),
+                self._console_normalize((item.get("values") or {}).get("domain", {}).get("value")),
+                int(item.get("sequence") or 0),
+            )
+        )
+        systems = discovery.get("systems") or {}
+        system_records = list(discovery.get("system_records") or [])
+        for item in system_records:
+            item["owner_profile"] = profile
+            item["role_consistency"] = self._electrical_ro_001_role_consistency(item)
+        system_records.sort(
+            key=lambda item: (
+                ELECTRICAL_RO_001_RELATIONSHIP_ORDER.get(item.get("circuit_relationship"), 99),
+                self._console_normalize(item.get("panel_name")),
+                self._console_normalize((item.get("properties") or {}).get("circuit_number", {}).get("value")),
+                not safe_str(item.get("system_id")).isdigit(),
+                int(item.get("system_id")) if safe_str(item.get("system_id")).isdigit() else safe_str(item.get("system_id")),
+            )
+        )
+        assignment_state = self._electrical_ro_001_assignment_state(profile, systems, system_records)
+        relationships = discovery.get("relationships") or {}
+        host = relationships.get("host") or {}
+        host_runtime = self._electrical_disc_001_runtime_class(host.get("raw")) if host.get("status") == "AVAILABLE" else "unavailable"
+        base_partial = list(discovery.get("required_identity_errors") or [])
+        if (discovery.get("mep_model") or {}).get("status") != "AVAILABLE":
+            base_partial.append("MEPModel state: {0}".format((discovery.get("mep_model") or {}).get("status")))
+        if systems.get("status") != "AVAILABLE":
+            base_partial.append("ElectricalSystems state: {0}".format(systems.get("status")))
+        if systems.get("cap_exceeded"):
+            base_partial.append("systems/circuits processed per element cap exceeded")
+        if any(item.get("unreadable") for item in system_records):
+            base_partial.append("authoritative system record unreadable")
+        connector_partial = []
+        connector_manager = discovery.get("connector_manager") or {}
+        connector_state = discovery.get("connectors") or {}
+        if connector_manager.get("status") != "AVAILABLE":
+            connector_partial.append("ConnectorManager state: {0}".format(connector_manager.get("status")))
+        if connector_state.get("status") != "AVAILABLE":
+            connector_partial.append("Connector collection state: {0}".format(connector_state.get("status")))
+        if connector_cap_exceeded:
+            connector_partial.append("connectors processed per element cap exceeded")
+        if any(item.get("read_state") != "AVAILABLE" for item in connectors):
+            connector_partial.append("connector type/domain unreadable")
+        role_counts = {
+            "LOAD": len([item for item in system_records if item.get("selected_element_role") == "LOAD"]),
+            "BASE_EQUIPMENT": len([item for item in system_records if item.get("selected_element_role") == "BASE_EQUIPMENT"]),
+        }
+        return {
+            "generic": generic_record,
+            "profile": profile,
+            "scope_kind": scope_kind,
+            "runtime_class": discovery.get("runtime_class"),
+            "relationships": relationships,
+            "linked_host": "true" if "revitlink" in self._console_normalize(host_runtime) else "false",
+            "mep_model": discovery.get("mep_model") or {},
+            "connector_manager": connector_manager,
+            "connectors_state": connector_state,
+            "connectors": connectors,
+            "connector_total": int(connector_state.get("total") or 0),
+            "connector_cap_exceeded": connector_cap_exceeded,
+            "systems": systems,
+            "system_records": system_records,
+            "assignment_state": assignment_state,
+            "role_counts": role_counts,
+            "base_partial_conditions": sorted(set(base_partial)),
+            "connector_partial_conditions": sorted(set(connector_partial)),
+        }
+
+    def _electrical_ro_001_distribution(self, values):
+        grouped = {}
+        for value, stable_id in values or []:
+            label = self._electrical_disc_001_text(value)
+            stable = self._electrical_disc_001_text(stable_id, "")
+            key = (label, stable)
+            grouped[key] = grouped.get(key, 0) + 1
+        rows = [[key[0], key[1] or "unavailable", count] for key, count in grouped.items()]
+        rows.sort(key=lambda row: (-row[2], self._console_normalize(row[0]), self._console_normalize(row[1])))
+        return rows
+
+    def _electrical_ro_001_state_value(self, state):
+        state = state or {}
+        status = state.get("status") or "UNAVAILABLE"
+        if status != "AVAILABLE":
+            return status
+        return self._electrical_disc_001_text(state.get("value"))
+
+    def _electrical_ro_001_system_rows(self, records):
+        rows = []
+        for record in records or []:
+            for system in record.get("system_records") or []:
+                properties = system.get("properties") or {}
+                rows.append(
+                    [
+                        system.get("owner_id"),
+                        record.get("profile"),
+                        record.get("assignment_state"),
+                        system.get("system_id"),
+                        system.get("system_name"),
+                        self._electrical_ro_001_state_value(properties.get("system_type")),
+                        self._electrical_ro_001_state_value(properties.get("circuit_number")),
+                        system.get("panel_id"),
+                        system.get("panel_name"),
+                        system.get("selected_element_role"),
+                        system.get("circuit_relationship"),
+                        system.get("role_consistency"),
+                        self._electrical_ro_001_state_value(properties.get("load_name")),
+                        self._electrical_ro_001_state_value(properties.get("voltage")),
+                        self._electrical_ro_001_quantity_text(properties.get("voltage")),
+                        self._electrical_ro_001_state_value(properties.get("apparent_load")),
+                        self._electrical_ro_001_quantity_text(properties.get("apparent_load")),
+                        self._electrical_ro_001_state_value(properties.get("true_load")),
+                        self._electrical_ro_001_quantity_text(properties.get("true_load")),
+                        self._electrical_ro_001_state_value(properties.get("power_factor")),
+                        self._electrical_ro_001_quantity_text(properties.get("power_factor")),
+                        self._electrical_ro_001_state_value(properties.get("number_of_poles")),
+                        self._electrical_ro_001_quantity_text(properties.get("number_of_poles")),
+                    ]
+                )
+        rows.sort(
+            key=lambda row: (
+                not safe_str(row[0]).isdigit(),
+                int(row[0]) if safe_str(row[0]).isdigit() else safe_str(row[0]),
+                ELECTRICAL_RO_001_RELATIONSHIP_ORDER.get(row[10], 99),
+                self._console_normalize(row[8]),
+                self._console_normalize(row[6]),
+                not safe_str(row[3]).isdigit(),
+                int(row[3]) if safe_str(row[3]).isdigit() else safe_str(row[3]),
+            )
+        )
+        return rows
+
+    def _electrical_ro_001_element_rows(self, records):
+        rows = []
+        for record in (records or [])[:ELECTRICAL_RO_001_ELEMENT_ROW_LIMIT]:
+            generic = record.get("generic") or {}
+            relationships = record.get("relationships") or {}
+            systems = record.get("system_records") or []
+            circuits = sorted(set([self._electrical_ro_001_state_value((item.get("properties") or {}).get("circuit_number")) for item in systems]))
+            panels = sorted(set([safe_str(item.get("panel_name")) for item in systems]))
+            relationships_values = sorted(set([safe_str(item.get("circuit_relationship")) for item in systems]))
+            quantities = {}
+            for quantity in ("voltage", "apparent_load", "true_load", "power_factor", "number_of_poles"):
+                quantities[quantity] = sorted(set([self._electrical_ro_001_quantity_text((item.get("properties") or {}).get(quantity)) for item in systems]))
+            rows.append(
+                [
+                    generic.get("element_id"), generic.get("unique_id"), generic.get("category_name"),
+                    generic.get("family_name"), generic.get("type_name"), generic.get("type_id"),
+                    generic.get("element_name"), record.get("profile"), record.get("scope_kind"),
+                    generic.get("workset"), generic.get("pinned"), generic.get("group_id"),
+                    generic.get("assembly_id"), generic.get("design_option"),
+                    self._electrical_ro_001_state_value(relationships.get("host")), record.get("linked_host"),
+                    self._electrical_ro_001_state_value(relationships.get("level")),
+                    self._electrical_ro_001_state_value(relationships.get("room")),
+                    self._electrical_ro_001_state_value(relationships.get("space")),
+                    (record.get("mep_model") or {}).get("status"),
+                    (record.get("connector_manager") or {}).get("status"),
+                    (record.get("systems") or {}).get("status"),
+                    (record.get("systems") or {}).get("total"), record.get("assignment_state"),
+                    (record.get("role_counts") or {}).get("LOAD", 0),
+                    (record.get("role_counts") or {}).get("BASE_EQUIPMENT", 0),
+                    ", ".join(circuits) or "none", ", ".join(panels) or "none",
+                    ", ".join(relationships_values) or "none",
+                    ", ".join(quantities.get("voltage") or []) or "none",
+                    ", ".join(quantities.get("apparent_load") or []) or "none",
+                    ", ".join(quantities.get("true_load") or []) or "none",
+                    ", ".join(quantities.get("power_factor") or []) or "none",
+                    ", ".join(quantities.get("number_of_poles") or []) or "none",
+                ]
+            )
+        return rows
+
+    def _electrical_ro_001_connector_rows(self, records):
+        rows = []
+        truncated = False
+        for record in records or []:
+            generic = record.get("generic") or {}
+            for connector in record.get("connectors") or []:
+                if len(rows) >= ELECTRICAL_RO_001_CONNECTOR_ROW_LIMIT:
+                    truncated = True
+                    continue
+                values = connector.get("values") or {}
+                other_owners = [
+                    "{0} [{1}]".format(item.get("owner_category"), item.get("owner_id"))
+                    for item in connector.get("owner_rows") or []
+                    if item.get("owner_kind") == "OTHER"
+                ]
+                rows.append(
+                    [
+                        generic.get("element_id"), record.get("profile"), connector.get("sequence"),
+                        self._electrical_ro_001_state_value(values.get("connector_type")),
+                        self._electrical_ro_001_state_value(values.get("domain")),
+                        connector.get("applicability_class"), connector.get("physical_logical_state"),
+                        self._electrical_ro_001_state_value(values.get("shape")), connector.get("origin_status"),
+                        connector.get("origin"), connector.get("direction_status"), connector.get("direction"),
+                        self._electrical_ro_001_state_value(values.get("electrical_system_type")),
+                        connector.get("all_refs_count"),
+                        str(bool(connector.get("refs_cap_exceeded"))).lower(),
+                        ", ".join(connector.get("circuit_owner_ids") or []) or "none",
+                        ", ".join(connector.get("wire_owner_ids") or []) or "none",
+                        ", ".join(other_owners) or "none", connector.get("reciprocal_state"),
+                        connector.get("read_state"),
+                    ]
+                )
+        rows.sort(
+            key=lambda row: (
+                not safe_str(row[0]).isdigit(),
+                int(row[0]) if safe_str(row[0]).isdigit() else safe_str(row[0]),
+                ELECTRICAL_RO_001_CONNECTOR_APPLICABILITY_ORDER.get(row[5], 99),
+                safe_str(row[9]), self._console_normalize(row[3]), self._console_normalize(row[4]), int(row[2] or 0),
+            )
+        )
+        return rows, truncated
+
+    def _electrical_ro_001_check(self, check_id, name, applicability, issues, skipped, affected, explanation, force_partial=False):
+        result = self._mep_ro_001_qa_check(check_id, name, applicability, issues, skipped, affected, explanation)
+        result["affected_ids"] = (result.get("affected_ids") or [])[:ELECTRICAL_RO_001_AFFECTED_ID_LIMIT]
+        if force_partial and (issues or skipped):
+            result["status"] = "PARTIAL"
+        return result
+
+    def _electrical_ro_001_quantity_check(self, records, property_names, validator):
+        applicable = 0
+        issues = []
+        partial = []
+        for record in records or []:
+            for system in record.get("system_records") or []:
+                for property_name in property_names:
+                    state = (system.get("properties") or {}).get(property_name) or {}
+                    if state.get("status") in ("UNAVAILABLE", "NOT_APPLICABLE", None):
+                        continue
+                    applicable += 1
+                    if state.get("status") == "UNREADABLE" or state.get("normalized_status") != "AVAILABLE":
+                        partial.append(system.get("owner_id"))
+                        continue
+                    try:
+                        normalized = float(state.get("normalized_value"))
+                    except:
+                        partial.append(system.get("owner_id"))
+                        continue
+                    if not self._piping_ro_001_finite(normalized) or not validator(normalized):
+                        issues.append(system.get("owner_id"))
+        return applicable, sorted(set(issues)), sorted(set(partial))
+
+    def _electrical_ro_001_qa_checks(self, data, snapshot):
+        records = data.get("electrical_records") or []
+        unsupported = (data.get("scope") or {}).get("unsupported") or []
+        checks = []
+        unresolved = [item for item in unsupported if item.get("scope_kind") == "UNRESOLVED_REFERENCE"]
+        resolved_unsupported = [item for item in unsupported if item.get("scope_kind") != "UNRESOLVED_REFERENCE"]
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-001", "Unsupported selected element", data.get("selected_reference_count"),
+            len(resolved_unsupported), len(unresolved), [item.get("element_id") for item in unsupported],
+            "Supported device/equipment records are processed; unsupported rows are preserved and unresolved references force partial completeness.",
+            force_partial=bool(unresolved),
+        ))
+        api_partial = [
+            item.get("generic", {}).get("element_id") for item in records
+            if item.get("base_partial_conditions") or item.get("connector_partial_conditions")
+        ]
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-002", "Required electrical API unreadable", len(records), 0, len(api_partial), api_partial,
+            "Required profile identity, MEPModel, ElectricalSystems, connector enumeration, type, and domain reads must complete; optional APIs are excluded.",
+            force_partial=bool(api_partial),
+        ))
+        devices = [item for item in records if item.get("profile") == "DEVICE_PROFILE"]
+        unassigned = [item.get("generic", {}).get("element_id") for item in devices if item.get("assignment_state") == "DEVICE_UNASSIGNED_REVIEW"]
+        assignment_partial = [item.get("generic", {}).get("element_id") for item in devices if item.get("assignment_state") in ("DEVICE_MULTI_SYSTEM_REVIEW", "UNAVAILABLE", "UNREADABLE", "INCONSISTENT")]
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-003", "Missing device circuit assignment", len(devices), len(unassigned), len(assignment_partial), unassigned + assignment_partial,
+            "A readable device load system passes; readable zero-system devices are review issues and indeterminate assignment is partial.",
+            force_partial=bool(assignment_partial),
+        ))
+        device_systems = [(record, system) for record in devices for system in record.get("system_records") or []]
+        missing_panel = []
+        panel_partial = []
+        missing_circuit = []
+        circuit_partial = []
+        for record, system in device_systems:
+            owner_id = record.get("generic", {}).get("element_id")
+            panel_status = system.get("panel_status")
+            if panel_status == "UNREADABLE":
+                panel_partial.append(owner_id)
+            elif panel_status != "AVAILABLE" or system.get("panel_id") == "unavailable":
+                missing_panel.append(owner_id)
+            circuit = (system.get("properties") or {}).get("circuit_number") or {}
+            if circuit.get("status") == "UNREADABLE":
+                circuit_partial.append(owner_id)
+            elif circuit.get("status") != "AVAILABLE" or not safe_str(circuit.get("value")).strip():
+                missing_circuit.append(owner_id)
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-004", "Assigned device panel missing", len(device_systems), len(set(missing_panel)), len(set(panel_partial)), missing_panel + panel_partial,
+            "Readable assigned device systems require panel/base-equipment identity; failed identity reads are partial.", force_partial=bool(panel_partial),
+        ))
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-005", "Assigned device circuit number missing", len(device_systems), len(set(missing_circuit)), len(set(circuit_partial)), missing_circuit + circuit_partial,
+            "Readable assigned device systems require a nonblank circuit number; failed access is partial.", force_partial=bool(circuit_partial),
+        ))
+        equipment = [item for item in records if item.get("profile") == "EQUIPMENT_PROFILE"]
+        equipment_systems = [(record, system) for record in equipment for system in record.get("system_records") or []]
+        role_partial = [record.get("generic", {}).get("element_id") for record, system in equipment_systems if system.get("selected_element_role") not in ("LOAD", "BASE_EQUIPMENT")]
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-006", "Equipment role distribution unreadable", len(equipment), 0, len(set(role_partial)), role_partial,
+            "Equipment systems may be upstream loads or downstream branches; only unreadable role classification is partial.", force_partial=bool(role_partial),
+        ))
+        all_systems = [(record, system) for record in records for system in record.get("system_records") or []]
+        inconsistent = [record.get("generic", {}).get("element_id") for record, system in all_systems if system.get("role_consistency") == "INCONSISTENT"]
+        relationship_partial = [record.get("generic", {}).get("element_id") for record, system in all_systems if system.get("role_consistency") == "UNREADABLE"]
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-007", "Role and circuit relationship inconsistent", len(all_systems), len(set(inconsistent)), len(set(relationship_partial)), inconsistent + relationship_partial,
+            "LOAD must map to upstream/load circuits and BASE_EQUIPMENT to downstream branches; different branches are not contradictory.", force_partial=bool(relationship_partial),
+        ))
+        voltage_applicable, voltage_issues, voltage_partial = self._electrical_ro_001_quantity_check(records, ["voltage"], lambda value: value > 0.0)
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-008", "Invalid system voltage", voltage_applicable, len(voltage_issues), len(voltage_partial), voltage_issues + voltage_partial,
+            "Available normalized voltage must be finite and greater than zero; unavailable/non-applicable values are skipped.", force_partial=bool(voltage_partial),
+        ))
+        load_applicable, load_issues, load_partial = self._electrical_ro_001_quantity_check(records, ["apparent_load", "true_load"], lambda value: value >= 0.0)
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-009", "Invalid system load", load_applicable, len(load_issues), len(load_partial), load_issues + load_partial,
+            "Each available normalized VA/W value must be finite and nonnegative; neither quantity is required merely because the other exists.", force_partial=bool(load_partial),
+        ))
+        pf_applicable, pf_issues, pf_partial = self._electrical_ro_001_quantity_check(records, ["power_factor"], lambda value: 0.0 <= value <= 1.0)
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-010", "Invalid power factor", pf_applicable, len(pf_issues), len(pf_partial), pf_issues + pf_partial,
+            "Available normalized power factor must be a finite ratio from zero through one.", force_partial=bool(pf_partial),
+        ))
+        connector_partial = [item.get("generic", {}).get("element_id") for item in records if item.get("connector_partial_conditions")]
+        checks.append(self._electrical_ro_001_check(
+            "ELECTRICAL-QA-011", "Connector read failure", len(records), 0, len(connector_partial), connector_partial,
+            "ConnectorManager, collection, connector type, and domain reads must complete; connector count and open state are not QA rules.", force_partial=bool(connector_partial),
+        ))
+        generic_snapshot = {
+            "selected_ids": snapshot.get("selected_ids") or [],
+            "selected_id_texts": snapshot.get("selected_id_texts") or [],
+            "records": data.get("processed_generic_records") or [],
+            "unavailable": snapshot.get("unavailable") or [],
+        }
+        generic_checks, generic_errors = self._mep_ro_001_qa_checks(generic_snapshot)
+        included_generic_ids = set([
+            "SEL-QA-001", "SEL-QA-002", "SEL-QA-003", "SEL-QA-004", "SEL-QA-005",
+            "SEL-QA-006", "SEL-QA-007", "SEL-QA-008", "SEL-QA-015", "SEL-QA-016",
+        ])
+        generic_checks = [item for item in generic_checks if item.get("check_id") in included_generic_ids]
+        checks.sort(key=lambda item: item.get("check_id"))
+        generic_checks.sort(key=lambda item: item.get("check_id"))
+        return checks, generic_checks, generic_errors
+
+    def _electrical_ro_001_base_data(self, prompt, action_key, snapshot):
+        action_id, canonical_prompt = ELECTRICAL_RO_001_ACTION_METADATA.get(action_key)
+        return {
+            "feature_id": "ELECTRICAL-RO-001",
+            "feature_name": "ModelMind Read-Only Electrical Selection Action Pack",
+            "action_id": action_id,
+            "canonical_prompt": canonical_prompt,
+            "prompt": safe_str(prompt),
+            "report_id": "ELECTRICAL-RO-001-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "classification": "ELECTRICAL_SELECTION_REPORT_NOT_READY",
+            "reason_code": "UNAVAILABLE",
+            "selected_reference_count": len(snapshot.get("selected_ids") or []),
+            "resolved_selected_count": len(snapshot.get("records") or []),
+            "scope": {},
+            "processed_generic_records": [],
+            "electrical_records": [],
+            "summary": [],
+            "tables": [],
+            "electrical_checks": [],
+            "generic_checks": [],
+            "warning_records": [],
+            "warnings_total": 0,
+            "warning_display_truncated": False,
+            "connector_rows_truncated": False,
+            "next_guidance": "Select one or more supported electrical fixtures or equipment elements and rerun.",
+        }
+
+    def _electrical_ro_001_add_warning(self, data, code, element_id, message):
+        data.setdefault("warning_records", []).append(
+            {
+                "code": safe_str(code),
+                "element_id": safe_str(element_id or "none"),
+                "message": self._electrical_disc_001_text(message),
+            }
+        )
+
+    def _electrical_ro_001_common_tables(self, data, records, scope_counts):
+        data["tables"].append(
+            (
+                "Selection scope classification",
+                ["Scope classification", "Count"],
+                [[key, scope_counts.get(key, 0)] for key in sorted(scope_counts.keys())],
+            )
+        )
+        unsupported = (data.get("scope") or {}).get("unsupported") or []
+        if unsupported:
+            data["tables"].append(
+                (
+                    "Unsupported or unresolved selection",
+                    ["Element id", "Category", "Scope classification"],
+                    [[item.get("element_id"), item.get("category"), item.get("scope_kind")] for item in unsupported][:ELECTRICAL_RO_001_ELEMENT_ROW_LIMIT],
+                )
+            )
+        for title, values in (
+            ("Profile distribution", [(item.get("profile"), "") for item in records]),
+            ("Category distribution", [(item.get("generic", {}).get("category_name"), item.get("generic", {}).get("category_id")) for item in records]),
+            ("Family/type distribution", [("{0} : {1}".format(item.get("generic", {}).get("family_name"), item.get("generic", {}).get("type_name")), item.get("generic", {}).get("type_id")) for item in records]),
+            ("MEPModel state distribution", [((item.get("mep_model") or {}).get("status"), "") for item in records]),
+            ("ConnectorManager state distribution", [((item.get("connector_manager") or {}).get("status"), "") for item in records]),
+            ("ElectricalSystems state distribution", [((item.get("systems") or {}).get("status"), "") for item in records]),
+            ("Assignment state distribution", [(item.get("assignment_state"), "") for item in records]),
+        ):
+            data["tables"].append((title, ["Value", "Stable id", "Count"], self._electrical_ro_001_distribution(values)))
+
+    def _electrical_ro_001_build_data(self, prompt, action_key):
+        snapshot = self._mep_ro_001_selection_snapshot()
+        data = self._electrical_ro_001_base_data(prompt, action_key, snapshot)
+        if snapshot.get("selection_read_error"):
+            data["classification"] = "ELECTRICAL_SELECTION_REPORT_FAILED"
+            data["reason_code"] = "SELECTION_READ_FAILED"
+            self._electrical_ro_001_add_warning(data, "SELECTION_READ_FAILED", "none", snapshot.get("selection_read_error"))
+            return data
+        scope = self._electrical_ro_001_scope(snapshot)
+        data["scope"] = scope
+        scope_counts = scope.get("counts") or {}
+        supported = scope.get("supported") or []
+        if not snapshot.get("selected_ids"):
+            data["reason_code"] = "NO_ELEMENTS_SELECTED"
+            return data
+        if not supported:
+            data["reason_code"] = "NO_SUPPORTED_ELECTRICAL_ELEMENTS"
+            data["summary"].append("Selected references exist, but none are supported electrical fixtures or equipment elements.")
+            self._electrical_ro_001_common_tables(data, [], scope_counts)
+            return data
+        processed_generic = supported[:ELECTRICAL_RO_001_ELEMENT_PROCESS_LIMIT]
+        skipped_supported = max(0, len(supported) - len(processed_generic))
+        data["processed_generic_records"] = processed_generic
+        records = []
+        processing_errors = []
+        for generic_record in processed_generic:
+            try:
+                records.append(self._electrical_ro_001_element_record(generic_record))
+            except Exception as exc:
+                element_id = generic_record.get("element_id")
+                processing_errors.append(element_id)
+                self._electrical_ro_001_add_warning(data, "SUPPORTED_ELEMENT_READ_FAILED", element_id, exc)
+        records.sort(
+            key=lambda item: (
+                not safe_str(item.get("generic", {}).get("element_id")).isdigit(),
+                int(item.get("generic", {}).get("element_id")) if safe_str(item.get("generic", {}).get("element_id")).isdigit() else safe_str(item.get("generic", {}).get("element_id")),
+            )
+        )
+        data["electrical_records"] = records
+        unsupported_count = len(scope.get("unsupported") or [])
+        hard_partial = bool(unsupported_count or skipped_supported or processing_errors)
+        hard_partial = hard_partial or any(item.get("base_partial_conditions") for item in records)
+        if action_key in ("electrical_connectors", "qa_health"):
+            hard_partial = hard_partial or any(item.get("connector_partial_conditions") for item in records)
+        data["reason_code"] = "PARTIAL_SCOPE_OR_READ" if hard_partial else "COMPLETE"
+        data["summary"].extend(
+            [
+                "Total selected references: {0}".format(data.get("selected_reference_count")),
+                "Resolved selected elements: {0}".format(data.get("resolved_selected_count")),
+                "Supported electrical elements: {0}".format(len(supported)),
+                "Supported elements processed: {0}".format(len(processed_generic)),
+                "Supported records rendered: {0}".format(len(records)),
+                "Supported elements skipped by processing cap: {0}".format(skipped_supported),
+                "Unsupported or unresolved selected references: {0}".format(unsupported_count),
+                "Device-profile records: {0}".format(len([item for item in records if item.get("profile") == "DEVICE_PROFILE"])),
+                "Equipment-profile records: {0}".format(len([item for item in records if item.get("profile") == "EQUIPMENT_PROFILE"])),
+                "Element processing cap: {0}".format(ELECTRICAL_RO_001_ELEMENT_PROCESS_LIMIT),
+            ]
+        )
+        self._electrical_ro_001_common_tables(data, records, scope_counts)
+        system_rows = self._electrical_ro_001_system_rows(records)
+        system_headers = [
+            "Owner id", "Profile", "Assignment state", "System id", "System name", "System type",
+            "Circuit number", "Panel id", "Panel name", "Selected role", "Relationship", "Role consistency",
+            "Load name", "Voltage raw", "Voltage V", "Apparent load raw", "Apparent load VA",
+            "True load raw", "True load W", "Power factor raw", "Power factor ratio", "Poles raw", "Poles integer",
+        ]
+        if action_key == "elements_summary":
+            element_headers = [
+                "Element id", "UniqueId", "Category", "Family", "Type", "Type id", "Element name", "Profile",
+                "Supported classification", "Workset", "Pinned", "Group", "Assembly", "Design option", "Host",
+                "Linked host", "Level", "Room", "Space", "MEPModel", "ConnectorManager", "ElectricalSystems",
+                "System count", "Assignment state", "LOAD count", "BASE_EQUIPMENT count", "Circuits", "Panels",
+                "Relationships", "Voltage V", "Apparent load VA", "True load W", "Power factor", "Poles",
+            ]
+            data["tables"].append(("Normalized supported electrical elements", element_headers, self._electrical_ro_001_element_rows(records)))
+            data["tables"].append(("Normalized authoritative circuit/system records", system_headers, system_rows))
+            for title, index, stable_index in (
+                ("System-count distribution", 22, None),
+                ("Role distribution", 9, None),
+                ("Panel distribution", 8, 7),
+                ("Circuit distribution", 6, 3),
+            ):
+                if title == "System-count distribution":
+                    values = [(safe_str((item.get("systems") or {}).get("total")), "") for item in records]
+                else:
+                    values = [(row[index], row[stable_index] if stable_index is not None else "") for row in system_rows]
+                data["tables"].append((title, ["Value", "Stable id", "Count"], self._electrical_ro_001_distribution(values)))
+            data["classification"] = "ELECTRICAL_SELECTION_REPORT_PARTIAL" if hard_partial else "ELECTRICAL_SELECTION_SUMMARY_OK"
+        elif action_key == "electrical_connectors":
+            connector_rows, connector_rows_truncated = self._electrical_ro_001_connector_rows(records)
+            data["connector_rows_truncated"] = connector_rows_truncated
+            connector_headers = [
+                "Owner id", "Owner profile", "Sequence", "Connector type", "Domain", "Applicability",
+                "Physical/logical", "Shape", "Origin state", "Origin", "Direction state", "Direction",
+                "System type", "AllRefs count", "Connected owner IDs truncated", "Circuit owner ids", "Wire owner ids", "Other owners",
+                "Reciprocal state", "Read state",
+            ]
+            data["tables"].append(("Normalized electrical connector rows", connector_headers, connector_rows))
+            connector_records = [item for record in records for item in record.get("connectors") or []]
+            for title, values in (
+                ("Connector applicability distribution", [(item.get("applicability_class"), "") for item in connector_records]),
+                ("Connector type distribution", [(self._electrical_ro_001_state_value((item.get("values") or {}).get("connector_type")), "") for item in connector_records]),
+                ("Connector domain distribution", [(self._electrical_ro_001_state_value((item.get("values") or {}).get("domain")), "") for item in connector_records]),
+            ):
+                data["tables"].append((title, ["Value", "Stable id", "Count"], self._electrical_ro_001_distribution(values)))
+            data["summary"].extend(
+                [
+                    "Connectors analyzed: {0}".format(len(connector_records)),
+                    "Rendered connector rows: {0}".format(len(connector_rows)),
+                    "Rendered connector rows truncated: {0}".format(str(bool(connector_rows_truncated)).lower()),
+                    "Open-connector QA applied: false",
+                    "Connector-count QA applied: false",
+                ]
+            )
+            data["classification"] = "ELECTRICAL_SELECTION_REPORT_PARTIAL" if hard_partial else "ELECTRICAL_CONNECTOR_REPORT_OK"
+        elif action_key == "circuit_assignment":
+            data["tables"].append(("Normalized authoritative circuit assignment", system_headers, system_rows))
+            data["tables"].append((
+                "Profile-specific assignment distribution", ["Value", "Stable id", "Count"],
+                self._electrical_ro_001_distribution([(item.get("assignment_state"), item.get("profile")) for item in records]),
+            ))
+            for state in (
+                "DEVICE_UNASSIGNED_REVIEW", "DEVICE_MULTI_SYSTEM_REVIEW", "EQUIPMENT_DISTRIBUTION_EMPTY_REVIEW",
+                "EQUIPMENT_DISTRIBUTION_PARTIAL", "INCONSISTENT", "UNREADABLE", "UNAVAILABLE",
+            ):
+                ids = [item.get("generic", {}).get("element_id") for item in records if item.get("assignment_state") == state]
+                data["summary"].append("{0} element IDs: {1}".format(state, ", ".join(ids[:ELECTRICAL_RO_001_AFFECTED_ID_LIMIT]) or "none"))
+            data["classification"] = "ELECTRICAL_SELECTION_REPORT_PARTIAL" if hard_partial else "ELECTRICAL_CIRCUIT_ASSIGNMENT_OK"
+        elif action_key == "qa_health":
+            electrical_checks, generic_checks, generic_errors = self._electrical_ro_001_qa_checks(data, snapshot)
+            data["electrical_checks"] = electrical_checks
+            data["generic_checks"] = generic_checks
+            partial_check_count = len([item for item in electrical_checks + generic_checks if item.get("status") == "PARTIAL"])
+            issue_count = sum([item.get("issues", 0) for item in electrical_checks + generic_checks if item.get("status") == "ISSUES_FOUND"])
+            if hard_partial or partial_check_count:
+                data["classification"] = "ELECTRICAL_QA_HEALTH_PARTIAL"
+            elif issue_count:
+                data["classification"] = "ELECTRICAL_QA_HEALTH_YELLOW"
+            else:
+                data["classification"] = "ELECTRICAL_QA_HEALTH_GREEN"
+            data["summary"].extend(
+                [
+                    "Overall QA classification: {0}".format(data.get("classification")),
+                    "Stable electrical checks evaluated: {0}".format(len(electrical_checks)),
+                    "Reused generic SEL-QA checks: {0}".format(len(generic_checks)),
+                    "Deterministic issue count: {0}".format(issue_count),
+                    "Partial check count: {0}".format(partial_check_count),
+                    "Generic parameter-read error elements: {0}".format(len(generic_errors)),
+                ]
+            )
+        if skipped_supported:
+            self._electrical_ro_001_add_warning(data, "ELEMENT_PROCESSING_CAP", "none", "{0} supported element(s) were skipped by the fixed processing cap.".format(skipped_supported))
+        for item in scope.get("unsupported") or []:
+            self._electrical_ro_001_add_warning(data, "UNSUPPORTED_OR_UNRESOLVED", item.get("element_id"), item.get("scope_kind"))
+        for record in records:
+            element_id = record.get("generic", {}).get("element_id")
+            for condition in record.get("base_partial_conditions") or []:
+                self._electrical_ro_001_add_warning(data, "AUTHORITATIVE_READ_PARTIAL", element_id, condition)
+            if action_key in ("electrical_connectors", "qa_health"):
+                for condition in record.get("connector_partial_conditions") or []:
+                    self._electrical_ro_001_add_warning(data, "CONNECTOR_READ_PARTIAL", element_id, condition)
+        data["warning_records"].sort(
+            key=lambda item: (
+                item.get("code"),
+                not safe_str(item.get("element_id")).isdigit(),
+                int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+                self._console_normalize(item.get("message")),
+            )
+        )
+        data["warnings_total"] = len(data.get("warning_records") or [])
+        data["warning_display_truncated"] = data["warnings_total"] > ELECTRICAL_RO_001_WARNING_LIMIT
+        if action_key == "qa_health":
+            data["next_guidance"] = (
+                "No model action required. Review the report manually."
+                if data.get("classification") == "ELECTRICAL_QA_HEALTH_GREEN"
+                else "Review partial and issue candidates. No model action is performed by this report."
+            )
+        else:
+            data["next_guidance"] = (
+                "Review partial/unreadable records before relying on the report."
+                if data.get("classification") == "ELECTRICAL_SELECTION_REPORT_PARTIAL"
+                else "No model action required. Review the read-only report."
+            )
+        return data
+
+    def _electrical_ro_001_format_report(self, data):
+        scope_counts = (data.get("scope") or {}).get("counts") or {}
+        lines = [
+            "[MODELMIND READ-ONLY ELECTRICAL SELECTION REPORT]",
+            "",
+            "Feature ID:", data.get("feature_id"),
+            "Feature name:", data.get("feature_name"),
+            "Action ID:", data.get("action_id"),
+            "Canonical prompt:", data.get("canonical_prompt"),
+            "Requested prompt:", data.get("prompt"),
+            "Result classification:", data.get("classification"),
+            "Reason code:", data.get("reason_code"),
+            "Report ID:", data.get("report_id"),
+            "Report timestamp:", data.get("timestamp"),
+            "Scope:", "current active-document selection / supported electrical fixtures and equipment only",
+            "Document title:", data.get("document_title"),
+            "Active view:", "{0} [{1}]".format(data.get("active_view_name"), data.get("active_view_type")),
+            "",
+            "Selection state:",
+            "- total selected references: {0}".format(data.get("selected_reference_count")),
+            "- resolved selected elements: {0}".format(data.get("resolved_selected_count")),
+            "- supported Lighting Fixtures: {0}".format(scope_counts.get("SUPPORTED_LIGHTING_FIXTURE", 0)),
+            "- supported Electrical Fixtures: {0}".format(scope_counts.get("SUPPORTED_ELECTRICAL_FIXTURE", 0)),
+            "- supported Electrical Equipment: {0}".format(scope_counts.get("SUPPORTED_ELECTRICAL_EQUIPMENT", 0)),
+            "- unresolved references: {0}".format(scope_counts.get("UNRESOLVED_REFERENCE", 0)),
+            "",
+            "Main summary:",
+        ]
+        lines.extend(["- {0}".format(item) for item in data.get("summary") or []] or ["- none"])
+        for title, headers, rows in data.get("tables") or []:
+            lines.extend(["", "{0}:".format(title)])
+            lines.extend(self._mep_ro_v1_table(headers, rows) if rows else ["- none"])
+        if data.get("electrical_checks"):
+            lines.extend(["", "Stable electrical QA checks:"])
+            lines.extend(
+                self._mep_ro_v1_table(
+                    ["Check id", "Name", "Applicable", "Issues", "Passed", "Skipped", "Status", "Affected ids", "Omitted ids", "Explanation"],
+                    self._piping_ro_001_check_rows(data.get("electrical_checks")),
+                )
+            )
+        if data.get("generic_checks"):
+            lines.extend(["", "Reused generic MEP-RO-001 SEL-QA checks:"])
+            lines.extend(
+                self._mep_ro_v1_table(
+                    ["Check id", "Name", "Applicable", "Issues", "Passed", "Skipped", "Status", "Affected ids", "Omitted ids", "Explanation"],
+                    self._piping_ro_001_check_rows(data.get("generic_checks")),
+                )
+            )
+        lines.extend(["", "Warnings:"])
+        displayed_warnings = (data.get("warning_records") or [])[:ELECTRICAL_RO_001_WARNING_LIMIT]
+        lines.extend(
+            ["- {0} | {1} | {2}".format(item.get("code"), item.get("element_id"), item.get("message")) for item in displayed_warnings]
+            or ["- none"]
+        )
+        lines.extend(
+            [
+                "- total warnings: {0}".format(data.get("warnings_total", len(data.get("warning_records") or []))),
+                "- warning display truncated: {0}".format(str(bool(data.get("warning_display_truncated"))).lower()),
+                "",
+                "Next guidance:", data.get("next_guidance"),
+                "",
+                "Caps:",
+                "- supported elements processed: {0}".format(ELECTRICAL_RO_001_ELEMENT_PROCESS_LIMIT),
+                "- displayed supported element rows: {0}".format(ELECTRICAL_RO_001_ELEMENT_ROW_LIMIT),
+                "- rendered connector rows: {0}".format(ELECTRICAL_RO_001_CONNECTOR_ROW_LIMIT),
+                "- connectors processed/displayed per element: {0}".format(ELECTRICAL_RO_001_CONNECTORS_PER_ELEMENT_LIMIT),
+                "- systems/circuits processed per element: {0}".format(ELECTRICAL_RO_001_SYSTEMS_PER_ELEMENT_LIMIT),
+                "- connected owner IDs per connector: {0}".format(ELECTRICAL_RO_001_CONNECTED_OWNER_LIMIT),
+                "- affected IDs per QA check: {0}".format(ELECTRICAL_RO_001_AFFECTED_ID_LIMIT),
+                "- displayed warnings: {0}".format(ELECTRICAL_RO_001_WARNING_LIMIT),
+                "- normalized displayed string characters: {0}".format(ELECTRICAL_RO_001_VALUE_LENGTH_LIMIT),
+                "- rendered connector row truncation is display-only after bounded analysis: {0}".format(str(bool(data.get("connector_rows_truncated"))).lower()),
+                "",
+                "Safety metadata:",
+                "- model_modified: false",
+                "- ui_selection_modified: false",
+                "- active_view_changed: false",
+                "- external_files_written: false",
+                "- transaction_started: false",
+                "- transaction_group_started: false",
+                "- linked_document_modified: false",
+                "- selection_picker_opened: false",
+                "- auto_run: false",
+                "",
+                "Workflow isolation metadata:",
+                "- evidence_runbook_advanced: false",
+                "- evidence_cycle_manifest_updated: false",
+                "- workflow_anchor_eligible: false",
+                "- qa_export_source_eligible: false",
+                "- evidence_cycle_stage: false",
+                "",
+                "Safety:",
+                "- The current active-document selection was read as input only.",
+                "- Connector inspection was limited to one immediate AllRefs hop.",
+                "- Electrical systems, circuits, panels, and connector relationships were not modified.",
+                "- No connector, model element, parameter, UI selection, active view, or linked document was modified.",
+                "- No external file, Console history, workflow, or evidence artifact was written.",
+            ]
+        )
+        return "\n".join([safe_str(item) for item in lines])
+
+    def answer_electrical_ro_001_question(self, prompt):
+        action_key = _electrical_ro_001_action_key(prompt)
+        if not action_key:
+            return None
+        try:
+            data = self._electrical_ro_001_build_data(prompt, action_key)
+        except Exception as exc:
+            snapshot = {"selected_ids": [], "records": [], "unavailable": []}
+            data = self._electrical_ro_001_base_data(prompt, action_key, snapshot)
+            data["classification"] = "ELECTRICAL_SELECTION_REPORT_FAILED"
+            data["reason_code"] = "UNEXPECTED_EXECUTION_FAILURE"
+            self._electrical_ro_001_add_warning(data, "UNEXPECTED_EXECUTION_FAILURE", "none", exc)
+            data["warnings_total"] = 1
+            data["next_guidance"] = "Review the deterministic failure diagnostic and rerun."
+        report_text = self._electrical_ro_001_format_report(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MODELMIND READ-ONLY ELECTRICAL SELECTION REPORT]",
+            "report_text": report_text,
+            "report_scope": "current active-document selection / supported electrical fixtures and equipment only",
+            "report_timestamp": data.get("timestamp"),
+            "created_timestamp_local": data.get("timestamp"),
+            "feature_id": "ELECTRICAL-RO-001",
+            "feature_name": "ModelMind Read-Only Electrical Selection Action Pack",
+            "action_id": data.get("action_id"),
+            "result_classification": data.get("classification"),
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view_name"),
+            "active_view_type": data.get("active_view_type"),
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "active_view_changed": False,
+            "external_files_written": False,
+            "workflow_anchor_eligible": False,
+            "qa_export_source_eligible": False,
+            "evidence_cycle_stage": False,
+            "evidence_runbook_advanced": False,
+            "evidence_cycle_manifest_updated": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _mep_ro_v1_recommended_action(self, classification):
         if classification == "MEP_RO_REPORT_EMPTY_SELECTION":
             return "Select relevant elements and rerun the read-only report."
@@ -52643,17 +53759,20 @@ class OllamaAIChat(forms.WPFWindow):
             electrical_disc_001_reply = None
             if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
                 electrical_disc_001_reply = self.answer_electrical_disc_001_question(prompt)
-            mep_ro_001_reply = None
+            electrical_ro_001_reply = None
             if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None:
+                electrical_ro_001_reply = self.answer_electrical_ro_001_question(prompt)
+            mep_ro_001_reply = None
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None and electrical_ro_001_reply is None:
                 mep_ro_001_reply = self.answer_mep_ro_001_question(prompt)
             piping_ro_001_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None and mep_ro_001_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None and electrical_ro_001_reply is None and mep_ro_001_reply is None:
                 piping_ro_001_reply = self.answer_piping_ro_001_question(prompt)
             hvac_ro_001_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None and electrical_ro_001_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None:
                 hvac_ro_001_reply = self.answer_hvac_ro_001_question(prompt)
             mep_read_only_v1_reply = None
-            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None and hvac_ro_001_reply is None:
+            if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None and electrical_disc_001_reply is None and electrical_ro_001_reply is None and mep_ro_001_reply is None and piping_ro_001_reply is None and hvac_ro_001_reply is None:
                 mep_read_only_v1_reply = self.answer_mep_read_only_v1_question(
                     prompt
                 )
@@ -52775,6 +53894,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif electrical_disc_001_reply is not None:
                 reply = electrical_disc_001_reply
+                preserve_latest_report_state = True
+            elif electrical_ro_001_reply is not None:
+                reply = electrical_ro_001_reply
                 preserve_latest_report_state = True
             elif mep_ro_001_reply is not None:
                 reply = mep_ro_001_reply

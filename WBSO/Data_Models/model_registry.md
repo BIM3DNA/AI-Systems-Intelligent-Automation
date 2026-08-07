@@ -632,3 +632,15 @@ Status: Implemented, targeted false-PARTIAL behavior corrected, and live validat
 The feature adds one deterministic discovery report over the current active-document selection. It records candidate/unsupported scope, element identity and restrictions, guarded MEPModel and ConnectorManager exposure, bounded one-hop connector references, ElectricalSystems, selected-element system roles, relevant parameters, and provisional category capability. Discovery states are `AVAILABLE`, `UNAVAILABLE`, `NOT_APPLICABLE`, and `UNREADABLE`; report classifications are `ELECTRICAL_DISCOVERY_OK`, `ELECTRICAL_DISCOVERY_PARTIAL`, `ELECTRICAL_DISCOVERY_NOT_READY`, and `ELECTRICAL_DISCOVERY_FAILED`.
 
 Corrected runtime evidence supports `OST_LightingFixtures` and `OST_ElectricalFixtures` provisionally, treats `OST_ElectricalEquipment` as conditional because multi-system and mixed connector semantics require category-specific handling, and excludes `OST_Conduit` from the initial device-oriented production scope. ELECTRICAL-RO-001 is not implemented. Evidence: EV-AI-357; KC-050.
+
+## ELECTRICAL-RO-001 - ModelMind Read-Only Electrical Selection Action Pack
+
+Status: Implemented and statically validated; live Revit validation in progress. Runtime source is uncommitted and unpushed; source-control closure has not occurred.
+
+The production package provides four deterministic current-selection reports: electrical element summary, connector inspection, circuit assignment, and electrical QA health. `DEVICE_PROFILE` covers `OST_LightingFixtures` and `OST_ElectricalFixtures`; `EQUIPMENT_PROFILE` covers `OST_ElectricalEquipment`. Supported and unsupported scope remains explicit, with no picker or selection change.
+
+The normalized model preserves `AVAILABLE`, `UNAVAILABLE`, `NOT_APPLICABLE`, and `UNREADABLE`; connector applicability distinguishes physical electrical, logical reference, surface, master-surface, conduit interface, and other states. Authoritative system records retain `LOAD`/`BASE_EQUIPMENT` roles, upstream/downstream relationships, and guarded V/VA/W/power-factor normalization.
+
+Stable checks are `ELECTRICAL-QA-001` through `ELECTRICAL-QA-011`; generic checks `SEL-QA-001` through `008`, `015`, and `016` are reused. Connector-count, open-connector, phase, balancing, demand-factor, pole-validity, active-power, Room/Space, Mark, and Type Mark defects are deliberately excluded from the initial model.
+
+Live evidence passed empty and Conduit-only paths; complete Lighting Fixture and Electrical Fixture device paths; zero-system transformer equipment; and panelboard A01/A02 multi-system and mixed-connector semantics. Panelboard A03/A04, mixed selections, cap/failure paths, additional unsupported categories, and multi-specialty Context Suggestions remain pending. Evidence: EV-AI-358; KC-051.

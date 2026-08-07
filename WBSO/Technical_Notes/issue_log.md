@@ -1826,3 +1826,23 @@ Status: OPEN IMPLEMENTATION CONSIDERATION; NOT A CURRENT DISCOVERY DEFECT.
 Before exact discovery registration, selected-electrical summary, connector, circuit-assignment, and QA-health wording could rank against generic MEP or HVAC actions because token-prefix fuzzy ranking matched overlapping terms. ELECTRICAL-DISC-001 now owns only its four exact discovery routes. Global fuzzy dispatch was intentionally not changed, and the four future ELECTRICAL-RO-001 routes remain unregistered. A future production package must resolve route ownership narrowly without weakening global dispatch safety.
 
 Observed production-like prompts were `show selected electrical elements summary`, `show selected electrical connectors`, `check selected electrical circuit assignment`, and `check selected electrical elements qa health`.
+
+## 2026-08-08 - ELECTRICAL-RO-001 Design Resolutions and Open Validation Matrix
+
+Status: LIVE VALIDATION IN PROGRESS. Evidence: EV-AI-358; KC-051.
+
+Resolved/design resolutions:
+
+- prior optional/non-applicable false PARTIAL behavior remains resolved through `AVAILABLE` / `UNAVAILABLE` / `NOT_APPLICABLE` / `UNREADABLE` separation;
+- the four production actions now have exact ownership before generic MEP/fuzzy fallback without a global fuzzy-dispatch rewrite;
+- device and equipment semantics are separated into `DEVICE_PROFILE` and `EQUIPMENT_PROFILE`;
+- physical electrical, logical reference, surface, master-surface, and conduit-interface connector semantics are distinct.
+
+Observed valid behavior, not defects:
+
+- zero-system transformer `1484849` resolves to `EQUIPMENT_DISTRIBUTION_EMPTY_REVIEW` and can produce GREEN QA;
+- an unreferenced physical End connector does not automatically imply an open-connector defect because open/count QA is excluded;
+- duplicate visible circuit labels across different system IDs, panels, roles, and relationships are not automatically contradictory;
+- panelboard `1482544` exposes one End, seven Logical, one Surface, and five MasterSurface connectors across electrical, undefined, and conduit domains.
+
+Open limitations/pending validation: panelboard A03/A04; mixed selections; unassigned/multi-system devices; unreadable and cap paths; multi-specialty Context Suggestions; untested electrical categories, wire/circuit/tray/fitting/link scope; unavailable phase/poles/classification/balancing; and demand-factor semantics. No untested condition is classified as a defect.

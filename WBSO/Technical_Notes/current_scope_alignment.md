@@ -1032,3 +1032,22 @@ Provisional production-scope conclusions only: `OST_LightingFixtures` and `OST_E
 Remaining limitations include untested Lighting/Data/Communication/Fire Alarm/Security Devices, additional equipment families, zero-system and multi-system candidate-device paths, unresolved/enumeration/cap/mixed-scope paths, wire/circuit/cable-tray/fitting/link selections, unavailable system properties, demand-factor semantics, final QA rules, final production routes, and fuzzy-route collision mitigation.
 
 Explicitly out of scope: ELECTRICAL-RO-001 implementation, production QA thresholds, selection or picker operations, model/parameter/connector/system writes, active-view or linked-document changes, external evidence writes, and workflow/evidence advancement. Evidence: EV-AI-357; KC-050.
+
+## 2026-08-08 - ELECTRICAL-RO-001 Current Scope
+
+Status: implemented and statically validated; successful live validation checkpoint reached; live validation remains in progress; source-control closure has not occurred.
+
+Passed in current scope:
+
+- exact ownership for four canonical actions and twelve aliases;
+- empty selection and unsupported Conduit-only Not ready paths for A01-A04;
+- Conduit-only suppression of the electrical specialty gate at capacity six;
+- Lighting Fixture and Electrical Fixture `DEVICE_PROFILE` A01-A04, assigned load circuit, panel, quantities, physical connector, and GREEN QA behavior;
+- zero-system transformer `EQUIPMENT_PROFILE` A01-A04 with `EQUIPMENT_DISTRIBUTION_EMPTY_REVIEW` and no false defect/PARTIAL;
+- multi-system panelboard A01/A02 with upstream `LOAD`, downstream `BASE_EQUIPMENT`, Logical/Surface/MasterSurface applicability, and no false inconsistency;
+- electrical-only Context Suggestions capacity ten for a supported Lighting Fixture;
+- static routing, caps, ordering, safety, workflow isolation, and closed-handler regressions.
+
+Pending: panelboard A03/A04; mixed supported device categories; device-plus-equipment and supported-plus-Conduit selections; unassigned/multi-system devices if reproducible; genuine unreadable and processing/connector/system cap paths; pipe/duct/electrical mixed suggestion capacities; additional unsupported electrical categories, wires, circuits, trays/fittings, links; and phase/pole/classification/balancing/demand-factor gaps.
+
+Explicitly out of scope: model/parameter/connector/circuit/panel/system writes, selection changes or pickers, active-view/link mutation, external evidence writes, automatic execution, workflow advancement, and QA-source eligibility. Evidence: EV-AI-358; KC-051.
