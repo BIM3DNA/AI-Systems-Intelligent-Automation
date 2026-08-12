@@ -644,3 +644,9 @@ The normalized model preserves `AVAILABLE`, `UNAVAILABLE`, `NOT_APPLICABLE`, and
 Stable checks are `ELECTRICAL-QA-001` through `ELECTRICAL-QA-011`; generic checks `SEL-QA-001` through `008`, `015`, and `016` are reused. Connector-count, open-connector, phase, balancing, demand-factor, pole-validity, active-power, Room/Space, Mark, and Type Mark defects are deliberately excluded from the initial model.
 
 Live evidence passed empty and Conduit-only paths; complete Lighting Fixture and Electrical Fixture device paths; zero-system transformer equipment; and panelboard A01/A02 multi-system and mixed-connector semantics. Panelboard A03/A04, mixed selections, cap/failure paths, additional unsupported categories, and multi-specialty Context Suggestions remain pending. Evidence: EV-AI-358; KC-051.
+
+### Final Validation and Source-Control Closure - 2026-08-12
+
+EV-AI-359 supersedes the interim status without removing EV-AI-358. Panelboard P108 A03/A04, supplemental P105 A03, mixed Lighting/Electrical Fixture, mixed device/equipment, supported-plus-Conduit PARTIAL scope, `DEVICE_UNASSIGNED_REVIEW`, unsupported Lighting Device and Conduit Fitting, and the full Context Suggestions/Visual Preview capacity matrix 6/10/14/18 passed. `DEVICE_MULTI_SYSTEM_REVIEW` was not practically reproduced and remains a non-blocking limitation together with untested category, failure, and cap paths.
+
+The final static/Git audit passed with catalog count 236, 16 unique production routes, unchanged protected handlers, clean governance, and verified runtime hashes. Runtime and initial WBSO records were committed together in `90a5e9e1e279de2d49ee0bf2c4c30cfce00a68d1` (`project WBSO update...`) and are pushed at aligned `main`/`origin/main`. Status: implementation complete, substantially live validated, source-control closed, and ready for final project-local WBSO review. Evidence: EV-AI-359; KC-051.

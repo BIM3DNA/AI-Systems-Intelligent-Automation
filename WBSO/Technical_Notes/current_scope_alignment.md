@@ -1051,3 +1051,9 @@ Passed in current scope:
 Pending: panelboard A03/A04; mixed supported device categories; device-plus-equipment and supported-plus-Conduit selections; unassigned/multi-system devices if reproducible; genuine unreadable and processing/connector/system cap paths; pipe/duct/electrical mixed suggestion capacities; additional unsupported electrical categories, wires, circuits, trays/fittings, links; and phase/pole/classification/balancing/demand-factor gaps.
 
 Explicitly out of scope: model/parameter/connector/circuit/panel/system writes, selection changes or pickers, active-view/link mutation, external evidence writes, automatic execution, workflow advancement, and QA-source eligibility. Evidence: EV-AI-358; KC-051.
+
+### Final Scope Alignment - 2026-08-12
+
+Status: implementation complete, static validation complete, substantially live validated, and source-control closed in pushed combined commit `90a5e9e1e279de2d49ee0bf2c4c30cfce00a68d1`.
+
+Final in-scope passes add P108 panelboard A03/A04, supplemental P105 A03, mixed Lighting/Electrical Fixtures, mixed device/equipment, supported-plus-Conduit PARTIAL behavior, `DEVICE_UNASSIGNED_REVIEW` with targeted YELLOW QA, unsupported Lighting Device and Conduit Fitting, and Context Suggestions/Visual Preview capacities 6/10/14/18. `DEVICE_MULTI_SYSTEM_REVIEW` was not practically reproduced. Data/Communication/Fire Alarm/Security Devices, Wire, Electrical Circuit, Cable Tray/Fitting, links, genuine read failures, cap exceedance, and phase/pole/classification/balancing/demand-factor semantics remain non-blocking untested limitations, not defects. Evidence: EV-AI-359; KC-051.
