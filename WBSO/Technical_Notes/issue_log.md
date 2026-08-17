@@ -1852,3 +1852,20 @@ Open limitations/pending validation: panelboard A03/A04; mixed selections; unass
 Status: RESOLVED FOR PACKAGE CLOSURE; REMAINING ITEMS ARE NON-BLOCKING LIMITATIONS.
 
 Panelboard A03/A04, mixed supported/device/equipment selections, supported-plus-Conduit PARTIAL handling, the unassigned-device path, unsupported Lighting Device and Conduit Fitting, and all one-/two-/three-specialty Context Suggestions and Visual Preview capacities passed. The unassigned device generated only `ELECTRICAL-QA-003` and no cascading false positives. `DEVICE_MULTI_SYSTEM_REVIEW` was attempted but not practically reproduced; it remains unvalidated rather than defective. Genuine unreadable/cap paths and the listed untested categories/API semantics remain limitations. Final static/Git and governance audits passed with no mutation or workflow regression. Evidence: EV-AI-359.
+
+## 2026-08-17 - MEP-QA-SPECIALTY-DISC-001 Runtime Reporting Corrections and Open Matrix
+
+Status: TARGETED OBSERVED DEFECTS RESOLVED AND RETESTED; PACKAGE VALIDATION REMAINS IN PROGRESS. Evidence identifier: PENDING.
+
+Resolved observations:
+
+- an empty active view incorrectly produced `NOT_RECOMMENDED_AT_ACTIVE_VIEW_SCALE`; absence-of-evidence NOT_READY paths now use `MORE_RUNTIME_EVIDENCE_REQUIRED`;
+- cap accounting combined overlapping processing omissions and display omissions; output now reports `processing_omitted_count` and `display_omitted_count` separately and does not present their sum as a unique-element count;
+- supported and generic-only unsupported cap rows shared a misleading profile label; they now render `SUPPORTED_SPECIALTY_PROCESSING_CAP` and `GENERIC_ONLY_UNSUPPORTED_PROCESSING_CAP` respectively;
+- timing rows reused a global supported-element denominator; each phase now reports its own processed unit and denominator.
+
+These were bounded discovery reporting/recommendation corrections. Counts, caps, classification precedence, reason codes, semantic mappings, specialty QA, generic predicates, comparison agreement/disagreement, routes, governance, closed handlers, dashboard/index behavior, Context Suggestions, Visual Preview, workflow isolation, and QA export allowlist were not changed.
+
+Open validation limitations, not observed defects: controlled HVAC End/Curve tap topology; HVAC non-capped case; assigned/unassigned electrical device; zero-system equipment; multi-system panelboard; mixed specialty including electrical; unsupported-only electrical/view; selection-independence matrix; any further workflow-isolation checks required; unreadable/failure paths; and final static/Git closure audit.
+
+Risk focus for the next experiment: a valid Duct Curve/tap connector must remain part of HVAC connectivity evidence without contaminating `HVAC-QA-009`, whose topology invariant is the count of readable physical End connectors.

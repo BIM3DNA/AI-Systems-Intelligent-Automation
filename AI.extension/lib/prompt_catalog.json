@@ -5574,5 +5574,41 @@
     "workflow_anchor_eligible": false,
     "qa_export_source_eligible": false,
     "evidence_cycle_stage": false
+  },
+  {
+    "id": "mep-qa-specialty-disc-001-active-view-semantics",
+    "title": "Active-View Specialty QA Semantics Discovery",
+    "category": "BIM QA",
+    "group": "Read-Only MEP QA Discovery",
+    "discipline": "MEP",
+    "role": "read",
+    "risk_level": "low",
+    "scope_type": "active_view_read_only",
+    "canonical_prompt": "inspect active view specialty qa semantics",
+    "planner_aliases": [
+      "compare active view generic and specialty qa",
+      "discover active view specialty qa differences",
+      "show active view specialty qa discovery report"
+    ],
+    "deterministic_handler": "mep_qa_specialty_disc_001_report",
+    "requires_confirmation": false,
+    "enabled": true,
+    "validation_state": "structural_only",
+    "prompt_text": "inspect active view specialty qa semantics",
+    "mode": "deterministic",
+    "feature_id": "MEP-QA-SPECIALTY-DISC-001",
+    "feature_name": "Active-View Specialty QA Semantics Discovery",
+    "description": "Bounded active-view comparison of existing generic MEP QA interpretation with closed piping, HVAC, and electrical specialty semantics.",
+    "safety_class": "report-only",
+    "selection_aware": false,
+    "manual_execution": true,
+    "auto_run": false,
+    "writes_external_files": false,
+    "modifies_model": false,
+    "modifies_ui_selection": false,
+    "changes_active_view": false,
+    "workflow_anchor_eligible": false,
+    "qa_export_source_eligible": false,
+    "evidence_cycle_stage": false
   }
 ]

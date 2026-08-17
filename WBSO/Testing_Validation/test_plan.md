@@ -2070,3 +2070,46 @@ Final executed coverage:
 10. Final static/Git audit passed catalog, route ownership, protected-handler AST, classification/state/QA/cap, dispatch, workflow-isolation, hash, diff, and governance checks.
 
 `DEVICE_MULTI_SYSTEM_REVIEW` was not practically reproduced and is not recorded as passed or defective. Untested category, genuine read-failure, cap-exceedance, and advanced API-semantic paths remain non-blocking limitations. Runtime and initial WBSO changes were combined in pushed commit `90a5e9e1e279de2d49ee0bf2c4c30cfce00a68d1`; this final WBSO closure update remains uncommitted for review.
+
+## 2026-08-17 - MEP-QA-SPECIALTY-DISC-001 In-Progress Validation Plan
+
+Status: IN PROGRESS. Evidence, Daily Log, Knowledge Capture, and hours: PENDING. No closure claim.
+
+Completed static validation:
+
+1. `git diff --check`, tabnanny, supporting compilation, sanitized full-script AST, and catalog JSON parse.
+2. Catalog count 237 with exactly one new entry, three aliases, and four unique routes; prior entries deep-equal to HEAD.
+3. Closed PIPING/HVAC/ELECTRICAL handlers, ELECTRICAL-DISC, generic MEP-RO, MEP QA Dashboard, Project Issue Index, Context Suggestions, and Visual Preview unchanged.
+4. QA export allowlist exactly `["MEP_QA_ISSUEINDEX_EXPORT_OK"]` and workflow/anchor/export isolation retained.
+5. No prohibited mutation/export API in the discovery call graph.
+
+Completed live matrix:
+
+1. Empty Project1 Level 1: PASS, NOT_READY / no relevant elements / more runtime evidence required.
+2. Snowdon 3D Plumbing: PASS for large mixed Piping/HVAC processing cap, display truncation, accounting, cap-label, timing, performance, and governance behavior.
+3. Snowdon L3: PASS for Piping-focused capped behavior and sampled `PIPING-QA-004/008/009/010` execution.
+4. Snowdon L5: PASS for additional capped active-view collection independent of UI selection/manual visual counts; not a non-capped test.
+5. Project2 `{3D}` with five rigid Pipes: PASS for non-capped OK / complete agreement while ten valid `PIPING-QA-008` open-connector issues remained `NOT_ONE_TO_ONE` and did not become disagreements.
+
+Next controlled experiment:
+
+1. Create or identify a rigid Duct main with a valid tap/takeoff Curve connector relationship.
+2. Run the discovery in the active view without relying on current selection.
+3. Confirm the Duct record preserves physical End and Curve topology.
+4. Confirm `HVAC-QA-009` evaluates readable physical End connector count only and does not create a false issue because of the Curve/tap connector.
+5. Confirm `HVAC-QA-008`, comparison classification, caps, timing, recommendation, and read-only/workflow isolation remain coherent.
+
+Remaining validation:
+
+1. HVAC-specific non-capped case.
+2. Assigned electrical device.
+3. Unassigned electrical device.
+4. Zero-system Electrical Equipment.
+5. Multi-system panelboard.
+6. Mixed specialty including electrical.
+7. Unsupported-only electrical/view conditions.
+8. Selection-independence matrix with different UI selections.
+9. Additional workflow-isolation checks if required.
+10. Final static/Git closure audit.
+
+Do not allocate evidence/log/knowledge IDs or hours, close the package, or commit/push until the missing validation and explicit authorization are supplied.

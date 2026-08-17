@@ -1204,3 +1204,21 @@ The critical unassigned-device result was `ELECTRICAL_QA_HEALTH_YELLOW` with one
 The final static/Git audit passed tabnanny, supporting compilation, sanitized AST, catalog parse/count 236, four entries/twelve aliases/sixteen unique routes, legacy ownership, protected AST identities, classifications/states/roles/QA/caps, specialty capacities, dispatch precedence, workflow/QA-source exclusions, runtime hashes, `git diff --check`, and no-write governance. Runtime SHA-256 remained `3FFBF3D1E6DB36F90CD6431A0E6B078B3C26280A71A84C2531984E6A15F4BA0B`; catalog SHA-256 remained `5CA5F995492B20B9FD443BD4E34BB2E0108F2181FA3A292192F15EF6E9C26829`.
 
 Actual source-control history contains one combined runtime/WBSO commit, `90a5e9e1e279de2d49ee0bf2c4c30cfce00a68d1` (`project WBSO update...`), including KC-051. It is pushed with `main` aligned to `origin/main` at ahead/behind `0/0` before this final documentation-only update. Evidence: EV-AI-359; Daily Log `DL-2026-08-12-01`; KC-051 finalized. Hours remain blank because no numeric value was supplied.
+
+## 2026-08-17 - MEP-QA-SPECIALTY-DISC-001 In-Progress Validation Summary
+
+MEP-QA-SPECIALTY-DISC-001 is implemented and statically validated for the current active-view discovery design. Five live Revit cases have passed. The package remains open: HVAC/electrical validation, the final static/Git closure audit, evidence/log/knowledge identifiers, hours, commit, and push are pending.
+
+Static validation passed syntax, sanitized AST, supporting compilation, catalog parse/count and route cardinality, prior-entry equality, protected-handler regression, dashboard/index/context/preview preservation, exact QA-export allowlist, call-graph governance, and `git diff --check`. The implementation remains active-view-only and read-only through `SYNTHETIC_ACTIVE_VIEW_ADAPTER`, with no selection dependency or mutation, document fallback, picker, transaction, model/UI/view/link/file write, auto-run, workflow advancement, anchor eligibility, or QA-source eligibility.
+
+Live results passed:
+
+- empty Project1 Level 1: NOT_READY / no relevant elements / `MORE_RUNTIME_EVIDENCE_REQUIRED`;
+- Snowdon 3D Plumbing: PARTIAL / processing cap, 3051 Pipe and 181 Duct available, 30+30 inspected, 60 agreements, zero disagreements, 2801 unsupported, 5873 processing omissions, 2751 display omissions, approximately 1.26 seconds;
+- Snowdon L3: 141 Pipes available, 30 inspected, 30 agreements, no disagreement/partial read, sampled Piping QA coherent;
+- Snowdon L5: 66 Pipes found, 30 inspected, 36 supported and two generic-only omissions, confirming active-view collection independent of UI selection/manual visual counts;
+- controlled Project2 with five rigid Pipes: OK / complete agreement / `PRODUCTION_ADAPTER_CANDIDATE`, no caps or disagreements, while ten valid open-connector specialty issues remained `NOT_ONE_TO_ONE` rather than false disagreements.
+
+Runtime-driven corrections resolved the empty-view negative recommendation, overlapping cap/display accounting presentation, indistinguishable cap-profile labels, and global timing denominators. The corrected outputs were retested. These changes did not alter semantic mappings, QA, counts/caps, classification precedence, reason codes, routing, governance, or closed production behavior.
+
+Current evidence supports deterministic comparable behavior for the tested Piping and mixed Piping/HVAC cases, including capped and non-capped paths. It does not yet support package closure or a broad production conclusion. Next is the controlled HVAC End/Curve tap topology regression for `HVAC-QA-009`, followed by HVAC non-capped and electrical device/equipment/panelboard/mixed/unsupported coverage, selection-independence, any further workflow-isolation checks, and final static/Git closure audit.

@@ -330,3 +330,9 @@ ELECTRICAL-RO-001 is a provider-independent deterministic read-only electrical s
 All four reports are manual, report-only, non-auto-run, workflow-anchor ineligible, strict-QA-source ineligible, and evidence-stage false. Context Suggestions exposes electrical actions only when a supported Lighting Fixture, Electrical Fixture, or Electrical Equipment element is selected; unsupported Conduit alone does not activate the specialty gate. Status: implementation and static validation complete; live validation in progress; source uncommitted and unpushed. Evidence: EV-AI-358; KC-051.
 
 Final update, 2026-08-12: deterministic provider independence passed across device, equipment, mixed supported/unsupported, unassigned-device, unsupported-category, and Context Suggestions/Visual Preview capacity paths. No provider controls classification, routing, safety, or workflow eligibility. The final static/Git audit and governance scan passed. The combined runtime/WBSO commit `90a5e9e1e279de2d49ee0bf2c4c30cfce00a68d1` is pushed and aligned with `origin/main`. Evidence: EV-AI-359; KC-051.
+
+## 2026-08-17 MEP-QA-SPECIALTY-DISC-001 Provider Independence
+
+MEP-QA-SPECIALTY-DISC-001 is a provider-independent deterministic active-view discovery layer. Its canonical route and three aliases resolve locally; no provider determines active-view candidate scope, synthetic-adapter records, generic/specialty applicability, comparison relation, agreement/disagreement, cap accounting, timing, classification, recommendation, or safety metadata.
+
+The report is read-only, manual, non-auto-run, workflow-anchor ineligible, strict-QA-source ineligible, and workflow/evidence-stage isolated. Generic model output cannot replace its comparison evidence. Status: implementation and static validation complete; five live Revit cases passed; the HVAC and electrical validation matrix, final static/Git closure audit, commit, and push remain pending. No closure claim is made.

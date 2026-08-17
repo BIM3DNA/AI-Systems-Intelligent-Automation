@@ -1057,3 +1057,28 @@ Explicitly out of scope: model/parameter/connector/circuit/panel/system writes, 
 Status: implementation complete, static validation complete, substantially live validated, and source-control closed in pushed combined commit `90a5e9e1e279de2d49ee0bf2c4c30cfce00a68d1`.
 
 Final in-scope passes add P108 panelboard A03/A04, supplemental P105 A03, mixed Lighting/Electrical Fixtures, mixed device/equipment, supported-plus-Conduit PARTIAL behavior, `DEVICE_UNASSIGNED_REVIEW` with targeted YELLOW QA, unsupported Lighting Device and Conduit Fitting, and Context Suggestions/Visual Preview capacities 6/10/14/18. `DEVICE_MULTI_SYSTEM_REVIEW` was not practically reproduced. Data/Communication/Fire Alarm/Security Devices, Wire, Electrical Circuit, Cable Tray/Fitting, links, genuine read failures, cap exceedance, and phase/pole/classification/balancing/demand-factor semantics remain non-blocking untested limitations, not defects. Evidence: EV-AI-359; KC-051.
+
+## 2026-08-17 - MEP-QA-SPECIALTY-DISC-001 Current Scope
+
+Status: IN PROGRESS. Implementation and static validation are complete for the current design. Five live Revit cases have passed, but the package is not fully validated, production-ready, committed, pushed, runtime closed, or source-control closed.
+
+Current in-scope implementation:
+
+- one active-view-only, read-only discovery report using `SYNTHETIC_ACTIVE_VIEW_ADAPTER`;
+- rigid Pipe, rigid non-placeholder Duct, and only Lighting Fixtures, Electrical Fixtures, and Electrical Equipment;
+- generic-versus-specialty relations `ONE_TO_ONE`, `CONDITIONAL`, `COVERAGE_ONLY`, and `NOT_ONE_TO_ONE`;
+- bounded supported processing, generic-only unsupported context, comparison/disagreement/warning display, and phase-specific timing;
+- exact canonical/alias ownership for one catalog entry, three aliases, and four routes;
+- manual execution with no selection dependency, picker, mutation, export, workflow advancement, anchor eligibility, or QA-source eligibility.
+
+Passed live scope:
+
+- empty active view with NOT_READY / `NO_RELEVANT_ELEMENTS_IN_ACTIVE_VIEW` and `MORE_RUNTIME_EVIDENCE_REQUIRED`;
+- large mixed Piping/HVAC active view with processing/display caps and approximately 1.26-second runtime;
+- capped Piping L3 and cropped Piping L5 active views;
+- controlled five-Pipe non-capped OK case demonstrating that valid `PIPING-QA-008` open-connector issues can remain `NOT_ONE_TO_ONE` without false disagreement;
+- read-only governance/workflow isolation in all five observed cases.
+
+Pending: controlled HVAC End/Curve tap topology; HVAC-specific non-capped validation; assigned and unassigned electrical devices; zero-system equipment; multi-system panelboard; mixed-specialty coverage including electrical; unsupported-only electrical/view conditions; a selection-independence matrix across different UI selections; any additional workflow-isolation checks required; and the final static/Git closure audit.
+
+Explicitly out of scope: any additional electrical category, current-selection behavior, selection/view/model/link mutation, file export, workflow or Evidence Runbook/Cycle advancement, QA Export Anchor allowlist changes, replacement of the MEP QA Dashboard, Project Issue Index behavior changes, and production changes to the closed specialty packs.

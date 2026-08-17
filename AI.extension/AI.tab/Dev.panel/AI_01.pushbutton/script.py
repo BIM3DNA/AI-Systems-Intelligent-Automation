@@ -14599,6 +14599,73 @@ def _electrical_ro_001_action_key(prompt):
     return ELECTRICAL_RO_001_ROUTE_ACTIONS.get(normalized)
 
 
+MEP_QA_SPECIALTY_DISC_001_ROUTE_ACTIONS = {
+    "inspect active view specialty qa semantics": "active_view_specialty_qa_discovery",
+    "compare active view generic and specialty qa": "active_view_specialty_qa_discovery",
+    "discover active view specialty qa differences": "active_view_specialty_qa_discovery",
+    "show active view specialty qa discovery report": "active_view_specialty_qa_discovery",
+}
+
+MEP_QA_SPECIALTY_DISC_001_RESULT_CLASSIFICATIONS = (
+    "MEP_QA_SPECIALTY_DISCOVERY_OK",
+    "MEP_QA_SPECIALTY_DISCOVERY_DIFFERENCES_FOUND",
+    "MEP_QA_SPECIALTY_DISCOVERY_PARTIAL",
+    "MEP_QA_SPECIALTY_DISCOVERY_NOT_READY",
+    "MEP_QA_SPECIALTY_DISCOVERY_FAILED",
+)
+
+MEP_QA_SPECIALTY_DISC_001_REASON_CODES = (
+    "COMPLETE_AGREEMENT",
+    "COMPARABLE_DIFFERENCES_FOUND",
+    "EXPECTED_NON_COMPARABLE_SEMANTICS",
+    "NO_RELEVANT_ELEMENTS_IN_ACTIVE_VIEW",
+    "UNSUPPORTED_ONLY_ACTIVE_VIEW",
+    "ACTIVE_VIEW_SCOPE_UNSUPPORTED",
+    "ACTIVE_VIEW_COLLECTION_FAILED",
+    "GENERIC_READ_PARTIAL",
+    "SPECIALTY_READ_PARTIAL",
+    "SUPPORTED_ELEMENT_READ_FAILED",
+    "PROCESSING_CAP_REACHED",
+    "DISPLAY_TRUNCATED",
+    "PERFORMANCE_REVIEW_REQUIRED",
+    "UNEXPECTED_FAILURE",
+)
+
+MEP_QA_SPECIALTY_DISC_001_COMPARABILITY = (
+    "ONE_TO_ONE",
+    "CONDITIONAL",
+    "COVERAGE_ONLY",
+    "NOT_ONE_TO_ONE",
+)
+
+MEP_QA_SPECIALTY_DISC_001_COMPARISON_OUTCOMES = (
+    "AGREE_PASS",
+    "AGREE_ISSUE",
+    "GENERIC_ONLY_ISSUE",
+    "SPECIALTY_ONLY_ISSUE",
+    "NOT_COMPARABLE",
+    "PARTIAL",
+    "CAPPED",
+)
+
+MEP_QA_SPECIALTY_DISC_001_TOTAL_SUPPORTED_LIMIT = 90
+MEP_QA_SPECIALTY_DISC_001_PIPE_LIMIT = 30
+MEP_QA_SPECIALTY_DISC_001_DUCT_LIMIT = 30
+MEP_QA_SPECIALTY_DISC_001_ELECTRICAL_LIMIT = 30
+MEP_QA_SPECIALTY_DISC_001_GENERIC_FAMILY_LIMIT = 50
+MEP_QA_SPECIALTY_DISC_001_UNSUPPORTED_ROW_LIMIT = 50
+MEP_QA_SPECIALTY_DISC_001_DISAGREEMENT_ROW_LIMIT = 75
+MEP_QA_SPECIALTY_DISC_001_COMPARISON_ROW_LIMIT = 100
+MEP_QA_SPECIALTY_DISC_001_WARNING_LIMIT = 50
+MEP_QA_SPECIALTY_DISC_001_TIMING_ROW_LIMIT = 8
+MEP_QA_SPECIALTY_DISC_001_PERFORMANCE_REVIEW_MS = 5000.0
+
+
+def _mep_qa_specialty_disc_001_action_key(prompt):
+    normalized = _normalize_deterministic_route_text(prompt)
+    return MEP_QA_SPECIALTY_DISC_001_ROUTE_ACTIONS.get(normalized)
+
+
 MEP_SEL_V1_ROUTE_ACTIONS = {
     "select all pipes in active view": "select_pipes_active_view",
     "select active view pipes": "select_pipes_active_view",
@@ -18498,6 +18565,11 @@ class OllamaAIChat(forms.WPFWindow):
                 "ELECTRICAL_DISCOVERY_PARTIAL",
                 "ELECTRICAL_DISCOVERY_NOT_READY",
                 "ELECTRICAL_DISCOVERY_FAILED",
+                "MEP_QA_SPECIALTY_DISCOVERY_OK",
+                "MEP_QA_SPECIALTY_DISCOVERY_DIFFERENCES_FOUND",
+                "MEP_QA_SPECIALTY_DISCOVERY_PARTIAL",
+                "MEP_QA_SPECIALTY_DISCOVERY_NOT_READY",
+                "MEP_QA_SPECIALTY_DISCOVERY_FAILED",
             ]
         )
         if classification in meta_classifications:
@@ -18519,6 +18591,8 @@ class OllamaAIChat(forms.WPFWindow):
         if feature_lower == "hvac-ro-001":
             return True
         if feature_lower == "electrical-disc-001":
+            return True
+        if feature_lower == "mep-qa-specialty-disc-001":
             return True
         if feature_lower == "ai-workbench-visual-v1" and normalized_prompt in AI_WORKBENCH_VISUAL_PREVIEW_STATUS_ROUTES:
             return True
@@ -43027,6 +43101,906 @@ class OllamaAIChat(forms.WPFWindow):
         self.latest_chat_output_is_deterministic_report = True
         return report_text
 
+    def _mep_qa_specialty_disc_001_base_data(self, prompt):
+        return {
+            "feature_id": "MEP-QA-SPECIALTY-DISC-001",
+            "feature_name": "Active-View Specialty QA Semantics Discovery",
+            "action_id": "MEP-QA-SPECIALTY-DISC-001-A01",
+            "canonical_prompt": "inspect active view specialty qa semantics",
+            "prompt": safe_str(prompt),
+            "report_id": "MEP-QA-SPECIALTY-DISC-001-{0}".format(time.strftime("%Y%m%d_%H%M%S")),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "document_title": _document_title(doc),
+            "active_view_name": _active_view_title(doc, uidoc),
+            "active_view_type": self._mep_ro_v1_active_view_type(),
+            "evaluation_source": "SYNTHETIC_ACTIVE_VIEW_ADAPTER",
+            "classification": "MEP_QA_SPECIALTY_DISCOVERY_NOT_READY",
+            "primary_reason_code": "NO_RELEVANT_ELEMENTS_IN_ACTIVE_VIEW",
+            "reason_codes": [],
+            "counters": {},
+            "comparison_rows": [],
+            "display_rows": [],
+            "unsupported_rows": [],
+            "warnings": [],
+            "timing_rows": [],
+            "specialty_checks": {},
+            "production_recommendation": "MORE_RUNTIME_EVIDENCE_REQUIRED",
+            "processing_capped": False,
+            "display_truncated": False,
+        }
+
+    def _mep_qa_specialty_disc_001_add_warning(self, data, message):
+        data.setdefault("warnings", []).append(safe_str(message))
+
+    def _mep_qa_specialty_disc_001_timing(self, data, phase, watch, processed, processed_unit):
+        try:
+            watch.Stop()
+            elapsed = float(watch.Elapsed.TotalMilliseconds)
+        except:
+            elapsed = 0.0
+        data.setdefault("timing_rows", []).append(
+            {
+                "phase": phase,
+                "elapsed_ms": elapsed,
+                "processed": int(processed or 0),
+                "processed_unit": safe_str(processed_unit),
+            }
+        )
+        return elapsed
+
+    def _mep_qa_specialty_disc_001_collect(self, data):
+        result = {
+            "pipes": [],
+            "ducts": [],
+            "electrical": [],
+            "pipe_fittings": [],
+            "duct_fittings": [],
+            "generic_extras": {"PIPING": [], "HVAC": [], "ELECTRICAL": []},
+            "generic_inventory": {"PIPING": 0, "HVAC": 0, "ELECTRICAL": 0},
+            "unsupported": [],
+            "relevant_count": 0,
+            "collection_failed": False,
+            "scope_unsupported": False,
+        }
+        try:
+            view = uidoc.ActiveView
+            if view is None:
+                result["scope_unsupported"] = True
+                self._mep_qa_specialty_disc_001_add_warning(data, "ACTIVE_VIEW_SCOPE_UNSUPPORTED: no active view is available.")
+                return result
+            DB.FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType()
+        except Exception as exc:
+            result["scope_unsupported"] = True
+            self._mep_qa_specialty_disc_001_add_warning(
+                data, "ACTIVE_VIEW_SCOPE_UNSUPPORTED: {0}".format(safe_str(exc))
+            )
+            return result
+
+        category_specs = (
+            ("OST_PipeCurves", "PIPE_CANDIDATE"),
+            ("OST_PipeFitting", "UNSUPPORTED_PIPE_FITTING"),
+            ("OST_FlexPipeCurves", "UNSUPPORTED_FLEX_PIPE"),
+            ("OST_DuctCurves", "DUCT_CANDIDATE"),
+            ("OST_DuctFitting", "UNSUPPORTED_DUCT_FITTING"),
+            ("OST_FlexDuctCurves", "UNSUPPORTED_FLEX_DUCT"),
+            ("OST_LightingFixtures", "SUPPORTED_LIGHTING_FIXTURE"),
+            ("OST_ElectricalFixtures", "SUPPORTED_ELECTRICAL_FIXTURE"),
+            ("OST_ElectricalEquipment", "SUPPORTED_ELECTRICAL_EQUIPMENT"),
+            ("OST_LightingDevices", "UNSUPPORTED_LIGHTING_DEVICE"),
+            ("OST_DataDevices", "UNSUPPORTED_DATA_DEVICE"),
+            ("OST_CommunicationDevices", "UNSUPPORTED_COMMUNICATION_DEVICE"),
+            ("OST_FireAlarmDevices", "UNSUPPORTED_FIRE_ALARM_DEVICE"),
+            ("OST_SecurityDevices", "UNSUPPORTED_SECURITY_DEVICE"),
+            ("OST_NurseCallDevices", "UNSUPPORTED_OTHER_ELECTRICAL"),
+            ("OST_TelephoneDevices", "UNSUPPORTED_OTHER_ELECTRICAL"),
+            ("OST_Conduit", "UNSUPPORTED_CONDUIT"),
+            ("OST_ConduitFitting", "UNSUPPORTED_CONDUIT_FITTING"),
+            ("OST_CableTray", "UNSUPPORTED_CABLE_TRAY"),
+            ("OST_CableTrayFitting", "UNSUPPORTED_CABLE_TRAY_FITTING"),
+            ("OST_Wire", "UNSUPPORTED_WIRE"),
+            ("OST_ElectricalCircuit", "UNSUPPORTED_ELECTRICAL_CIRCUIT"),
+            ("OST_FabricationPipework", "UNSUPPORTED_FABRICATION_PART"),
+            ("OST_FabricationDuctwork", "UNSUPPORTED_FABRICATION_PART"),
+        )
+        seen = set()
+        collector_failures = 0
+        attempted = 0
+        for category_name, scope_kind in category_specs:
+            category_id = self._mep_ro_v1_category_id(category_name)
+            if category_id is None:
+                continue
+            attempted += 1
+            elements, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, [category_id])
+            if warnings:
+                collector_failures += 1
+                for warning in warnings:
+                    self._mep_qa_specialty_disc_001_add_warning(data, warning)
+            for elem in elements:
+                element_id = self._mep_ro_v1_element_id_text(elem)
+                if element_id in seen:
+                    continue
+                seen.add(element_id)
+                result["relevant_count"] += 1
+                generic_family = None
+                if category_name == "OST_PipeCurves":
+                    generic_family = "PIPING"
+                elif category_name == "OST_DuctCurves":
+                    generic_family = "HVAC"
+                elif category_name in (
+                    "OST_ElectricalFixtures", "OST_ElectricalEquipment", "OST_LightingFixtures",
+                    "OST_DataDevices", "OST_FireAlarmDevices", "OST_SecurityDevices", "OST_CommunicationDevices",
+                ):
+                    generic_family = "ELECTRICAL"
+                if generic_family:
+                    result["generic_inventory"][generic_family] += 1
+                resolved_kind = scope_kind
+                if scope_kind == "PIPE_CANDIDATE":
+                    try:
+                        supported = isinstance(elem, DB.Plumbing.Pipe)
+                    except:
+                        supported = False
+                    resolved_kind = "SUPPORTED_PIPE" if supported else "UNSUPPORTED_NON_RIGID_PIPE"
+                elif scope_kind == "DUCT_CANDIDATE":
+                    try:
+                        supported = isinstance(elem, DB.Mechanical.Duct) and not bool(elem.IsPlaceholder)
+                    except:
+                        supported = False
+                    resolved_kind = "SUPPORTED_DUCT" if supported else "UNSUPPORTED_PLACEHOLDER_OR_NON_RIGID_DUCT"
+                item = {
+                    "element": elem,
+                    "element_id": element_id,
+                    "category": self._mep_ro_v1_element_category_name(elem),
+                    "scope_kind": resolved_kind,
+                }
+                if resolved_kind == "SUPPORTED_PIPE":
+                    result["pipes"].append(item)
+                elif resolved_kind == "SUPPORTED_DUCT":
+                    result["ducts"].append(item)
+                elif resolved_kind.startswith("SUPPORTED_"):
+                    result["electrical"].append(item)
+                else:
+                    result["unsupported"].append(item)
+                    if generic_family:
+                        result["generic_extras"][generic_family].append(item)
+                    if resolved_kind == "UNSUPPORTED_PIPE_FITTING":
+                        result["pipe_fittings"].append(item)
+                    elif resolved_kind == "UNSUPPORTED_DUCT_FITTING":
+                        result["duct_fittings"].append(item)
+        if attempted and collector_failures == attempted:
+            result["collection_failed"] = True
+        for key in ("pipes", "ducts", "electrical", "pipe_fittings", "duct_fittings", "unsupported"):
+            result[key].sort(
+                key=lambda item: (
+                    not safe_str(item.get("element_id")).isdigit(),
+                    int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+                )
+            )
+        for specialty in ("PIPING", "HVAC", "ELECTRICAL"):
+            result["generic_extras"][specialty].sort(
+                key=lambda item: (
+                    not safe_str(item.get("element_id")).isdigit(),
+                    int(item.get("element_id")) if safe_str(item.get("element_id")).isdigit() else safe_str(item.get("element_id")),
+                )
+            )
+        return result
+
+    def _mep_qa_specialty_disc_001_snapshot(self, generic_records):
+        elements = [item.get("element") for item in generic_records or []]
+        return {
+            "selected_ids": [item.Id for item in elements if item is not None],
+            "selected_id_texts": [item.get("element_id") for item in generic_records or []],
+            "records": list(generic_records or []),
+            "unavailable": [],
+            "selection_read_error": None,
+            "evaluation_source": "SYNTHETIC_ACTIVE_VIEW_ADAPTER",
+        }
+
+    def _mep_qa_specialty_disc_001_specialty(self, data, specialty, source_items):
+        generic_records = []
+        normalized_records = []
+        read_failures = []
+        for item in source_items or []:
+            try:
+                generic = self._mep_ro_001_element_record(item.get("element"))
+                if specialty == "ELECTRICAL":
+                    scope_kind = item.get("scope_kind")
+                    profile = "EQUIPMENT_PROFILE" if scope_kind == "SUPPORTED_ELECTRICAL_EQUIPMENT" else "DEVICE_PROFILE"
+                    generic["electrical_scope_kind"] = scope_kind
+                    generic["electrical_profile"] = profile
+                generic_records.append(generic)
+                if specialty == "PIPING":
+                    normalized_records.append(self._piping_ro_001_pipe_record(generic))
+                elif specialty == "HVAC":
+                    normalized_records.append(self._hvac_ro_001_duct_record(generic))
+                else:
+                    normalized_records.append(self._electrical_ro_001_element_record(generic))
+            except Exception as exc:
+                read_failures.append(item.get("element_id"))
+                self._mep_qa_specialty_disc_001_add_warning(
+                    data,
+                    "SUPPORTED_ELEMENT_READ_FAILED {0} {1}: {2}".format(
+                        specialty, item.get("element_id"), safe_str(exc)
+                    ),
+                )
+        snapshot = self._mep_qa_specialty_disc_001_snapshot(generic_records)
+        if specialty == "PIPING":
+            specialty_data = {
+                "selected_reference_count": len(generic_records),
+                "scope": {"unsupported": []},
+                "processed_generic_records": generic_records,
+                "pipe_records": normalized_records,
+            }
+            checks, generic_checks, generic_errors = self._piping_ro_001_qa_checks(specialty_data, snapshot)
+        elif specialty == "HVAC":
+            specialty_data = {
+                "selected_reference_count": len(generic_records),
+                "scope": {"unsupported": []},
+                "processed_generic_records": generic_records,
+                "duct_records": normalized_records,
+            }
+            checks, generic_checks, generic_errors = self._hvac_ro_001_qa_checks(specialty_data, snapshot)
+        else:
+            specialty_data = {
+                "selected_reference_count": len(generic_records),
+                "scope": {"unsupported": []},
+                "processed_generic_records": generic_records,
+                "electrical_records": normalized_records,
+            }
+            checks, generic_checks, generic_errors = self._electrical_ro_001_qa_checks(specialty_data, snapshot)
+        for error in generic_errors or []:
+            self._mep_qa_specialty_disc_001_add_warning(data, "{0} generic QA: {1}".format(specialty, error))
+        return {
+            "generic_records": generic_records,
+            "records": normalized_records,
+            "checks": checks,
+            "generic_checks": generic_checks,
+            "read_failures": read_failures,
+            "evaluation_source": "SYNTHETIC_ACTIVE_VIEW_ADAPTER",
+        }
+
+    def _mep_qa_specialty_disc_001_generic(self, data, collected, capped):
+        result = {
+            "element_states": {},
+            "pipe_fitting_checked": 0,
+            "pipe_fitting_issues": 0,
+            "duct_fitting_checked": 0,
+            "duct_fitting_issues": 0,
+            "extra_checked": {"PIPING": 0, "HVAC": 0, "ELECTRICAL": 0},
+            "extra_issues": {"PIPING": 0, "HVAC": 0, "ELECTRICAL": 0},
+            "partial_count": 0,
+        }
+        for specialty in ("pipes", "ducts", "electrical"):
+            for item in capped.get(specialty) or []:
+                element_id = item.get("element_id")
+                try:
+                    if specialty in ("pipes", "ducts"):
+                        issue = not self._mep_ro_v1_system_assigned(item.get("element"))
+                    else:
+                        value = self._mep_ro_v1_param_value(
+                            item.get("element"),
+                            ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"],
+                        )
+                        issue = not bool(value)
+                    result["element_states"][element_id] = "ISSUE" if issue else "PASS"
+                except Exception as exc:
+                    result["element_states"][element_id] = "PARTIAL"
+                    result["partial_count"] += 1
+                    self._mep_qa_specialty_disc_001_add_warning(
+                        data, "GENERIC_READ_PARTIAL {0}: {1}".format(element_id, safe_str(exc))
+                    )
+        for source_key, checked_key, issue_key in (
+            ("pipe_fittings", "pipe_fitting_checked", "pipe_fitting_issues"),
+            ("duct_fittings", "duct_fitting_checked", "duct_fitting_issues"),
+        ):
+            source = (collected.get(source_key) or [])[:MEP_QA_SPECIALTY_DISC_001_GENERIC_FAMILY_LIMIT]
+            result[checked_key] = len(source)
+            for item in source:
+                count, unconnected, state = self._mep_ro_v1_connector_counts(item.get("element"))
+                if state == "unreadable":
+                    result["partial_count"] += 1
+                    self._mep_qa_specialty_disc_001_add_warning(
+                        data, "GENERIC_READ_PARTIAL {0}: connector enumeration unreadable".format(item.get("element_id"))
+                    )
+                elif unconnected > 0:
+                    result[issue_key] += 1
+        for specialty, source_key in (
+            ("PIPING", "generic_extra_piping"),
+            ("HVAC", "generic_extra_hvac"),
+            ("ELECTRICAL", "generic_extra_electrical"),
+        ):
+            source = capped.get(source_key) or []
+            result["extra_checked"][specialty] = len(source)
+            for item in source:
+                try:
+                    if specialty in ("PIPING", "HVAC"):
+                        issue = not self._mep_ro_v1_system_assigned(item.get("element"))
+                    else:
+                        value = self._mep_ro_v1_param_value(
+                            item.get("element"),
+                            ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"],
+                        )
+                        issue = not bool(value)
+                    if issue:
+                        result["extra_issues"][specialty] += 1
+                except Exception as exc:
+                    result["partial_count"] += 1
+                    self._mep_qa_specialty_disc_001_add_warning(
+                        data, "GENERIC_READ_PARTIAL {0}: {1}".format(item.get("element_id"), safe_str(exc))
+                    )
+        return result
+
+    def _mep_qa_specialty_disc_001_check_issue_sum(self, checks, excluded_ids=None):
+        excluded = set(excluded_ids or [])
+        return sum(
+            [int(item.get("issues") or 0) for item in checks or [] if item.get("check_id") not in excluded]
+        )
+
+    def _mep_qa_specialty_disc_001_specialty_state(self, specialty, record):
+        if specialty in ("PIPING", "HVAC"):
+            state = safe_str((record.get("system") or {}).get("state"))
+            if state == "UNASSIGNED_REVIEW":
+                return "ISSUE", "AVAILABLE"
+            if state in ("UNREADABLE", "INCONSISTENT"):
+                return "PARTIAL", "PARTIAL"
+            if state == "UNAVAILABLE":
+                return "NOT_APPLICABLE", "UNREADABLE"
+            return "PASS", "AVAILABLE"
+        profile = record.get("profile")
+        if profile == "EQUIPMENT_PROFILE":
+            return "NOT_COMPARABLE", "AVAILABLE"
+        assignment = safe_str(record.get("assignment_state"))
+        if assignment == "DEVICE_UNASSIGNED_REVIEW":
+            return "ISSUE", "AVAILABLE"
+        if assignment in ("DEVICE_MULTI_SYSTEM_REVIEW", "UNAVAILABLE", "UNREADABLE", "INCONSISTENT"):
+            return "PARTIAL", "PARTIAL"
+        issue = False
+        partial = False
+        for system in record.get("system_records") or []:
+            panel_status = safe_str(system.get("panel_status"))
+            circuit = (system.get("properties") or {}).get("circuit_number") or {}
+            if panel_status == "UNREADABLE" or circuit.get("status") == "UNREADABLE":
+                partial = True
+            elif panel_status != "AVAILABLE" or system.get("panel_id") == "unavailable":
+                issue = True
+            elif circuit.get("status") != "AVAILABLE" or not safe_str(circuit.get("value")).strip():
+                issue = True
+        if partial:
+            return "PARTIAL", "PARTIAL"
+        return ("ISSUE" if issue else "PASS"), "AVAILABLE"
+
+    def _mep_qa_specialty_disc_001_outcome(self, comparability, generic_state, specialty_state):
+        if comparability in ("COVERAGE_ONLY", "NOT_ONE_TO_ONE"):
+            return "NOT_COMPARABLE"
+        if generic_state == "PARTIAL" or specialty_state == "PARTIAL":
+            return "PARTIAL"
+        if specialty_state in ("NOT_APPLICABLE", "NOT_COMPARABLE"):
+            return "NOT_COMPARABLE"
+        if generic_state == specialty_state:
+            return "AGREE_ISSUE" if generic_state == "ISSUE" else "AGREE_PASS"
+        if generic_state == "ISSUE":
+            return "GENERIC_ONLY_ISSUE"
+        return "SPECIALTY_ONLY_ISSUE"
+
+    def _mep_qa_specialty_disc_001_compare(self, collected, capped, generic, specialty_results):
+        rows = []
+        for specialty, source_key, check_ids in (
+            ("PIPING", "pipes", ["PIPING-QA-004"]),
+            ("HVAC", "ducts", ["HVAC-QA-004"]),
+            ("ELECTRICAL", "electrical", ["ELECTRICAL-QA-003", "ELECTRICAL-QA-004", "ELECTRICAL-QA-005"]),
+        ):
+            result = specialty_results.get(specialty) or {}
+            normalized = {}
+            for record in result.get("records") or []:
+                if specialty == "ELECTRICAL":
+                    element_id = (record.get("generic") or {}).get("element_id")
+                else:
+                    element_id = record.get("element_id")
+                normalized[element_id] = record
+            for item in capped.get(source_key) or []:
+                element_id = item.get("element_id")
+                record = normalized.get(element_id)
+                if record is None:
+                    specialty_state, read_state = "PARTIAL", "UNREADABLE"
+                else:
+                    specialty_state, read_state = self._mep_qa_specialty_disc_001_specialty_state(specialty, record)
+                profile = record.get("profile") if specialty == "ELECTRICAL" and record else "RIGID_CURVE"
+                comparability = "NOT_ONE_TO_ONE" if profile == "EQUIPMENT_PROFILE" else "CONDITIONAL"
+                generic_state = generic.get("element_states", {}).get(element_id, "PARTIAL")
+                outcome = self._mep_qa_specialty_disc_001_outcome(comparability, generic_state, specialty_state)
+                rows.append(
+                    {
+                        "row_kind": "ELEMENT",
+                        "specialty": specialty,
+                        "element_id": element_id,
+                        "category": item.get("category"),
+                        "profile": profile,
+                        "generic_check_key": "GENERIC_MISSING_SYSTEM" if specialty != "ELECTRICAL" else "GENERIC_MISSING_CIRCUIT_OR_SYSTEM_INFO",
+                        "generic_applicability": "APPLICABLE",
+                        "generic_read_state": "PARTIAL" if generic_state == "PARTIAL" else "AVAILABLE",
+                        "generic_issue_state": generic_state,
+                        "specialty_check_ids": ", ".join(check_ids),
+                        "specialty_applicability": "CONDITIONAL" if comparability == "CONDITIONAL" else "NOT_APPLICABLE",
+                        "specialty_read_state": read_state,
+                        "specialty_issue_state": specialty_state,
+                        "comparability": comparability,
+                        "outcome": outcome,
+                        "reason_code": "EXPECTED_NON_COMPARABLE_SEMANTICS" if outcome == "NOT_COMPARABLE" else ("COMPARABLE_DIFFERENCES_FOUND" if outcome in ("GENERIC_ONLY_ISSUE", "SPECIALTY_ONLY_ISSUE") else ("SPECIALTY_READ_PARTIAL" if outcome == "PARTIAL" else "COMPLETE_AGREEMENT")),
+                    }
+                )
+
+        for specialty, source_key in (("PIPING", "pipes"), ("HVAC", "ducts"), ("ELECTRICAL", "electrical")):
+            rows.append(
+                {
+                    "row_kind": "CHECK_FAMILY",
+                    "specialty": specialty,
+                    "element_id": "n/a",
+                    "category": "supported inventory",
+                    "profile": "ACTIVE_VIEW_COVERAGE",
+                    "generic_check_key": "GENERIC_ACTIVE_VIEW_INVENTORY",
+                    "generic_applicability": "APPLICABLE",
+                    "generic_read_state": "AVAILABLE",
+                    "generic_issue_state": "COUNT={0}".format((collected.get("generic_inventory") or {}).get(specialty, 0)),
+                    "specialty_check_ids": "SPECIALTY_SUPPORTED_SCOPE",
+                    "specialty_applicability": "APPLICABLE",
+                    "specialty_read_state": "AVAILABLE",
+                    "specialty_issue_state": "COUNT={0}".format(len(collected.get(source_key) or [])),
+                    "comparability": "COVERAGE_ONLY",
+                    "outcome": "NOT_COMPARABLE",
+                    "reason_code": "EXPECTED_NON_COMPARABLE_SEMANTICS",
+                }
+            )
+            extra_checked = (generic.get("extra_checked") or {}).get(specialty, 0)
+            extra_issues = (generic.get("extra_issues") or {}).get(specialty, 0)
+            rows.append(
+                {
+                    "row_kind": "CHECK_FAMILY",
+                    "specialty": specialty,
+                    "element_id": "n/a",
+                    "category": "generic-only unsupported population",
+                    "profile": "OUTSIDE_SPECIALTY_PRODUCTION_SCOPE",
+                    "generic_check_key": "GENERIC_ACTIVE_VIEW_SCOPE_EXTRA",
+                    "generic_applicability": "APPLICABLE" if extra_checked else "NOT_APPLICABLE",
+                    "generic_read_state": "AVAILABLE",
+                    "generic_issue_state": "CHECKED={0}; ISSUES={1}".format(extra_checked, extra_issues),
+                    "specialty_check_ids": "UNSUPPORTED_BY_SPECIALTY",
+                    "specialty_applicability": "UNSUPPORTED",
+                    "specialty_read_state": "NOT_APPLICABLE",
+                    "specialty_issue_state": "NOT_APPLICABLE",
+                    "comparability": "NOT_ONE_TO_ONE",
+                    "outcome": "NOT_COMPARABLE",
+                    "reason_code": "EXPECTED_NON_COMPARABLE_SEMANTICS",
+                }
+            )
+        for specialty, fitting_key, checked_key, issue_key, specialty_ids in (
+            ("PIPING", "pipe_fittings", "pipe_fitting_checked", "pipe_fitting_issues", ["PIPING-QA-008", "PIPING-QA-009", "PIPING-QA-010"]),
+            ("HVAC", "duct_fittings", "duct_fitting_checked", "duct_fitting_issues", ["HVAC-QA-008", "HVAC-QA-009", "HVAC-QA-010"]),
+        ):
+            checks = (specialty_results.get(specialty) or {}).get("checks") or []
+            specialty_issue_count = sum([int(item.get("issues") or 0) for item in checks if item.get("check_id") in specialty_ids])
+            rows.append(
+                {
+                    "row_kind": "CHECK_FAMILY",
+                    "specialty": specialty,
+                    "element_id": "n/a",
+                    "category": "fittings versus rigid curves",
+                    "profile": "DIFFERENT_POPULATIONS",
+                    "generic_check_key": "GENERIC_UNCONNECTED_FITTINGS",
+                    "generic_applicability": "APPLICABLE" if generic.get(checked_key) else "NOT_APPLICABLE",
+                    "generic_read_state": "AVAILABLE",
+                    "generic_issue_state": "ISSUES={0}".format(generic.get(issue_key) or 0),
+                    "specialty_check_ids": ", ".join(specialty_ids),
+                    "specialty_applicability": "APPLICABLE" if capped.get(fitting_key) else "NOT_APPLICABLE",
+                    "specialty_read_state": "AVAILABLE",
+                    "specialty_issue_state": "ISSUES={0}".format(specialty_issue_count),
+                    "comparability": "NOT_ONE_TO_ONE",
+                    "outcome": "NOT_COMPARABLE",
+                    "reason_code": "EXPECTED_NON_COMPARABLE_SEMANTICS",
+                }
+            )
+        for specialty, mapped in (
+            ("PIPING", ["PIPING-QA-004", "PIPING-QA-008", "PIPING-QA-009", "PIPING-QA-010"]),
+            ("HVAC", ["HVAC-QA-004", "HVAC-QA-008", "HVAC-QA-009", "HVAC-QA-010"]),
+            ("ELECTRICAL", ["ELECTRICAL-QA-003", "ELECTRICAL-QA-004", "ELECTRICAL-QA-005"]),
+        ):
+            checks = (specialty_results.get(specialty) or {}).get("checks") or []
+            unmapped_issues = self._mep_qa_specialty_disc_001_check_issue_sum(checks, mapped)
+            rows.append(
+                {
+                    "row_kind": "CHECK_FAMILY",
+                    "specialty": specialty,
+                    "element_id": "n/a",
+                    "category": "unmapped specialty evidence",
+                    "profile": "SPECIALTY_ONLY_EVIDENCE",
+                    "generic_check_key": "NO_ONE_TO_ONE_GENERIC_CHECK",
+                    "generic_applicability": "NOT_APPLICABLE",
+                    "generic_read_state": "NOT_APPLICABLE",
+                    "generic_issue_state": "NOT_APPLICABLE",
+                    "specialty_check_ids": "UNMAPPED_SPECIALTY_QA",
+                    "specialty_applicability": "APPLICABLE",
+                    "specialty_read_state": "AVAILABLE",
+                    "specialty_issue_state": "ISSUES={0}".format(unmapped_issues),
+                    "comparability": "NOT_ONE_TO_ONE",
+                    "outcome": "NOT_COMPARABLE",
+                    "reason_code": "EXPECTED_NON_COMPARABLE_SEMANTICS",
+                }
+            )
+        return rows
+
+    def _mep_qa_specialty_disc_001_classify(self, data, collected, specialty_results, generic):
+        rows = data.get("comparison_rows") or []
+        outcomes = [item.get("outcome") for item in rows]
+        disagreements = len([item for item in outcomes if item in ("GENERIC_ONLY_ISSUE", "SPECIALTY_ONLY_ISSUE")])
+        agreements = len([item for item in outcomes if item in ("AGREE_PASS", "AGREE_ISSUE")])
+        partial_rows = len([item for item in outcomes if item == "PARTIAL"])
+        specialty_issue_count = sum(
+            [
+                self._mep_qa_specialty_disc_001_check_issue_sum((specialty_results.get(key) or {}).get("checks") or [])
+                for key in ("PIPING", "HVAC", "ELECTRICAL")
+            ]
+        )
+        generic_issue_count = len([state for state in generic.get("element_states", {}).values() if state == "ISSUE"])
+        generic_issue_count += int(generic.get("pipe_fitting_issues") or 0) + int(generic.get("duct_fitting_issues") or 0)
+        generic_issue_count += sum([(generic.get("extra_issues") or {}).get(key, 0) for key in ("PIPING", "HVAC", "ELECTRICAL")])
+        capped_count = int(data.get("capped_count") or 0)
+        unsupported_count = len(collected.get("unsupported") or [])
+        supported_count = sum([len(collected.get(key) or []) for key in ("pipes", "ducts", "electrical")])
+        read_failures = sum([len((specialty_results.get(key) or {}).get("read_failures") or []) for key in ("PIPING", "HVAC", "ELECTRICAL")])
+        specialty_partial = any(
+            [
+                item.get("status") == "PARTIAL"
+                for key in ("PIPING", "HVAC", "ELECTRICAL")
+                for item in ((specialty_results.get(key) or {}).get("checks") or [])
+            ]
+        )
+        data["counters"] = {
+            "elements_inspected_by_specialty": sum([len((specialty_results.get(key) or {}).get("records") or []) for key in ("PIPING", "HVAC", "ELECTRICAL")]),
+            "piping_elements_inspected": len((specialty_results.get("PIPING") or {}).get("records") or []),
+            "hvac_elements_inspected": len((specialty_results.get("HVAC") or {}).get("records") or []),
+            "electrical_elements_inspected": len((specialty_results.get("ELECTRICAL") or {}).get("records") or []),
+            "generic_issue_count": generic_issue_count,
+            "specialty_issue_count": specialty_issue_count,
+            "agreement_count": agreements,
+            "disagreement_count": disagreements,
+            "specialty_only_issue_count": len([item for item in outcomes if item == "SPECIALTY_ONLY_ISSUE"]),
+            "generic_only_issue_count": len([item for item in outcomes if item == "GENERIC_ONLY_ISSUE"]),
+            "partial_unreadable_count": partial_rows + int(generic.get("partial_count") or 0) + read_failures,
+            "unsupported_count": unsupported_count,
+            "processing_omitted_count": capped_count,
+            "display_omitted_count": 0,
+            "not_comparable_count": len([item for item in outcomes if item == "NOT_COMPARABLE"]),
+        }
+        reasons = []
+        if collected.get("scope_unsupported"):
+            reasons.append("ACTIVE_VIEW_SCOPE_UNSUPPORTED")
+            data["classification"] = "MEP_QA_SPECIALTY_DISCOVERY_NOT_READY"
+        elif collected.get("collection_failed"):
+            reasons.append("ACTIVE_VIEW_COLLECTION_FAILED")
+            data["classification"] = "MEP_QA_SPECIALTY_DISCOVERY_NOT_READY"
+        elif supported_count == 0 and unsupported_count == 0:
+            reasons.append("NO_RELEVANT_ELEMENTS_IN_ACTIVE_VIEW")
+            data["classification"] = "MEP_QA_SPECIALTY_DISCOVERY_NOT_READY"
+        elif supported_count == 0:
+            reasons.append("UNSUPPORTED_ONLY_ACTIVE_VIEW")
+            data["classification"] = "MEP_QA_SPECIALTY_DISCOVERY_NOT_READY"
+        elif capped_count or partial_rows or generic.get("partial_count") or specialty_partial or read_failures or data.get("warnings"):
+            data["classification"] = "MEP_QA_SPECIALTY_DISCOVERY_PARTIAL"
+            if capped_count:
+                reasons.append("PROCESSING_CAP_REACHED")
+            if generic.get("partial_count") or data.get("warnings"):
+                reasons.append("GENERIC_READ_PARTIAL")
+            if specialty_partial:
+                reasons.append("SPECIALTY_READ_PARTIAL")
+            if read_failures:
+                reasons.append("SUPPORTED_ELEMENT_READ_FAILED")
+        elif disagreements:
+            reasons.append("COMPARABLE_DIFFERENCES_FOUND")
+            data["classification"] = "MEP_QA_SPECIALTY_DISCOVERY_DIFFERENCES_FOUND"
+        else:
+            reasons.append("COMPLETE_AGREEMENT")
+            data["classification"] = "MEP_QA_SPECIALTY_DISCOVERY_OK"
+        if any(item.get("outcome") == "NOT_COMPARABLE" for item in rows):
+            reasons.append("EXPECTED_NON_COMPARABLE_SEMANTICS")
+        data["reason_codes"] = []
+        for reason in reasons:
+            if reason not in data["reason_codes"]:
+                data["reason_codes"].append(reason)
+        data["primary_reason_code"] = data["reason_codes"][0] if data["reason_codes"] else "COMPLETE_AGREEMENT"
+        if data["classification"] == "MEP_QA_SPECIALTY_DISCOVERY_OK":
+            data["production_recommendation"] = "PRODUCTION_ADAPTER_CANDIDATE" if agreements else "RETAIN_SEPARATE_SEMANTICS"
+        elif data["classification"] == "MEP_QA_SPECIALTY_DISCOVERY_DIFFERENCES_FOUND":
+            data["production_recommendation"] = "PRODUCTION_MAPPING_REQUIRES_REFINEMENT"
+        elif data["classification"] == "MEP_QA_SPECIALTY_DISCOVERY_PARTIAL":
+            data["production_recommendation"] = "MORE_RUNTIME_EVIDENCE_REQUIRED"
+        else:
+            data["production_recommendation"] = "MORE_RUNTIME_EVIDENCE_REQUIRED"
+
+    def _mep_qa_specialty_disc_001_build_data(self, prompt):
+        data = self._mep_qa_specialty_disc_001_base_data(prompt)
+        total_watch = System.Diagnostics.Stopwatch.StartNew()
+        data["_total_watch"] = total_watch
+
+        phase = System.Diagnostics.Stopwatch.StartNew()
+        collected = self._mep_qa_specialty_disc_001_collect(data)
+        self._mep_qa_specialty_disc_001_timing(data, "active-view candidate collection", phase, collected.get("relevant_count"), "candidate")
+        data["unsupported_rows"] = [
+            [item.get("element_id"), item.get("category"), item.get("scope_kind")]
+            for item in (collected.get("unsupported") or [])[:MEP_QA_SPECIALTY_DISC_001_UNSUPPORTED_ROW_LIMIT]
+        ]
+
+        capped = {
+            "pipes": (collected.get("pipes") or [])[:MEP_QA_SPECIALTY_DISC_001_PIPE_LIMIT],
+            "ducts": (collected.get("ducts") or [])[:MEP_QA_SPECIALTY_DISC_001_DUCT_LIMIT],
+            "electrical": (collected.get("electrical") or [])[:MEP_QA_SPECIALTY_DISC_001_ELECTRICAL_LIMIT],
+            "pipe_fittings": (collected.get("pipe_fittings") or [])[:MEP_QA_SPECIALTY_DISC_001_GENERIC_FAMILY_LIMIT],
+            "duct_fittings": (collected.get("duct_fittings") or [])[:MEP_QA_SPECIALTY_DISC_001_GENERIC_FAMILY_LIMIT],
+            "generic_extra_piping": ((collected.get("generic_extras") or {}).get("PIPING") or [])[:MEP_QA_SPECIALTY_DISC_001_GENERIC_FAMILY_LIMIT],
+            "generic_extra_hvac": ((collected.get("generic_extras") or {}).get("HVAC") or [])[:MEP_QA_SPECIALTY_DISC_001_GENERIC_FAMILY_LIMIT],
+            "generic_extra_electrical": ((collected.get("generic_extras") or {}).get("ELECTRICAL") or [])[:MEP_QA_SPECIALTY_DISC_001_GENERIC_FAMILY_LIMIT],
+        }
+        supported_capped_count = sum([len(capped.get(key) or []) for key in ("pipes", "ducts", "electrical")])
+        if supported_capped_count > MEP_QA_SPECIALTY_DISC_001_TOTAL_SUPPORTED_LIMIT:
+            remaining = MEP_QA_SPECIALTY_DISC_001_TOTAL_SUPPORTED_LIMIT
+            for key in ("pipes", "ducts", "electrical"):
+                capped[key] = (capped.get(key) or [])[:remaining]
+                remaining -= len(capped[key])
+        data["capped_count"] = sum(
+            [max(0, len(collected.get(key) or []) - len(capped.get(key) or [])) for key in ("pipes", "ducts", "electrical", "pipe_fittings", "duct_fittings")]
+        )
+        for specialty, source_key in (("PIPING", "generic_extra_piping"), ("HVAC", "generic_extra_hvac"), ("ELECTRICAL", "generic_extra_electrical")):
+            data["capped_count"] += max(0, len((collected.get("generic_extras") or {}).get(specialty) or []) - len(capped.get(source_key) or []))
+        data["processing_capped"] = bool(data["capped_count"])
+
+        phase = System.Diagnostics.Stopwatch.StartNew()
+        generic = self._mep_qa_specialty_disc_001_generic(data, collected, capped)
+        generic_processed_count = sum([len(capped.get(key) or []) for key in ("pipes", "ducts", "electrical", "pipe_fittings", "duct_fittings", "generic_extra_piping", "generic_extra_hvac", "generic_extra_electrical")])
+        self._mep_qa_specialty_disc_001_timing(data, "generic interpretation", phase, generic_processed_count, "generic candidate")
+
+        specialty_results = {}
+        for specialty, source_key, phase_name, processed_unit in (
+            ("PIPING", "pipes", "piping normalization/QA", "piping record"),
+            ("HVAC", "ducts", "HVAC normalization/QA", "HVAC record"),
+            ("ELECTRICAL", "electrical", "electrical normalization/QA", "electrical record"),
+        ):
+            phase = System.Diagnostics.Stopwatch.StartNew()
+            specialty_results[specialty] = self._mep_qa_specialty_disc_001_specialty(data, specialty, capped.get(source_key) or [])
+            self._mep_qa_specialty_disc_001_timing(data, phase_name, phase, len((specialty_results[specialty]).get("records") or []), processed_unit)
+        data["specialty_checks"] = dict(
+            [(key, (specialty_results.get(key) or {}).get("checks") or []) for key in ("PIPING", "HVAC", "ELECTRICAL")]
+        )
+
+        phase = System.Diagnostics.Stopwatch.StartNew()
+        data["comparison_rows"] = self._mep_qa_specialty_disc_001_compare(collected, capped, generic, specialty_results)
+        for specialty, source_key, cap_profile in (
+            ("PIPING", "pipes", "SUPPORTED_SPECIALTY_PROCESSING_CAP"),
+            ("HVAC", "ducts", "SUPPORTED_SPECIALTY_PROCESSING_CAP"),
+            ("ELECTRICAL", "electrical", "SUPPORTED_SPECIALTY_PROCESSING_CAP"),
+            ("PIPING", "pipe_fittings", "GENERIC_ONLY_UNSUPPORTED_PROCESSING_CAP"),
+            ("HVAC", "duct_fittings", "GENERIC_ONLY_UNSUPPORTED_PROCESSING_CAP"),
+        ):
+            omitted = max(0, len(collected.get(source_key) or []) - len(capped.get(source_key) or []))
+            if omitted:
+                data["comparison_rows"].append(
+                    {
+                        "row_kind": "CHECK_FAMILY",
+                        "specialty": specialty,
+                        "element_id": "n/a",
+                        "category": source_key,
+                        "profile": cap_profile,
+                        "generic_check_key": "CAPPED_ACTIVE_VIEW_CANDIDATES",
+                        "generic_applicability": "CONDITIONAL",
+                        "generic_read_state": "CAPPED",
+                        "generic_issue_state": "OMITTED={0}".format(omitted),
+                        "specialty_check_ids": "CAPPED_ACTIVE_VIEW_CANDIDATES",
+                        "specialty_applicability": "CONDITIONAL",
+                        "specialty_read_state": "CAPPED",
+                        "specialty_issue_state": "OMITTED={0}".format(omitted),
+                        "comparability": "CONDITIONAL",
+                        "outcome": "CAPPED",
+                        "reason_code": "PROCESSING_CAP_REACHED",
+                    }
+                )
+        for specialty, source_key in (("PIPING", "generic_extra_piping"), ("HVAC", "generic_extra_hvac"), ("ELECTRICAL", "generic_extra_electrical")):
+            omitted = max(0, len((collected.get("generic_extras") or {}).get(specialty) or []) - len(capped.get(source_key) or []))
+            if omitted:
+                data["comparison_rows"].append(
+                    {
+                        "row_kind": "CHECK_FAMILY", "specialty": specialty, "element_id": "n/a", "category": source_key,
+                        "profile": "GENERIC_ONLY_UNSUPPORTED_PROCESSING_CAP", "generic_check_key": "CAPPED_GENERIC_CANDIDATES",
+                        "generic_applicability": "CONDITIONAL", "generic_read_state": "CAPPED", "generic_issue_state": "OMITTED={0}".format(omitted),
+                        "specialty_check_ids": "UNSUPPORTED_BY_SPECIALTY", "specialty_applicability": "UNSUPPORTED",
+                        "specialty_read_state": "CAPPED", "specialty_issue_state": "NOT_APPLICABLE",
+                        "comparability": "NOT_ONE_TO_ONE", "outcome": "CAPPED", "reason_code": "PROCESSING_CAP_REACHED",
+                    }
+                )
+        self._mep_qa_specialty_disc_001_classify(data, collected, specialty_results, generic)
+        disagreements = [item for item in data["comparison_rows"] if item.get("outcome") in ("GENERIC_ONLY_ISSUE", "SPECIALTY_ONLY_ISSUE")]
+        other_rows = [item for item in data["comparison_rows"] if item not in disagreements]
+        priority = disagreements[:MEP_QA_SPECIALTY_DISC_001_DISAGREEMENT_ROW_LIMIT]
+        data["display_rows"] = (priority + other_rows)[:MEP_QA_SPECIALTY_DISC_001_COMPARISON_ROW_LIMIT]
+        comparison_omitted = max(0, len(data["comparison_rows"]) - len(data["display_rows"]))
+        unsupported_omitted = max(0, len(collected.get("unsupported") or []) - MEP_QA_SPECIALTY_DISC_001_UNSUPPORTED_ROW_LIMIT)
+        warning_omitted = max(0, len(data.get("warnings") or []) - MEP_QA_SPECIALTY_DISC_001_WARNING_LIMIT)
+        data["display_truncated"] = bool(comparison_omitted or unsupported_omitted or warning_omitted)
+        data["counters"]["display_omitted_count"] = comparison_omitted + unsupported_omitted + warning_omitted
+        if data["display_truncated"]:
+            data["reason_codes"].append("DISPLAY_TRUNCATED")
+        self._mep_qa_specialty_disc_001_timing(data, "comparison", phase, len(data["comparison_rows"]), "comparison row")
+        return data
+
+    def _mep_qa_specialty_disc_001_format_report(self, data):
+        phase = System.Diagnostics.Stopwatch.StartNew()
+        counters = data.get("counters") or {}
+        lines = [
+            "[MEP QA SPECIALTY SEMANTICS DISCOVERY REPORT]",
+            "",
+            "Feature: MEP-QA-SPECIALTY-DISC-001",
+            "Report id: {0}".format(data.get("report_id")),
+            "Timestamp: {0}".format(data.get("timestamp")),
+            "Document: {0}".format(data.get("document_title")),
+            "Active view: {0}".format(data.get("active_view_name")),
+            "Active view type: {0}".format(data.get("active_view_type")),
+            "Evaluation source: {0}".format(data.get("evaluation_source")),
+            "Result classification: {0}".format(data.get("classification")),
+            "Primary reason code: {0}".format(data.get("primary_reason_code")),
+            "Reason codes: {0}".format(", ".join(data.get("reason_codes") or ["none"])),
+            "Production recommendation: {0}".format(data.get("production_recommendation")),
+            "",
+            "Aggregate counters",
+        ]
+        counter_order = (
+            "elements_inspected_by_specialty", "piping_elements_inspected", "hvac_elements_inspected", "electrical_elements_inspected",
+            "generic_issue_count", "specialty_issue_count", "agreement_count", "disagreement_count",
+            "specialty_only_issue_count", "generic_only_issue_count", "partial_unreadable_count",
+            "unsupported_count", "processing_omitted_count", "display_omitted_count", "not_comparable_count",
+        )
+        lines.extend(self._mep_ro_v1_table(["Counter", "Count"], [[key, counters.get(key, 0)] for key in counter_order]))
+        lines.extend(["", "Comparison rows"])
+        display_rows = []
+        for item in data.get("display_rows") or []:
+            display_rows.append(
+                [
+                    item.get("row_kind"), item.get("specialty"), item.get("element_id"), item.get("profile"),
+                    item.get("generic_check_key"), item.get("generic_issue_state"), item.get("generic_read_state"),
+                    item.get("specialty_check_ids"), item.get("specialty_issue_state"), item.get("specialty_read_state"),
+                    item.get("comparability"), item.get("outcome"), item.get("reason_code"),
+                ]
+            )
+        lines.extend(
+            self._mep_ro_v1_table(
+                ["Kind", "Specialty", "Element id", "Profile", "Generic check", "Generic state", "Generic read", "Specialty checks", "Specialty state", "Specialty read", "Comparability", "Outcome", "Reason"],
+                display_rows,
+            )
+        )
+        if data.get("unsupported_rows"):
+            lines.extend(["", "Unsupported relevant active-view candidates"])
+            lines.extend(self._mep_ro_v1_table(["Element id", "Category", "Scope classification"], data.get("unsupported_rows")))
+        lines.extend(["", "Specialty QA evidence (aggregate; unmapped checks are not disagreements)"])
+        check_rows = []
+        for specialty in ("PIPING", "HVAC", "ELECTRICAL"):
+            for check in (data.get("specialty_checks") or {}).get(specialty) or []:
+                check_rows.append([specialty, check.get("check_id"), check.get("status"), check.get("applicability"), check.get("issues"), check.get("skipped")])
+        lines.extend(self._mep_ro_v1_table(["Specialty", "Check", "Status", "Applicable", "Issues", "Skipped"], check_rows))
+        lines.extend(
+            [
+                "",
+                "Caps",
+                "- total supported elements evaluated: {0}".format(MEP_QA_SPECIALTY_DISC_001_TOTAL_SUPPORTED_LIMIT),
+                "- supported pipes / ducts / electrical elements: {0} / {1} / {2}".format(MEP_QA_SPECIALTY_DISC_001_PIPE_LIMIT, MEP_QA_SPECIALTY_DISC_001_DUCT_LIMIT, MEP_QA_SPECIALTY_DISC_001_ELECTRICAL_LIMIT),
+                "- generic candidates per comparison family: {0}".format(MEP_QA_SPECIALTY_DISC_001_GENERIC_FAMILY_LIMIT),
+                "- closed piping / HVAC connectors per element: {0} / {1}".format(PIPING_RO_001_CONNECTORS_PER_PIPE_LIMIT, HVAC_RO_001_CONNECTORS_PER_DUCT_LIMIT),
+                "- closed electrical connectors / systems per element: {0} / {1}".format(ELECTRICAL_RO_001_CONNECTORS_PER_ELEMENT_LIMIT, ELECTRICAL_RO_001_SYSTEMS_PER_ELEMENT_LIMIT),
+                "- closed connected-owner cap: {0}".format(ELECTRICAL_RO_001_CONNECTED_OWNER_LIMIT),
+                "- processing cap reached: {0}".format("true" if data.get("processing_capped") else "false"),
+                "- display-only truncation: {0}".format("true" if data.get("display_truncated") else "false"),
+            ]
+        )
+        warnings = data.get("warnings") or []
+        lines.extend(["", "Warnings ({0})".format(len(warnings))])
+        for warning in warnings[:MEP_QA_SPECIALTY_DISC_001_WARNING_LIMIT]:
+            lines.append("- {0}".format(warning))
+        if len(warnings) > MEP_QA_SPECIALTY_DISC_001_WARNING_LIMIT:
+            lines.append("- DISPLAY_TRUNCATED: {0} additional warnings omitted.".format(len(warnings) - MEP_QA_SPECIALTY_DISC_001_WARNING_LIMIT))
+
+        formatting_ms = self._mep_qa_specialty_disc_001_timing(data, "formatting", phase, len(data.get("display_rows") or []), "formatted row")
+        total_watch = data.get("_total_watch")
+        total_ms = self._mep_qa_specialty_disc_001_timing(data, "total", total_watch, counters.get("elements_inspected_by_specialty"), "supported specialty element")
+        if total_ms > MEP_QA_SPECIALTY_DISC_001_PERFORMANCE_REVIEW_MS:
+            if "PERFORMANCE_REVIEW_REQUIRED" not in data["reason_codes"]:
+                data["reason_codes"].append("PERFORMANCE_REVIEW_REQUIRED")
+            lines[11] = "Reason codes: {0}".format(", ".join(data.get("reason_codes") or ["none"]))
+        lines.extend(["", "Timing evidence"])
+        timing_rows = []
+        for item in (data.get("timing_rows") or [])[:MEP_QA_SPECIALTY_DISC_001_TIMING_ROW_LIMIT]:
+            elapsed = float(item.get("elapsed_ms") or 0.0)
+            processed = int(item.get("processed") or 0)
+            per_unit = elapsed / processed if processed else 0.0
+            timing_rows.append([item.get("phase"), "{0:.3f}".format(elapsed), processed, item.get("processed_unit"), "{0:.3f}".format(per_unit), "CAPPED" if data.get("processing_capped") else "WITHIN_CAP"])
+        lines.extend(self._mep_ro_v1_table(["Phase", "Elapsed ms", "Processed / scanned", "Unit", "ms / unit", "Cap state"], timing_rows))
+        lines.extend(
+            [
+                "",
+                "Semantic interpretation",
+                "- CONDITIONAL mappings may produce comparable disagreements.",
+                "- COVERAGE_ONLY and NOT_ONE_TO_ONE rows never increment disagreement_count.",
+                "- Unmapped specialty checks remain evidence and never become specialty-only disagreements automatically.",
+                "- Active-view candidates are evaluated without reading or changing the current UI selection.",
+                "- Generic pipe/duct missing-system checks map conditionally to PIPING-QA-004 / HVAC-QA-004.",
+                "- Generic device circuit/system evidence maps conditionally to ELECTRICAL-QA-003 through ELECTRICAL-QA-005 for device profiles.",
+                "- Generic fitting connectivity versus rigid-curve connector QA and electrical equipment circuit semantics are not one-to-one.",
+                "- Issue counters are deterministic check-family issue units; comparison counters include only declared comparable rows.",
+                "",
+                "Explicit unsupported scope",
+                "- Pipe fittings, flex pipe, and fabrication parts are not specialty-evaluated.",
+                "- Placeholder/flex ducts, duct fittings/accessories/insulation/lining, and fabrication parts are not specialty-evaluated.",
+                "- Lighting/Data/Communication/Fire Alarm/Security/Nurse Call/Telephone devices, conduit, cable tray, fittings, wire, and circuits are not specialty-evaluated.",
+                "- Linked-document contents, element types, unrelated categories, and document-wide fallback are excluded.",
+                "",
+                "Governance",
+                "- discovery_only: true",
+                "- active_view_only: true",
+                "- model_modified: false",
+                "- ui_selection_modified: false",
+                "- active_view_changed: false",
+                "- external_files_written: false",
+                "- transaction_started: false",
+                "- transaction_group_started: false",
+                "- linked_document_modified: false",
+                "- selection_picker_opened: false",
+                "- auto_run: false",
+                "- evidence_runbook_advanced: false",
+                "- evidence_cycle_manifest_updated: false",
+                "- workflow_anchor_eligible: false",
+                "- qa_export_source_eligible: false",
+                "- evidence_cycle_stage: false",
+            ]
+        )
+        return "\n".join([safe_str(item) for item in lines])
+
+    def answer_mep_qa_specialty_disc_001_question(self, prompt):
+        action_key = _mep_qa_specialty_disc_001_action_key(prompt)
+        if not action_key:
+            return None
+        try:
+            data = self._mep_qa_specialty_disc_001_build_data(prompt)
+        except Exception as exc:
+            data = self._mep_qa_specialty_disc_001_base_data(prompt)
+            data["classification"] = "MEP_QA_SPECIALTY_DISCOVERY_FAILED"
+            data["primary_reason_code"] = "UNEXPECTED_FAILURE"
+            data["reason_codes"] = ["UNEXPECTED_FAILURE"]
+            self._mep_qa_specialty_disc_001_add_warning(data, safe_str(exc))
+        report_text = self._mep_qa_specialty_disc_001_format_report(data)
+        self.latest_deterministic_report = {
+            "source_prompt": safe_str(prompt),
+            "report_header": "[MEP QA SPECIALTY SEMANTICS DISCOVERY REPORT]",
+            "report_text": report_text,
+            "report_scope": "current active view / bounded supported specialty candidates only",
+            "report_timestamp": data.get("timestamp"),
+            "created_timestamp_local": data.get("timestamp"),
+            "feature_id": "MEP-QA-SPECIALTY-DISC-001",
+            "feature_name": "Active-View Specialty QA Semantics Discovery",
+            "action_id": data.get("action_id"),
+            "result_classification": data.get("classification"),
+            "document_title": data.get("document_title"),
+            "active_view_name": data.get("active_view_name"),
+            "active_view_type": data.get("active_view_type"),
+            "evaluation_source": "SYNTHETIC_ACTIVE_VIEW_ADAPTER",
+            "deterministic": True,
+            "model_modified": False,
+            "transaction_opened": False,
+            "transaction_group_opened": False,
+            "linked_document_modified": False,
+            "ui_selection_modified": False,
+            "active_view_changed": False,
+            "external_files_written": False,
+            "workflow_anchor_eligible": False,
+            "qa_export_source_eligible": False,
+            "evidence_cycle_stage": False,
+            "evidence_runbook_advanced": False,
+            "evidence_cycle_manifest_updated": False,
+        }
+        self.latest_chat_output_is_deterministic_report = True
+        return report_text
+
     def _mep_ro_v1_recommended_action(self, classification):
         if classification == "MEP_RO_REPORT_EMPTY_SELECTION":
             return "Select relevant elements and rerun the read-only report."
@@ -53756,6 +54730,7 @@ class OllamaAIChat(forms.WPFWindow):
                 mep_selection_v1_reply = self.answer_mep_selection_v1_question(
                     prompt
                 )
+            mep_qa_specialty_disc_001_reply = self.answer_mep_qa_specialty_disc_001_question(prompt)
             electrical_disc_001_reply = None
             if mep_qa_issueindex_export_v1_reply is None and mep_qa_issueindex_v1_reply is None and mep_qa_viewexport_v1_reply is None and mep_qa_viewdetail_v1_reply is None and mep_qa_viewscan_v1_reply is None and mep_qa_dashboard_v1_reply is None and mep_qa_bundle_v1_reply is None and mep_ro_export_v1_reply is None and mep_selection_v1_reply is None:
                 electrical_disc_001_reply = self.answer_electrical_disc_001_question(prompt)
@@ -53891,6 +54866,9 @@ class OllamaAIChat(forms.WPFWindow):
                 preserve_latest_report_state = True
             elif mep_selection_v1_reply is not None:
                 reply = mep_selection_v1_reply
+                preserve_latest_report_state = True
+            elif mep_qa_specialty_disc_001_reply is not None:
+                reply = mep_qa_specialty_disc_001_reply
                 preserve_latest_report_state = True
             elif electrical_disc_001_reply is not None:
                 reply = electrical_disc_001_reply

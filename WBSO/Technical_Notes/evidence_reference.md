@@ -2646,3 +2646,44 @@ Remaining non-blocking limitations: Data, Communication, Fire Alarm, and Securit
 - Work summary: reconciled the actual combined pushed commit; completed final electrical device, equipment, mixed-scope, unsupported-category, unassigned-device, Context Suggestions, Visual Preview, static/Git, governance, and workflow-isolation evidence; finalized KC-051 and retained non-blocking untested paths.
 - Evidence: EV-AI-359
 - Status: final project-local WBSO closure update prepared; documentation changes remain uncommitted for review.
+
+## PENDING - MEP-QA-SPECIALTY-DISC-001 In-Progress Implementation and Live Validation
+
+Status: IN PROGRESS. No Evidence ID, Daily Log ID, Knowledge Capture ID, hours, package-closure claim, or package commit has been allocated or recorded.
+
+Source context:
+
+- baseline before implementation: `4f3938153b01caec61c6cd3980f0aebf84b7edcf`;
+- changed runtime files: `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py` and `AI.extension/lib/prompt_catalog.json`;
+- no package commit or push exists;
+- catalog moved from 236 to 237 entries through one `structural_only` entry with one canonical route, three aliases, and four unique routes.
+
+Static evidence completed:
+
+- `git diff --check`, tabnanny, sanitized full-script AST parse, supporting compile checks, and prompt-catalog JSON parse passed;
+- catalog count 237, exactly one new entry, three aliases, and four routes passed;
+- pre-existing catalog entries remained deep-equal to HEAD;
+- closed PIPING/HVAC/ELECTRICAL production handlers, ELECTRICAL-DISC, generic MEP-RO, MEP QA Dashboard, Project Issue Index, Context Suggestions, Visual Preview, and the QA export allowlist remained unchanged;
+- QA export allowlist remained exactly `["MEP_QA_ISSUEINDEX_EXPORT_OK"]`;
+- prohibited mutation/export APIs were absent from the new package call graph.
+
+Live Revit evidence completed:
+
+1. Project1, `Level 1 [FloorPlan]`: PASS. Empty active view returned `MEP_QA_SPECIALTY_DISCOVERY_NOT_READY`, `NO_RELEVANT_ELEMENTS_IN_ACTIVE_VIEW`, and `MORE_RUNTIME_EVIDENCE_REQUIRED`; zero inspected/disagreements; no cap/truncation; governance passed.
+2. Snowdon Towers Sample Plumbing, `3D Plumbing [ThreeD]`: PASS as large mixed Piping/HVAC cap, display-truncation, and performance evidence. Available 3051 Pipe and 181 Duct; inspected 30/30/0; agreement 60; disagreement, generic-only issue, specialty-only issue, and partial/unreadable counts zero; unsupported 2801; processing omitted 5873; display omitted 2751; approximately 1.26 seconds; cap profiles distinct; governance passed.
+3. Snowdon Towers Sample Plumbing, `L3 [FloorPlan]`: PASS as Piping-focused capped case. 141 Pipes available, 30 inspected, agreement 30, no disagreement or partial/unreadable; `PIPING-QA-004` passed; `PIPING-QA-008/009/010` completed without sampled defects; governance passed.
+4. Snowdon Towers Sample Plumbing, `L5 [FloorPlan]`: PASS as additional cropped Piping cap/collector evidence, not as a non-capped case. 66 supported Pipes found, 30 inspected, 36 supported omissions, 52 unsupported relevant candidates, two generic-only unsupported omissions, agreement 30, no disagreement, PARTIAL / `PROCESSING_CAP_REACHED`; governance passed. The collector remained independent of UI selection and manual visual selection counts.
+5. Project2, `{3D} [ThreeD]`: PASS as controlled non-capped case with five manually created rigid Pipes. Result `MEP_QA_SPECIALTY_DISCOVERY_OK` / `COMPLETE_AGREEMENT`, recommendation `PRODUCTION_ADAPTER_CANDIDATE`; five inspected; no omissions, truncation, disagreement, generic-only, specialty-only, or partial/unreadable result. `PIPING-QA-004` passed for all five; `PIPING-QA-008` found ten valid issues on ten open connectors, classified `NOT_ONE_TO_ONE` and therefore not comparable disagreements; approximately 235 ms; governance passed.
+
+Runtime-driven corrections completed and retested: evidence-absence recommendation changed to `MORE_RUNTIME_EVIDENCE_REQUIRED`; processing/display omission counters separated; supported and generic-only cap profiles separated; and timing denominators made phase-specific. These were discovery-package reporting/recommendation corrections only; closed production behavior did not change.
+
+Current conclusion: declared comparable mappings behave deterministically for the observed Piping and mixed Piping/HVAC samples. An OK result means no comparable disagreement, not zero specialty issues. The remaining HVAC/electrical matrix and final static/Git closure audit are required before any closure or production recommendation.
+
+Next experiment: create a controlled rigid duct main with a valid tap/takeoff Curve connector relationship. Verify that `HVAC-QA-009` continues to count physical End connectors and does not report a false connector-count issue because of the valid Curve/tap connector.
+
+### Pending identifiers and time
+
+- Evidence ID: PENDING
+- Daily Log ID: PENDING
+- Knowledge Capture ID: PENDING; no numbered Knowledge Capture file created
+- Hours: PENDING; no numeric value supplied
