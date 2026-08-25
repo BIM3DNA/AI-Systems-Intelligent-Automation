@@ -2649,20 +2649,41 @@ Remaining non-blocking limitations: Data, Communication, Fire Alarm, and Securit
 
 ## PENDING - MEP-QA-SPECIALTY-DISC-001 In-Progress Implementation and Live Validation
 
-Status: IN PROGRESS. No Evidence ID, Daily Log ID, Knowledge Capture ID, hours, package-closure claim, or package commit has been allocated or recorded.
+Status: IN PROGRESS / NOT SOURCE-CONTROL CLOSED. No Evidence ID, Daily Log ID, Knowledge Capture ID, hours, or package-closure claim has been allocated or recorded.
+
+Checkpoint state:
+
+- implementation: COMMITTED AND PUSHED;
+- planned live validation: COMPLETE / PASS;
+- final static and regression audit: PASS;
+- current documentation checkpoint: UNCOMMITTED;
+- package: IN PROGRESS;
+- source-control closure: NOT COMPLETE;
+- next action: review the current project-local WBSO diff and explicitly decide whether to commit/push the final documentation checkpoint.
 
 Source context:
 
 - baseline before implementation: `4f3938153b01caec61c6cd3980f0aebf84b7edcf`;
 - changed runtime files: `AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py` and `AI.extension/lib/prompt_catalog.json`;
-- no package commit or push exists;
+- initial implementation and first project-local WBSO checkpoint are in pushed commit `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7` (`Project WBSO updated...`), whose parent is the verified pre-package baseline above;
+- the completed validation checkpoint in the current worktree is not committed or pushed;
+- runtime/catalog current worktree delta is zero; current dirty paths are documentation checkpoint files only (`PROJECT_STATE.md` and ten project-local WBSO files), with no staged or untracked files;
 - catalog moved from 236 to 237 entries through one `structural_only` entry with one canonical route, three aliases, and four unique routes.
+
+Verified current hashes and committed implementation delta:
+
+- `script.py` SHA-256: `EAF2F9E66B5B512522661DF72F5FDE4098DC00EB9A8F31749AFA52730BF1439B`;
+- `prompt_catalog.json` working-tree SHA-256: `2AE13DD419FDDC0714560F8121CA529CBABBCC4C7C5276376820447820A058FA`;
+- `prompt_catalog.json` Git/LF SHA-256: `55A58E3B6E1A67D833B91B5DFC5BAC883955B0352BB8BFA862AC3C32917FDB94`;
+- prompt-catalog Git object: `aa0bf1fc19ba2c5ceb7afe24c3a0749f80288b57`;
+- committed runtime/catalog delta from `4f393815...` to `77968c314...`: two files and 1,014 insertions;
+- historical `5CA5F995492B20B9FD443BD4E34BB2E0108F2181FA3A292192F15EF6E9C26829` remains a non-reproducible documentation discrepancy and is not an authoritative closure hash.
 
 Static evidence completed:
 
 - `git diff --check`, tabnanny, sanitized full-script AST parse, supporting compile checks, and prompt-catalog JSON parse passed;
 - catalog count 237, exactly one new entry, three aliases, and four routes passed;
-- pre-existing catalog entries remained deep-equal to HEAD;
+- pre-existing catalog entries remained deep-equal to pre-package baseline `4f3938153b01caec61c6cd3980f0aebf84b7edcf`;
 - closed PIPING/HVAC/ELECTRICAL production handlers, ELECTRICAL-DISC, generic MEP-RO, MEP QA Dashboard, Project Issue Index, Context Suggestions, Visual Preview, and the QA export allowlist remained unchanged;
 - QA export allowlist remained exactly `["MEP_QA_ISSUEINDEX_EXPORT_OK"]`;
 - prohibited mutation/export APIs were absent from the new package call graph.
@@ -2677,9 +2698,22 @@ Live Revit evidence completed:
 
 Runtime-driven corrections completed and retested: evidence-absence recommendation changed to `MORE_RUNTIME_EVIDENCE_REQUIRED`; processing/display omission counters separated; supported and generic-only cap profiles separated; and timing denominators made phase-specific. These were discovery-package reporting/recommendation corrections only; closed production behavior did not change.
 
-Current conclusion: declared comparable mappings behave deterministically for the observed Piping and mixed Piping/HVAC samples. An OK result means no comparable disagreement, not zero specialty issues. The remaining HVAC/electrical matrix and final static/Git closure audit are required before any closure or production recommendation.
+Additional completed live evidence:
 
-Next experiment: create a controlled rigid duct main with a valid tap/takeoff Curve connector relationship. Verify that `HVAC-QA-009` continues to count physical End connectors and does not report a false connector-count issue because of the valid Curve/tap connector.
+6. Project2 `{3D}`, capped HVAC: 32 rigid Ducts available, 30 processed; PARTIAL only for `PROCESSING_CAP_REACHED`; agreement 30, disagreement zero; `HVAC-QA-008` issues four; `HVAC-QA-009` passed 30/30 and QA-010 passed; approximately 1.24 seconds; governance passed.
+7. Project2 `{3D}`, controlled non-capped HVAC: 15 rigid Ducts processed and 13 unsupported Duct Fittings retained; OK / `COMPLETE_AGREEMENT` / `PRODUCTION_ADAPTER_CANDIDATE`; agreement 15, disagreement zero, no omissions; QA-008, QA-009 15/15, and QA-010 passed; approximately 496 ms. This confirms the planned End/Curve regression path.
+8. Snowdon Towers Sample Electrical `3D Conduit`, assigned devices: 21 `DEVICE_PROFILE` elements processed without caps; OK / complete agreement / adapter candidate; 21 conditional `AGREE_PASS` rows; generic missing circuit/system and `ELECTRICAL-QA-003/004/005` passed; no disagreement/partial; element 1589469 included; approximately 903 ms.
+9. Single assigned-device regression, element 1589469: `DEVICE_PROFILE`; generic circuit/system evidence passed; `ELECTRICAL-QA-003/004/005` passed; comparison `AGREE_PASS`; no cap. This is supporting regression evidence, not the unassigned case.
+10. Unassigned fixture 1763664: one device; generic missing circuit/system and `ELECTRICAL-QA-003` both issue, QA-004/005 not applicable; `AGREE_ISSUE`; OK / complete agreement; generic and specialty issue counts one; no disagreement/partial/cap; approximately 190 ms.
+11. Zero-system equipment 1538999: generic device-style issue remained `NOT_ONE_TO_ONE` / `NOT_COMPARABLE`; device checks 003/004/005 not comparable; QA-006 and QA-011 passed; no specialty issue/disagreement; OK with `RETAIN_SEPARATE_SEMANTICS`; approximately 215 ms.
+12. Multi-system P108 1482544: `EQUIPMENT_PROFILE` with eight electrical systems; generic device-style mapping intentionally not comparable; QA-006 passed, QA-007 8/8, QA-008 8/8, QA-009 16/16, QA-010 8/8, and QA-011 passed; no disagreement/cap; OK with separate-semantics recommendation; approximately 280 ms.
+13. Project2 `{3D}`, mixed three-specialty scope: one Pipe, one Duct, one device, one equipment element, and one unsupported Data Device; four supported processed; generic issues three, specialty issues five, agreement three, disagreement/partial zero; Pipe/Duct `AGREE_PASS`, device `AGREE_ISSUE`, equipment `NOT_ONE_TO_ONE` / `NOT_COMPARABLE`, unsupported item retained as `UNSUPPORTED_DATA_DEVICE`; PIPING-QA-008 issues two, HVAC-QA-008 issues two, HVAC-QA-009 passed, and ELECTRICAL-QA-003 issue one; no caps; approximately 465 ms; OK.
+14. Project2 `{3D}`, unsupported-only Data Device 357412: zero supported, unsupported one; NOT_READY / `UNSUPPORTED_ONLY_ACTIVE_VIEW`; generic issue retained outside specialty scope; all electrical specialty checks not applicable; partial/unreadable zero; no cap/mutation/workflow advancement; approximately 69 ms.
+15. Explicit selection-independence matrix over Pipe 353871, Duct 353895, equipment 354806, device 356066, and unsupported Data Device 357412: no selection, Pipe-only, Electrical-Fixture-only, and arbitrary multi-selection runs produced identical result/reason/recommendation, population, element/profile/read/comparison states, unsupported classification, specialty QA evidence, and counters. All four were OK / complete agreement / adapter candidate with four supported (Pipe one, HVAC one, Electrical two), one unsupported, generic issues three, specialty issues five, agreement three, disagreement zero, specialty-only zero, generic-only zero, partial/unreadable zero, processing omissions zero, display omissions zero, and not-comparable 12. Only timing noise varied. UI-selection, picker, model, view, file, transaction, auto-run, workflow, evidence, and export advancement flags remained false.
+
+Final static/Git audit on 2026-08-25 passed tabnanny, supporting `py_compile`, sanitized full-script AST, catalog parse/count 237, exact one-entry/three-alias/four-route ownership, deep equality of the baseline 236 entries, protected-handler AST comparison, dashboard/index/context/preview and workflow/export regression checks, cap/classification/timing/order inspection, call-graph governance, and `git diff --check`. No actual defect was found and runtime/catalog files were not modified during this final audit.
+
+Current conclusion: the planned discovery matrix is complete and supports deterministic active-view evaluation for the declared scope. Conditional mappings may be production-adapter candidates where semantics agree; electrical equipment retains separate semantics where generic device logic is `NOT_ONE_TO_ONE`. `COVERAGE_ONLY` and `NOT_ONE_TO_ONE` rows do not create disagreements, and unmapped specialty QA remains evidence rather than an automatic disagreement. OK continues to mean no comparable disagreement, not zero specialty issues. The active-view population and semantic output are independent of current UI selection. The package remains open only for review and an explicit source-control decision; this record does not claim production conversion or source-control closure.
 
 ### Pending identifiers and time
 

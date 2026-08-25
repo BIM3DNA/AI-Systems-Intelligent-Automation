@@ -1060,7 +1060,7 @@ Final in-scope passes add P108 panelboard A03/A04, supplemental P105 A03, mixed 
 
 ## 2026-08-17 - MEP-QA-SPECIALTY-DISC-001 Current Scope
 
-Status: IN PROGRESS. Implementation and static validation are complete for the current design. Five live Revit cases have passed, but the package is not fully validated, production-ready, committed, pushed, runtime closed, or source-control closed.
+Status: IN PROGRESS / NOT SOURCE-CONTROL CLOSED. Implementation, the planned runtime-validation matrix, and final static/regression audit are complete. Initial implementation/checkpoint commit `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7` is already pushed; the final validation checkpoint remains uncommitted and unpushed pending explicit review.
 
 Current in-scope implementation:
 
@@ -1077,8 +1077,15 @@ Passed live scope:
 - large mixed Piping/HVAC active view with processing/display caps and approximately 1.26-second runtime;
 - capped Piping L3 and cropped Piping L5 active views;
 - controlled five-Pipe non-capped OK case demonstrating that valid `PIPING-QA-008` open-connector issues can remain `NOT_ONE_TO_ONE` without false disagreement;
-- read-only governance/workflow isolation in all five observed cases.
+- capped 32-Duct HVAC case and controlled non-capped 15-Duct/13-unsupported-fitting case, including `HVAC-QA-009` End/Curve regression safety;
+- 21 assigned electrical devices plus a single assigned-device regression;
+- one unassigned device with generic issue and `ELECTRICAL-QA-003` agreement;
+- zero-system and multi-system electrical equipment retaining intentional `NOT_ONE_TO_ONE` semantics;
+- mixed Pipe, Duct, electrical device, electrical equipment, and unsupported Data Device scope;
+- unsupported-only Data Device NOT_READY behavior;
+- four identical active-view results under no selection, Pipe selection, Electrical Fixture selection, and arbitrary multi-selection;
+- read-only governance/workflow isolation throughout the planned matrix.
 
-Pending: controlled HVAC End/Curve tap topology; HVAC-specific non-capped validation; assigned and unassigned electrical devices; zero-system equipment; multi-system panelboard; mixed-specialty coverage including electrical; unsupported-only electrical/view conditions; a selection-independence matrix across different UI selections; any additional workflow-isolation checks required; and the final static/Git closure audit.
+No planned runtime-matrix item remains pending. Final source-control closure remains pending explicit review, identifier/hour allocation if supplied, and explicit commit/push authorization. Untested theoretical failure/API paths outside the planned matrix are limitations rather than observed defects.
 
 Explicitly out of scope: any additional electrical category, current-selection behavior, selection/view/model/link mutation, file export, workflow or Evidence Runbook/Cycle advancement, QA Export Anchor allowlist changes, replacement of the MEP QA Dashboard, Project Issue Index behavior changes, and production changes to the closed specialty packs.

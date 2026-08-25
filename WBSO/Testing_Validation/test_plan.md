@@ -2073,12 +2073,12 @@ Final executed coverage:
 
 ## 2026-08-17 - MEP-QA-SPECIALTY-DISC-001 In-Progress Validation Plan
 
-Status: IN PROGRESS. Evidence, Daily Log, Knowledge Capture, and hours: PENDING. No closure claim.
+Status: IN PROGRESS / NOT SOURCE-CONTROL CLOSED. Evidence, Daily Log, Knowledge Capture, and hours: PENDING. Planned matrix and final audit complete; no closure claim.
 
 Completed static validation:
 
 1. `git diff --check`, tabnanny, supporting compilation, sanitized full-script AST, and catalog JSON parse.
-2. Catalog count 237 with exactly one new entry, three aliases, and four unique routes; prior entries deep-equal to HEAD.
+2. Catalog count 237 with exactly one new entry, three aliases, and four unique routes; prior entries deep-equal to pre-package baseline `4f3938153b01caec61c6cd3980f0aebf84b7edcf`.
 3. Closed PIPING/HVAC/ELECTRICAL handlers, ELECTRICAL-DISC, generic MEP-RO, MEP QA Dashboard, Project Issue Index, Context Suggestions, and Visual Preview unchanged.
 4. QA export allowlist exactly `["MEP_QA_ISSUEINDEX_EXPORT_OK"]` and workflow/anchor/export isolation retained.
 5. No prohibited mutation/export API in the discovery call graph.
@@ -2091,25 +2091,17 @@ Completed live matrix:
 4. Snowdon L5: PASS for additional capped active-view collection independent of UI selection/manual visual counts; not a non-capped test.
 5. Project2 `{3D}` with five rigid Pipes: PASS for non-capped OK / complete agreement while ten valid `PIPING-QA-008` open-connector issues remained `NOT_ONE_TO_ONE` and did not become disagreements.
 
-Next controlled experiment:
+Completed final matrix:
 
-1. Create or identify a rigid Duct main with a valid tap/takeoff Curve connector relationship.
-2. Run the discovery in the active view without relying on current selection.
-3. Confirm the Duct record preserves physical End and Curve topology.
-4. Confirm `HVAC-QA-009` evaluates readable physical End connector count only and does not create a false issue because of the Curve/tap connector.
-5. Confirm `HVAC-QA-008`, comparison classification, caps, timing, recommendation, and read-only/workflow isolation remain coherent.
+1. Capped HVAC: 32 available / 30 processed, PARTIAL only for cap, agreement 30, QA-009 passed 30/30.
+2. Non-capped HVAC: 15/15 Ducts plus 13 unsupported fittings, OK / complete agreement, QA-008/009/010 passed, End/Curve regression safe.
+3. Assigned electrical device population: 21/21, no caps, 21 conditional agreements, QA-003/004/005 passed; isolated element 1589469 regression also passed.
+4. Unassigned fixture 1763664: generic and specialty issue agreed; QA-004/005 not applicable; no disagreement.
+5. Zero-system equipment 1538999: device-style generic mapping not comparable; QA-006/011 passed; separate-semantics recommendation.
+6. Multi-system P108 1482544: QA-006 through QA-011 representative counts passed; device-style mapping not comparable; no disagreement.
+7. Mixed Pipe/Duct/device/equipment/unsupported Data Device: four supported plus one unsupported; three agreements, no disagreement/partial/cap.
+8. Unsupported-only Data Device 357412: NOT_READY / unsupported-only, specialty checks not applicable, no mutation/workflow advancement.
+9. Four-run selection-independence matrix: no selection, Pipe-only, Electrical-Fixture-only, and arbitrary multi-selection produced identical semantic populations, rows, counters, outcomes, and governance; timing varied only as runtime noise.
+10. Final static/Git audit: tabnanny, supporting `py_compile`, sanitized AST, catalog 237 and baseline-236 equality, exact route ownership, protected handlers, dashboard/index/context/preview, QA export/workflow, call-graph governance, caps, precedence, timing, deterministic ordering, hashes, status/staging, and diff checks passed.
 
-Remaining validation:
-
-1. HVAC-specific non-capped case.
-2. Assigned electrical device.
-3. Unassigned electrical device.
-4. Zero-system Electrical Equipment.
-5. Multi-system panelboard.
-6. Mixed specialty including electrical.
-7. Unsupported-only electrical/view conditions.
-8. Selection-independence matrix with different UI selections.
-9. Additional workflow-isolation checks if required.
-10. Final static/Git closure audit.
-
-Do not allocate evidence/log/knowledge IDs or hours, close the package, or commit/push until the missing validation and explicit authorization are supplied.
+No planned runtime test remains. Next action is review and an explicit commit/push decision. Do not allocate identifiers/hours or claim source-control closure without supplied values and authorization.

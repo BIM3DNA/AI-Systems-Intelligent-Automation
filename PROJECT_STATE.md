@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last updated: 2026-08-13
+Last updated: 2026-08-25
 
 Repository:
 C:\00_WORKS\DEVELOPMENT\AI
@@ -41,6 +41,45 @@ The authoritative project state is:
 5. verified runtime test evidence
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
+
+## MEP-QA-SPECIALTY-DISC-001
+
+Feature:
+Active-View Specialty QA Semantics Discovery
+
+Status:
+
+IN PROGRESS / NOT SOURCE-CONTROL CLOSED
+
+Pre-package baseline:
+
+4f3938153b01caec61c6cd3980f0aebf84b7edcf
+
+Initial implementation and first project-local WBSO checkpoint:
+
+77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7
+
+That commit is already pushed and aligned at `main` / `origin/main`. It is not a
+package-closure commit.
+
+The planned live validation matrix is complete for rigid Pipe, rigid
+non-placeholder Duct, supported electrical device/equipment profiles, mixed
+three-specialty scope, unsupported-only scope, caps, End/Curve topology, and
+UI-selection independence. Final static/regression audit passed on 2026-08-25
+with no new runtime defect.
+
+At this final-audit documentation checkpoint:
+
+- HEAD / origin/main: `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7`
+- ahead / behind: 0 / 0
+- runtime and prompt catalog: unchanged from HEAD
+- dirty paths: `PROJECT_STATE.md` and ten project-local WBSO files only
+- staged paths: none
+- untracked paths: none
+- final checkpoint commit/push: not performed
+
+Next action: review this audit and make an explicit commit decision. Do not mark
+the package source-control closed or push without explicit authorization.
 
 ## PIPING-RO-001
 
@@ -535,6 +574,11 @@ Do not stage or commit central WBSO files into this repository.
 
 # 15. NEXT DEVELOPMENT STATE
 
+MEP-QA-SPECIALTY-DISC-001 is the current open bounded package. Its planned
+runtime matrix and final static/Git audit are complete, but its final checkpoint
+is not committed and the package remains NOT SOURCE-CONTROL CLOSED pending
+explicit review and commit/push authorization.
+
 There is currently no open ELECTRICAL-RO-001 closure task.
 
 PIPING-RO-001:
@@ -549,8 +593,8 @@ CLOSED
 ELECTRICAL-RO-001:
 CLOSED
 
-New development must begin as a new bounded feature/package from the current
-clean main branch after verifying live Git state.
+Do not begin another development package until the current discovery checkpoint
+has been reviewed and an explicit source-control decision has been made.
 
 The last verified runtime/package closure baseline is:
 

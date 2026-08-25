@@ -1866,6 +1866,6 @@ Resolved observations:
 
 These were bounded discovery reporting/recommendation corrections. Counts, caps, classification precedence, reason codes, semantic mappings, specialty QA, generic predicates, comparison agreement/disagreement, routes, governance, closed handlers, dashboard/index behavior, Context Suggestions, Visual Preview, workflow isolation, and QA export allowlist were not changed.
 
-Open validation limitations, not observed defects: controlled HVAC End/Curve tap topology; HVAC non-capped case; assigned/unassigned electrical device; zero-system equipment; multi-system panelboard; mixed specialty including electrical; unsupported-only electrical/view; selection-independence matrix; any further workflow-isolation checks required; unreadable/failure paths; and final static/Git closure audit.
+Final validation update, 2026-08-25: the planned HVAC End/Curve, HVAC non-capped, assigned/unassigned device, zero-/multi-system equipment, mixed electrical specialty, unsupported-only, selection-independence, workflow-isolation, and final static/Git audit items passed. A valid Duct Curve/tap relationship did not contaminate `HVAC-QA-009`, whose invariant remains readable physical End connector count. No new runtime defect was found.
 
-Risk focus for the next experiment: a valid Duct Curve/tap connector must remain part of HVAC connectivity evidence without contaminating `HVAC-QA-009`, whose topology invariant is the count of readable physical End connectors.
+Remaining limitations are unplanned theoretical/genuine API failure paths not reproduced in this matrix and final source-control review. They are not observed defects and do not justify runtime changes. Package status remains IN PROGRESS / NOT SOURCE-CONTROL CLOSED.

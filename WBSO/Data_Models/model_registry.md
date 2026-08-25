@@ -653,7 +653,9 @@ The final static/Git audit passed with catalog count 236, 16 unique production r
 
 ## MEP-QA-SPECIALTY-DISC-001 - Active-View Specialty QA Semantics Discovery
 
-Status: IN PROGRESS. Implementation and static validation are complete for the current discovery design, and five live Revit cases have passed. The package is not fully validated, production-ready, runtime closed, source-control closed, committed, or pushed. Evidence identifier, Daily Log, Knowledge Capture, and hours are pending allocation.
+Status: IN PROGRESS / NOT SOURCE-CONTROL CLOSED. The planned live Revit validation matrix and final static/regression audit are complete with no new defect found. Initial implementation and the first WBSO checkpoint are already present in pushed commit `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7`; this final validation checkpoint is uncommitted and unpushed pending explicit review. Evidence identifier, Daily Log, Knowledge Capture, and hours remain pending allocation.
+
+Checkpoint state: implementation COMMITTED AND PUSHED; planned live validation COMPLETE / PASS; final static and regression audit PASS; current documentation checkpoint UNCOMMITTED; package IN PROGRESS; source-control closure NOT COMPLETE. Next action is to review the current project-local WBSO diff and explicitly decide whether to commit/push the final documentation checkpoint.
 
 The package adds one deterministic active-view-only discovery report over a `SYNTHETIC_ACTIVE_VIEW_ADAPTER`. It compares existing generic active-view QA interpretation with the closed PIPING-RO-001, HVAC-RO-001, and ELECTRICAL-RO-001 semantics without calling current-selection handlers or changing their behavior. Supported scope is rigid Pipe, rigid non-placeholder Duct, and only `OST_LightingFixtures`, `OST_ElectricalFixtures`, and `OST_ElectricalEquipment`.
 
@@ -662,3 +664,5 @@ Comparison relations are `ONE_TO_ONE`, `CONDITIONAL`, `COVERAGE_ONLY`, and `NOT_
 The canonical route is `inspect active view specialty qa semantics`; aliases are `compare active view generic and specialty qa`, `discover active view specialty qa differences`, and `show active view specialty qa discovery report`. Catalog state moved from 236 to 237 entries with exactly one structural-only entry, three aliases, and four unique routes.
 
 The discovery remains read-only, manual, non-auto-run, workflow-anchor ineligible, strict-QA-source ineligible, and Evidence Runbook/Cycle ineligible. It has no selection dependency, picker, document-wide fallback, transaction, model/UI/view/link mutation, external write, or workflow advancement. Closed specialty handlers, generic MEP-RO, MEP QA Dashboard, Project Issue Index, Context Suggestions, Visual Preview, and the QA export allowlist remain unchanged.
+
+Completed live coverage now includes empty and unsupported-only views; capped and non-capped Piping and HVAC; HVAC End/Curve connector regression safety; assigned and unassigned electrical devices; zero-system and multi-system electrical equipment; a mixed Pipe/Duct/device/equipment/unsupported view; and a four-run UI-selection-independence matrix. All declared comparable rows agreed in the completed matrix; intentionally non-one-to-one specialty evidence remained visible without false disagreement.
