@@ -653,9 +653,9 @@ The final static/Git audit passed with catalog count 236, 16 unique production r
 
 ## MEP-QA-SPECIALTY-DISC-001 - Active-View Specialty QA Semantics Discovery
 
-Status: IN PROGRESS / NOT SOURCE-CONTROL CLOSED. The planned live Revit validation matrix and final static/regression audit are complete with no new defect found. Initial implementation and the first WBSO checkpoint are already present in pushed commit `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7`; this final validation checkpoint is uncommitted and unpushed pending explicit review. Evidence identifier, Daily Log, Knowledge Capture, and hours remain pending allocation.
+Status: CLOSED / SOURCE-CONTROL CLOSURE COMPLETE. The planned 15-case live Revit validation matrix and final static/regression audit passed with no runtime defect found. Implementation and the initial WBSO checkpoint are committed and pushed in `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7`; the final project-local documentation checkpoint is committed and pushed in `3357842f4807655029c2ec50791daf1430db2a70`. Evidence identifier, Daily Log, Knowledge Capture, and hours remain unallocated.
 
-Checkpoint state: implementation COMMITTED AND PUSHED; planned live validation COMPLETE / PASS; final static and regression audit PASS; current documentation checkpoint UNCOMMITTED; package IN PROGRESS; source-control closure NOT COMPLETE. Next action is to review the current project-local WBSO diff and explicitly decide whether to commit/push the final documentation checkpoint.
+Checkpoint state: implementation COMMITTED AND PUSHED; planned live validation COMPLETE / PASS; final static and regression audit PASS; runtime defects NONE FOUND; final documentation checkpoint COMMITTED AND PUSHED; package CLOSED; source-control closure COMPLETE. Next package: `MEP-QA-SPECIALTY-ADAPTER-001`. Begin Phase 1 only after this closure reconciliation is reviewed.
 
 The package adds one deterministic active-view-only discovery report over a `SYNTHETIC_ACTIVE_VIEW_ADAPTER`. It compares existing generic active-view QA interpretation with the closed PIPING-RO-001, HVAC-RO-001, and ELECTRICAL-RO-001 semantics without calling current-selection handlers or changing their behavior. Supported scope is rigid Pipe, rigid non-placeholder Duct, and only `OST_LightingFixtures`, `OST_ElectricalFixtures`, and `OST_ElectricalEquipment`.
 

@@ -1701,7 +1701,7 @@ The specialty-cap formula passed at 6/10/14/18 for normal, one-, two-, and three
 
 ## 2026-08-17 - MEP-QA-SPECIALTY-DISC-001 Active-View Discovery Architecture
 
-Status: IN PROGRESS; no package or source-control closure.
+Status: CLOSED / SOURCE-CONTROL CLOSURE COMPLETE. Implementation checkpoint `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7` and final documentation checkpoint `3357842f4807655029c2ec50791daf1430db2a70` are committed and pushed. The planned 15-case live validation and final static/regression audit passed, with no runtime defect found.
 
 The discovery uses an active-view collector and a `SYNTHETIC_ACTIVE_VIEW_ADAPTER` to reuse element-level normalization and QA semantics safely without invoking current-selection entry points. It has no current-selection dependency, document-wide fallback, selection picker, selection mutation, active-view change, transaction, model/link mutation, file write, automatic execution, or workflow advancement. The existing PIPING-RO-001, HVAC-RO-001, ELECTRICAL-DISC-001, ELECTRICAL-RO-001, generic MEP-RO, MEP QA Dashboard, Project Issue Index, Context Suggestions, Visual Preview, Workflow Anchor, Evidence Runbook/Cycle, and QA export behavior remain unchanged.
 

@@ -1060,7 +1060,7 @@ Final in-scope passes add P108 panelboard A03/A04, supplemental P105 A03, mixed 
 
 ## 2026-08-17 - MEP-QA-SPECIALTY-DISC-001 Current Scope
 
-Status: IN PROGRESS / NOT SOURCE-CONTROL CLOSED. Implementation, the planned runtime-validation matrix, and final static/regression audit are complete. Initial implementation/checkpoint commit `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7` is already pushed; the final validation checkpoint remains uncommitted and unpushed pending explicit review.
+Status: CLOSED / SOURCE-CONTROL CLOSURE COMPLETE. Implementation checkpoint `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7` and final documentation checkpoint `3357842f4807655029c2ec50791daf1430db2a70` are committed and pushed. The planned 15-case runtime-validation matrix and final static/regression audit passed, with no runtime defect found.
 
 Current in-scope implementation:
 
@@ -1086,6 +1086,6 @@ Passed live scope:
 - four identical active-view results under no selection, Pipe selection, Electrical Fixture selection, and arbitrary multi-selection;
 - read-only governance/workflow isolation throughout the planned matrix.
 
-No planned runtime-matrix item remains pending. Final source-control closure remains pending explicit review, identifier/hour allocation if supplied, and explicit commit/push authorization. Untested theoretical failure/API paths outside the planned matrix are limitations rather than observed defects.
+No planned runtime-matrix item remains pending, and source-control closure is complete. Evidence, Daily Log, Knowledge Capture, and hours remain unallocated; their absence does not reopen the package. Untested theoretical failure/API paths outside the planned matrix are limitations rather than observed defects. The next package is `MEP-QA-SPECIALTY-ADAPTER-001`; begin Phase 1 only after this closure reconciliation is reviewed.
 
 Explicitly out of scope: any additional electrical category, current-selection behavior, selection/view/model/link mutation, file export, workflow or Evidence Runbook/Cycle advancement, QA Export Anchor allowlist changes, replacement of the MEP QA Dashboard, Project Issue Index behavior changes, and production changes to the closed specialty packs.

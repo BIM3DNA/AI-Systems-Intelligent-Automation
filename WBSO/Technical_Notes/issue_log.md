@@ -1853,9 +1853,9 @@ Status: RESOLVED FOR PACKAGE CLOSURE; REMAINING ITEMS ARE NON-BLOCKING LIMITATIO
 
 Panelboard A03/A04, mixed supported/device/equipment selections, supported-plus-Conduit PARTIAL handling, the unassigned-device path, unsupported Lighting Device and Conduit Fitting, and all one-/two-/three-specialty Context Suggestions and Visual Preview capacities passed. The unassigned device generated only `ELECTRICAL-QA-003` and no cascading false positives. `DEVICE_MULTI_SYSTEM_REVIEW` was attempted but not practically reproduced; it remains unvalidated rather than defective. Genuine unreadable/cap paths and the listed untested categories/API semantics remain limitations. Final static/Git and governance audits passed with no mutation or workflow regression. Evidence: EV-AI-359.
 
-## 2026-08-17 - MEP-QA-SPECIALTY-DISC-001 Runtime Reporting Corrections and Open Matrix
+## 2026-08-17 - MEP-QA-SPECIALTY-DISC-001 Runtime Reporting Corrections and Completed Matrix
 
-Status: TARGETED OBSERVED DEFECTS RESOLVED AND RETESTED; PACKAGE VALIDATION REMAINS IN PROGRESS. Evidence identifier: PENDING.
+Status: TARGETED OBSERVED DEFECTS RESOLVED AND RETESTED; PLANNED VALIDATION COMPLETE / PASS; PACKAGE CLOSED. Evidence identifier: PENDING.
 
 Resolved observations:
 
@@ -1868,4 +1868,4 @@ These were bounded discovery reporting/recommendation corrections. Counts, caps,
 
 Final validation update, 2026-08-25: the planned HVAC End/Curve, HVAC non-capped, assigned/unassigned device, zero-/multi-system equipment, mixed electrical specialty, unsupported-only, selection-independence, workflow-isolation, and final static/Git audit items passed. A valid Duct Curve/tap relationship did not contaminate `HVAC-QA-009`, whose invariant remains readable physical End connector count. No new runtime defect was found.
 
-Remaining limitations are unplanned theoretical/genuine API failure paths not reproduced in this matrix and final source-control review. They are not observed defects and do not justify runtime changes. Package status remains IN PROGRESS / NOT SOURCE-CONTROL CLOSED.
+Remaining limitations are unplanned theoretical/genuine API failure paths not reproduced in this matrix. They are not observed defects and do not justify runtime changes. No runtime defect was found. Implementation checkpoint `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7` and final documentation checkpoint `3357842f4807655029c2ec50791daf1430db2a70` are committed and pushed; source-control closure is complete.
