@@ -1228,3 +1228,28 @@ Additional evidence passed capped HVAC (32/30) and non-capped HVAC (15/15 plus 1
 Four runs over the same mixed Project2 active-view population—with no UI selection, Pipe-only, Electrical-Fixture-only, and arbitrary multi-selection—were semantically identical down to element/profile/read/comparison states, unsupported classification, QA evidence, and all counters. Governance remained false/clean; only timing noise varied.
 
 Final audit reconfirmed catalog count 237, the unchanged baseline 236 entries, exact four-route ownership, `structural_only`/manual/non-auto-run metadata, no Context Suggestions exposure, unchanged QA export allowlist, protected-handler AST identity, unchanged dashboard/index/context/preview/workflow production behavior, no prohibited package call, deterministic caps/precedence/order, and the 5000 ms performance-review threshold. The final documentation checkpoint was subsequently committed and pushed in `3357842f4807655029c2ec50791daf1430db2a70`, completing package source-control closure.
+
+## 2026-09-01 - MEP-QA-SPECIALTY-ADAPTER-001 Live Validation Summary
+
+Phase 1 remains the existing uncommitted `script.py` change above synchronized
+baseline `5169976dc07e165b6d4fd7c2c49d2da3c0ead8f5`. The package is ACTIVE / LIVE
+VALIDATION IN PROGRESS and is not source-control closed. Evidence: `EV-AI-371`;
+Daily Log: `DL-2026-09-01-01`; KC: `KC-053`; hours pending.
+
+PASS coverage includes assigned rigid Pipe/Duct; assigned/unassigned Electrical
+`DEVICE_PROFILE`; a normal Disconnect Panel fixture that retained
+`DEVICE_ASSIGNED` and produced one QA-004 issue; zero-/multi-system Equipment
+legacy paths; unsupported Data Device legacy behavior; and Pipe Fitting legacy
+behavior. Snowdon reviews found 161/161 Pipes and 97/97 Ducts ASSIGNED.
+
+Missing-system Pipe/Duct and isolated panel-assigned/missing-circuit-number
+QA-005 fixtures were classified C / non-reproducible, not failed. Static
+projection coverage remains. LIVE-07 also confirmed pre-existing Circuit Number
+normalization: the report displayed an unnamed value while QA-005 remained PASS.
+No runtime defect was identified.
+
+The broad Snowdon HVAC regression evaluated 997 Duct Fittings with zero issues,
+but was not the intended isolated fixture because 1,053 Ducts plus 997 fittings
+remained active. The controlled one-Duct-Fitting case and additional matrix cases
+remain pending. ModelMind remained read-only and workflow-isolated; tester-
+performed Disconnect Panel/Temporary Isolate actions were fixture preparation.

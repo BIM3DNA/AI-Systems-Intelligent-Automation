@@ -1869,3 +1869,30 @@ These were bounded discovery reporting/recommendation corrections. Counts, caps,
 Final validation update, 2026-08-25: the planned HVAC End/Curve, HVAC non-capped, assigned/unassigned device, zero-/multi-system equipment, mixed electrical specialty, unsupported-only, selection-independence, workflow-isolation, and final static/Git audit items passed. A valid Duct Curve/tap relationship did not contaminate `HVAC-QA-009`, whose invariant remains readable physical End connector count. No new runtime defect was found.
 
 Remaining limitations are unplanned theoretical/genuine API failure paths not reproduced in this matrix. They are not observed defects and do not justify runtime changes. No runtime defect was found. Implementation checkpoint `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7` and final documentation checkpoint `3357842f4807655029c2ec50791daf1430db2a70` are committed and pushed; source-control closure is complete.
+
+## 2026-09-01 - MEP-QA-SPECIALTY-ADAPTER-001 Validation Findings
+
+Status: ACTIVE / LIVE VALIDATION IN PROGRESS; no runtime defect identified.
+
+Non-defect fixture limitations:
+
+- supported rigid Pipe without retained system-type identity was not
+  reproducible through normal Revit workflows;
+- the equivalent supported rigid Duct state was not reproducible;
+- a panel-assigned `DEVICE_PROFILE` with only Circuit Number missing was not
+  reproducible through normal supported UI;
+- these cases retain static state-projection coverage and are not failed tests.
+
+Pre-existing normalization observations, not introduced by the adapter:
+
+- invalid/nonpositive ElementIds may be converted to text by existing Pipe/HVAC
+  identity helpers;
+- optional blank/unavailable Circuit Number values can normalize to display
+  placeholders, so QA-005 remained PASS after Disconnect Panel;
+- neither edge was changed in this package.
+
+Open validation item: the controlled one-Duct-Fitting legacy fixture remains
+pending. The broad Snowdon HVAC run evaluated 997 fittings with zero issues and
+no warnings, but did not reduce the active view to one fitting. Manual Disconnect
+Panel and Temporary Isolate were tester fixture preparation, not ModelMind
+mutation. Evidence: `EV-AI-371`; KC: `KC-053`.

@@ -1718,3 +1718,32 @@ An empty/unsupported/not-applicable active view supplies no negative production 
 The completed matrix confirmed the synthetic adapter across capped and non-capped Pipe/Duct populations, assigned and unassigned `DEVICE_PROFILE` elements, zero-system and multi-system `EQUIPMENT_PROFILE` elements, mixed three-specialty scope, unsupported-only electrical scope, and four different UI-selection states over an identical active-view population. Element IDs, profiles, generic/specialty states, comparison outcomes, unsupported classification, specialty QA evidence, counters, and recommendations were invariant across the selection-independence runs; only timing noise varied.
 
 The HVAC controlled case confirmed that valid Curve/tap relationships remain connectivity evidence while `HVAC-QA-009` continues to evaluate physical End connector count. Equipment generic device-style semantics correctly remained `NOT_ONE_TO_ONE` / `NOT_COMPARABLE`, supporting `RETAIN_SEPARATE_SEMANTICS`. The final static audit found no change to closed specialty/generic handlers, dashboard/index/context/preview behavior, QA export allowlist, or workflow production behavior, and no prohibited write call in the package call graph.
+
+## 2026-09-01 - MEP-QA-SPECIALTY-ADAPTER-001 Live Validation Architecture Checkpoint
+
+Phase 1 is a thin internal adapter at the active-view Dashboard issue-collector
+seam. It projects closed assignment semantics for rigid Pipe, rigid non-
+placeholder Duct, and supported Electrical `DEVICE_PROFILE` Lighting/Electrical
+Fixtures into the unchanged public five-value Dashboard contract. Equipment,
+unsupported electrical categories, fittings, structured exports/bundles, and
+arbitrary-view Issue Index collection retain legacy behavior. No public route,
+catalog entry, connector-QA promotion, export eligibility, workflow advancement,
+or specialty-only rule was added.
+
+Live evidence confirmed assigned Pipe/Duct and assigned/unassigned device
+projection. A normal Disconnect Panel fixture proved that `DEVICE_ASSIGNED`
+depends on coherent single-system load membership rather than panel presence:
+the device remained `LOAD` / `UPSTREAM_OR_LOAD_CIRCUIT` / `CONSISTENT`, panel
+identity became unavailable, QA-004 fired, and the Dashboard produced one issue.
+
+Normal Pipe/Duct workflows retained system-type identity, so missing-system
+fixtures were not reproducible. A panel-assigned device normally receives a
+circuit number, so an isolated QA-005 fixture was also non-reproducible.
+Existing optional-property normalization rendered the disconnected circuit's
+blank number as a placeholder and QA-005 remained PASS. These are pre-existing
+reachability/normalization findings, not adapter defects.
+
+Legacy boundaries passed for zero-/multi-system Equipment, unsupported Data
+Devices, and Pipe Fittings. A broad HVAC regression evaluated 997 Duct Fittings
+without issues, but the controlled one-fitting fixture remains pending. Status:
+ACTIVE / LIVE VALIDATION IN PROGRESS. Evidence: `EV-AI-371`; KC: `KC-053`.

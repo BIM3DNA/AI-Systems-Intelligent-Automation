@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 Repository:
 C:\00_WORKS\DEVELOPMENT\AI
@@ -47,6 +47,41 @@ The authoritative project state is:
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
 
+## MEP-QA-SPECIALTY-ADAPTER-001
+
+Feature:
+Active-View Specialty QA Production Adapter
+
+Status:
+
+ACTIVE / LIVE VALIDATION IN PROGRESS
+
+Phase 1 is the existing uncommitted `script.py` working-tree change above the
+committed and pushed baseline `5169976dc07e165b6d4fd7c2c49d2da3c0ead8f5`.
+It is a thin internal specialty adapter at the active-view Dashboard issue-
+collector seam; the public five-value Dashboard contract is unchanged and no
+public route or prompt-catalog entry was added.
+
+Specialty projection is limited to rigid Pipe, rigid non-placeholder Duct, and
+Electrical `DEVICE_PROFILE` Lighting Fixtures / Electrical Fixtures. Electrical
+`EQUIPMENT_PROFILE`, unsupported electrical categories, pipe and duct fittings,
+structured export/bundle paths, and arbitrary-view Project Issue Index behavior
+remain on legacy paths.
+
+2026-09-01 checkpoint: assigned Pipe and Duct, assigned/unassigned Electrical
+devices, disconnected-panel QA-004, zero-/multi-system Electrical Equipment
+legacy behavior, unsupported Data Device legacy behavior, and Pipe Fitting
+legacy behavior passed. Missing-system Pipe/Duct and isolated panel-assigned
+missing-circuit-number QA-005 fixtures were non-reproducible in normal Revit
+workflow rather than failed; static projection coverage remains. The broad HVAC
+run evaluated 997 Duct Fittings with zero issues, but the controlled one-fitting
+fixture remains pending.
+
+No runtime defect was identified. Manual Disconnect Panel and Temporary Isolate
+actions were tester fixture preparation, not ModelMind mutation. Project-local
+records: `EV-AI-371`, `DL-2026-09-01-01`, `KC-053`; hours pending. The package is
+not source-control closed.
+
 ## MEP-QA-SPECIALTY-DISC-001
 
 Feature:
@@ -90,9 +125,9 @@ At package closure:
 - runtime defects: NONE FOUND
 - source-control closure: COMPLETE
 
-Next package: `MEP-QA-SPECIALTY-ADAPTER-001`.
-
-Next action: begin Phase 1 only after this closure reconciliation is reviewed.
+At discovery closure, the next package was
+`MEP-QA-SPECIALTY-ADAPTER-001`. That package has since entered Phase 1 and is
+tracked above as ACTIVE / LIVE VALIDATION IN PROGRESS.
 
 ## PIPING-RO-001
 
@@ -585,6 +620,13 @@ Central WBSO files are outside the Git repository.
 
 Do not stage or commit central WBSO files into this repository.
 
+Project-local MEP-QA-SPECIALTY-ADAPTER-001 checkpoint records:
+
+- EV-AI-371
+- DL-2026-09-01-01
+- KC-053
+- hours: PENDING
+
 # 15. NEXT DEVELOPMENT STATE
 
 MEP-QA-SPECIALTY-DISC-001 is CLOSED. Its implementation checkpoint
@@ -607,8 +649,10 @@ CLOSED
 ELECTRICAL-RO-001:
 CLOSED
 
-The next bounded package is MEP-QA-SPECIALTY-ADAPTER-001. Begin Phase 1 only
-after this closure reconciliation is reviewed.
+The active bounded package is MEP-QA-SPECIALTY-ADAPTER-001. Phase 1 static
+implementation is complete as an uncommitted `script.py` working-tree change,
+and live validation is in progress. Continue the remaining controlled fixtures
+and validation matrix before any closure decision.
 
 The last verified package closure checkpoint is:
 

@@ -1089,3 +1089,26 @@ Passed live scope:
 No planned runtime-matrix item remains pending, and source-control closure is complete. Evidence, Daily Log, Knowledge Capture, and hours remain unallocated; their absence does not reopen the package. Untested theoretical failure/API paths outside the planned matrix are limitations rather than observed defects. The next package is `MEP-QA-SPECIALTY-ADAPTER-001`; begin Phase 1 only after this closure reconciliation is reviewed.
 
 Explicitly out of scope: any additional electrical category, current-selection behavior, selection/view/model/link mutation, file export, workflow or Evidence Runbook/Cycle advancement, QA Export Anchor allowlist changes, replacement of the MEP QA Dashboard, Project Issue Index behavior changes, and production changes to the closed specialty packs.
+
+## 2026-09-01 - MEP-QA-SPECIALTY-ADAPTER-001 Current Scope
+
+Status: ACTIVE / LIVE VALIDATION IN PROGRESS. Phase 1 is complete as the
+existing uncommitted `script.py` working-tree change; it is not committed,
+pushed, or source-control closed.
+
+In scope: active-view Dashboard issue collection; rigid Pipe and rigid non-
+placeholder Duct assignment projection; Electrical `DEVICE_PROFILE` projection
+for Lighting Fixtures and Electrical Fixtures; unchanged Dashboard five-value
+contract; bounded validation against closed specialty reports.
+
+Retained on legacy paths: Electrical `EQUIPMENT_PROFILE`, unsupported electrical
+categories, Pipe/Duct Fittings, structured export and QA bundle collection, and
+arbitrary-view Project Issue Index behavior. No route, catalog, connector-QA,
+workflow-anchor, QA-export-source, Context Suggestions, or Visual Preview scope
+is added.
+
+LIVE-01, 03, 05, 06, 07, 09, 10, 11, and 12 passed. LIVE-02, 04, and 08 are
+non-reproducible in normal supported Revit workflows and retain static projection
+coverage; they are not failures. The controlled one-Duct-Fitting fixture and
+additional cases remain pending. No runtime defect was identified. Evidence:
+`EV-AI-371`; `DL-2026-09-01-01`; `KC-053`; hours pending.

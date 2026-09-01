@@ -336,3 +336,17 @@ Final update, 2026-08-12: deterministic provider independence passed across devi
 MEP-QA-SPECIALTY-DISC-001 is a provider-independent deterministic active-view discovery layer. Its canonical route and three aliases resolve locally; no provider determines active-view candidate scope, synthetic-adapter records, generic/specialty applicability, comparison relation, agreement/disagreement, cap accounting, timing, classification, recommendation, or safety metadata.
 
 The report is read-only, manual, non-auto-run, workflow-anchor ineligible, strict-QA-source ineligible, and workflow/evidence-stage isolated. Generic model output cannot replace its comparison evidence. The completed planned runtime matrix covered capped and non-capped HVAC, assigned/unassigned device semantics, zero-/multi-system equipment, mixed three-specialty scope, unsupported-only scope, and four selection-independent runs without introducing provider behavior. Final static/regression audit passed. Status: CLOSED / SOURCE-CONTROL CLOSURE COMPLETE; implementation checkpoint `77968c314cfa1de0a467c1f5fb9e8f9963f6b6b7` and final documentation checkpoint `3357842f4807655029c2ec50791daf1430db2a70` are committed and pushed. No runtime defect was found.
+
+## 2026-09-01 MEP-QA-SPECIALTY-ADAPTER-001 Provider Independence
+
+MEP-QA-SPECIALTY-ADAPTER-001 is a deterministic internal active-view Dashboard
+adapter. Ollama/OpenAI does not determine specialty eligibility, assignment
+state, QA projection, issue/partial/pass status, legacy fallback, or Dashboard
+counts. No public route or prompt-catalog asset was added.
+
+Live validation under `EV-AI-371` confirmed deterministic assigned Pipe/Duct,
+assigned/unassigned device, disconnected-panel QA-004, legacy equipment,
+unsupported Data Device, and Pipe Fitting behavior. Manual fixture preparation
+was performed by the tester; ModelMind remained read-only. Status: ACTIVE / LIVE
+VALIDATION IN PROGRESS; controlled Duct Fitting and remaining cases are pending;
+Phase 1 source remains uncommitted.

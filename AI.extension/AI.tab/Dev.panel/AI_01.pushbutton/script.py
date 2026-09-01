@@ -44962,7 +44962,324 @@ class OllamaAIChat(forms.WPFWindow):
         elements, warnings = self._mep_ro_v1_selected_elements()
         return elements, warnings, len(elements)
 
-    def _mep_export_v1_elements_for_action(self, action_key):
+    def _mep_qa_specialty_adapter_001_decision(
+        self,
+        elem,
+        specialty,
+        profile,
+        supported_by_adapter,
+        status,
+        reason_codes,
+        mapped_check_ids,
+    ):
+        return {
+            "element": elem,
+            "element_id": self._mep_ro_v1_element_id_text(elem),
+            "specialty": specialty,
+            "profile": profile,
+            "supported_by_adapter": bool(supported_by_adapter),
+            "status": status,
+            "reason_codes": list(reason_codes or []),
+            "mapped_check_ids": list(mapped_check_ids or []),
+        }
+
+    def _mep_qa_specialty_adapter_001_pipe_state(self, elem):
+        system = self._piping_ro_001_system_assignment(elem)
+        state = safe_str((system or {}).get("state")).strip().upper()
+        mapping = {
+            "ASSIGNED": ("PASS", ["SYSTEM_ASSIGNED"]),
+            "UNASSIGNED_REVIEW": ("ISSUE", ["SYSTEM_UNASSIGNED_REVIEW"]),
+            "UNAVAILABLE": ("UNAVAILABLE", ["SYSTEM_EVIDENCE_UNAVAILABLE"]),
+            "UNREADABLE": ("UNREADABLE", ["SYSTEM_EVIDENCE_UNREADABLE"]),
+            "INCONSISTENT": ("PARTIAL", ["SYSTEM_EVIDENCE_INCONSISTENT"]),
+        }
+        status, reasons = mapping.get(
+            state,
+            ("UNREADABLE", ["SPECIALTY_SYSTEM_STATE_UNRECOGNIZED"]),
+        )
+        return self._mep_qa_specialty_adapter_001_decision(
+            elem,
+            "PIPING",
+            "RIGID_PIPE",
+            True,
+            status,
+            reasons,
+            ["PIPING-QA-004"],
+        )
+
+    def _mep_qa_specialty_adapter_001_duct_state(self, elem):
+        system = self._hvac_ro_001_system_assignment(elem)
+        state = safe_str((system or {}).get("state")).strip().upper()
+        mapping = {
+            "ASSIGNED": ("PASS", ["SYSTEM_ASSIGNED"]),
+            "UNASSIGNED_REVIEW": ("ISSUE", ["SYSTEM_UNASSIGNED_REVIEW"]),
+            "UNAVAILABLE": ("UNAVAILABLE", ["SYSTEM_EVIDENCE_UNAVAILABLE"]),
+            "UNREADABLE": ("UNREADABLE", ["SYSTEM_EVIDENCE_UNREADABLE"]),
+            "INCONSISTENT": ("PARTIAL", ["SYSTEM_EVIDENCE_INCONSISTENT"]),
+        }
+        status, reasons = mapping.get(
+            state,
+            ("UNREADABLE", ["SPECIALTY_SYSTEM_STATE_UNRECOGNIZED"]),
+        )
+        return self._mep_qa_specialty_adapter_001_decision(
+            elem,
+            "HVAC",
+            "RIGID_NON_PLACEHOLDER_DUCT",
+            True,
+            status,
+            reasons,
+            ["HVAC-QA-004"],
+        )
+
+    def _mep_qa_specialty_adapter_001_device_state(self, elem):
+        mep_model = self._electrical_disc_001_mep_model(elem)
+        systems = self._electrical_disc_001_systems(elem, mep_model)
+        system_records = [
+            self._electrical_disc_001_system_record(elem, system)
+            for system in (systems.get("systems") or [])
+        ]
+        assignment = self._electrical_ro_001_assignment_state(
+            "DEVICE_PROFILE",
+            systems,
+            system_records,
+        )
+        if assignment == "DEVICE_UNASSIGNED_REVIEW":
+            return self._mep_qa_specialty_adapter_001_decision(
+                elem,
+                "ELECTRICAL",
+                "DEVICE_PROFILE",
+                True,
+                "ISSUE",
+                ["DEVICE_UNASSIGNED_REVIEW"],
+                ["ELECTRICAL-QA-003"],
+            )
+        if assignment == "DEVICE_MULTI_SYSTEM_REVIEW":
+            reasons = ["DEVICE_MULTI_SYSTEM_REVIEW"]
+            if systems.get("cap_exceeded"):
+                reasons.append("ELECTRICAL_SYSTEM_CAP_EXCEEDED")
+            return self._mep_qa_specialty_adapter_001_decision(
+                elem,
+                "ELECTRICAL",
+                "DEVICE_PROFILE",
+                True,
+                "PARTIAL",
+                reasons,
+                ["ELECTRICAL-QA-003"],
+            )
+        if assignment == "UNAVAILABLE":
+            return self._mep_qa_specialty_adapter_001_decision(
+                elem,
+                "ELECTRICAL",
+                "DEVICE_PROFILE",
+                True,
+                "UNAVAILABLE",
+                ["DEVICE_ASSIGNMENT_UNAVAILABLE"],
+                ["ELECTRICAL-QA-003"],
+            )
+        if assignment == "UNREADABLE":
+            return self._mep_qa_specialty_adapter_001_decision(
+                elem,
+                "ELECTRICAL",
+                "DEVICE_PROFILE",
+                True,
+                "UNREADABLE",
+                ["DEVICE_ASSIGNMENT_UNREADABLE"],
+                ["ELECTRICAL-QA-003"],
+            )
+        if assignment == "INCONSISTENT":
+            return self._mep_qa_specialty_adapter_001_decision(
+                elem,
+                "ELECTRICAL",
+                "DEVICE_PROFILE",
+                True,
+                "PARTIAL",
+                ["DEVICE_ASSIGNMENT_INCONSISTENT"],
+                ["ELECTRICAL-QA-003"],
+            )
+        if assignment != "DEVICE_ASSIGNED" or len(system_records) != 1:
+            return self._mep_qa_specialty_adapter_001_decision(
+                elem,
+                "ELECTRICAL",
+                "DEVICE_PROFILE",
+                True,
+                "UNREADABLE",
+                ["DEVICE_ASSIGNMENT_STATE_UNRECOGNIZED"],
+                ["ELECTRICAL-QA-003"],
+            )
+
+        system_record = system_records[0]
+        panel_status = safe_str(system_record.get("panel_status")).strip().upper()
+        circuit = (system_record.get("properties") or {}).get("circuit_number") or {}
+        circuit_status = safe_str(circuit.get("status")).strip().upper()
+        partial_reasons = []
+        issue_reasons = []
+        mapped_check_ids = []
+        if panel_status == "UNREADABLE":
+            partial_reasons.append("DEVICE_PANEL_UNREADABLE")
+            mapped_check_ids.append("ELECTRICAL-QA-004")
+        elif panel_status != "AVAILABLE" or system_record.get("panel_id") == "unavailable":
+            issue_reasons.append("DEVICE_PANEL_MISSING")
+            mapped_check_ids.append("ELECTRICAL-QA-004")
+        if circuit_status == "UNREADABLE":
+            partial_reasons.append("DEVICE_CIRCUIT_NUMBER_UNREADABLE")
+            mapped_check_ids.append("ELECTRICAL-QA-005")
+        elif circuit_status != "AVAILABLE" or not safe_str(circuit.get("value")).strip():
+            issue_reasons.append("DEVICE_CIRCUIT_NUMBER_MISSING")
+            mapped_check_ids.append("ELECTRICAL-QA-005")
+        if partial_reasons:
+            return self._mep_qa_specialty_adapter_001_decision(
+                elem,
+                "ELECTRICAL",
+                "DEVICE_PROFILE",
+                True,
+                "PARTIAL",
+                partial_reasons + issue_reasons,
+                mapped_check_ids,
+            )
+        if issue_reasons:
+            return self._mep_qa_specialty_adapter_001_decision(
+                elem,
+                "ELECTRICAL",
+                "DEVICE_PROFILE",
+                True,
+                "ISSUE",
+                issue_reasons,
+                mapped_check_ids,
+            )
+        return self._mep_qa_specialty_adapter_001_decision(
+            elem,
+            "ELECTRICAL",
+            "DEVICE_PROFILE",
+            True,
+            "PASS",
+            ["DEVICE_ASSIGNED_COMPLETE"],
+            ["ELECTRICAL-QA-003", "ELECTRICAL-QA-004", "ELECTRICAL-QA-005"],
+        )
+
+    def _mep_qa_specialty_adapter_001_legacy_state(self, action_key, elem, specialty):
+        if action_key in ("export_pipes_without_system", "export_ducts_without_system"):
+            issue = not self._mep_ro_v1_system_assigned(elem)
+            reason = "LEGACY_GENERIC_MISSING_SYSTEM" if issue else "LEGACY_GENERIC_SYSTEM_ASSIGNED"
+        else:
+            value = self._mep_ro_v1_param_value(
+                elem,
+                ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"],
+            )
+            issue = not bool(value)
+            reason = "LEGACY_GENERIC_MISSING_CIRCUIT_OR_SYSTEM_INFO" if issue else "LEGACY_GENERIC_CIRCUIT_OR_SYSTEM_INFO_AVAILABLE"
+        return self._mep_qa_specialty_adapter_001_decision(
+            elem,
+            specialty,
+            "LEGACY_GENERIC",
+            False,
+            "ISSUE" if issue else "PASS",
+            [reason],
+            [],
+        )
+
+    def _mep_qa_specialty_adapter_001_project(self, decisions, checked, qa_reason):
+        elements = []
+        warnings = []
+        skipped = []
+        issue_ids = set()
+        skipped_ids = set()
+        allowed = set(["PASS", "ISSUE", "UNAVAILABLE", "UNREADABLE", "PARTIAL"])
+        for decision in decisions or []:
+            element_id = safe_str(decision.get("element_id") or "unavailable")
+            status = safe_str(decision.get("status")).strip().upper()
+            reasons = sorted(set([safe_str(item) for item in decision.get("reason_codes") or []]))
+            if status not in allowed:
+                status = "UNREADABLE"
+                reasons = ["ADAPTER_STATE_INVALID"]
+            if status == "ISSUE":
+                if element_id not in issue_ids:
+                    issue_ids.add(element_id)
+                    elements.append(decision.get("element"))
+            elif status in ("UNAVAILABLE", "UNREADABLE", "PARTIAL"):
+                if element_id not in skipped_ids:
+                    skipped_ids.add(element_id)
+                    skipped.append(element_id)
+                    warnings.append(
+                        "MEP-QA-SPECIALTY-ADAPTER-001 element {0}: state={1}; reason={2}".format(
+                            element_id,
+                            status,
+                            ",".join(reasons or ["UNSPECIFIED"]),
+                        )
+                    )
+        return elements, warnings, int(checked or 0), skipped, qa_reason
+
+    def _mep_qa_specialty_adapter_001_evaluate(self, action_key, candidates):
+        source = list(candidates or [])
+        qa_reason = (
+            "missing_circuit_or_system_info"
+            if action_key == "export_devices_without_circuit"
+            else "missing_system_assignment"
+        )
+        decisions = []
+        for elem in source:
+            specialty = "ELECTRICAL"
+            profile = "LEGACY_GENERIC"
+            supported_by_adapter = False
+            mapped_check_ids = []
+            try:
+                if action_key == "export_pipes_without_system":
+                    specialty = "PIPING"
+                    if self._piping_ro_001_supported_pipe(elem):
+                        supported_by_adapter = True
+                        profile = "RIGID_PIPE"
+                        mapped_check_ids = ["PIPING-QA-004"]
+                        decision = self._mep_qa_specialty_adapter_001_pipe_state(elem)
+                    else:
+                        decision = self._mep_qa_specialty_adapter_001_legacy_state(action_key, elem, specialty)
+                elif action_key == "export_ducts_without_system":
+                    specialty = "HVAC"
+                    if self._hvac_ro_001_supported_duct(elem):
+                        supported_by_adapter = True
+                        profile = "RIGID_NON_PLACEHOLDER_DUCT"
+                        mapped_check_ids = ["HVAC-QA-004"]
+                        decision = self._mep_qa_specialty_adapter_001_duct_state(elem)
+                    else:
+                        decision = self._mep_qa_specialty_adapter_001_legacy_state(action_key, elem, specialty)
+                elif action_key == "export_devices_without_circuit":
+                    scope_kind, electrical_profile = self._electrical_ro_001_scope_kind(elem)
+                    if electrical_profile == "DEVICE_PROFILE" and scope_kind in (
+                        "SUPPORTED_LIGHTING_FIXTURE",
+                        "SUPPORTED_ELECTRICAL_FIXTURE",
+                    ):
+                        supported_by_adapter = True
+                        profile = "DEVICE_PROFILE"
+                        mapped_check_ids = ["ELECTRICAL-QA-003", "ELECTRICAL-QA-004", "ELECTRICAL-QA-005"]
+                        decision = self._mep_qa_specialty_adapter_001_device_state(elem)
+                    else:
+                        decision = self._mep_qa_specialty_adapter_001_legacy_state(action_key, elem, specialty)
+                else:
+                    decision = self._mep_qa_specialty_adapter_001_decision(
+                        elem,
+                        specialty,
+                        profile,
+                        False,
+                        "UNREADABLE",
+                        ["ADAPTER_ACTION_UNSUPPORTED"],
+                        [],
+                    )
+            except Exception:
+                decision = self._mep_qa_specialty_adapter_001_decision(
+                    elem,
+                    specialty,
+                    profile,
+                    supported_by_adapter,
+                    "UNREADABLE",
+                    ["SPECIALTY_NORMALIZATION_FAILED" if supported_by_adapter else "LEGACY_READ_FAILED"],
+                    mapped_check_ids,
+                )
+            decisions.append(decision)
+        return self._mep_qa_specialty_adapter_001_project(
+            decisions,
+            len(source),
+            qa_reason,
+        )
+
+    def _mep_export_v1_elements_for_action(self, action_key, use_specialty_adapter=False):
         warnings = []
         skipped = []
         checked = 0
@@ -45004,28 +45321,40 @@ class OllamaAIChat(forms.WPFWindow):
         elif action_key in ["export_pipes_without_system", "export_ducts_without_system"]:
             category_id = pipe_id if action_key == "export_pipes_without_system" else duct_id
             source, warnings = self._mep_ro_v1_active_view_elements_by_category_ids([category_id])
-            checked = len(source)
-            qa_reason = "missing_system_assignment"
-            for elem in source:
-                try:
-                    if not self._mep_ro_v1_system_assigned(elem):
-                        elements.append(elem)
-                except:
-                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+            if use_specialty_adapter:
+                elements, adapter_warnings, checked, skipped, qa_reason = (
+                    self._mep_qa_specialty_adapter_001_evaluate(action_key, source)
+                )
+                warnings.extend(adapter_warnings)
+            else:
+                checked = len(source)
+                qa_reason = "missing_system_assignment"
+                for elem in source:
+                    try:
+                        if not self._mep_ro_v1_system_assigned(elem):
+                            elements.append(elem)
+                    except:
+                        skipped.append(self._mep_ro_v1_element_id_text(elem))
         elif action_key == "export_devices_without_circuit":
             devices, warnings = self._mep_ro_v1_active_view_elements_by_category_ids(electrical_ids)
-            checked = len(devices)
-            qa_reason = "missing_circuit_or_system_info"
-            for elem in devices:
-                try:
-                    value = self._mep_ro_v1_param_value(
-                        elem,
-                        ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"],
-                    )
-                    if not value:
-                        elements.append(elem)
-                except:
-                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+            if use_specialty_adapter:
+                elements, adapter_warnings, checked, skipped, qa_reason = (
+                    self._mep_qa_specialty_adapter_001_evaluate(action_key, devices)
+                )
+                warnings.extend(adapter_warnings)
+            else:
+                checked = len(devices)
+                qa_reason = "missing_circuit_or_system_info"
+                for elem in devices:
+                    try:
+                        value = self._mep_ro_v1_param_value(
+                            elem,
+                            ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"],
+                        )
+                        if not value:
+                            elements.append(elem)
+                    except:
+                        skipped.append(self._mep_ro_v1_element_id_text(elem))
         else:
             warnings.append("Unsupported MEP-RO-EXPORT-v1 prompt.")
         return elements, warnings, checked, skipped, qa_reason
@@ -45876,7 +46205,10 @@ class OllamaAIChat(forms.WPFWindow):
         fatal = False
         warnings = []
         try:
-            elements, source_warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action(action_key)
+            elements, source_warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action(
+                action_key,
+                use_specialty_adapter=True,
+            )
             warnings.extend(source_warnings or [])
             issue_count = len(elements) if is_issue_check else 0
             inventory_count = len(elements) if not is_issue_check else checked

@@ -666,3 +666,26 @@ The canonical route is `inspect active view specialty qa semantics`; aliases are
 The discovery remains read-only, manual, non-auto-run, workflow-anchor ineligible, strict-QA-source ineligible, and Evidence Runbook/Cycle ineligible. It has no selection dependency, picker, document-wide fallback, transaction, model/UI/view/link mutation, external write, or workflow advancement. Closed specialty handlers, generic MEP-RO, MEP QA Dashboard, Project Issue Index, Context Suggestions, Visual Preview, and the QA export allowlist remain unchanged.
 
 Completed live coverage now includes empty and unsupported-only views; capped and non-capped Piping and HVAC; HVAC End/Curve connector regression safety; assigned and unassigned electrical devices; zero-system and multi-system electrical equipment; a mixed Pipe/Duct/device/equipment/unsupported view; and a four-run UI-selection-independence matrix. All declared comparable rows agreed in the completed matrix; intentionally non-one-to-one specialty evidence remained visible without false disagreement.
+
+## MEP-QA-SPECIALTY-ADAPTER-001 - Active-View Specialty QA Production Adapter
+
+Status: ACTIVE / LIVE VALIDATION IN PROGRESS. Phase 1 is the existing
+uncommitted `script.py` change above baseline
+`5169976dc07e165b6d4fd7c2c49d2da3c0ead8f5`; it is not source-control closed.
+Evidence: `EV-AI-371`; Daily Log: `DL-2026-09-01-01`; Knowledge Capture:
+`KC-053`; hours pending.
+
+The package adds a thin internal specialty adapter at the active-view MEP QA
+Dashboard issue-collector seam. It preserves the public five-value Dashboard
+contract and adds no public route or catalog entry. Rigid Pipe, rigid non-
+placeholder Duct, and supported Electrical `DEVICE_PROFILE` elements use closed
+specialty assignment semantics. Electrical `EQUIPMENT_PROFILE`, unsupported
+electrical categories, pipe and duct fittings, structured export/bundle paths,
+and arbitrary-view Project Issue Index behavior retain legacy logic.
+
+The 2026-09-01 checkpoint passed assigned Pipe/Duct, assigned/unassigned device,
+disconnected-panel QA-004, zero-/multi-system Equipment legacy preservation,
+unsupported Data Device legacy preservation, and Pipe Fitting legacy behavior.
+Missing-system Pipe/Duct and isolated QA-005 fixtures were non-reproducible in
+normal Revit rather than failed. A broad HVAC run evaluated 997 Duct Fittings
+without issues, but the controlled one-fitting fixture remains pending.

@@ -2105,3 +2105,42 @@ Completed final matrix:
 10. Final static/Git audit: tabnanny, supporting `py_compile`, sanitized AST, catalog 237 and baseline-236 equality, exact route ownership, protected handlers, dashboard/index/context/preview, QA export/workflow, call-graph governance, caps, precedence, timing, deterministic ordering, hashes, status/staging, and diff checks passed.
 
 No planned runtime test remains. Source-control closure is complete; identifiers and hours remain unallocated. Next package: `MEP-QA-SPECIALTY-ADAPTER-001`. Begin Phase 1 only after this closure reconciliation is reviewed.
+
+## 2026-09-01 - MEP-QA-SPECIALTY-ADAPTER-001 Live Validation Checkpoint
+
+Status: ACTIVE / LIVE VALIDATION IN PROGRESS. Evidence: `EV-AI-371`; Daily Log:
+`DL-2026-09-01-01`; KC: `KC-053`; hours pending. Phase 1 source is uncommitted.
+
+Completed:
+
+1. LIVE-01 assigned rigid Pipe: PASS; one checked, zero issues/skips, GREEN;
+   161 additional Snowdon rigid Pipes observed ASSIGNED.
+2. LIVE-02 missing-system rigid Pipe: C / non-reproducible; static projection
+   retained; not failed.
+3. LIVE-03 assigned rigid Duct: PASS; one checked, zero issues/skips, GREEN;
+   97 additional Snowdon rigid Ducts observed ASSIGNED.
+4. LIVE-04 missing-system rigid Duct: C / non-reproducible; static projection
+   retained; not failed.
+5. LIVE-05 assigned Electrical `DEVICE_PROFILE`: PASS / GREEN.
+6. LIVE-06 `DEVICE_UNASSIGNED_REVIEW`: PASS / QA-003 / one YELLOW issue.
+7. LIVE-07 `DEVICE_ASSIGNED` with manually disconnected panel: PASS / QA-004 /
+   one YELLOW issue; QA-003 and QA-005 passed.
+8. LIVE-08 panel-assigned/missing-circuit-number-only: C / non-reproducible;
+   static projection retained; no independent live QA-005 claim.
+9. LIVE-09 zero-system Electrical Equipment legacy path: PASS / YELLOW.
+10. LIVE-10 multi-system P108 Electrical Equipment legacy path: PASS / GREEN.
+11. LIVE-11 unsupported Data Device legacy path: PASS / YELLOW.
+12. LIVE-12 Pipe Fitting legacy path: PASS; one fitting independently evaluated,
+    zero issues; aggregate fitting-only view retained `GRAY_EMPTY_VIEW`.
+
+Pending next controlled test:
+
+1. Create an active view containing exactly one visible Duct Fitting with UI
+   selection count zero.
+2. Run `show active view mep qa dashboard`.
+3. Verify Active-view Ducts and Ducts-without-system remain zero while
+   Unconnected Duct Fittings checks exactly one fitting.
+4. Confirm legacy behavior, counts, safety metadata, and workflow isolation.
+
+Continue the remaining Phase 1 matrix after this case. Do not close the package
+until remaining live validation and final static/source-control audit complete.

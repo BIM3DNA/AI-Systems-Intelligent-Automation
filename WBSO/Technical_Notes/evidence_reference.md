@@ -2724,3 +2724,102 @@ Current conclusion: the planned discovery matrix is complete and supports determ
 - Daily Log ID: PENDING
 - Knowledge Capture ID: PENDING; no numbered Knowledge Capture file created
 - Hours: PENDING; no numeric value supplied
+
+## EV-AI-371 - MEP-QA-SPECIALTY-ADAPTER-001 Live Validation Checkpoint
+
+Status: ACTIVE / LIVE VALIDATION IN PROGRESS. Substantial bounded live coverage
+passed; the package is not closed and Phase 1 source remains uncommitted.
+
+Date: 01-09-26 (`2026-09-01`)
+
+Week: `2026-W19`
+
+Daily log: `DL-2026-09-01-01`
+
+Knowledge Capture: `KC-053`
+
+Hours: PENDING; no authoritative numeric value supplied
+
+Baseline and scope:
+
+- committed HEAD/origin baseline before Phase 1:
+  `5169976dc07e165b6d4fd7c2c49d2da3c0ead8f5`;
+- Phase 1 remains the existing uncommitted `script.py` working-tree change;
+- prompt catalog remains 237 and unchanged;
+- no public command was added;
+- Dashboard contract, arbitrary-view Issue Index, structured exports/bundles,
+  workflow/export allowlists, closed handlers, Context Suggestions, and Visual
+  Preview remain outside the adapter delta.
+
+Live results:
+
+1. LIVE-01 assigned rigid Pipe: PASS in Project2; checked 1, issues/skips 0,
+   GREEN; closed assignment ASSIGNED and consistent. Snowdon review found
+   161/161 supported rigid Pipes ASSIGNED.
+2. LIVE-02 missing-system rigid Pipe: C / NON-REPRODUCIBLE IN NORMAL REVIT
+   WORKFLOW, not failed. Normal workflows retain system-type identity; static
+   projection remains. Existing nonpositive-ID text normalization is pre-existing
+   and was not reproduced live.
+3. LIVE-03 assigned rigid Duct: PASS in Project2; checked 1, issues/skips 0,
+   GREEN; closed assignment ASSIGNED and coherent. Snowdon review found 97/97
+   supported rigid Ducts ASSIGNED.
+4. LIVE-04 missing-system rigid Duct: C / NON-REPRODUCIBLE IN NORMAL REVIT
+   WORKFLOW, not failed. MechanicalSystemType identity is retained; static
+   projection remains. The same pre-existing ID edge was unchanged.
+5. LIVE-05 assigned device: PASS. Snowdon Lighting Fixture `1592088` was
+   `DEVICE_ASSIGNED`, system `1594465`, circuit 6, panel `LP000`/`1592415`,
+   `LOAD`, `UPSTREAM_OR_LOAD_CIRCUIT`, and `CONSISTENT`; isolated Dashboard
+   checked 1, issues/skips 0, GREEN.
+6. LIVE-06 unassigned device / QA-003: PASS. Project2 Electrical Fixture
+   `356066` was `DEVICE_UNASSIGNED_REVIEW`; Dashboard checked 1, issues 1,
+   skipped 0, YELLOW.
+7. LIVE-07 disconnected-panel device / QA-004: PASS. The tester manually used
+   Disconnect Panel on `1592088` without deleting its circuit. It remained
+   `DEVICE_ASSIGNED`, system `1594465`, `LOAD`, `UPSTREAM_OR_LOAD_CIRCUIT`, and
+   `CONSISTENT`; panel identity became unavailable. QA-003 PASS, QA-004
+   ISSUES_FOUND for `1592088`, QA-005 PASS. Dashboard checked 1, issues 1,
+   skipped 0, YELLOW, with no warnings.
+8. LIVE-08 panel-assigned/missing-circuit-number-only / QA-005: C /
+   NON-REPRODUCIBLE IN NORMAL REVIT WORKFLOW, not failed. Panel assignment
+   normally provides a circuit number; a pre-panel blank overlaps QA-004.
+   Existing blank/placeholder normalization kept QA-005 PASS in LIVE-07. Static
+   projection remains; no independent live QA-005 claim.
+9. LIVE-09 zero-system Electrical Equipment legacy preservation: PASS. Pull Box
+   `1538999` remained `EQUIPMENT_DISTRIBUTION_EMPTY_REVIEW` and retained generic
+   Dashboard YELLOW behavior.
+10. LIVE-10 multi-system Electrical Equipment legacy preservation: PASS. P108
+    `1482544` retained eight systems, one upstream LOAD and seven downstream
+    BASE_EQUIPMENT relationships, all consistent; generic Dashboard GREEN.
+11. LIVE-11 unsupported Data Device legacy preservation: PASS. Element `357412`
+    remained unsupported by ELECTRICAL-RO and retained generic Dashboard YELLOW
+    behavior without specialty-scope expansion.
+12. LIVE-12 Pipe Fitting legacy preservation: PASS. The fitting-only view kept
+    Active-view Pipes and Pipes-without-system at zero while the fitting check
+    evaluated one fitting with zero issues. Aggregate `GRAY_EMPTY_VIEW` reflects
+    existing inventory accounting.
+
+Duct Fitting controlled fixture remains pending. The broad Snowdon HVAC run
+evaluated 997 fittings and 1,053 ducts with zero issue candidates, GREEN, and no
+warnings, but Temporary Isolate/selection did not create the intended one-fitting
+active view. This is regression evidence, not a controlled-case PASS.
+
+Across the runs, ModelMind reported no Transaction/TransactionGroup, model,
+linked-document, UI-selection, active-view, external export/bundle, automatic
+execution, workflow, Evidence Runbook/Cycle, Workflow Anchor, or QA-source
+mutation/advancement. Disconnect Panel and Temporary Isolate were manual tester
+fixture actions, not ModelMind actions.
+
+### Daily Log
+
+- Daily Log ID: `DL-2026-09-01-01`
+- Date: 01-09-26
+- Week: `2026-W19`
+- Hours: PENDING; no authoritative numeric value supplied
+- Work summary: live-validated assigned Pipe/Duct and assigned/unassigned device
+  projection; proved normal disconnected-panel QA-004; preserved Equipment,
+  unsupported Data Device, and Pipe Fitting legacy paths; documented non-
+  reproducible Pipe, Duct, and isolated QA-005 fixtures; retained read-only and
+  workflow isolation.
+- Evidence: `EV-AI-371`
+- Status: intermediate checkpoint; controlled Duct Fitting and additional live
+  cases remain pending; package not closed.
