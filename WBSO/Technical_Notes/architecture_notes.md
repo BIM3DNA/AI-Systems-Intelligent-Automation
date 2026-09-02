@@ -1744,6 +1744,14 @@ blank number as a placeholder and QA-005 remained PASS. These are pre-existing
 reachability/normalization findings, not adapter defects.
 
 Legacy boundaries passed for zero-/multi-system Equipment, unsupported Data
-Devices, and Pipe Fittings. A broad HVAC regression evaluated 997 Duct Fittings
-without issues, but the controlled one-fitting fixture remains pending. Status:
-ACTIVE / LIVE VALIDATION IN PROGRESS. Evidence: `EV-AI-371`; KC: `KC-053`.
+Devices, and controlled Pipe/Duct Fittings. Mixed-scope, four-state UI-selection
+independence, 1,053-Duct/997-Duct-Fitting HVAC, and 200-candidate Electrical
+active-view regressions also passed. The Electrical run processed every candidate
+returned by the collector; it did not prove a 200-element adapter population cap.
+
+Final audit found seven new helpers, two approved integration changes, 1,445
+unchanged existing functions, and zero changes among 188 audit-selected protected
+functions. Status: CLOSED - RUNTIME / VALIDATION COMPLETE; runtime/checkpoint
+commit `17efe52b92f934d30f45e35e60e6e97dbe5570dd` is pushed, and final closure
+documentation is prepared but not yet committed. Evidence: `EV-AI-371`; KC:
+`KC-053`.

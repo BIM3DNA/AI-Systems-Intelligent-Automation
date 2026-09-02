@@ -2823,3 +2823,38 @@ fixture actions, not ModelMind actions.
 - Evidence: `EV-AI-371`
 - Status: intermediate checkpoint; controlled Duct Fitting and additional live
   cases remain pending; package not closed.
+
+## MEP-QA-SPECIALTY-ADAPTER-001 Final Closure Reconciliation - 2026-09-02
+
+This record supersedes the current-state conclusions of EV-AI-371 without
+rewriting that intermediate checkpoint. Phase 1 runtime and the initial
+project-local checkpoint are committed and pushed in
+`17efe52b92f934d30f45e35e60e6e97dbe5570dd`, parent/baseline
+`5169976dc07e165b6d4fd7c2c49d2da3c0ead8f5`. At final audit, `main` and
+`origin/main` were synchronized at the implementation commit with a clean
+worktree. The final closure documentation is prepared but not yet committed.
+
+LIVE-13 through LIVE-17 completed controlled Duct Fitting legacy preservation,
+mixed specialty/legacy coexistence, four-state UI-selection independence, a
+large Snowdon HVAC regression over 1,053 Ducts and 997 Duct Fittings, and a large
+Snowdon Electrical regression. For LIVE-17, the collector returned 200
+electrical candidates and all 200 were processed, producing 39 issues, zero
+skips, no warnings, and YELLOW. No 200-element adapter population cap exists in
+this path, so the run does not establish a cap, maximum, or omitted candidates.
+
+Final static/regression audit: PASS. Baseline functions 1,447; HEAD functions
+1,454; seven new adapter helpers; no removed functions; exactly two approved
+existing-function changes; 1,445 unchanged existing functions; zero changes
+among 188 audit-selected protected functions; fitting branch AST-identical to
+baseline. Catalog remains semantically unchanged at 237 entries. No runtime
+defect or prohibited mutation/workflow side effect was found.
+
+Package status: CLOSED - RUNTIME / VALIDATION COMPLETE. Closure readiness:
+`READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`. Static-only unreadable/inconsistent
+states, warning-row order independent of Revit collector enumeration, absent
+numerical timing for LIVE-16, and explicitly out-of-scope optional regressions
+remain nonblocking. Existing `EV-AI-371`, `DL-2026-09-01-01`, and `KC-053`
+continue to identify the intermediate checkpoint. Final project-local closure
+identifiers and hours remain PENDING because the local sequence is not
+unambiguous. Central WBSO separately records `DL-2026-09-01-05` and five actual
+hours; the existing project-local Daily Log ID is not renamed.

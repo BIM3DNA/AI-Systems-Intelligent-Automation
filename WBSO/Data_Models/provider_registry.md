@@ -344,9 +344,12 @@ adapter. Ollama/OpenAI does not determine specialty eligibility, assignment
 state, QA projection, issue/partial/pass status, legacy fallback, or Dashboard
 counts. No public route or prompt-catalog asset was added.
 
-Live validation under `EV-AI-371` confirmed deterministic assigned Pipe/Duct,
-assigned/unassigned device, disconnected-panel QA-004, legacy equipment,
-unsupported Data Device, and Pipe Fitting behavior. Manual fixture preparation
-was performed by the tester; ModelMind remained read-only. Status: ACTIVE / LIVE
-VALIDATION IN PROGRESS; controlled Duct Fitting and remaining cases are pending;
-Phase 1 source remains uncommitted.
+Live validation under `EV-AI-371` and the completed matrix confirmed
+deterministic assigned Pipe/Duct, assigned/unassigned device, disconnected-panel
+QA-004, legacy equipment, unsupported Data Device, controlled Pipe/Duct Fitting,
+mixed-scope, selection-independent, and large-view behavior. Manual fixture
+preparation was performed by the tester; ModelMind remained read-only. Phase 1
+runtime and the initial checkpoint are committed and pushed in
+`17efe52b92f934d30f45e35e60e6e97dbe5570dd`. Final audit: PASS; runtime defects:
+none. Status: CLOSED - RUNTIME / VALIDATION COMPLETE; final closure documentation
+is prepared and not yet committed.

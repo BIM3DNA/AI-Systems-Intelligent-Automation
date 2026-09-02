@@ -1092,9 +1092,10 @@ Explicitly out of scope: any additional electrical category, current-selection b
 
 ## 2026-09-01 - MEP-QA-SPECIALTY-ADAPTER-001 Current Scope
 
-Status: ACTIVE / LIVE VALIDATION IN PROGRESS. Phase 1 is complete as the
-existing uncommitted `script.py` working-tree change; it is not committed,
-pushed, or source-control closed.
+Status: CLOSED - RUNTIME / VALIDATION COMPLETE. Phase 1 runtime and its initial
+project-local checkpoint are committed and pushed in
+`17efe52b92f934d30f45e35e60e6e97dbe5570dd`. Final closure documentation is
+prepared but not yet committed.
 
 In scope: active-view Dashboard issue collection; rigid Pipe and rigid non-
 placeholder Duct assignment projection; Electrical `DEVICE_PROFILE` projection
@@ -1107,8 +1108,11 @@ arbitrary-view Project Issue Index behavior. No route, catalog, connector-QA,
 workflow-anchor, QA-export-source, Context Suggestions, or Visual Preview scope
 is added.
 
-LIVE-01, 03, 05, 06, 07, 09, 10, 11, and 12 passed. LIVE-02, 04, and 08 are
+LIVE-01, 03, 05, 06, 07, and 09 through 17 passed. LIVE-02, 04, and 08 are
 non-reproducible in normal supported Revit workflows and retain static projection
-coverage; they are not failures. The controlled one-Duct-Fitting fixture and
-additional cases remain pending. No runtime defect was identified. Evidence:
-`EV-AI-371`; `DL-2026-09-01-01`; `KC-053`; hours pending.
+coverage; they are not failures. Controlled Duct Fitting, mixed specialty/legacy,
+UI-selection independence, and large HVAC/Electrical active-view validation are
+complete. LIVE-17 processed all 200 candidates returned by the collector and did
+not exercise a 200-element adapter population cap. Final static/regression audit:
+PASS; runtime defects: none. Evidence: `EV-AI-371`; `DL-2026-09-01-01`;
+`KC-053`; final closure identifiers and project-local hours pending.

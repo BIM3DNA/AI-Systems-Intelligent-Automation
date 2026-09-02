@@ -1872,7 +1872,7 @@ Remaining limitations are unplanned theoretical/genuine API failure paths not re
 
 ## 2026-09-01 - MEP-QA-SPECIALTY-ADAPTER-001 Validation Findings
 
-Status: ACTIVE / LIVE VALIDATION IN PROGRESS; no runtime defect identified.
+Status: CLOSED - RUNTIME / VALIDATION COMPLETE; no runtime defect identified.
 
 Non-defect fixture limitations:
 
@@ -1891,8 +1891,15 @@ Pre-existing normalization observations, not introduced by the adapter:
   placeholders, so QA-005 remained PASS after Disconnect Panel;
 - neither edge was changed in this package.
 
-Open validation item: the controlled one-Duct-Fitting legacy fixture remains
-pending. The broad Snowdon HVAC run evaluated 997 fittings with zero issues and
-no warnings, but did not reduce the active view to one fitting. Manual Disconnect
-Panel and Temporary Isolate were tester fixture preparation, not ModelMind
-mutation. Evidence: `EV-AI-371`; KC: `KC-053`.
+The controlled one-Duct-Fitting legacy fixture, mixed-scope validation,
+UI-selection independence, and large HVAC/Electrical active-view regressions are
+complete. LIVE-17 returned and processed 200 electrical candidates with 39
+issues, zero skips, and no warnings; it did not exercise a 200-element adapter
+population cap. Manual Disconnect Panel and Temporary Hide/Isolate were tester
+fixture preparation, not ModelMind mutation.
+
+The final static/regression audit passed with no package-introduced defect.
+Runtime and the initial checkpoint are committed and pushed in
+`17efe52b92f934d30f45e35e60e6e97dbe5570dd`; final closure documentation is
+prepared but not yet committed. Remaining static-only and out-of-scope cases are
+nonblocking. Evidence: `EV-AI-371`; KC: `KC-053`.

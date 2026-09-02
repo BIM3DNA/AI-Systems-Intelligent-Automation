@@ -669,11 +669,13 @@ Completed live coverage now includes empty and unsupported-only views; capped an
 
 ## MEP-QA-SPECIALTY-ADAPTER-001 - Active-View Specialty QA Production Adapter
 
-Status: ACTIVE / LIVE VALIDATION IN PROGRESS. Phase 1 is the existing
-uncommitted `script.py` change above baseline
-`5169976dc07e165b6d4fd7c2c49d2da3c0ead8f5`; it is not source-control closed.
-Evidence: `EV-AI-371`; Daily Log: `DL-2026-09-01-01`; Knowledge Capture:
-`KC-053`; hours pending.
+Status: CLOSED - RUNTIME / VALIDATION COMPLETE. Phase 1 runtime and the initial
+project-local checkpoint are committed and pushed in
+`17efe52b92f934d30f45e35e60e6e97dbe5570dd` above baseline
+`5169976dc07e165b6d4fd7c2c49d2da3c0ead8f5`. Final closure documentation is
+prepared but not yet committed. Evidence: `EV-AI-371`; Daily Log:
+`DL-2026-09-01-01`; Knowledge Capture: `KC-053`; final closure identifiers and
+project-local hours pending.
 
 The package adds a thin internal specialty adapter at the active-view MEP QA
 Dashboard issue-collector seam. It preserves the public five-value Dashboard
@@ -683,9 +685,15 @@ specialty assignment semantics. Electrical `EQUIPMENT_PROFILE`, unsupported
 electrical categories, pipe and duct fittings, structured export/bundle paths,
 and arbitrary-view Project Issue Index behavior retain legacy logic.
 
-The 2026-09-01 checkpoint passed assigned Pipe/Duct, assigned/unassigned device,
+The completed matrix passed assigned Pipe/Duct, assigned/unassigned device,
 disconnected-panel QA-004, zero-/multi-system Equipment legacy preservation,
-unsupported Data Device legacy preservation, and Pipe Fitting legacy behavior.
-Missing-system Pipe/Duct and isolated QA-005 fixtures were non-reproducible in
-normal Revit rather than failed. A broad HVAC run evaluated 997 Duct Fittings
-without issues, but the controlled one-fitting fixture remains pending.
+unsupported Data Device behavior, controlled Pipe/Duct Fitting legacy behavior,
+mixed coexistence, UI-selection independence, and large HVAC/Electrical active-
+view regressions. Missing-system Pipe/Duct and isolated QA-005 fixtures were
+non-reproducible in normal Revit rather than failed. The final static/regression
+audit passed with no package-introduced runtime defect.
+
+LIVE-17 processed all 200 electrical candidates returned by the active-view
+collector, reported 39 issues and zero skips/warnings, and did not exercise a
+200-element adapter population cap. Nonblocking static-only and out-of-scope
+cases remain documented without reopening Phase 1.

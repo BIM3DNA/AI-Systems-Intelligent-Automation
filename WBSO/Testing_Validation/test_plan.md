@@ -2144,3 +2144,23 @@ Pending next controlled test:
 
 Continue the remaining Phase 1 matrix after this case. Do not close the package
 until remaining live validation and final static/source-control audit complete.
+
+### Final closure reconciliation - 2026-09-02
+
+The preceding section remains the historical 2026-09-01 checkpoint. Subsequent
+LIVE-13 through LIVE-17 completed the controlled Duct Fitting case, mixed
+specialty/legacy coexistence, four-state UI-selection independence, and large
+HVAC/Electrical active-view regressions. LIVE-02, LIVE-04, and LIVE-08 remain C /
+non-reproducible normal-workflow fixtures with static projection coverage, not
+failures.
+
+LIVE-17 must not be treated as a cap test: the active-view collector returned
+200 electrical candidates, all 200 were processed, 39 issues were returned,
+none were skipped, and no warnings were emitted. There is no adapter population
+cap of 200 in this path and no omitted-candidate evidence.
+
+Final static/regression audit passed; no package-introduced runtime defect was
+found. Runtime and the initial checkpoint are committed and pushed in
+`17efe52b92f934d30f45e35e60e6e97dbe5570dd`. Status: CLOSED - RUNTIME /
+VALIDATION COMPLETE; final closure documentation is prepared but not yet
+committed. Remaining static-only and out-of-scope cases are nonblocking.

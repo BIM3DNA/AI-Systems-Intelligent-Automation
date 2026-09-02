@@ -1253,3 +1253,36 @@ but was not the intended isolated fixture because 1,053 Ducts plus 997 fittings
 remained active. The controlled one-Duct-Fitting case and additional matrix cases
 remain pending. ModelMind remained read-only and workflow-isolated; tester-
 performed Disconnect Panel/Temporary Isolate actions were fixture preparation.
+
+## 2026-09-02 - MEP-QA-SPECIALTY-ADAPTER-001 Final Closure Reconciliation
+
+The 2026-09-01 section above remains an intermediate historical checkpoint.
+Phase 1 runtime and its initial project-local WBSO checkpoint are now committed
+and pushed in `17efe52b92f934d30f45e35e60e6e97dbe5570dd`, parent
+`5169976dc07e165b6d4fd7c2c49d2da3c0ead8f5`; final audit found `main` and
+`origin/main` aligned with a clean worktree.
+
+LIVE-13 controlled Duct Fitting, LIVE-14 mixed specialty/legacy coexistence,
+LIVE-15 four-state UI-selection independence, LIVE-16 large Snowdon HVAC, and
+LIVE-17 large Snowdon Electrical regressions passed. LIVE-02, LIVE-04, and
+LIVE-08 remain C / non-reproducible normal-workflow fixtures with static
+coverage, not failures. The completed matrix is sufficient for Phase 1 closure.
+
+LIVE-17 processed all 200 electrical candidates returned by the active-view
+collector and reported 39 issues, zero skips, no warnings, and YELLOW. This path
+has no 200-element adapter population cap; the run does not prove a bounded
+maximum, cap activation, or omitted candidates.
+
+Final static/regression audit: PASS. Seven adapter helpers and exactly two
+approved integration functions account for the implementation delta; 1,445
+existing functions and all 188 audit-selected protected functions remained
+unchanged, and the fitting branch remained AST-identical to baseline. Catalog
+count remains 237 and semantically unchanged. No runtime defect or prohibited
+mutation/workflow side effect was found.
+
+Status: CLOSED - RUNTIME / VALIDATION COMPLETE. Closure readiness:
+`READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`. Final closure documentation is
+prepared but not yet committed. Existing identifiers `EV-AI-371`,
+`DL-2026-09-01-01`, and `KC-053` retain their intermediate-checkpoint meaning;
+final project-local closure identifiers and hours remain PENDING. Central WBSO
+separately records `DL-2026-09-01-05` and five actual hours.
