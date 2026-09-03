@@ -1286,3 +1286,35 @@ prepared but not yet committed. Existing identifiers `EV-AI-371`,
 `DL-2026-09-01-01`, and `KC-053` retain their intermediate-checkpoint meaning;
 final project-local closure identifiers and hours remain PENDING. Central WBSO
 separately records `DL-2026-09-01-05` and five actual hours.
+
+## 2026-09-03 - MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 Closure Summary
+
+Verdict: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`.
+
+The Project Issue Index now opts into the closed specialty evaluator for rigid
+Pipe, rigid non-placeholder Duct, and Electrical `DEVICE_PROFILE` Lighting /
+Electrical Fixtures through a default-false arbitrary-view collector flag. The
+five-value collector contract, per-view/check occurrence model, legacy
+Equipment/unsupported/fitting behavior, all other callers, exports, and
+governance remain unchanged.
+
+The completed live matrix passed broad Snowdon Plumbing (23 views / 4,144 MEP
+occurrences), HVAC (11 views / 1,105 occurrences), and repeat-deterministic
+Electrical (30 views / 3,196 occurrences / 350 issues) runs. Dashboard parity,
+QA-003 attribution, Equipment and Data Device legacy behavior, fitting
+preservation, active-view independence, selection/read-only isolation, Issue
+Index Export, and QA Export/evidence-cycle compatibility also passed.
+
+Final static/regression audit: PASS. Function counts remained 1,475; exactly two
+existing functions changed, 1,473 remained unchanged, no helpers were added or
+removed, all 29 explicitly protected functions remained unchanged, and catalog
+count remains 237. No package-introduced runtime defect was found.
+
+Missing-system rigid Pipe/Duct and other static-only states are non-reproducible
+or observational rather than failures. Direct QA-004, live unreadable/partial/
+ORANGE, optional unsupported-device samples, positive Duct Fitting,
+single-project all-discipline, and numerical timing gaps are nonblocking.
+
+Runtime and this documentation remain uncommitted/unpushed above baseline
+`8745716c8efd04ff4efea0e82aee88e547b7a58e`. Final Evidence, Daily Log, KC, and
+hours are PENDING because repository-local numbering is not unambiguous.

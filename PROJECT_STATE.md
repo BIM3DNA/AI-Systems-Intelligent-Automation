@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 Repository:
 C:\00_WORKS\DEVELOPMENT\AI
@@ -47,6 +47,55 @@ The authoritative project state is:
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
 
+## MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001
+
+Feature:
+Project Issue Index Specialty Semantics Adapter
+
+Status:
+
+READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS
+
+Phase 1 runtime is complete in the working tree above synchronized baseline
+`8745716c8efd04ff4efea0e82aee88e547b7a58e`. It is not yet committed or
+pushed. The runtime delta is limited to
+`AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py`: 43 insertions and
+22 deletions, with exactly two changed functions,
+`_mep_export_v1_elements_for_action_in_view` and
+`_mep_qa_issueindex_v1_build_data`; no helpers were added or removed.
+
+The arbitrary-view collector retains its existing five-value return contract
+and defaults `use_specialty_adapter=False`. Only the Project Issue Index builder
+opts in. Promoted semantics are limited to rigid Pipe, rigid non-placeholder
+Duct, and Electrical `DEVICE_PROFILE` Lighting Fixtures / Electrical Fixtures.
+Electrical Equipment and other unsupported electrical categories, Pipe/Duct
+Fittings, and all other arbitrary-view callers remain on legacy behavior.
+
+Live validation is sufficient for closure. Snowdon Plumbing, HVAC, and
+Electrical runs covered assigned Pipe/Duct, electrical device QA-003, legacy
+equipment and Data Device behavior, fitting preservation, Dashboard parity,
+repeat determinism, active-view independence, selection/read-only isolation,
+Issue Index Export, and downstream QA Export/evidence-cycle compatibility. The
+large electrical run produced 3,196 MEP view/check occurrences and 350 issue
+occurrences across 30 eligible views with no skips or warnings.
+
+Final static/regression audit: PASS. Baseline and current function counts are
+1,475; exactly two functions changed and 1,473 remained unchanged. All 29
+explicitly protected production/adapter functions, the fitting branch, schemas,
+formatters, export allowlist, governance behavior, and catalog remained
+unchanged. No package-introduced runtime defect was found.
+
+Non-reproducible Pipe/Duct missing-system and other static-only states, a direct
+Issue Index QA-004 fixture, unreadable/partial/ORANGE live paths, optional
+unsupported-device samples, a positive Duct Fitting fixture, a single-project
+all-discipline fixture, and numerical elapsed-time evidence remain nonblocking.
+Project-local final Evidence, Daily Log, Knowledge Capture, and hours remain
+`PENDING` because the repository-local sequence is not unambiguous.
+
+Source-control status: runtime implementation and this project-local closure
+documentation are UNCOMMITTED / UNPUSHED. Do not mark source-control closure
+complete until a reviewed combined commit is created and pushed.
+
 ## MEP-QA-SPECIALTY-ADAPTER-001
 
 Feature:
@@ -54,14 +103,14 @@ Active-View Specialty QA Production Adapter
 
 Status:
 
-CLOSED - RUNTIME / VALIDATION COMPLETE
+CLOSED / SOURCE-CONTROL CLOSURE COMPLETE
 
 Phase 1 runtime and its initial project-local checkpoint are committed and
 pushed in `17efe52b92f934d30f45e35e60e6e97dbe5570dd`, whose parent is baseline
 `5169976dc07e165b6d4fd7c2c49d2da3c0ead8f5`. At the 2026-09-02 audit, `main`
 and `origin/main` were synchronized at that commit with a clean worktree.
-Final closure documentation is prepared by this reconciliation but is not yet
-committed.
+Final project-local closure documentation is committed and pushed in
+`8745716c8efd04ff4efea0e82aee88e547b7a58e`.
 It is a thin internal specialty adapter at the active-view Dashboard issue-
 collector seam; the public five-value Dashboard contract is unchanged and no
 public route or prompt-catalog entry was added.
@@ -96,9 +145,9 @@ processed, 39 issues were reported, none were skipped, and no warning was
 emitted. This path has no adapter population cap of 200 and no omitted-candidate
 claim is supported.
 
-Package closure readiness: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`. Runtime
-and validation are complete; final documentation source-control closure remains
-pending the separate documentation-only commit.
+Package closure readiness was `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS` before
+the final documentation commit. Runtime, validation, and source-control closure
+are now complete; the retained nonblocking gaps do not reopen the package.
 
 ## MEP-QA-SPECIALTY-DISC-001
 
@@ -648,6 +697,15 @@ Project-local MEP-QA-SPECIALTY-ADAPTER-001 records:
 - project-local hours: PENDING
 - central WBSO reference: DL-2026-09-01-05 / 5 actual hours
 
+Project-local MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 records:
+
+- final closure Evidence ID: PENDING
+- final closure Daily Log ID: PENDING
+- final closure Knowledge Capture ID: PENDING
+- project-local hours: PENDING
+- no new Knowledge Capture file allocated because the repository-local sequence
+  is not unambiguous
+
 # 15. NEXT DEVELOPMENT STATE
 
 MEP-QA-SPECIALTY-DISC-001 is CLOSED. Its implementation checkpoint
@@ -670,16 +728,25 @@ CLOSED
 ELECTRICAL-RO-001:
 CLOSED
 
-MEP-QA-SPECIALTY-ADAPTER-001 is CLOSED - RUNTIME / VALIDATION COMPLETE. Its
+MEP-QA-SPECIALTY-ADAPTER-001 is CLOSED / SOURCE-CONTROL CLOSURE COMPLETE. Its
 runtime implementation and initial project-local checkpoint are committed and
 pushed in `17efe52b92f934d30f45e35e60e6e97dbe5570dd`; live validation is
 sufficient for closure, the final static/regression audit passed, and no runtime
-defect was found. This final closure documentation is prepared but remains
-uncommitted until a separate documentation-only closure commit is authorized.
+defect was found. Its final project-local closure documentation is committed and
+pushed in `8745716c8efd04ff4efea0e82aee88e547b7a58e`.
 
-The latest verified committed runtime/package checkpoint is:
+MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 is
+`READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`. Runtime and validation are complete,
+the final static/regression audit passed, and no package-introduced defect was
+found. The implementation and current project-local closure documentation remain
+uncommitted and unpushed. The proposed combined commit scope is the one runtime
+file plus the canonical project-local documentation/WBSO files changed for this
+closure update.
 
-17efe52b92f934d30f45e35e60e6e97dbe5570dd
+The synchronized repository baseline before the current working-tree
+implementation is:
+
+8745716c8efd04ff4efea0e82aee88e547b7a58e
 
 Later documentation-only commits, including durable project handoff files, may
 exist above this closure commit and do not reopen ELECTRICAL-RO-001.

@@ -353,3 +353,18 @@ runtime and the initial checkpoint are committed and pushed in
 `17efe52b92f934d30f45e35e60e6e97dbe5570dd`. Final audit: PASS; runtime defects:
 none. Status: CLOSED - RUNTIME / VALIDATION COMPLETE; final closure documentation
 is prepared and not yet committed.
+
+## 2026-09-03 MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 Provider Independence
+
+MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 is a deterministic internal
+arbitrary-view Project Issue Index adapter. Ollama/OpenAI does not determine
+view eligibility, specialty eligibility, assignment state, issue attribution,
+legacy fallback, occurrence accounting, export contents, or workflow state. No
+public command, route, alias, catalog entry, or provider configuration changed.
+
+Only `_mep_qa_issueindex_v1_build_data` opts into the existing closed specialty
+evaluator through the arbitrary-view collector's default-false flag. Broad live
+validation and static probes confirmed deterministic results, Dashboard parity,
+active-view independence, and unchanged Issue Index Export / QA Export behavior.
+Status: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`; runtime defects: none found;
+runtime and documentation remain uncommitted/unpushed.

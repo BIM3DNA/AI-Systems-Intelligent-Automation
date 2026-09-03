@@ -697,3 +697,37 @@ LIVE-17 processed all 200 electrical candidates returned by the active-view
 collector, reported 39 issues and zero skips/warnings, and did not exercise a
 200-element adapter population cap. Nonblocking static-only and out-of-scope
 cases remain documented without reopening Phase 1.
+
+## MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 - Project Issue Index Specialty Semantics Adapter
+
+Status: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`. Runtime implementation is
+complete in the working tree above baseline
+`8745716c8efd04ff4efea0e82aee88e547b7a58e`, but is not yet committed or
+pushed. The runtime delta is one file with 43 insertions and 22 deletions;
+exactly `_mep_export_v1_elements_for_action_in_view` and
+`_mep_qa_issueindex_v1_build_data` changed, with no helper additions/removals.
+
+The arbitrary-view collector now accepts `use_specialty_adapter=False` while
+preserving its five-value return contract. Only the Project Issue Index builder
+opts in. It reuses `_mep_qa_specialty_adapter_001_evaluate` for rigid Pipe,
+rigid non-placeholder Duct, and supported electrical `DEVICE_PROFILE`
+Lighting/Electrical Fixtures. Equipment, unsupported electrical categories,
+Pipe/Duct Fittings, and all other arbitrary-view callers retain legacy logic.
+
+Project Issue Index identity remains per view/check occurrence. There is no
+project-level ElementId deduplication, element-to-view aggregation, cross-view
+reason merge, or cross-view warning deduplication. Static probes confirmed that
+one issue element visible in two views contributes two occurrences.
+
+The completed live matrix covered broad Plumbing/HVAC/Electrical projects,
+device QA-003 attribution, Equipment and Data Device legacy preservation,
+Dashboard parity, deterministic repeated runs, selection/read-only isolation,
+Issue Index Export, and downstream QA Export/evidence-cycle compatibility.
+Final static/regression audit passed with 1,475 baseline/current functions, two
+changed and 1,473 unchanged; no package-introduced defect was found. Catalog
+count remains 237 and no prompt asset was added.
+
+Final project-local Evidence, Daily Log, Knowledge Capture, and hours remain
+PENDING because the repository-local identifier sequence is not unambiguous.
+Source-control closure is not complete until the reviewed runtime and WBSO
+changes are committed and pushed.

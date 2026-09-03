@@ -1116,3 +1116,29 @@ complete. LIVE-17 processed all 200 candidates returned by the collector and did
 not exercise a 200-element adapter population cap. Final static/regression audit:
 PASS; runtime defects: none. Evidence: `EV-AI-371`; `DL-2026-09-01-01`;
 `KC-053`; final closure identifiers and project-local hours pending.
+
+## 2026-09-03 - MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 Current Scope
+
+Status: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`. Runtime and live validation
+are complete with no package-introduced defect, but the implementation and this
+documentation remain uncommitted/unpushed above synchronized baseline
+`8745716c8efd04ff4efea0e82aee88e547b7a58e`.
+
+In scope: Project Issue Index arbitrary-view collection for rigid Pipe, rigid
+non-placeholder Duct, and Electrical `DEVICE_PROFILE` Lighting Fixtures /
+Electrical Fixtures; reuse of the closed specialty evaluator; unchanged
+five-value collector contract; per-view/check occurrence accounting; existing
+Issue Index Export and QA Export compatibility.
+
+Retained on legacy paths: Electrical Equipment and all other unsupported
+electrical categories, Pipe/Duct Fittings, other arbitrary-view callers, and
+all unsupported content. No public route, catalog entry, helper, specialty rule,
+project-level ElementId deduplication, workflow allowlist, mutation behavior, or
+new scan/cap/cache was introduced.
+
+The live matrix is sufficient for closure. Missing-system rigid Pipe/Duct and
+other static-only states remain nonblocking, as do direct QA-004, live
+unreadable/partial/ORANGE, optional unsupported-device, positive Duct Fitting,
+single-project all-discipline, and elapsed-time gaps. Final local Evidence,
+Daily Log, KC, and hours are PENDING because repository-local numbering is not
+unambiguous.

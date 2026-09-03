@@ -1903,3 +1903,28 @@ Runtime and the initial checkpoint are committed and pushed in
 `17efe52b92f934d30f45e35e60e6e97dbe5570dd`; final closure documentation is
 prepared but not yet committed. Remaining static-only and out-of-scope cases are
 nonblocking. Evidence: `EV-AI-371`; KC: `KC-053`.
+
+## 2026-09-03 - MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 Closure Findings
+
+Status: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`; no package-introduced runtime
+defect identified. The implementation remains uncommitted/unpushed.
+
+Non-defect fixture/coverage limitations:
+
+- missing-system supported rigid Pipe and Duct states remain non-reproducible in
+  normal Revit workflows and statically covered;
+- direct Issue Index QA-004 and live unreadable/partial/ORANGE paths were not
+  separately reproduced;
+- optional Fire Alarm/Security/Communication samples, a positive Duct Fitting,
+  one-project all-discipline coverage, and numerical timing remain nonblocking.
+
+Pre-existing edges remain the Pipe/Duct nonpositive ElementId normalization and
+Electrical blank/unavailable CircuitNumber normalization. Neither was changed.
+Per-view/check occurrence accounting is intentional: the same element visible
+in two views contributes two issue occurrences, not one unique project element.
+
+Live Plumbing/HVAC/Electrical runs, Dashboard parity, device QA-003 attribution,
+Equipment/Data Device/fitting legacy preservation, repeat determinism,
+selection/read-only isolation, and both export stages passed. Final static
+regression found only the two approved integration functions changed and all
+protected behavior unchanged.

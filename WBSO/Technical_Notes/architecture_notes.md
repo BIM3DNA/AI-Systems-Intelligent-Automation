@@ -1755,3 +1755,33 @@ functions. Status: CLOSED - RUNTIME / VALIDATION COMPLETE; runtime/checkpoint
 commit `17efe52b92f934d30f45e35e60e6e97dbe5570dd` is pushed, and final closure
 documentation is prepared but not yet committed. Evidence: `EV-AI-371`; KC:
 `KC-053`.
+
+## 2026-09-03 - MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 Closure Architecture
+
+This package extends the already closed active-view specialty adapter through
+the existing arbitrary-view collection seam without changing public Issue Index
+contracts. `_mep_export_v1_elements_for_action_in_view` adds the default-false
+`use_specialty_adapter` parameter and keeps returning `(elements, warnings,
+checked, skipped, qa_reason)`. Of seven arbitrary-view call sites, only
+`_mep_qa_issueindex_v1_build_data` passes `True`.
+
+The sole specialty evaluation dependency remains
+`_mep_qa_specialty_adapter_001_evaluate`. Its allowlist is rigid Pipe, rigid
+non-placeholder Duct, and Electrical `DEVICE_PROFILE` Lighting/Electrical
+Fixtures. Equipment, unsupported electrical categories, fittings, structured
+MEP export/bundle paths, and the other arbitrary-view consumers remain legacy.
+No specialty rule was duplicated and no helper was added or removed.
+
+Issue identity remains a view/check occurrence rather than a unique project
+element. The same element is intentionally evaluated once in every eligible
+view in which the existing collector returns it. No new whole-project scan,
+view enumeration, category scan, cache, or population cap was added;
+ElectricalSystems traversal remains bounded to 20 per element.
+
+Final static audit found 1,475 functions before and after, exactly two changed,
+and 1,473 unchanged. All 29 explicitly protected production/adapter functions,
+fitting logic, schemas, formatters, export allowlist, and governance paths were
+unchanged. Live validation proved Issue Index Export and downstream QA Export
+compatibility. Status: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`; no runtime
+defect found; working-tree implementation and closure records remain
+uncommitted/unpushed above baseline `8745716c8efd04ff4efea0e82aee88e547b7a58e`.

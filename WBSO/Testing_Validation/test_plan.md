@@ -2164,3 +2164,42 @@ found. Runtime and the initial checkpoint are committed and pushed in
 `17efe52b92f934d30f45e35e60e6e97dbe5570dd`. Status: CLOSED - RUNTIME /
 VALIDATION COMPLETE; final closure documentation is prepared but not yet
 committed. Remaining static-only and out-of-scope cases are nonblocking.
+
+## 2026-09-03 - MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 Closure Matrix
+
+Status: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`. Runtime implementation and
+documentation are uncommitted/unpushed above baseline
+`8745716c8efd04ff4efea0e82aee88e547b7a58e`.
+
+Completed:
+
+1. LIVE-01 Snowdon Plumbing Issue Index: PASS; 23/23 views, 4,144 occurrences,
+   two legacy Pipe Fitting issues, zero Pipe assignment issues/skips.
+2. LIVE-02 same-Pipe issue-positive multiview: STATICALLY COVERED / NONBLOCKING;
+   missing-system rigid Pipe is not normally reproducible.
+3. LIVE-03 Snowdon HVAC Issue Index: PASS; 11/11 views, 1,105 occurrences, zero
+   issues/skips.
+4. LIVE-04 same-Duct issue-positive multiview: STATICALLY COVERED / NONBLOCKING;
+   missing-system rigid Duct is not normally reproducible.
+5. LIVE-05 Snowdon Electrical broad Issue Index: PASS; two identical runs,
+   30/30 views, 3,196 occurrences, 350 issues, 29 rows, zero skips/warnings.
+6. LIVE-06 M1 Issue Index/Dashboard parity: PASS; 28 electrical occurrences and
+   one issue in both paths.
+7. LIVE-06A/LIVE-09 unsupported Data Device legacy preservation: PASS.
+8. LIVE-07 Electrical DEVICE_PROFILE QA-003 attribution: PASS; three unassigned
+   Lighting Fixtures and three QA-003 issues.
+9. LIVE-08 Electrical EQUIPMENT_PROFILE legacy preservation: PASS; 19 Equipment
+   issue candidates retained legacy handling.
+10. LIVE-10 Pipe Fitting positive legacy issue: PASS via LIVE-01.
+11. LIVE-11 Duct Fitting legacy zero-issue regression: PASS.
+12. LIVE-12 mixed specialty/legacy coverage: PASS across combined matrix.
+13. LIVE-13 Issue Index Export: PASS; `MEP_QA_ISSUEINDEX_EXPORT_OK`, 11 files.
+14. LIVE-14 QA Export/evidence-cycle compatibility: PASS;
+    `QA_REPORT_EXPORT_COMPLETE`, stage 2 to stage 3.
+15. LIVE-15 repeated determinism/active-view independence: PASS.
+16. LIVE-16 selection/read-only isolation: PASS.
+
+Final static/regression audit passed. Direct QA-004, live unreadable/partial/
+ORANGE, optional unsupported-device samples, positive Duct Fitting,
+single-project all-discipline, and numerical timing remain nonblocking. No new
+fixture is required before the reviewed closure commit.

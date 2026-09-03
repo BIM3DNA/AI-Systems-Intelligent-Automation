@@ -2858,3 +2858,42 @@ continue to identify the intermediate checkpoint. Final project-local closure
 identifiers and hours remain PENDING because the local sequence is not
 unambiguous. Central WBSO separately records `DL-2026-09-01-05` and five actual
 hours; the existing project-local Daily Log ID is not renamed.
+
+## MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 Final Closure Record - 2026-09-03
+
+Package status: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`. Runtime implementation
+is complete but remains uncommitted/unpushed in the working tree above baseline
+`8745716c8efd04ff4efea0e82aee88e547b7a58e`. The only runtime path changed is
+`AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py` (43 insertions, 22
+deletions), with exactly `_mep_export_v1_elements_for_action_in_view` and
+`_mep_qa_issueindex_v1_build_data` changed.
+
+Live evidence summary:
+
+- Plumbing: 23 eligible/scanned views, 4,144 MEP occurrences, two legacy
+  unconnected Pipe Fitting issues, zero Pipe assignment issues, zero skips;
+- HVAC: 11 eligible/scanned views, 1,105 MEP occurrences, zero issues/skips;
+- Electrical: two broad runs each produced 30 eligible/scanned views, 3,196 MEP
+  occurrences, 350 issue occurrences, 29 issue rows, zero skips/warnings;
+- M1 Dashboard parity: 28 electrical occurrences and one issue in both paths;
+- QA-003 attribution: three unassigned Lighting Fixtures produced three issues;
+- Equipment and Data Device cases remained legacy; repeat determinism,
+  active-view independence, selection/read-only isolation, Issue Index Export,
+  and downstream QA Export/evidence-cycle compatibility passed.
+
+Static/regression audit: PASS. Baseline/current functions 1,475; added 0;
+removed 0; changed 2; unchanged 1,473; 29 explicitly protected functions and
+the fitting branch unchanged. Catalog count is 237 and semantically unchanged.
+No package-introduced runtime defect was found.
+
+Static-only/non-reproducible dispositions include missing-system rigid Pipe and
+Duct plus other unreadable/inconsistent state projections. Nonblocking gaps are
+direct Issue Index QA-004, live unreadable/partial/ORANGE, optional Fire/Security/
+Communication samples, positive Duct Fitting, a single-project all-discipline
+fixture, and numerical elapsed-time measurement.
+
+Evidence ID: PENDING. Daily Log ID: PENDING. Knowledge Capture ID: PENDING; no
+new numbered KC file was created. Hours: PENDING. Repository-local sequences do
+not establish the next identifiers unambiguously. Source-control closure must
+not be marked complete until the combined implementation/documentation commit
+is reviewed, created, and pushed.

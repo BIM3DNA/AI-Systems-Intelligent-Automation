@@ -45359,7 +45359,12 @@ class OllamaAIChat(forms.WPFWindow):
             warnings.append("Unsupported MEP-RO-EXPORT-v1 prompt.")
         return elements, warnings, checked, skipped, qa_reason
 
-    def _mep_export_v1_elements_for_action_in_view(self, action_key, view):
+    def _mep_export_v1_elements_for_action_in_view(
+        self,
+        action_key,
+        view,
+        use_specialty_adapter=False,
+    ):
         warnings = []
         skipped = []
         checked = 0
@@ -45398,28 +45403,40 @@ class OllamaAIChat(forms.WPFWindow):
         elif action_key in ["export_pipes_without_system", "export_ducts_without_system"]:
             category_id = pipe_id if action_key == "export_pipes_without_system" else duct_id
             source, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, [category_id])
-            checked = len(source)
-            qa_reason = "missing_system_assignment"
-            for elem in source:
-                try:
-                    if not self._mep_ro_v1_system_assigned(elem):
-                        elements.append(elem)
-                except:
-                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+            if use_specialty_adapter:
+                elements, adapter_warnings, checked, skipped, qa_reason = (
+                    self._mep_qa_specialty_adapter_001_evaluate(action_key, source)
+                )
+                warnings.extend(adapter_warnings)
+            else:
+                checked = len(source)
+                qa_reason = "missing_system_assignment"
+                for elem in source:
+                    try:
+                        if not self._mep_ro_v1_system_assigned(elem):
+                            elements.append(elem)
+                    except:
+                        skipped.append(self._mep_ro_v1_element_id_text(elem))
         elif action_key == "export_devices_without_circuit":
             devices, warnings = self._mep_ro_v1_view_elements_by_category_ids(view, electrical_ids)
-            checked = len(devices)
-            qa_reason = "missing_circuit_or_system_info"
-            for elem in devices:
-                try:
-                    value = self._mep_ro_v1_param_value(
-                        elem,
-                        ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"],
-                    )
-                    if not value:
-                        elements.append(elem)
-                except:
-                    skipped.append(self._mep_ro_v1_element_id_text(elem))
+            if use_specialty_adapter:
+                elements, adapter_warnings, checked, skipped, qa_reason = (
+                    self._mep_qa_specialty_adapter_001_evaluate(action_key, devices)
+                )
+                warnings.extend(adapter_warnings)
+            else:
+                checked = len(devices)
+                qa_reason = "missing_circuit_or_system_info"
+                for elem in devices:
+                    try:
+                        value = self._mep_ro_v1_param_value(
+                            elem,
+                            ["Circuit Number", "Panel", "System Name", "System Type", "Electrical System", "Load Name"],
+                        )
+                        if not value:
+                            elements.append(elem)
+                    except:
+                        skipped.append(self._mep_ro_v1_element_id_text(elem))
         else:
             warnings.append("Unsupported MEP-QA-VIEWSCAN-v1 check action.")
         return elements, warnings, checked, skipped, qa_reason
@@ -47926,7 +47943,11 @@ class OllamaAIChat(forms.WPFWindow):
                 }
                 dominant = {"name": "none", "count": 0}
                 for spec in self._mep_qa_issueindex_v1_issue_specs():
-                    elements, warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action_in_view(spec["action_key"], view)
+                    elements, warnings, checked, skipped, qa_reason = self._mep_export_v1_elements_for_action_in_view(
+                        spec["action_key"],
+                        view,
+                        use_specialty_adapter=True,
+                    )
                     data["warnings"].extend(["{0}: {1}".format(view_name, warning) for warning in (warnings or [])])
                     issue_count = len(elements)
                     skipped_count = len(skipped or [])
