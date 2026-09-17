@@ -2,12 +2,17 @@
 __title__ = "AI"
 __doc__ = """AI"""
 
-import clr
+# Only the private M2A loader supplies this flag; ordinary execution is unchanged.
+_MODELMIND_HEADLESS = globals().get("_MODELMIND_HEADLESS_BOOTSTRAP", False) is True
+
+if not _MODELMIND_HEADLESS:
+    import clr
 import os
 import sys
 import json
-import subprocess
-import requests
+if not _MODELMIND_HEADLESS:
+    import subprocess
+    import requests
 import re
 import time
 import math
@@ -15,35 +20,37 @@ import tempfile
 import codecs
 import csv
 import hashlib
-import System
-
-from System import Action
-
-from pyrevit import revit, DB, forms, script
-from pyrevit import script as pyscript
-import System.Windows.Forms as WinForms
+if _MODELMIND_HEADLESS:
+    from pyrevit import DB
+else:
+    import System
+    from System import Action
+    from pyrevit import revit, DB, forms, script
+    from pyrevit import script as pyscript
+    import System.Windows.Forms as WinForms
 
 SCRIPT_DIR = os.path.dirname(__file__)
 LIB_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", "lib"))
 ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", "..", ".."))
 MODEL_SERVICE_DIR = os.path.join(ROOT_DIR, "Model_Service")
-if LIB_DIR not in sys.path:
+if not _MODELMIND_HEADLESS and LIB_DIR not in sys.path:
     sys.path.append(LIB_DIR)
-if MODEL_SERVICE_DIR not in sys.path:
+if not _MODELMIND_HEADLESS and MODEL_SERVICE_DIR not in sys.path:
     sys.path.append(MODEL_SERVICE_DIR)
 
-from ai_agent_session import AgentSession
-from ai_local_store import LocalSettingsStore
-from ai_prompt_registry import PromptCatalog
-from ai_reviewed_code import validate_reviewed_code
-from ModelService import (
-    get_openai_provider_state,
-    get_openai_provider_self_test,
-    normalize_intent_to_supported_action,
-)
+if not _MODELMIND_HEADLESS:
+    from ai_agent_session import AgentSession
+    from ai_local_store import LocalSettingsStore
+    from ai_prompt_registry import PromptCatalog
+    from ai_reviewed_code import validate_reviewed_code
+    from ModelService import (
+        get_openai_provider_state,
+        get_openai_provider_self_test,
+        normalize_intent_to_supported_action,
+    )
 
-uidoc = revit.uidoc
-doc = revit.doc
+uidoc = None if _MODELMIND_HEADLESS else revit.uidoc
+doc = None if _MODELMIND_HEADLESS else revit.doc
 
 # === Config ===
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
@@ -209,7 +216,7 @@ REVIEWED_CODE_STATE_COLORS = {
 
 # print("RUNNING AI script from:", __file__)
 
-logger = pyscript.get_logger()
+logger = None if _MODELMIND_HEADLESS else pyscript.get_logger()
 
 def _silent_alert(msg, title="pyRevit", exitscript=False, **kwargs):
     # No icon => no Windows system sound
@@ -222,7 +229,8 @@ def _silent_alert(msg, title="pyRevit", exitscript=False, **kwargs):
         pyscript.exit()
 
 # Replace pyRevit's alert with our silent version
-forms.alert = _silent_alert
+if not _MODELMIND_HEADLESS:
+    forms.alert = _silent_alert
 # --- end silent override---
 # === Helper Functions ===
 
@@ -15696,7 +15704,7 @@ def execution_result_message(execution_result):
     return str(execution_result)
 
 
-class ApprovedRecipeMetadataDialog(WinForms.Form):
+class ApprovedRecipeMetadataDialog(object if _MODELMIND_HEADLESS else WinForms.Form):
     def __init__(self, defaults):
         WinForms.Form.__init__(self)
         self.Text = "Save Approved Recipe"
@@ -15827,7 +15835,7 @@ class ApprovedRecipeMetadataDialog(WinForms.Form):
 # === WPF Window Logic ===
 
 
-class OllamaAIChat(forms.WPFWindow):
+class OllamaAIChat(object if _MODELMIND_HEADLESS else forms.WPFWindow):
     def __init__(self, xaml_path):
         forms.WPFWindow.__init__(self, xaml_path)
         self.catalog = PromptCatalog(PROMPT_CATALOG_PATH, APPROVED_RECIPES_PATH)

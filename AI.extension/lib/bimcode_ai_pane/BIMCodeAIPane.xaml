@@ -1,9 +1,69 @@
 <Page xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-      Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
-      Foreground="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"
+      Background="{DynamicResource PaneBackgroundBrush}"
+      Foreground="{DynamicResource PrimaryTextBrush}"
       MinWidth="260" FontFamily="Segoe UI" FontSize="12">
-    <Grid Margin="16">
+    <Page.Resources>
+        <!-- Light fallback; theme.py updates these brushes from Revit's theme. -->
+        <SolidColorBrush x:Key="PaneBackgroundBrush" Color="#eff6ff"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#ffffff"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#cbd5e1"/>
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#1f2937"/>
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#4b5563"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#0085ff"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#047857"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#92400e"/>
+        <SolidColorBrush x:Key="ErrorBrush" Color="#b91c1c"/>
+        <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#f8fafd"/>
+        <SolidColorBrush x:Key="ButtonHoverBrush" Color="#dbeafe"/>
+        <SolidColorBrush x:Key="DisabledTextBrush" Color="#6b7280"/>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource ButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource ButtonHoverBrush}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.65"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource PrimaryTextBrush}"/>
+        </Style>
+        <Style TargetType="ToolTip">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        </Style>
+    </Page.Resources>
+    <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -11,38 +71,64 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBlock Text="BIMCode AI" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,16"/>
-        <Border Grid.Row="1" BorderBrush="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}"
-                BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,12">
-            <StackPanel>
-                <TextBlock Text="Document" FontWeight="SemiBold"/>
-                <TextBlock x:Name="DocumentText" Text="No document" TextWrapping="Wrap" Margin="0,3,0,12"/>
-                <TextBlock Text="Active View" FontWeight="SemiBold"/>
-                <TextBlock x:Name="ViewText" Text="Unavailable" TextWrapping="Wrap" Margin="0,3,0,0"/>
-                <TextBlock x:Name="ViewTypeText" Text="Unavailable" TextWrapping="Wrap" Margin="0,2,0,12"/>
-                <TextBlock Text="Selection" FontWeight="SemiBold"/>
-                <TextBlock x:Name="SelectionText" Text="0 elements" Margin="0,3,0,8"/>
-                <Button x:Name="RefreshButton" Content="Refresh context" Padding="10,5"
-                        HorizontalAlignment="Left" ToolTip="Read the current document, view, and selection count."/>
-            </StackPanel>
+        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,0,8">
+            <WrapPanel x:Name="ContextBar" VerticalAlignment="Center">
+                <TextBlock x:Name="DocumentText" Text="No document" MaxWidth="140" TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center" Margin="0,3,8,3" FontWeight="SemiBold"/>
+                <TextBlock x:Name="ViewText" Text="Unavailable" MaxWidth="150" TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center" Margin="0,3,6,3"/>
+                <TextBlock x:Name="ViewTypeText" Text="Unavailable" MaxWidth="100" TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="0,3,8,3"/>
+                <TextBlock x:Name="SelectionText" Text="Sel: 0" VerticalAlignment="Center" Margin="0,3,8,3"/>
+                <Button x:Name="RefreshButton" Content="Refresh" Padding="6,2" Margin="0,1,0,1"
+                        ToolTip="Refresh Revit context"/>
+            </WrapPanel>
         </Border>
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,12">
-            <TextBlock TextWrapping="Wrap" Text="Welcome to BIMCode AI. Milestone 1 shows read-only Revit context. AI connection is not enabled in Milestone 1."/>
-        </ScrollViewer>
-        <Grid Grid.Row="3" Margin="0,0,0,12">
+        <StackPanel Grid.Row="1">
+            <TextBlock Text="AI connection is not enabled. ModelMind read-only tools are available."
+                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"/>
+            <DockPanel Margin="0,0,0,6" LastChildFill="True">
+                <TextBlock Text="ModelMind" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <WrapPanel HorizontalAlignment="Right">
+                    <TextBox x:Name="FindInput" Width="76" Padding="3,2" ToolTip="Find in displayed result (case-insensitive)" AutomationProperties.Name="Find in result"/>
+                    <Button x:Name="FindPrevious" Content="&#x2039;" Padding="4,2" IsEnabled="False" ToolTip="Previous match"/>
+                    <Button x:Name="FindNext" Content="&#x203a;" Padding="4,2" IsEnabled="False" ToolTip="Next match"/>
+                    <Button x:Name="FindClear" Content="&#x00d7;" Padding="4,2" ToolTip="Clear find"/>
+                    <TextBlock x:Name="FindCount" Text="0/0" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                </WrapPanel>
+            </DockPanel>
+            <UniformGrid Columns="2" Rows="2" Margin="0,0,0,8">
+                <Button x:Name="SummaryButton" Content="Summary" Margin="0,0,3,3"/>
+                <Button x:Name="ConnectorsButton" Content="Connectors" Margin="3,0,0,3"/>
+                <Button x:Name="AssignmentButton" Content="Assignment" Margin="0,3,3,0"/>
+                <Button x:Name="QAHealthButton" Content="QA Health" Margin="3,3,0,0"/>
+            </UniformGrid>
+        </StackPanel>
+        <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1" CornerRadius="3" Margin="0,0,0,8">
+            <FlowDocumentScrollViewer x:Name="ToolResultText" IsToolBarVisible="False"
+                                      Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource PrimaryTextBrush}"
+                                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <FlowDocument FontFamily="Segoe UI" FontSize="12" PagePadding="10"
+                              Foreground="{DynamicResource PrimaryTextBrush}">
+                    <Paragraph>Choose a read-only ModelMind tool.</Paragraph>
+                </FlowDocument>
+            </FlowDocumentScrollViewer>
+        </Border>
+        <Grid Grid.Row="3" Margin="0,0,0,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="MessageInput" MinHeight="32" MaxLength="2000" Padding="6"
-                     VerticalContentAlignment="Center" ToolTip="AI connection is not configured. Messages cannot be sent in M1."/>
-            <Button Grid.Column="1" Content="Send" IsEnabled="False" Padding="12,5" Margin="8,0,0,0"/>
+            <TextBox x:Name="MessageInput" MinHeight="28" MaxLength="2000" Padding="6,3"
+                     VerticalContentAlignment="Center" ToolTip="AI connection is not configured. Send remains disabled."/>
+            <Button Grid.Column="1" Content="Send" IsEnabled="False" Margin="6,0,0,0"/>
         </Grid>
-        <StackPanel Grid.Row="4">
-            <TextBlock Text="Status" FontWeight="SemiBold"/>
-            <TextBlock x:Name="StatusText" Text="Ready" TextWrapping="Wrap" Margin="0,3,0,8"/>
-            <TextBlock Text="Read-only | No AI connection in M1" TextWrapping="Wrap"/>
-            <TextBlock Text="AI connection: not configured" TextWrapping="Wrap" Margin="0,3,0,0"/>
-        </StackPanel>
+        <WrapPanel Grid.Row="4">
+            <TextBlock Text="Status:" FontWeight="SemiBold" Margin="0,0,5,0"/>
+            <TextBlock x:Name="StatusText" Text="Ready" Margin="0,0,10,0"/>
+            <TextBlock Text="Read-only | No AI connection" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+        </WrapPanel>
     </Grid>
 </Page>

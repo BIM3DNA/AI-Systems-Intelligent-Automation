@@ -61,6 +61,8 @@ class LifecycleTests(unittest.TestCase):
         self.registered = False
         self.external = Mock()
         self.external.Raise.return_value = "Accepted"
+        self.tool_external = Mock()
+        self.tool_external.Raise.return_value = "Accepted"
         ui = types.SimpleNamespace(
             IDockablePaneProvider=type("Provider", (), {}),
             IExternalEventHandler=type("Handler", (), {}),
@@ -68,7 +70,8 @@ class LifecycleTests(unittest.TestCase):
             DockablePane=types.SimpleNamespace(PaneIsRegistered=lambda unused: self.registered),
             DockablePaneState=types.SimpleNamespace,
             DockPosition=types.SimpleNamespace(Right="Right"),
-            ExternalEvent=types.SimpleNamespace(Create=lambda handler: self.external),
+            ExternalEvent=types.SimpleNamespace(Create=lambda handler:
+                self.tool_external if 'ModelMind' in handler.GetName() else self.external),
             ExternalEventRequest=types.SimpleNamespace(Accepted="Accepted", Pending="Pending"),
             Events=types.SimpleNamespace(ViewActivatedEventArgs=object, SelectionChangedEventArgs=object),
         )

@@ -47,6 +47,41 @@ The authoritative project state is:
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
 
+## BIMCODE-REVIT-AI-PANE-001 M2B - 2026-09-17
+
+M1: SOURCE-CONTROL CLOSED. M2A: HEADLESS SEAM IMPLEMENTED LOCALLY.
+M2B: PANE BRIDGE IMPLEMENTED / LIVE VALIDATION PENDING. Uncommitted/unpushed.
+Four read-only pane tools queue scalar requests to a dedicated ExternalEvent.
+Existing canonical specialty scope classifiers route to the existing twelve
+M2A action IDs. Mixed specialties and supported-plus-unsupported selections
+are rejected conservatively, not filtered. Cached document identity plus an
+activation/open/create/close generation rejects stale requests before routing.
+No queued Document/UIDocument/Element references; selection is read at execution.
+One pending request; all four buttons disabled until completion/failure. Bounded
+plain text preserves production classifications. Send remains disabled; no AI,
+network, mutation, catalog change or WBSO closure update. M1 lifecycle retained.
+Next live validation: LIVE-M2-01 only (restart, open project, empty selection,
+Summary -> NOT_READY; verify no model/UI mutation). No live result claimed yet.
+
+## BIMCODE-REVIT-AI-PANE-001 M2A - 2026-09-17
+
+M1: SOURCE-CONTROL CLOSED at
+`d25c545e0e4f92d14492f52f04d109bd32f15beb` (verified main/origin alignment,
+0/0, clean before M2A). Its pane UUID and lifecycle remain unchanged.
+
+M2A headless ModelMind execution seam: implemented locally; not committed or
+pushed. M2: NOT YET LIVE. No pane tool buttons or AI integration were added in M2A.
+The isolated explicit headless bootstrap reuses the existing three closed
+structured builders for their twelve production action IDs. Execution is
+serialized, doc/uidoc are scoped/restored, and only bounded scalar presentation
+data leaves the facade. Caller must supply a valid Revit API context; M2B must
+use ExternalEvent.Execute, never an arbitrary WPF/background callback.
+No existing Workbench function body, specialty rule, cap or catalog entry changed.
+Offline tests and normal-mode AST equivalence protect the bootstrap boundary;
+live Revit/Workbench parity remains pending. See
+`AI.extension/lib/modelmind_headless.md` for contract, limits and validation.
+No WBSO closure records, identifiers or hours allocated by M2A.
+
 ## Current-state reconciliation / BIMCODE-REVIT-AI-PANE-001 - 2026-09-17
 
 Verified starting state: clean `main`, HEAD and origin/main both
@@ -56,7 +91,7 @@ and project-local WBSO closure update. The uncommitted/unpushed statements in
 the 2026-09-03 checkpoint below describe its earlier pre-commit state and are
 superseded by this reconciliation. No closed runtime behavior is reopened.
 
-Current package: BIMCODE-REVIT-AI-PANE-001, Milestone 1. Isolated pyRevit docked
+M1 closure checkpoint: BIMCODE-REVIT-AI-PANE-001, Milestone 1. Isolated pyRevit docked
 UI shell and read-only document/view/selection context.
 Verdict: M1_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
 Runtime defects: NONE REMAINING. Final static audit: PASS; seven Python files
@@ -80,8 +115,9 @@ ModelMind bridge, AI/network connection, mutation or evidence advancement.
 Nonblocking gaps: exact visible no-document wording/status; deliberate hide then
 view switch; saved docking behavior; live pyRevit reload; additional already-open
 project tab switching; workshared and family document context.
-M1 source-control status: UNCOMMITTED / UNPUSHED; closure PENDING REVIEW / COMMIT /
-PUSH. M2 has not started. Evidence / Daily Log / KC IDs and hours: PENDING;
+M1 source-control status: SOURCE-CONTROL CLOSED in
+`d25c545e0e4f92d14492f52f04d109bd32f15beb`. M2A is tracked above;
+M2 is NOT YET LIVE. Evidence / Daily Log / KC IDs and hours: PENDING;
 repository-local allocation is not unambiguous. No new KC file is allocated.
 Architecture, installed-runtime findings, validation, and deferred M2-M8 scope:
 `AI.extension/lib/bimcode_ai_pane/README.md`.
