@@ -2203,3 +2203,25 @@ Final static/regression audit passed. Direct QA-004, live unreadable/partial/
 ORANGE, optional unsupported-device samples, positive Duct Fitting,
 single-project all-discipline, and numerical timing remain nonblocking. No new
 fixture is required before the reviewed closure commit.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M1 Closure
+
+Verdict: M1_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. Runtime defects: NONE
+REMAINING. Source-control status: UNCOMMITTED / UNPUSHED; closure PENDING
+REVIEW / COMMIT / PUSH. Baseline: `45bf742fd45ca83ce4d65319116113541d299a52`.
+Target: Revit 2025.4 / pyRevit 5.3.1.25308+1659. M2 has not started.
+
+Completed supplied matrix: LIVE-PANE-01 registration; 02 Right docking/resizing;
+03 project context; 04 view/type; 05 manual Refresh; 05B automatic selection;
+06 INITIAL FAIL / FIXED; 06B repeated close-all/reopen and another-project PASS;
+07 disabled Send/disconnected UI PASS. No LIVE-PANE-08 supplied or claimed.
+
+15 offline tests PASS, including duplicate registration/subscription, selection,
+manual refresh, no-document/reopen Show, unavailable host and rollback cleanup.
+Seven Python AST/py_compile/tabnanny checks, XML/WPF loading, mutation/import
+boundaries and whitespace checks PASS. Catalog remains 237; Workbench unchanged.
+Optional coverage remains in README; no new mandatory live case is introduced.
+
+Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
+ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.

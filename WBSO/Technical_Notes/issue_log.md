@@ -1928,3 +1928,25 @@ Equipment/Data Device/fitting legacy preservation, repeat determinism,
 selection/read-only isolation, and both export stages passed. Final static
 regression found only the two approved integration functions changed and all
 protected behavior unchanged.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M1 Closure
+
+Verdict: M1_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. Runtime defects: NONE
+REMAINING. Source-control status: UNCOMMITTED / UNPUSHED; closure PENDING
+REVIEW / COMMIT / PUSH. Baseline: `45bf742fd45ca83ce4d65319116113541d299a52`.
+Target: Revit 2025.4 / pyRevit 5.3.1.25308+1659. M2 has not started.
+
+Fixed package defect: LIVE-PANE-06 left the registered pane hidden after closing
+all projects and reopening. show_pending stayed false after initial Show.
+DocumentOpened/Created/Closed now reset it; valid activation/refresh shows the
+existing pane by stable UUID. Repeated LIVE-PANE-06B passed with no duplicate
+pane or manual show required. No runtime defect remains.
+
+Transient queued-refresh status and saved docking are lifecycle/UX behavior.
+Nonblocking: exact no-document wording; deliberate hide/view switch; saved
+docking; live reload; additional already-open project tabs; workshared/family
+context. Future AI, ModelMind and mutation tools are outside M1.
+
+Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
+ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.

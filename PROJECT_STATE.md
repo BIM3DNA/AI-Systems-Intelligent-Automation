@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last updated: 2026-09-03
+Last updated: 2026-09-17
 
 Repository:
 C:\00_WORKS\DEVELOPMENT\AI
@@ -46,6 +46,45 @@ The authoritative project state is:
 5. verified runtime test evidence
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
+
+## Current-state reconciliation / BIMCODE-REVIT-AI-PANE-001 - 2026-09-17
+
+Verified starting state: clean `main`, HEAD and origin/main both
+`45bf742fd45ca83ce4d65319116113541d299a52`, ahead/behind 0/0. That commit
+contains the completed MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001 implementation
+and project-local WBSO closure update. The uncommitted/unpushed statements in
+the 2026-09-03 checkpoint below describe its earlier pre-commit state and are
+superseded by this reconciliation. No closed runtime behavior is reopened.
+
+Current package: BIMCODE-REVIT-AI-PANE-001, Milestone 1. Isolated pyRevit docked
+UI shell and read-only document/view/selection context.
+Verdict: M1_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+Runtime defects: NONE REMAINING. Final static audit: PASS; seven Python files
+passed AST/py_compile/tabnanny, XAML XML and Windows WPF loading passed, and
+15 offline pane/context/lifecycle tests passed. Existing runtime and catalog
+are unchanged; catalog count remains 237.
+
+User-reported LIVE-PANE-01 through 05 and 05B passed. LIVE-PANE-06 initially
+failed because show_pending stayed false after the initial Show; document
+open/create/close now reset it, and valid activation/refresh shows the existing
+pane. Repeated LIVE-PANE-06B cycles passed with no duplicate pane or manual show
+required. LIVE-PANE-07 passed with disabled Send and no AI connection.
+LIVE-PANE-08 was not supplied and is not claimed.
+
+Target: Revit 2025.4 / pyRevit 5.3.1.25308+1659. Stable pane UUID:
+aa6b23d4-f8e3-4b2f-9ad7-de9e05bfb5e4. Initial docking: Right.
+Native SelectionChanged updates only selected-ID count; explicit read-only
+ExternalEvent Refresh remains. No polling, timer, background API thread,
+ModelMind bridge, AI/network connection, mutation or evidence advancement.
+
+Nonblocking gaps: exact visible no-document wording/status; deliberate hide then
+view switch; saved docking behavior; live pyRevit reload; additional already-open
+project tab switching; workshared and family document context.
+M1 source-control status: UNCOMMITTED / UNPUSHED; closure PENDING REVIEW / COMMIT /
+PUSH. M2 has not started. Evidence / Daily Log / KC IDs and hours: PENDING;
+repository-local allocation is not unambiguous. No new KC file is allocated.
+Architecture, installed-runtime findings, validation, and deferred M2-M8 scope:
+`AI.extension/lib/bimcode_ai_pane/README.md`.
 
 ## MEP-QA-SPECIALTY-ISSUEINDEX-ADAPTER-001
 

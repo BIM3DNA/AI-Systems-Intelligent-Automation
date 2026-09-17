@@ -1,0 +1,5 @@
+"""BIMCODE-REVIT-AI-PANE-001: isolated, read-only M1 pane."""
+
+PANEL_ID = "aa6b23d4-f8e3-4b2f-9ad7-de9e05bfb5e4"
+PANEL_TITLE = "BIMCode AI"
+SESSION_KEY = "BIMCODE_AI_PANE_M1_SESSION"

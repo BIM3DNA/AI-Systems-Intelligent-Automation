@@ -2897,3 +2897,33 @@ new numbered KC file was created. Hours: PENDING. Repository-local sequences do
 not establish the next identifiers unambiguously. Source-control closure must
 not be marked complete until the combined implementation/documentation commit
 is reviewed, created, and pushed.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M1 Closure
+
+Verdict: M1_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. Runtime defects: NONE
+REMAINING. Source-control status: UNCOMMITTED / UNPUSHED; closure PENDING
+REVIEW / COMMIT / PUSH. Baseline: `45bf742fd45ca83ce4d65319116113541d299a52`.
+Target: Revit 2025.4 / pyRevit 5.3.1.25308+1659. M2 has not started.
+
+Authoritative user-reported matrix: LIVE-PANE-01 registration PASS; 02 Right
+docking/resizing PASS; 03 project context PASS; 04 view/type switching PASS;
+05 explicit Refresh PASS; 05B automatic 0 -> 1 -> multiple -> 0 selection PASS.
+LIVE-PANE-06 initially FAILED: show_pending stayed false after first Show.
+Open/create/close now reset it; LIVE-PANE-06B repeatedly PASSED close-all/reopen
+and another-project visibility/context without manual show or duplicate pane.
+LIVE-PANE-07 PASSED: input visible, Send disabled, AI connection not enabled.
+LIVE-PANE-08 was not supplied and is not claimed.
+
+Final audit: seven Python AST/py_compile/tabnanny checks PASS; XML and Windows
+WPF XamlReader PASS; 15 offline tests PASS, including duplicate guards, selection,
+explicit refresh, reopen Show, unavailable host and rollback cleanup.
+Catalog unchanged at 237; Git/LF SHA-256:
+`55A58E3B6E1A67D833B91B5DFC5BAC883955B0352BB8BFA862AC3C32917FDB94`;
+Git object: `aa0bf1fc19ba2c5ceb7afe24c3a0749f80288b57`. Workbench unchanged.
+Stable UUID: `aa6b23d4-f8e3-4b2f-9ad7-de9e05bfb5e4`.
+Pre-documentation audit delta: 11 files +763/-1; subsequent closure docs enlarge
+that scope. Full architecture and nonblocking gaps are in the pane README.
+
+Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
+ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.

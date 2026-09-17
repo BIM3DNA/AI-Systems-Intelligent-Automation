@@ -1785,3 +1785,27 @@ unchanged. Live validation proved Issue Index Export and downstream QA Export
 compatibility. Status: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`; no runtime
 defect found; working-tree implementation and closure records remain
 uncommitted/unpushed above baseline `8745716c8efd04ff4efea0e82aee88e547b7a58e`.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M1 Closure
+
+Verdict: M1_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. Runtime defects: NONE
+REMAINING. Source-control status: UNCOMMITTED / UNPUSHED; closure PENDING
+REVIEW / COMMIT / PUSH. Baseline: `45bf742fd45ca83ce4d65319116113541d299a52`.
+Target: Revit 2025.4 / pyRevit 5.3.1.25308+1659. M2 has not started.
+
+Exactly five subscriptions: Application.DocumentOpened, DocumentCreated,
+DocumentClosed; UIApplication.ViewActivated, SelectionChanged. Open/create/close
+reset show_pending; close clears context. View activation or queued read-only
+refresh calls GetDockablePane(stable UUID).Show when a valid document is active.
+Success clears pending; no-document retains pending; normal views do not repeat
+Show. UUID: `aa6b23d4-f8e3-4b2f-9ad7-de9e05bfb5e4`.
+
+Startup uses PaneIsRegistered, retaining panel/provider/delegates/ExternalEvent
+under BIMCODE_AI_PANE_M1_SESSION. Right docking; VisibleByDefault=true. The
+ribbon opens only. SelectionChanged reads args.GetSelectedElements().Count only;
+explicit Refresh uses a read-only ExternalEvent for document/view/type/count.
+No timers, polling, Idling, background API thread, mutation or evidence write.
+
+Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
+ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.

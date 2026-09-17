@@ -1,0 +1,48 @@
+<Page xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
+      Foreground="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}"
+      MinWidth="260" FontFamily="Segoe UI" FontSize="12">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*" MinHeight="60"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Text="BIMCode AI" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,16"/>
+        <Border Grid.Row="1" BorderBrush="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}"
+                BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="Document" FontWeight="SemiBold"/>
+                <TextBlock x:Name="DocumentText" Text="No document" TextWrapping="Wrap" Margin="0,3,0,12"/>
+                <TextBlock Text="Active View" FontWeight="SemiBold"/>
+                <TextBlock x:Name="ViewText" Text="Unavailable" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                <TextBlock x:Name="ViewTypeText" Text="Unavailable" TextWrapping="Wrap" Margin="0,2,0,12"/>
+                <TextBlock Text="Selection" FontWeight="SemiBold"/>
+                <TextBlock x:Name="SelectionText" Text="0 elements" Margin="0,3,0,8"/>
+                <Button x:Name="RefreshButton" Content="Refresh context" Padding="10,5"
+                        HorizontalAlignment="Left" ToolTip="Read the current document, view, and selection count."/>
+            </StackPanel>
+        </Border>
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,12">
+            <TextBlock TextWrapping="Wrap" Text="Welcome to BIMCode AI. Milestone 1 shows read-only Revit context. AI connection is not enabled in Milestone 1."/>
+        </ScrollViewer>
+        <Grid Grid.Row="3" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="MessageInput" MinHeight="32" MaxLength="2000" Padding="6"
+                     VerticalContentAlignment="Center" ToolTip="AI connection is not configured. Messages cannot be sent in M1."/>
+            <Button Grid.Column="1" Content="Send" IsEnabled="False" Padding="12,5" Margin="8,0,0,0"/>
+        </Grid>
+        <StackPanel Grid.Row="4">
+            <TextBlock Text="Status" FontWeight="SemiBold"/>
+            <TextBlock x:Name="StatusText" Text="Ready" TextWrapping="Wrap" Margin="0,3,0,8"/>
+            <TextBlock Text="Read-only | No AI connection in M1" TextWrapping="Wrap"/>
+            <TextBlock Text="AI connection: not configured" TextWrapping="Wrap" Margin="0,3,0,0"/>
+        </StackPanel>
+    </Grid>
+</Page>

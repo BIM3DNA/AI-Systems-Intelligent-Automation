@@ -368,3 +368,20 @@ validation and static probes confirmed deterministic results, Dashboard parity,
 active-view independence, and unchanged Issue Index Export / QA Export behavior.
 Status: `READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS`; runtime defects: none found;
 runtime and documentation remain uncommitted/unpushed.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M1 Closure
+
+Verdict: M1_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. Runtime defects: NONE
+REMAINING. Source-control status: UNCOMMITTED / UNPUSHED; closure PENDING
+REVIEW / COMMIT / PUSH. Baseline: `45bf742fd45ca83ce4d65319116113541d299a52`.
+Target: Revit 2025.4 / pyRevit 5.3.1.25308+1659. M2 has not started.
+
+M1 is fully offline. Send is disabled and the welcome message states AI
+connection is not enabled in Milestone 1. No OpenAI/provider client, network
+path, API key/credential lookup, runtime model ID or package telemetry is added.
+pyRevit envvars retain session state only. No ModelMind or QA auto-run; no
+workflow advancement. LIVE-PANE-07 and static import/mutation checks passed.
+
+Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
+ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.

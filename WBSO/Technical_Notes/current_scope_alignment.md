@@ -1142,3 +1142,23 @@ unreadable/partial/ORANGE, optional unsupported-device, positive Duct Fitting,
 single-project all-discipline, and elapsed-time gaps. Final local Evidence,
 Daily Log, KC, and hours are PENDING because repository-local numbering is not
 unambiguous.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M1 Closure
+
+Verdict: M1_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. Runtime defects: NONE
+REMAINING. Source-control status: UNCOMMITTED / UNPUSHED; closure PENDING
+REVIEW / COMMIT / PUSH. Baseline: `45bf742fd45ca83ce4d65319116113541d299a52`.
+Target: Revit 2025.4 / pyRevit 5.3.1.25308+1659. M2 has not started.
+
+In scope: read-only docked Revit UI and lightweight live context, automatic
+selection count, explicit Refresh fallback and disabled Send. Workbench and all
+closed ModelMind packages remain unchanged; catalog remains 237.
+
+Nonblocking gaps: exact visible no-document wording/status; deliberate hide then
+view switch; saved docking behavior; live pyRevit reload; additional already-open
+project tab switching; workshared and family context. Linked-model inspection,
+ModelMind bridge, OpenAI/Astra, planning, mutation and autonomous loops are outside M1.
+
+Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
+ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.
