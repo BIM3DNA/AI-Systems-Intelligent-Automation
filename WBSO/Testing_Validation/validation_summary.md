@@ -1344,3 +1344,39 @@ No runtime changes were made during this closure documentation task.
 
 Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
 ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M2 Checkpoint
+
+This current checkpoint supersedes earlier M1/M2 status statements; preceding
+records retain their historical pre-commit meaning. M1 is SOURCE-CONTROL CLOSED
+at d25c545e0e4f92d14492f52f04d109bd32f15beb. M2 is IN PROGRESS;
+live validation PARTIAL / IN PROGRESS; closure readiness NOT YET ASSESSED.
+M2A headless seam and M2B pane read-only bridge are COMMITTED AND PUSHED in
+20c10f8ea647373ec83cfaf32822e99efc55d39b (parent
+d25c545e0e4f92d14492f52f04d109bd32f15beb; subject Update; 19 files,
+2554 insertions, 65 deletions). Verified before this documentation edit:
+main; HEAD = origin/main = that implementation checkpoint; ahead/behind 0/0;
+worktree clean, staged/untracked none. Only this new documentation checkpoint
+awaits review/commit. M3 NOT STARTED; Send disabled; no pane OpenAI/network call.
+Evidence / Daily Log / KC IDs and hours: PENDING; no new IDs or KC file allocated.
+
+M2A headless seam static validation PASS. Historical stage total: 41 tests
+(26 headless + 15 M1). Current offline total: 119 Python tests PASS; native WPF
+highlight/scroll/text-preservation and dark/light resources PASS; AST,
+py_compile, tabnanny, IronPython compilation, XAML load, normal-mode equivalence,
+mutation/network boundary and git diff --check PASS. The dependency audit
+covers 102 methods + 17 global helpers. All 1475 pre-existing Workbench function
+bodies remain unchanged; catalog 237 unchanged.
+
+User-reported live evidence on 2026-09-17: LIVE-M2-01 empty selection PASS;
+LIVE-M2-02/03/04 two-Pipe Summary/Connectors/Assignment PASS; LIVE-M2-UI-01/02/03
+compact theme-aware context, structured rich result and readability/Find PASS.
+No mutation or Find-triggered execution observed. See evidence_reference.md for
+exact counts, systems, classifications and provenance; no new Revit run is
+claimed by this documentation task.
+
+M2 live validation PARTIAL / IN PROGRESS. Pending: Piping QA Health;
+HVAC/Electrical bridge; unsupported-only/mixed routing; stale request if practical;
+final M2 audit. M2 closure readiness NOT YET ASSESSED; defects NONE CURRENTLY KNOWN.
+No M2 completion, M3 implementation, AI integration or API entitlement claimed.

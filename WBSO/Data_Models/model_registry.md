@@ -749,3 +749,35 @@ the existing pane. No prompt asset or catalog change.
 
 Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
 ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M2 Checkpoint
+
+This current checkpoint supersedes earlier M1/M2 status statements; preceding
+records retain their historical pre-commit meaning. M1 is SOURCE-CONTROL CLOSED
+at d25c545e0e4f92d14492f52f04d109bd32f15beb. M2 is IN PROGRESS;
+live validation PARTIAL / IN PROGRESS; closure readiness NOT YET ASSESSED.
+M2A headless seam and M2B pane read-only bridge are COMMITTED AND PUSHED in
+20c10f8ea647373ec83cfaf32822e99efc55d39b (parent
+d25c545e0e4f92d14492f52f04d109bd32f15beb; subject Update; 19 files,
+2554 insertions, 65 deletions). Verified before this documentation edit:
+main; HEAD = origin/main = that implementation checkpoint; ahead/behind 0/0;
+worktree clean, staged/untracked none. Only this new documentation checkpoint
+awaits review/commit. M3 NOT STARTED; Send disabled; no pane OpenAI/network call.
+Evidence / Daily Log / KC IDs and hours: PENDING; no new IDs or KC file allocated.
+
+The implemented M2A facade returns bounded scalar-safe values only: bool, int,
+finite float, string, None, lists/dicts. Raw Element, ElementId, Connector,
+ConnectorSet, MEPSystem, Document, UIDocument, View, WPF objects and callables do
+not cross the boundary. Production classifications, reasons, summaries, tables,
+checks and warnings are preserved, not recalculated. Unsupported/oversized
+projection is a controlled failure; raw records are omitted.
+
+M2B queues scalar request identity, document identity and lifecycle generation.
+Exactly four concepts map to existing A01/A02/A03/A04 for each of PIPING-RO-001,
+HVAC-RO-001 and ELECTRICAL-RO-001: selection.summary, selection.connectors,
+selection.system_assignment, selection.qa_health (12 closed actions total).
+No new domain model, prompt asset, catalog entry or specialty semantics.
+Presentation is a separate bounded scalar model feeding FlowDocument /
+FlowDocumentScrollViewer. Limits: 16000 characters and 400 blocks; explicit
+display-omission notices. Find operates on displayed blocks only.

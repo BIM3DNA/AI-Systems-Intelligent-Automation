@@ -385,3 +385,33 @@ workflow advancement. LIVE-PANE-07 and static import/mutation checks passed.
 
 Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
 ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M2 Checkpoint
+
+This current checkpoint supersedes earlier M1/M2 status statements; preceding
+records retain their historical pre-commit meaning. M1 is SOURCE-CONTROL CLOSED
+at d25c545e0e4f92d14492f52f04d109bd32f15beb. M2 is IN PROGRESS;
+live validation PARTIAL / IN PROGRESS; closure readiness NOT YET ASSESSED.
+M2A headless seam and M2B pane read-only bridge are COMMITTED AND PUSHED in
+20c10f8ea647373ec83cfaf32822e99efc55d39b (parent
+d25c545e0e4f92d14492f52f04d109bd32f15beb; subject Update; 19 files,
+2554 insertions, 65 deletions). Verified before this documentation edit:
+main; HEAD = origin/main = that implementation checkpoint; ahead/behind 0/0;
+worktree clean, staged/untracked none. Only this new documentation checkpoint
+awaits review/commit. M3 NOT STARTED; Send disabled; no pane OpenAI/network call.
+Evidence / Daily Log / KC IDs and hours: PENDING; no new IDs or KC file allocated.
+
+M2A bypasses normal Workbench provider/agent/settings/catalog/UI initialization.
+M2B is deterministic and invokes only the existing twelve closed read-only
+actions via ExternalEvent.Execute. No OpenAI client, GPT-6 Astra runtime call,
+network model call, API-key lookup or mutation dispatcher was added to this path.
+Send remains disabled. Existing Workbench provider behavior is not changed.
+
+Future intent only, supplied by the user: after billing/card setup is available,
+consider GPT-6 Astra or model-routed OpenAI Responses API as a reasoning/planning
+layer above the same deterministic ModelMind bridge; controlled mutation tools
+would be later separate work. This is not an implemented/configured model ID,
+availability claim, M3 start, or API entitlement. A ChatGPT/Codex subscription
+must not be recorded as runtime API entitlement. No provider integration is
+implemented by this checkpoint.

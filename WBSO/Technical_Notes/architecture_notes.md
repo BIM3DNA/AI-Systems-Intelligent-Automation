@@ -1809,3 +1809,62 @@ No timers, polling, Idling, background API thread, mutation or evidence write.
 
 Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
 ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M2 Checkpoint
+
+This current checkpoint supersedes earlier M1/M2 status statements; preceding
+records retain their historical pre-commit meaning. M1 is SOURCE-CONTROL CLOSED
+at d25c545e0e4f92d14492f52f04d109bd32f15beb. M2 is IN PROGRESS;
+live validation PARTIAL / IN PROGRESS; closure readiness NOT YET ASSESSED.
+M2A headless seam and M2B pane read-only bridge are COMMITTED AND PUSHED in
+20c10f8ea647373ec83cfaf32822e99efc55d39b (parent
+d25c545e0e4f92d14492f52f04d109bd32f15beb; subject Update; 19 files,
+2554 insertions, 65 deletions). Verified before this documentation edit:
+main; HEAD = origin/main = that implementation checkpoint; ahead/behind 0/0;
+worktree clean, staged/untracked none. Only this new documentation checkpoint
+awaits review/commit. M3 NOT STARTED; Send disabled; no pane OpenAI/network call.
+Evidence / Daily Log / KC IDs and hours: PENDING; no new IDs or KC file allocated.
+
+M2A exposes execute_headless_modelmind_readonly(action_id, document, uidocument).
+It reuses _piping_ro_001_build_data, _hvac_ro_001_build_data and
+_electrical_ro_001_build_data, not current UI handlers or duplicated semantics.
+The explicit headless bootstrap compiles/loads a private module; provider, agent,
+normal settings/catalog/WPF construction, logger/UI effects, document capture
+and forms.alert replacement are skipped. Normal Workbench mode remains default.
+The validated object.__new__ path bypasses OllamaAIChat construction without
+required UI/agent fields. Supplied doc/uidoc are scoped to one call and restored
+in finally on success or exception; no document is cached between requests.
+A nonblocking lock rejects nested/overlapping calls and serializes execution,
+but does not establish Revit API thread safety. Caller must have valid API context.
+Dependency audit: 102 methods and 17 global helpers; 1475 existing Workbench
+function bodies unchanged. Scalar projection excludes raw host objects.
+
+M2B path: WPF click -> scalar request -> dedicated ExternalEvent.Raise ->
+Execute(uiapp) -> document/generation validation -> specialty/action resolution ->
+M2A -> scalar projection -> bounded pane presentation -> native WPF renderer.
+Only supported Pipe/Duct/electrical selections route to their closed packs.
+Empty/unsupported-only -> NOT_READY; mixed supported specialties ->
+MIXED_SPECIALTY_REVIEW; supported plus unsupported -> conservative NOT_READY,
+without silently filtering unsupported content. Unreadable references fail closed.
+Identity and lifecycle generation reject stale work, including view transitions;
+requests are never silently retargeted. Selection is read at execution.
+One pending request disables all four buttons, restored on success/failure.
+Refresh retains its separate event; no mutation dispatcher or auto-run.
+
+M1 registration, selection refresh, visibility lifecycle and UUID
+aa6b23d4-f8e3-4b2f-9ad7-de9e05bfb5e4 remain intact. Compact context bar shows
+Document / Active View / View Type / Sel: n / Refresh. Theme brushes follow
+UIThemeManager.CurrentTheme and supported UIApplication.ThemeChanged, without
+polling or a dependency on Workbench UI.
+
+Three presentation layers: unchanged domain result, bounded scalar presentation
+model, native FlowDocument/FlowDocumentScrollViewer. Title/meta, promoted facts,
+separate Warnings (None reported when empty), grouped Details, label/value
+hierarchy, separators and technical fields improve readability. Wide tables
+become per-record fields. Limits remain 16000 characters / 400 blocks with
+explicit notices. Find searches displayed text only, case-insensitively, with
+highlighting/count/previous/next/wraparound/clear/no-match/reset. It does not rerun
+tools, refresh context, call model APIs/network or mutate model/view/selection.
+R&D uncertainty is safe headless reuse and valid-context dispatch with lossless
+bounded presentation, not invention of new specialty rules.

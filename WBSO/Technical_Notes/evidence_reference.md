@@ -2927,3 +2927,65 @@ that scope. Full architecture and nonblocking gaps are in the pane README.
 
 Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
 ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M2 Checkpoint
+
+This current checkpoint supersedes earlier M1/M2 status statements; preceding
+records retain their historical pre-commit meaning. M1 is SOURCE-CONTROL CLOSED
+at d25c545e0e4f92d14492f52f04d109bd32f15beb. M2 is IN PROGRESS;
+live validation PARTIAL / IN PROGRESS; closure readiness NOT YET ASSESSED.
+M2A headless seam and M2B pane read-only bridge are COMMITTED AND PUSHED in
+20c10f8ea647373ec83cfaf32822e99efc55d39b (parent
+d25c545e0e4f92d14492f52f04d109bd32f15beb; subject Update; 19 files,
+2554 insertions, 65 deletions). Verified before this documentation edit:
+main; HEAD = origin/main = that implementation checkpoint; ahead/behind 0/0;
+worktree clean, staged/untracked none. Only this new documentation checkpoint
+awaits review/commit. M3 NOT STARTED; Send disabled; no pane OpenAI/network call.
+Evidence / Daily Log / KC IDs and hours: PENDING; no new IDs or KC file allocated.
+
+Evidence provenance: user-supplied 2026-09-17 checkpoint/live report, reconciled
+with Git and local source. These live cases were not rerun by the documentation
+task. LIVE identifiers below are supplied case labels, not newly allocated
+WBSO Evidence IDs.
+
+- LIVE-M2-01 PASS: empty selection -> Selection Summary; NOT_READY;
+  specialty none; classification unavailable; NO_ELEMENTS_SELECTED. Buttons
+  recovered, Ready restored, Send disabled; no model/view/selection mutation.
+- LIVE-M2-02 PASS: two supported rigid Pipes -> OK / PIPING /
+  PIPING_SELECTION_SUMMARY_OK / COMPLETE. Selected references 2, resolved 2,
+  supported 2, processed 2, unsupported/unresolved 0, complete-read 2;
+  total readable length 46000.0 mm; diameter 150.0 mm x2; ASSIGNED x2;
+  warnings none.
+- LIVE-M2-03 PASS: same Pipes -> OK / PIPING / PIPING_CONNECTOR_REPORT_OK /
+  COMPLETE. Raw connectors 4; physical piping connectors 4; reciprocal connected
+  0; unconnected 4; unreadable 0; displayed connector rows 4; warnings none.
+- LIVE-M2-04 PASS: same Pipes -> OK / PIPING / PIPING_SYSTEM_ASSIGNMENT_OK /
+  COMPLETE. ASSIGNED 2; no UNASSIGNED_REVIEW, INCONSISTENT, UNREADABLE or
+  UNAVAILABLE reported. Hydronic Supply 1: 1; Hydronic Supply 5: 1;
+  Hydronic Supply classification: 2; CONSISTENT x2; warnings none;
+  no model mutation observed.
+- LIVE-M2-UI-01 PASS: compact context bar, no duplicate large title, correct
+  Revit dark theme, automatic selection count, preserved Pipe Summary,
+  responsive pane.
+- LIVE-M2-UI-02 PASS: structured System Assignment title, PIPING, COMPLETE,
+  PIPING_SYSTEM_ASSIGNMENT_OK, ASSIGNED: 2, both Hydronic Supply systems,
+  preserved warnings and technical detail; responsive pane.
+- LIVE-M2-UI-03 PASS: spacing/separators, label/value hierarchy, grouped Details,
+  Warnings -> None reported; case-insensitive Find, highlights/count,
+  previous/next, wraparound, clear/reset, no-match and new-result reset.
+  No Find-triggered execution or Revit mutation observed.
+
+Static/offline evidence: M2A 26/26 plus retained M1 15/15 (41 at that historical
+stage); latest 119 Python tests PASS across M1/M2A/bridge/theme/rich-result/Find.
+Native WPF highlighting, scrolling, text preservation and dark/light resources
+PASS; AST, py_compile, tabnanny, IronPython 2.7.12 compilation, XAML load,
+normal-mode equivalence, network/mutation boundaries and whitespace checks PASS.
+These are offline checks, not substitutes for pending specialty live coverage.
+Catalog remains 237; all 1475 existing Workbench function bodies unchanged.
+
+Identifier review: latest numbered local KC file is KC-053; KC-052 is referenced
+as central, and intervening package/M1 records leave allocations PENDING.
+EV-AI-371 / DL-2026-09-01-01 are prior local checkpoint references, while central
+references and pending later records prevent an unambiguous next local allocation.
+No new Evidence, Daily Log or KC ID allocated; no KC file created; hours PENDING.

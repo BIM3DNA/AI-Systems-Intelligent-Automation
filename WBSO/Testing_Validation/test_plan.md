@@ -2225,3 +2225,43 @@ Optional coverage remains in README; no new mandatory live case is introduced.
 
 Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
 ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M2 Checkpoint
+
+This current checkpoint supersedes earlier M1/M2 status statements; preceding
+records retain their historical pre-commit meaning. M1 is SOURCE-CONTROL CLOSED
+at d25c545e0e4f92d14492f52f04d109bd32f15beb. M2 is IN PROGRESS;
+live validation PARTIAL / IN PROGRESS; closure readiness NOT YET ASSESSED.
+M2A headless seam and M2B pane read-only bridge are COMMITTED AND PUSHED in
+20c10f8ea647373ec83cfaf32822e99efc55d39b (parent
+d25c545e0e4f92d14492f52f04d109bd32f15beb; subject Update; 19 files,
+2554 insertions, 65 deletions). Verified before this documentation edit:
+main; HEAD = origin/main = that implementation checkpoint; ahead/behind 0/0;
+worktree clean, staged/untracked none. Only this new documentation checkpoint
+awaits review/commit. M3 NOT STARTED; Send disabled; no pane OpenAI/network call.
+Evidence / Daily Log / KC IDs and hours: PENDING; no new IDs or KC file allocated.
+
+Completed user-reported live cases: LIVE-M2-01 empty Summary; LIVE-M2-02 Pipe
+Summary; LIVE-M2-03 Pipe Connectors; LIVE-M2-04 Pipe Assignment; LIVE-M2-UI-01
+compact/theme UI; UI-02 rich Assignment renderer; UI-03 readability/local Find:
+all PASS. Exact observations are in evidence_reference.md's M2 checkpoint.
+
+Remaining live-validation matrix (PENDING, no invented case/Evidence IDs):
+
+| Coverage | Required observation |
+| --- | --- |
+| Piping QA Health | Existing closed A04 findings/classification preserved; read-only |
+| HVAC bridge | Summary, Connectors, Assignment, QA Health against closed pack; End/Curve semantics preserved |
+| Electrical bridge | Four tools against closed device/equipment semantics; no category expansion |
+| Unsupported-only | NOT_READY; no silent filtering or execution |
+| Mixed specialties | MIXED_SPECIALTY_REVIEW; no cross-pack evaluation |
+| Supported plus unsupported | Conservative NOT_READY; unsupported content retained in routing decision |
+| Stale request, if practical | Document/view transition rejects queued work; no retargeting |
+| Final M2 audit | Workbench parity, normal bootstrap, lifecycle, recovery, catalog and read-only boundaries; closure separately assessed |
+
+Retain static projection/serialization, cleanup on exception, nonblocking lock,
+single pending request/buttons recovery, context-generation and routing probes.
+119 Python tests and native WPF/compile/theme checks are checkpoint evidence,
+not proof that the remaining live matrix passed. M2 closure readiness remains
+NOT YET ASSESSED. No M3/API work is authorized.

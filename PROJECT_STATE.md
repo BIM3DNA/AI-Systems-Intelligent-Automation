@@ -49,8 +49,17 @@ The authoritative project state is:
 
 ## BIMCODE-REVIT-AI-PANE-001 M2B - 2026-09-17
 
-M1: SOURCE-CONTROL CLOSED. M2A: HEADLESS SEAM IMPLEMENTED LOCALLY.
-M2B: PANE BRIDGE IMPLEMENTED / LIVE VALIDATION PENDING. Uncommitted/unpushed.
+M1: SOURCE-CONTROL CLOSED. M2: IN PROGRESS. M3: NOT STARTED.
+M2A: HEADLESS SEAM IMPLEMENTED; STATIC VALIDATION PASS.
+M2B: PANE READ-ONLY BRIDGE IMPLEMENTED; LIVE VALIDATION PARTIAL / IN PROGRESS.
+M2 closure readiness: NOT YET ASSESSED. Package-introduced defects: NONE CURRENTLY KNOWN.
+M2A/M2B implementation: COMMITTED AND PUSHED in
+`20c10f8ea647373ec83cfaf32822e99efc55d39b`, parent
+`d25c545e0e4f92d14492f52f04d109bd32f15beb`, subject `Update`.
+Commit scope: 19 files, 2554 insertions, 65 deletions. Before this documentation
+checkpoint: main; HEAD = origin/main = implementation commit; ahead/behind 0/0;
+worktree clean; staged/untracked files none. This documentation-only checkpoint
+is a separate pending change, not a new implementation or M2 closure commit.
 Four read-only pane tools queue scalar requests to a dedicated ExternalEvent.
 Existing canonical specialty scope classifiers route to the existing twelve
 M2A action IDs. Mixed specialties and supported-plus-unsupported selections
@@ -58,10 +67,28 @@ are rejected conservatively, not filtered. Cached document identity plus an
 activation/open/create/close generation rejects stale requests before routing.
 No queued Document/UIDocument/Element references; selection is read at execution.
 One pending request; all four buttons disabled until completion/failure. Bounded
-plain text preserves production classifications. Send remains disabled; no AI,
+rich presentation preserves production classifications. Send remains disabled; no AI,
 network, mutation, catalog change or WBSO closure update. M1 lifecycle retained.
-Next live validation: LIVE-M2-01 only (restart, open project, empty selection,
-Summary -> NOT_READY; verify no model/UI mutation). No live result claimed yet.
+User-reported 2026-09-17 live evidence: LIVE-M2-01 empty Summary PASS;
+LIVE-M2-02/03/04 two-Pipe Summary/Connectors/Assignment PASS;
+LIVE-M2-UI-01/02/03 compact theme-aware UI/rich renderer/readability and Find PASS.
+The renderer uses a bounded presentation model and native FlowDocument viewer,
+16000 characters / 400 blocks with explicit omission notices. Local Find searches
+only displayed text, with highlighting, count, previous/next wraparound and reset;
+it does not execute tools, refresh context or change model/view/selection.
+Latest offline evidence: 119 Python tests PASS, native WPF/text/theme checks PASS,
+AST/compile/tabnanny/IronPython/XAML and boundary checks PASS. Catalog: 237 unchanged;
+all 1475 existing Workbench function bodies unchanged. Live reports are supplied
+by the user, not newly executed during this documentation task.
+Pending: Piping QA Health; HVAC and Electrical live bridge coverage; unsupported-only
+and mixed-specialty routing; stale request live case if practical; final M2 audit.
+Evidence / Daily Log / KC IDs and hours: PENDING; allocation remains ambiguous.
+Detailed evidence and remaining matrix: WBSO/Technical_Notes/evidence_reference.md
+and WBSO/Testing_Validation/test_plan.md, 2026-09-17 M2 checkpoint sections.
+Future only: user intends OpenAI API integration after billing/card setup, with
+GPT-6 Astra or model-routed Responses API as a proposed direction, not a configured
+runtime model or entitlement. ChatGPT/Codex subscription is not runtime API
+entitlement. No OpenAI/API/network model call exists in this pane/bridge; no M3 work.
 
 ## BIMCODE-REVIT-AI-PANE-001 M2A - 2026-09-17
 
@@ -69,8 +96,9 @@ M1: SOURCE-CONTROL CLOSED at
 `d25c545e0e4f92d14492f52f04d109bd32f15beb` (verified main/origin alignment,
 0/0, clean before M2A). Its pane UUID and lifecycle remain unchanged.
 
-M2A headless ModelMind execution seam: implemented locally; not committed or
-pushed. M2: NOT YET LIVE. No pane tool buttons or AI integration were added in M2A.
+M2A headless ModelMind execution seam: implemented and committed/pushed in
+`20c10f8ea647373ec83cfaf32822e99efc55d39b`. Current partial live evidence is above.
+No pane tool buttons or AI integration were added in the M2A-only stage.
 The isolated explicit headless bootstrap reuses the existing three closed
 structured builders for their twelve production action IDs. Execution is
 serialized, doc/uidoc are scoped/restored, and only bounded scalar presentation
@@ -117,7 +145,8 @@ view switch; saved docking behavior; live pyRevit reload; additional already-ope
 project tab switching; workshared and family document context.
 M1 source-control status: SOURCE-CONTROL CLOSED in
 `d25c545e0e4f92d14492f52f04d109bd32f15beb`. M2A is tracked above;
-M2 is NOT YET LIVE. Evidence / Daily Log / KC IDs and hours: PENDING;
+At that M1 checkpoint M2 was not yet live; the M2 checkpoint above supersedes
+that historical status. Evidence / Daily Log / KC IDs and hours: PENDING;
 repository-local allocation is not unambiguous. No new KC file is allocated.
 Architecture, installed-runtime findings, validation, and deferred M2-M8 scope:
 `AI.extension/lib/bimcode_ai_pane/README.md`.

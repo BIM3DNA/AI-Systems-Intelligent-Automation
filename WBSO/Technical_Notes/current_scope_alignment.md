@@ -1162,3 +1162,33 @@ ModelMind bridge, OpenAI/Astra, planning, mutation and autonomous loops are outs
 
 Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
 ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M2 Checkpoint
+
+This current checkpoint supersedes earlier M1/M2 status statements; preceding
+records retain their historical pre-commit meaning. M1 is SOURCE-CONTROL CLOSED
+at d25c545e0e4f92d14492f52f04d109bd32f15beb. M2 is IN PROGRESS;
+live validation PARTIAL / IN PROGRESS; closure readiness NOT YET ASSESSED.
+M2A headless seam and M2B pane read-only bridge are COMMITTED AND PUSHED in
+20c10f8ea647373ec83cfaf32822e99efc55d39b (parent
+d25c545e0e4f92d14492f52f04d109bd32f15beb; subject Update; 19 files,
+2554 insertions, 65 deletions). Verified before this documentation edit:
+main; HEAD = origin/main = that implementation checkpoint; ahead/behind 0/0;
+worktree clean, staged/untracked none. Only this new documentation checkpoint
+awaits review/commit. M3 NOT STARTED; Send disabled; no pane OpenAI/network call.
+Evidence / Daily Log / KC IDs and hours: PENDING; no new IDs or KC file allocated.
+
+In scope: existing closed read-only specialty tools exposed through the headless
+facade and dedicated pane ExternalEvent; scalar-safe projection; conservative
+routing/stale-request protection; compact context/theme support; bounded rich
+results and local Find. M1 lifecycle and disabled Send remain intact.
+No ModelMind semantic/routing/catalog changes are introduced by this WBSO task.
+No Dashboard, Issue Index, export/evidence workflow, mutation, OpenAI, network
+model call or M3 implementation belongs to this checkpoint.
+
+Live validation is PARTIAL / IN PROGRESS: Piping Summary/Connectors/Assignment,
+empty selection, compact/theme UI, rich renderer and local Find have supplied
+PASS evidence. Piping QA Health, HVAC/Electrical bridge tests, unsupported-only
+and mixed-specialty routing, practical stale-request coverage and final M2 audit
+remain pending. Do not infer M2 completion from implementation being pushed.

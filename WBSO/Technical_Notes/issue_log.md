@@ -1950,3 +1950,31 @@ context. Future AI, ModelMind and mutation tools are outside M1.
 
 Evidence / Daily Log / KC IDs: PENDING; repository-local allocation remains
 ambiguous. Hours: PENDING; no numeric hours supplied. No new KC file allocated.
+
+
+## 2026-09-17 - BIMCODE-REVIT-AI-PANE-001 M2 Checkpoint
+
+This current checkpoint supersedes earlier M1/M2 status statements; preceding
+records retain their historical pre-commit meaning. M1 is SOURCE-CONTROL CLOSED
+at d25c545e0e4f92d14492f52f04d109bd32f15beb. M2 is IN PROGRESS;
+live validation PARTIAL / IN PROGRESS; closure readiness NOT YET ASSESSED.
+M2A headless seam and M2B pane read-only bridge are COMMITTED AND PUSHED in
+20c10f8ea647373ec83cfaf32822e99efc55d39b (parent
+d25c545e0e4f92d14492f52f04d109bd32f15beb; subject Update; 19 files,
+2554 insertions, 65 deletions). Verified before this documentation edit:
+main; HEAD = origin/main = that implementation checkpoint; ahead/behind 0/0;
+worktree clean, staged/untracked none. Only this new documentation checkpoint
+awaits review/commit. M3 NOT STARTED; Send disabled; no pane OpenAI/network call.
+Evidence / Daily Log / KC IDs and hours: PENDING; no new IDs or KC file allocated.
+
+Package-introduced defects: NONE CURRENTLY KNOWN. This is not a final M2
+regression/closure verdict. The initial source-control assumption was stale:
+M2A/M2B are committed and pushed, not pending implementation changes.
+Only this documentation checkpoint is pending review/commit.
+
+Coverage gaps, not failed cases: Piping QA Health; HVAC/Electrical live bridge
+coverage; unsupported-only and mixed-specialty routing; stale request live test
+if practical; final M2 regression/closure audit. No result is fabricated for
+these pending cases. User-reported LIVE-M2-01..04 and UI-01..03 passed.
+M1's previously resolved LIVE-PANE-06 defect is not reopened. No runtime,
+ModelMind semantic, catalog, network or mutation change made in this task.
