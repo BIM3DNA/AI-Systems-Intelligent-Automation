@@ -61,3 +61,8 @@ config.py
 
 # AI Server
 Openai_Server/config.pyconfig.py
+
+# Local environment / secrets
+.env
+.env.local
+.env.*.local
