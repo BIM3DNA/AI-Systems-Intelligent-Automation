@@ -781,3 +781,39 @@ No new domain model, prompt asset, catalog entry or specialty semantics.
 Presentation is a separate bounded scalar model feeding FlowDocument /
 FlowDocumentScrollViewer. Limits: 16000 characters and 400 blocks; explicit
 display-omission notices. Find operates on displayed blocks only.
+
+
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M2 Final Closure Reconciliation
+
+Authoritative current status; supersedes the historical 2026-09-17 partial
+checkpoint without rewriting its observations.
+M1: SOURCE-CONTROL CLOSED.
+M2A: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B live validation: COMPLETE FOR REQUIRED M2 RISK BOUNDARY.
+M2 verdict: M2_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+M2 closure readiness: READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+Live validation: SUFFICIENT FOR CLOSURE. Static/regression audit: PASS.
+Current M2 runtime defects: NONE. M3: NOT STARTED.
+This final documentation is prepared for review, not yet committed or pushed.
+No final documentation closure commit is claimed.
+
+M1 closure: d25c545e0e4f92d14492f52f04d109bd32f15beb.
+M2 implementation: 20c10f8ea647373ec83cfaf32822e99efc55d39b, parent M1 closure,
+subject Update; 19 files, 2554 insertions, 65 deletions.
+M2 WBSO checkpoint: df8bdebc668ec870418b53d9884e1327d3480110;
+10 files, 355 insertions, 8 deletions.
+Pre-edit main HEAD = origin/main = 14e53b07fb8f9c670e7bebdb85acb1830c6c60b1,
+subject chore: ignore local environment secrets, parent df8bdebc668ec870418b53d9884e1327d3480110;
+ahead/behind 0/0, worktree clean. Runtime unchanged since the M2 implementation.
+Evidence / Daily Log / KC IDs and hours: PENDING; no unambiguous local allocation.
+
+The final audit confirms the existing three builders and twelve action IDs are
+reused without new specialty semantics. Scalar-safe projection preserves
+classification, reason, summary, warnings, checks and tables. Raw Revit/.NET
+objects are excluded. Transport bounds: 100000 nodes, depth 16, 2000000 total
+string characters, 8192 per string, finite floats and bounded integers.
+Oversized/unsupported transport fails explicitly, not by reinterpreting findings.
+Presentation retains 16000 characters / 400 blocks and explicit omission notices.
+Catalog 237 unchanged; all 1475 existing Workbench function bodies unchanged.
+See final evidence_reference.md and test_plan.md reconciliation for live coverage.

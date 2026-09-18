@@ -1380,3 +1380,48 @@ M2 live validation PARTIAL / IN PROGRESS. Pending: Piping QA Health;
 HVAC/Electrical bridge; unsupported-only/mixed routing; stale request if practical;
 final M2 audit. M2 closure readiness NOT YET ASSESSED; defects NONE CURRENTLY KNOWN.
 No M2 completion, M3 implementation, AI integration or API entitlement claimed.
+
+
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M2 Final Closure Reconciliation
+
+Authoritative current status; supersedes the historical 2026-09-17 partial
+checkpoint without rewriting its observations.
+M1: SOURCE-CONTROL CLOSED.
+M2A: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B live validation: COMPLETE FOR REQUIRED M2 RISK BOUNDARY.
+M2 verdict: M2_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+M2 closure readiness: READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+Live validation: SUFFICIENT FOR CLOSURE. Static/regression audit: PASS.
+Current M2 runtime defects: NONE. M3: NOT STARTED.
+This final documentation is prepared for review, not yet committed or pushed.
+No final documentation closure commit is claimed.
+
+M1 closure: d25c545e0e4f92d14492f52f04d109bd32f15beb.
+M2 implementation: 20c10f8ea647373ec83cfaf32822e99efc55d39b, parent M1 closure,
+subject Update; 19 files, 2554 insertions, 65 deletions.
+M2 WBSO checkpoint: df8bdebc668ec870418b53d9884e1327d3480110;
+10 files, 355 insertions, 8 deletions.
+Pre-edit main HEAD = origin/main = 14e53b07fb8f9c670e7bebdb85acb1830c6c60b1,
+subject chore: ignore local environment secrets, parent df8bdebc668ec870418b53d9884e1327d3480110;
+ahead/behind 0/0, worktree clean. Runtime unchanged since the M2 implementation.
+Evidence / Daily Log / KC IDs and hours: PENDING; no unambiguous local allocation.
+
+Required M2 live risk-boundary validation is complete and sufficient for closure.
+Supplied LIVE-M2-01..16 and LIVE-M2-UI-01..03 PASS cover twelve specialty tools,
+empty selection, three rejection routes and presentation/Find. HVAC End/Curve
+parity and Electrical open/count QA exclusions PASS. See final evidence matrix.
+
+Final static audit: 119 Python tests PASS (15 M1, 26 M2A, 33 M2B, 15 theme,
+22 rich result, 8 Find), AST/py_compile/tabnanny, IronPython compile,
+XAML/native WPF, normal-mode equivalence, mutation/network scans and
+git diff --check PASS. All 1475 existing Workbench function bodies unchanged.
+Catalog remains 237 with the unchanged Git hash/object in evidence_reference.md.
+Live evidence is user-reported; documentation work did not rerun Revit tests.
+
+No blocking defect/test remains. Stale race is sufficiently static-covered.
+Accepted nonblocking gaps: additional already-open project tabs, explicit live
+theme toggle, extremely large live result, workshared/family documents, live
+pyRevit reload and manually hidden pane. Linked traversal remains out of scope.
+M1 show_pending visibility defect remains fixed/retested/PASS.
+No M3/OpenAI runtime integration or source-control closure commit is claimed.

@@ -2265,3 +2265,50 @@ single pending request/buttons recovery, context-generation and routing probes.
 119 Python tests and native WPF/compile/theme checks are checkpoint evidence,
 not proof that the remaining live matrix passed. M2 closure readiness remains
 NOT YET ASSESSED. No M3/API work is authorized.
+
+
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M2 Final Closure Reconciliation
+
+Authoritative current status; supersedes the historical 2026-09-17 partial
+checkpoint without rewriting its observations.
+M1: SOURCE-CONTROL CLOSED.
+M2A: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B live validation: COMPLETE FOR REQUIRED M2 RISK BOUNDARY.
+M2 verdict: M2_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+M2 closure readiness: READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+Live validation: SUFFICIENT FOR CLOSURE. Static/regression audit: PASS.
+Current M2 runtime defects: NONE. M3: NOT STARTED.
+This final documentation is prepared for review, not yet committed or pushed.
+No final documentation closure commit is claimed.
+
+M1 closure: d25c545e0e4f92d14492f52f04d109bd32f15beb.
+M2 implementation: 20c10f8ea647373ec83cfaf32822e99efc55d39b, parent M1 closure,
+subject Update; 19 files, 2554 insertions, 65 deletions.
+M2 WBSO checkpoint: df8bdebc668ec870418b53d9884e1327d3480110;
+10 files, 355 insertions, 8 deletions.
+Pre-edit main HEAD = origin/main = 14e53b07fb8f9c670e7bebdb85acb1830c6c60b1,
+subject chore: ignore local environment secrets, parent df8bdebc668ec870418b53d9884e1327d3480110;
+ahead/behind 0/0, worktree clean. Runtime unchanged since the M2 implementation.
+Evidence / Daily Log / KC IDs and hours: PENDING; no unambiguous local allocation.
+
+Final disposition of the historical pending matrix:
+- PIPING A01-A04: LIVE-M2-02..05 PASS.
+- HVAC A01-A04: LIVE-M2-06..09 PASS, including End-versus-Curve topology.
+- ELECTRICAL A01-A04: LIVE-M2-10..13 PASS; open/count QA exclusions preserved.
+- Empty selection: LIVE-M2-01 PASS.
+- Unsupported-only / mixed specialties / supported plus unsupported:
+  LIVE-M2-14/15/16 PASS, no silent filtering and no action selected.
+- Compact theme UI / rich renderer / local Find: LIVE-M2-UI-01/02/03 PASS.
+- Final static/regression audit: PASS, 119 Python tests plus native checks.
+Exact classifications/counts are in the final evidence_reference.md matrix.
+
+No category-A blocking test remains. Stale-request live race is ALREADY
+SUFFICIENTLY STATIC-COVERED. Zero-document/reopen and duplicate guards retain
+M1 live and static evidence; display bounds/truncation retain static/native tests.
+Additional already-open document switching, explicit live theme toggle, extremely
+large live result, workshared/family context, live reload and manual hiding are
+NICE-TO-HAVE / NONBLOCKING. Linked traversal is OUT OF SCOPE.
+Normal Workbench live launch plus one existing read-only command is optional
+targeted smoke coverage; normal-mode AST equivalence passed. No broad retest,
+provider/network self-test or M3 work is required by this closure.

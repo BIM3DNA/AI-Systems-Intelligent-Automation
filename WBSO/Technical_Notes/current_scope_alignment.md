@@ -1192,3 +1192,45 @@ empty selection, compact/theme UI, rich renderer and local Find have supplied
 PASS evidence. Piping QA Health, HVAC/Electrical bridge tests, unsupported-only
 and mixed-specialty routing, practical stale-request coverage and final M2 audit
 remain pending. Do not infer M2 completion from implementation being pushed.
+
+
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M2 Final Closure Reconciliation
+
+Authoritative current status; supersedes the historical 2026-09-17 partial
+checkpoint without rewriting its observations.
+M1: SOURCE-CONTROL CLOSED.
+M2A: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B live validation: COMPLETE FOR REQUIRED M2 RISK BOUNDARY.
+M2 verdict: M2_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+M2 closure readiness: READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+Live validation: SUFFICIENT FOR CLOSURE. Static/regression audit: PASS.
+Current M2 runtime defects: NONE. M3: NOT STARTED.
+This final documentation is prepared for review, not yet committed or pushed.
+No final documentation closure commit is claimed.
+
+M1 closure: d25c545e0e4f92d14492f52f04d109bd32f15beb.
+M2 implementation: 20c10f8ea647373ec83cfaf32822e99efc55d39b, parent M1 closure,
+subject Update; 19 files, 2554 insertions, 65 deletions.
+M2 WBSO checkpoint: df8bdebc668ec870418b53d9884e1327d3480110;
+10 files, 355 insertions, 8 deletions.
+Pre-edit main HEAD = origin/main = 14e53b07fb8f9c670e7bebdb85acb1830c6c60b1,
+subject chore: ignore local environment secrets, parent df8bdebc668ec870418b53d9884e1327d3480110;
+ahead/behind 0/0, worktree clean. Runtime unchanged since the M2 implementation.
+Evidence / Daily Log / KC IDs and hours: PENDING; no unambiguous local allocation.
+
+Required M2 risk-boundary live validation is now complete: LIVE-M2-01..16 and
+LIVE-M2-UI-01..03 PASS, including all twelve closed specialty tools and routing
+rejections. Final static/regression audit PASS. No category-A blocker remains.
+
+Accepted nonblocking coverage: additional already-open multi-project tabs,
+explicit live theme toggle, extremely large live results, workshared/family
+context, live pyRevit reload and manually hidden pane behavior. Linked traversal
+remains OUT OF SCOPE. Live stale race is ALREADY SUFFICIENTLY STATIC-COVERED.
+M1 visibility restore/show_pending remains FIXED / RETESTED / PASS.
+
+M2 introduces no Transaction/TransactionGroup, parameter/connector writes,
+element create/delete, model/UI-selection/active-view/linked-document mutation,
+export, evidence workflow advancement, auto-run QA, API-key lookup or network
+inference. No M3 scope is begun. Future M3 local provider configuration exists
+outside source control.

@@ -1868,3 +1868,61 @@ highlighting/count/previous/next/wraparound/clear/no-match/reset. It does not re
 tools, refresh context, call model APIs/network or mutate model/view/selection.
 R&D uncertainty is safe headless reuse and valid-context dispatch with lossless
 bounded presentation, not invention of new specialty rules.
+
+
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M2 Final Closure Reconciliation
+
+Authoritative current status; supersedes the historical 2026-09-17 partial
+checkpoint without rewriting its observations.
+M1: SOURCE-CONTROL CLOSED.
+M2A: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B live validation: COMPLETE FOR REQUIRED M2 RISK BOUNDARY.
+M2 verdict: M2_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+M2 closure readiness: READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+Live validation: SUFFICIENT FOR CLOSURE. Static/regression audit: PASS.
+Current M2 runtime defects: NONE. M3: NOT STARTED.
+This final documentation is prepared for review, not yet committed or pushed.
+No final documentation closure commit is claimed.
+
+M1 closure: d25c545e0e4f92d14492f52f04d109bd32f15beb.
+M2 implementation: 20c10f8ea647373ec83cfaf32822e99efc55d39b, parent M1 closure,
+subject Update; 19 files, 2554 insertions, 65 deletions.
+M2 WBSO checkpoint: df8bdebc668ec870418b53d9884e1327d3480110;
+10 files, 355 insertions, 8 deletions.
+Pre-edit main HEAD = origin/main = 14e53b07fb8f9c670e7bebdb85acb1830c6c60b1,
+subject chore: ignore local environment secrets, parent df8bdebc668ec870418b53d9884e1327d3480110;
+ahead/behind 0/0, worktree clean. Runtime unchanged since the M2 implementation.
+Evidence / Daily Log / KC IDs and hours: PENDING; no unambiguous local allocation.
+
+Final architecture confirmed by static audit and supplied live coverage:
+execute_headless_modelmind_readonly(action_id, document, uidocument) reuses
+_piping_ro_001_build_data, _hvac_ro_001_build_data and
+_electrical_ro_001_build_data for PIPING/HVAC/ELECTRICAL A01-A04 (12 actions).
+Explicit headless mode defaults OFF; normal Workbench is unchanged.
+Headless startup avoids provider/agent/UI, scopes doc/uidoc and restores them in
+finally. No stale document is retained; nonblocking locking serializes execution
+and rejects overlapping/nested calls. No background Revit API execution.
+
+Pane WPF callbacks queue scalar identity/generation only. A dedicated ModelMind
+ExternalEvent.Execute validates current context, resolves specialty/action,
+calls the headless facade and returns projected data to the bounded renderer.
+Summary/Connectors/Assignment/QA Health map to A01/A02/A03/A04 respectively.
+Empty and unsupported-only return NOT_READY; mixed supported specialties return
+MIXED_SPECIALTY_REVIEW; supported plus unsupported returns NOT_READY without
+filtering. Unreadable/unresolved references fail closed. One pending request;
+controls restore on completion/failure. Stale requests cannot retarget; live race
+is ALREADY SUFFICIENTLY STATIC-COVERED.
+
+M1 UUID aa6b23d4-f8e3-4b2f-9ad7-de9e05bfb5e4, right docking, automatic visibility,
+document/view/selection context, Refresh, close/reopen Show and duplicate guards
+are preserved. Theme reads UIThemeManager.CurrentTheme and supported
+UIApplication.ThemeChanged without polling. Compact context bar retains
+Document / Active View / View Type / Sel: n / Refresh; Send disabled.
+
+FlowDocument/FlowDocumentScrollViewer separate unchanged domain data from bounded
+presentation: title/status/classification/reason, facts, Warnings, separators
+and grouped technical Details. Limits 16000 characters / 400 blocks; explicit
+truncation. Find provides case-insensitive highlight/count/previous/next/wraparound/
+clear/no-match, only in displayed text. No tool rerun, context refresh, model API
+access, view/selection/model mutation or network call from Find.

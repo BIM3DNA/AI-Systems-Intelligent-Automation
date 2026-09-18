@@ -2989,3 +2989,77 @@ as central, and intervening package/M1 records leave allocations PENDING.
 EV-AI-371 / DL-2026-09-01-01 are prior local checkpoint references, while central
 references and pending later records prevent an unambiguous next local allocation.
 No new Evidence, Daily Log or KC ID allocated; no KC file created; hours PENDING.
+
+
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M2 Final Closure Reconciliation
+
+Authoritative current status; supersedes the historical 2026-09-17 partial
+checkpoint without rewriting its observations.
+M1: SOURCE-CONTROL CLOSED.
+M2A: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B: IMPLEMENTED / VALIDATED / STATIC VALIDATION PASSED / COMMITTED AND PUSHED.
+M2B live validation: COMPLETE FOR REQUIRED M2 RISK BOUNDARY.
+M2 verdict: M2_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+M2 closure readiness: READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+Live validation: SUFFICIENT FOR CLOSURE. Static/regression audit: PASS.
+Current M2 runtime defects: NONE. M3: NOT STARTED.
+This final documentation is prepared for review, not yet committed or pushed.
+No final documentation closure commit is claimed.
+
+M1 closure: d25c545e0e4f92d14492f52f04d109bd32f15beb.
+M2 implementation: 20c10f8ea647373ec83cfaf32822e99efc55d39b, parent M1 closure,
+subject Update; 19 files, 2554 insertions, 65 deletions.
+M2 WBSO checkpoint: df8bdebc668ec870418b53d9884e1327d3480110;
+10 files, 355 insertions, 8 deletions.
+Pre-edit main HEAD = origin/main = 14e53b07fb8f9c670e7bebdb85acb1830c6c60b1,
+subject chore: ignore local environment secrets, parent df8bdebc668ec870418b53d9884e1327d3480110;
+ahead/behind 0/0, worktree clean. Runtime unchanged since the M2 implementation.
+Evidence / Daily Log / KC IDs and hours: PENDING; no unambiguous local allocation.
+
+Provenance: user-supplied final live matrix and completed final static/regression
+audit. Live tests were not rerun by this documentation task. LIVE labels are
+existing case labels, not newly allocated WBSO Evidence IDs.
+
+| Case | Result | Preserved production observation |
+| --- | --- | --- |
+| LIVE-M2-01 | PASS | Empty Summary: NOT_READY / NO_ELEMENTS_SELECTED |
+| LIVE-M2-02 | PASS | PIPING_SELECTION_SUMMARY_OK; 2 supported/processed rigid Pipes |
+| LIVE-M2-03 | PASS | PIPING_CONNECTOR_REPORT_OK; 4 physical connectors, 0 connected, 4 unconnected |
+| LIVE-M2-04 | PASS | PIPING_SYSTEM_ASSIGNMENT_OK; ASSIGNED x2, Hydronic Supply 1 / 5, CONSISTENT x2 |
+| LIVE-M2-05 | PASS | PIPING_QA_HEALTH_YELLOW; 12 stable checks, 6 issues, 0 partial: SEL-QA-011 x2 missing Mark plus PIPING-QA-008 x4 unconnected connectors |
+| LIVE-M2-06 | PASS | HVAC_SELECTION_SUMMARY_OK; 2 supported Ducts |
+| LIVE-M2-07 | PASS | HVAC_CONNECTOR_REPORT_OK; 9 physical HVAC, 4 End, 5 Curve; 9 reciprocal connected, 0 unconnected |
+| LIVE-M2-08 | PASS | HVAC_SYSTEM_ASSIGNMENT_OK; ASSIGNED x2; Mechanical Return Air 7 / Mechanical Supply Air 11; CONSISTENT x2 |
+| LIVE-M2-09 | PASS | HVAC_QA_HEALTH_YELLOW; 12 stable checks, 2 missing-Mark SEL-QA-011 issues, 0 partial; HVAC-QA-008/009 PASS |
+| LIVE-M2-10 | PASS | ELECTRICAL_SELECTION_SUMMARY_OK; DEVICE_PROFILE / SUPPORTED_LIGHTING_FIXTURE / DEVICE_ASSIGNED x2; LP000, circuit 10, 120 V, 2600 VA, 2600 W, PF 1 |
+| LIVE-M2-11 | PASS | ELECTRICAL_CONNECTOR_REPORT_OK; PHYSICAL_ELECTRICAL / CONNECTED x2; open-connector QA false, connector-count QA false |
+| LIVE-M2-12 | PASS | ELECTRICAL_CIRCUIT_ASSIGNMENT_OK; DEVICE_ASSIGNED x2; LP000 / 10; LOAD, UPSTREAM_OR_LOAD_CIRCUIT, CONSISTENT |
+| LIVE-M2-13 | PASS | ELECTRICAL_QA_HEALTH_GREEN; 11 stable checks, 0 issues, 0 partial, no warnings |
+| LIVE-M2-14 | PASS | Conduit-only: NOT_READY / NO_SUPPORTED_SELECTED_ELEMENTS; action_id none |
+| LIVE-M2-15 | PASS | Pipe + Duct: MIXED_SPECIALTY_REVIEW / MIXED_SUPPORTED_SPECIALTIES; action_id none |
+| LIVE-M2-16 | PASS | Pipe + Conduit: NOT_READY / SUPPORTED_AND_UNSUPPORTED_SELECTION; action_id none |
+
+No silent specialty selection/filtering or builder execution in rejected routes.
+HVAC End-versus-Curve regression PASS; Electrical open/count QA exclusion PASS.
+QA YELLOW is a preserved domain finding, not a bridge failure.
+
+LIVE-M2-UI-01 PASS: compact themed context, no duplicate large title, automatic
+selection update and Summary regression. UI-02 PASS: rich structured title,
+specialty/status/classification, facts, warnings and technical Details.
+UI-03 PASS: spacing/separators, label/value hierarchy, grouped Details, None
+reported warning empty state, local case-insensitive highlights/count,
+previous/next/wraparound/clear/reset/no-match. No tool rerun or Revit mutation.
+
+Final audit at df8bdebc668ec870418b53d9884e1327d3480110: main/origin aligned,
+0/0, clean. 119 Python tests PASS: M1 15, M2A 26, M2B 33, theme 15,
+rich result 22, Find 8. AST/py_compile/tabnanny, raw IronPython compilation,
+XAML/native WPF, network/mutation scans and whitespace checks PASS.
+All 1475 existing Workbench functions source-identical to M1; zero changed.
+Catalog 237 unchanged; Git/LF SHA-256:
+55A58E3B6E1A67D833B91B5DFC5BAC883955B0352BB8BFA862AC3C32917FDB94
+Git object: aa0bf1fc19ba2c5ceb7afe24c3a0749f80288b57.
+No runtime change after 20c10f8... or during this documentation task.
+
+Identifier review still finds pending intervening allocations and mixed
+central/local references, not an authoritative next sequence. No new Evidence,
+Daily Log or KC allocation; no KC file or numeric hours created.
