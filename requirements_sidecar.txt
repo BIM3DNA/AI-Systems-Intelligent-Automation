@@ -1,0 +1,8 @@
+# Canonical BIMCode M3A Python 3 provider-sidecar dependencies only.
+# Python >=3.10; tested with Python 3.10.11. Install this file independently.
+# Pin the direct SDK; its declared constraints resolve transitive dependencies.
+# This is not a transitive lock file or the legacy Workbench environment.
+# requirements_full.txt is legacy/broader environment material. Its unresolved
+# PySimpleGUI==5.0.8 availability and inflect 7.5.0 vs 0.5.1 conflict are
+# OUTSIDE M3A SIDECAR SCOPE; do not combine that manifest with this one.
+openai==3.15.0
