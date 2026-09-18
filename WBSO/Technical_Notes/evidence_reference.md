@@ -3104,3 +3104,54 @@ delta matched 14 files / 1144 insertions / 4 deletions. No independently capture
 post-live byte snapshot was supplied; matching totals are not a byte-identity proof.
 Architecture and accepted limitations: BIMCode_Provider/README.md.
 Evidence/Daily Log/KC IDs and hours remain PENDING; no allocations or new KC file.
+
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M3B final closure audit
+
+Verdict: M3B_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. M1/M2/M3A remain closed;
+M3B source-control closure PENDING; M3C NOT STARTED. Baseline main HEAD/origin:
+361b8e5cc24e4766afdc2f3d0d1208f6bbef2aa1, 0/0; implementation unstaged/uncommitted.
+Audit-start scope matched 16 files / 1047 insertions / 15 deletions. This final
+audit changes only documentation, not runtime/tests/manifests or closed semantics.
+
+Authoritative user-reported live matrix, not repeated by this audit:
+
+- LIVE-M3B-01 COVERED/PASS: one supported rigid Pipe, configured gpt-6-astra,
+  COMPLETE; Selected Pipes Summary / PIPING-RO-001-A01 /
+  PIPING_SELECTION_SUMMARY_OK / COMPLETE provenance. Element353871, Default,
+  Carbon Steel - Schedule40, Hydronic Supply5 ASSIGNED, diameter150.0mm,
+  length23000.0mm / 75.459ft, slope0, start/end2276.6mm, Level1, insulation0.0mm,
+  Workset1 [0], pinned/grouped/assembly No/No/No. No unsupported/unresolved/skipped
+  references, partial reads, omitted rows or warnings. Facts matched supplied
+  prior deterministic A01 observation; unit conversion checks independently.
+- LIVE-M3B-02 COVERED/PASS: hydronic supply question answered directly without
+  tool provenance, action ID or ModelMind execution. Model-selected, not forced.
+- LIVE-M3B-03 COVERED/PASS: selected-Duct request correctly explained unavailable
+  duct capability in Project2 AND Snowdon Towers Sample HVAC; no HVAC execution,
+  pipe-tool misuse, ModelMind execution or provenance.
+
+Only summarize_selected_pipes / empty args maps to literal PIPING-RO-001-A01.
+Existing M2 ExternalEvent is the sole execution boundary; cached scalar document,
+lifecycle, selection-generation and request guards prevent silent retargeting.
+Maximum one tool execution; unknown/nonempty/multiple/second calls fail closed.
+Deterministic output remains authoritative. Projection keeps core facts and
+records omissions, <=12 tables / 40 rows / 80000 ASCII-JSON characters; core facts
+fail rather than clip. Host-generated provenance is separate from AI prose.
+Initial tool-capable agent_turn store=True (including direct answers) enables
+previous_response_id/function_call_output continuation. Follow-up store=False,
+tools=[], tool_choice=none. No new conversation resource or local persistence.
+
+Final rerun: 208 Python tests (166+42), 14 native probes (10+4), 27 AST/compile/
+tabnanny files, 5 IronPython compiles, native XAML/WPF/theme/Find and pip check PASS.
+Mutation/network/allowlist/credential-pattern/whitespace checks PASS; no secret
+contents read/compared. 1475 Workbench functions source-identical; catalog237 unchanged.
+M1 behavior, M2 routing/headless and M3A readiness/text/error/secret foundations
+pass regression. Reviewed lifecycle integration is not a claim of byte identity.
+
+No blocking defect or required live test remains. Forced stale race/loop coercion
+and live auth/quota/timeout injection are nonblocking given static/native coverage.
+Additional sequential tool turns, long explanations, reload/theme/multi-document
+cases remain optional and unclaimed. No paid request was made by this audit.
+No post-live byte snapshot supplied; matched initial diff totals alone are not
+proof of unchanged bytes since the live run. See BIMCode_Provider/M3B.md for parity
+and boundaries. No mutation, additional AI tools, autonomous loop or AutoCAD.
+Evidence/Daily Log/KC IDs and hours PENDING; none allocated. No staging/commit/push.

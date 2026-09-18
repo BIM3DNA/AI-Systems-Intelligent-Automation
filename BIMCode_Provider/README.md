@@ -1,5 +1,13 @@
 # BIMCode M3A: text-only Python provider sidecar
 
+Current M3B implementation: [M3B.md](M3B.md). M3A is SOURCE-CONTROL CLOSED in
+361b8e5cc24e4766afdc2f3d0d1208f6bbef2aa1. The M3A pre-commit status and no-tool
+contract below are preserved historical evidence. M3B adds exactly one read-only
+pipe-summary tool and an explicit initial-response storage exception. Required
+LIVE-M3B-01..03 are COVERED / PASS (user-reported); verdict
+M3B_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. Source-control closure remains PENDING.
+M3C not started. M3A text_response remains compatible and store=False.
+
 Final audit: 2026-09-18; M3A_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
 Required live connectivity PASS (user-reported); source-control closure PENDING.
 No authenticated request was made by implementation or this audit. Dependency

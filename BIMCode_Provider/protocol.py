@@ -1,6 +1,7 @@
 """Bounded one-shot scalar protocol; no host imports."""
 import json
 import re
+import tool_protocol
 
 MAX_REQUEST = 20000
 MAX_TEXT = 12000
@@ -18,6 +19,7 @@ MESSAGES = {
     "OPENAI_EMPTY_RESPONSE": "OpenAI returned no assistant text.",
     "INTERNAL_PROVIDER_ERROR": "Provider is unavailable or failed internally.",
 }
+MESSAGES.update(tool_protocol.MESSAGES)
 
 
 def failure(request_id, code, model=""):
@@ -32,7 +34,7 @@ def success(request_id, model, text):
 
 
 def parse(raw):
-    if len(raw) > MAX_REQUEST:
+    if len(raw) > tool_protocol.MAX_REQUEST:
         raise ValueError("protocol")
     def unique(pairs):
         result = {}
@@ -49,6 +51,10 @@ def parse(raw):
             or not re.fullmatch(r"[a-f0-9]{32}", data["request_id"])):
         raise ValueError("protocol")
     operation = data.get("operation")
+    if operation in ("agent_turn", "tool_result"):
+        return tool_protocol.validate_request(data)
+    if len(raw) > MAX_REQUEST:
+        raise ValueError("protocol")
     expected = {"protocol_version", "operation", "request_id"}
     if operation == "text_response":
         expected.add("user_text")

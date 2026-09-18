@@ -47,6 +47,76 @@ The authoritative project state is:
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
 
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M3B final closure-readiness audit
+
+Authoritative M3B verdict: M3B_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+Implementation COMPLETE; required live validation SUFFICIENT / PASS; final static
+audit PASS; current runtime defects NONE FOUND. Source-control closure PENDING:
+implementation/tests/documentation remain unstaged, uncommitted and unpushed.
+M1/M2/M3A remain source-control closed. M3C NOT STARTED; no additional tools wired.
+
+Verified main HEAD = origin/main = 361b8e5cc24e4766afdc2f3d0d1208f6bbef2aa1,
+ahead/behind 0/0, no staged paths. Audit-start delta exactly matched 16 files /
+1047 insertions / 15 deletions, with no unrelated changes. Requirements and M3A
+configuration foundation unchanged. This final audit edits documentation only.
+
+User-reported LIVE-M3B-01..03: COVERED / PASS. One Pipe 353871 summary used only
+PIPING-RO-001-A01 with PIPING_SELECTION_SUMMARY_OK / COMPLETE and factual parity;
+general hydronic question answered without a tool; Duct request correctly declined
+without HVAC/Piping execution in Project2 and Snowdon Towers Sample HVAC.
+No authenticated request or Revit test was repeated by this audit.
+
+Exactly summarize_selected_pipes, empty arguments, literal A01 mapping, existing
+ExternalEvent, document/lifecycle/selection-generation/request guards and one
+execution token remain enforced. Deterministic ModelMind is authoritative;
+bounded projection records omissions; final provenance is host-generated.
+Initial tool-capable agent_turn uses store=True for response-ID continuation,
+including direct answers; follow-up uses store=False, tools=[], tool_choice=none.
+No broader conversation/local persistence, autonomy, mutation, AutoCAD or catalog change.
+
+Current rerun: 208 Python tests (166 prior + 42 M3B), 14 native probes (10 + 4),
+27 AST/compile/tabnanny files, 5 native IronPython host-file compiles, native
+XAML/WPF/theme/Find, pip check and boundary/allowlist scans PASS. All 1475 existing
+Workbench functions source-identical; catalog 237 unchanged.
+Forced stale races, invalid-tool/loop coercion and paid error injection are not
+required given static/mock coverage. Additional sequential turns, long explanations,
+reload, theme changes and multi-document live cases remain nonblocking/unclaimed.
+Detailed evidence/parity: BIMCode_Provider/M3B.md and project-local evidence_reference.md.
+Evidence/Daily Log/KC IDs and hours remain PENDING; none allocated.
+Next: review combined scope and explicitly authorize commit/push. Proposed subject:
+feat(bimcode): add first ModelMind AI tool bridge. Do not begin M3C here.
+
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M3B implementation checkpoint (historical, before live validation)
+
+M1/M2/M3A remain SOURCE-CONTROL CLOSED. M3A implementation/closure is committed
+and pushed in 361b8e5cc24e4766afdc2f3d0d1208f6bbef2aa1, subject
+feat(bimcode): add OpenAI sidecar connectivity. Starting main HEAD/origin aligned,
+0/0, clean, no staged or untracked paths. Earlier M3A pending-closure wording below
+is a historical pre-commit checkpoint, superseded here without rewriting evidence.
+
+M3B_IMPLEMENTED_READY_FOR_LIVE_TEST; static PASS, live PENDING; not closed.
+Exactly one AI tool: summarize_selected_pipes -> literal PIPING-RO-001-A01.
+OpenAI chooses tool use; deterministic ModelMind output remains authoritative.
+Same existing M2 ExternalEvent, small coordinator, scalar document/lifecycle/
+selection-generation/turn guards. Maximum one tool execution, then tools-disabled
+Responses continuation. No HVAC/Electrical/mutation tool or arbitrary action ID.
+No autonomous loop, model/view/selection mutation, AutoCAD or catalog change.
+
+Explicit M3B storage change: initial agent_turn store=True for previous_response_id
+continuation; final request store=False. Initial response is retained by OpenAI
+under applicable policy; no local persistence or conversation resource. Only
+bounded scalar pipe facts and opaque IDs cross the boundary; no API key or raw
+Revit/SDK objects. Fixed Python/SDK/manifests and network endpoint remain unchanged.
+M3A direct text_response/readiness remain supported. UI tooltip discloses transfer.
+
+208 Python tests PASS (166 prior + 42 new); 10 prior native probes + 4 M3B PASS;
+27 AST/compile/tabnanny files; 5 native IronPython host-file compiles; WPF/XAML/
+theme/Find and boundary checks PASS. All 1475 Workbench functions source-identical;
+catalog 237 unchanged. No live API call, secret read, IDs or hours allocated.
+Implementation/projection/privacy contract and required live tests:
+BIMCode_Provider/M3B.md. Next: user-run Pipe, direct-text and unavailable-Duct
+live tests. No expansion before M3B closure. No staging/commit/push by this task.
+
 ## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M3A final closure-readiness audit
 
 Authoritative current M3A status: M3A_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.

@@ -1453,3 +1453,36 @@ Source-control closure PENDING: implementation and documentation remain unstaged
 uncommitted and unpushed above dependency foundation 4b1a9fee6d4a3cd736fb123a815743087561071f.
 No runtime changes during this audit. Review combined scope before authorizing
 feat(bimcode): add OpenAI sidecar connectivity. IDs and hours PENDING; none allocated.
+
+## 2026-09-18 - M3B one-tool final closure-readiness assessment
+
+M3B_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. M1/M2/M3A remain source-control
+closed. Required live matrix LIVE-M3B-01..03 COVERED / PASS, user-reported:
+one-Pipe AI-selected A01 with authoritative fact/provenance parity; direct general
+text without action; Duct capability refusal without tool misuse in two models.
+Detailed facts and limits: evidence_reference.md final M3B section and
+BIMCode_Provider/M3B.md. No live Revit/API test repeated by this audit.
+
+Final offline rerun PASS: 208 Python tests (166 prior+42), 14 native probes (10+4),
+27 Python AST/compile/tabnanny files, 5 native IronPython host compiles,
+native XAML/WPF/theme/Find, pip check and boundary/allowlist/whitespace checks.
+All 1475 Workbench functions source-identical; catalog237 unchanged. Closed
+Piping semantics, M2 routing/headless and M3A config/text/error paths preserved.
+Lifecycle coordinator/selection-generation additions retain existing M1/M2 behavior.
+
+Exactly summarize_selected_pipes -> PIPING-RO-001-A01, empty args, maximum one
+execution inside existing ExternalEvent. Document/lifecycle/selection/request
+guards fail stale; no WPF/background Revit execution. Bounded projection does not
+recalculate domain facts; provenance is host-owned. Initial agent_turn store=True
+for response-ID continuation remains explicitly accepted/documented; follow-up
+store=False with tools disabled. No broader conversation/local persistence added.
+
+Runtime defects NONE FOUND. No additional live case is required for this bounded
+closure. Forced stale races, invalid/multiple/second-tool coercion and paid error
+injection are sufficiently static/mock-covered. Sequential turns, long response,
+reload, theme and multi-document live variations remain optional, not claimed PASS.
+No runtime/test changes during this audit. Only project-local documentation updated.
+Source-control closure PENDING above 361b8e5cc24e4766afdc2f3d0d1208f6bbef2aa1;
+implementation/tests/docs unstaged/uncommitted/unpushed. Recommend reviewed combined
+commit: feat(bimcode): add first ModelMind AI tool bridge. No staging/commit/push.
+IDs/hours PENDING; none allocated. M3C/additional tools/AutoCAD NOT STARTED.

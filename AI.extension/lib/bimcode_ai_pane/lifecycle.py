@@ -12,6 +12,7 @@ from bimcode_ai_pane import PANEL_ID, PANEL_TITLE, SESSION_KEY
 from bimcode_ai_pane.context import empty_context, read_context
 from bimcode_ai_pane.panel import BIMCodeAIPanel
 from bimcode_ai_pane.tools import ModelMindToolBridge, document_key, result_for
+from bimcode_ai_pane.ai_tool import Coordinator
 
 
 def pane_id():
@@ -49,6 +50,10 @@ class ModelMindReadOnlyHandler(UI.IExternalEventHandler):
 
     def Execute(self, uiapp):
         session = self.session
+        ai = getattr(session, "ai", None)
+        if ai is not None and ai.pending:
+            ai.execute_approved(uiapp)
+            return
         request = session.tools.pending
         if request is None:
             return
@@ -75,6 +80,9 @@ class PaneSession(object):
         self.tools = ModelMindToolBridge()
         self.context_generation = 0
         self.document_identity = None
+        self.selection_generation = 0
+        self.ai = Coordinator(self)
+        self.panel.bind_ai(self.ai)
         self.tool_handler = ModelMindReadOnlyHandler(self)
         self.tool_event = None
         try:
@@ -134,6 +142,8 @@ class PaneSession(object):
 
     def request_tool(self, tool_name):
         # WPF callback: cached scalar identity only. No Revit reads here.
+        if getattr(self, "ai", None) is not None and self.ai.turn is not None:
+            return
         request = self.tools.begin(tool_name, self.document_identity, self.context_generation)
         if request is None:
             return
@@ -156,6 +166,12 @@ class PaneSession(object):
                 self.panel.set_tools_busy(False)
             except Exception:
                 pass
+
+    def raise_ai_event(self):
+        # Same existing ExternalEvent; no new event registration or API reads.
+        if self.tools.pending is not None:
+            return False
+        return self.tool_event.Raise() in (UI.ExternalEventRequest.Accepted, UI.ExternalEventRequest.Pending)
 
     def invalidate_tool_context(self):
         # Even switch-away-and-back / same-model reopen invalidates queued work.
@@ -196,6 +212,7 @@ class PaneSession(object):
         self.try_initial_show(self.uiapp)
 
     def on_selection_changed(self, sender, args):
+        self.selection_generation = getattr(self, "selection_generation", 0) + 1
         # Native Revit UI event: read only the event snapshot's count. No
         # UIDocument traversal, retained ElementIds, or ExternalEvent request.
         try:

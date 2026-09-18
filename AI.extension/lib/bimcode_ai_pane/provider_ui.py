@@ -31,6 +31,12 @@ def presentation(result):
     budget.add(blocks, "fact", result.get("model") or "Unavailable", "Model: ")
     budget.add(blocks, "status", "COMPLETE" if result["ok"] else "FAILED",
                tone="SuccessBrush" if result["ok"] else "ErrorBrush")
+    provenance = result.get("tool_provenance")
+    if provenance:
+        budget.add(blocks, "fact", "Selected Pipes Summary", "Tool used: ")
+        budget.add(blocks, "technical", provenance["action_id"], "Action: ")
+        budget.add(blocks, "technical", provenance["classification"], "Tool classification: ")
+        budget.add(blocks, "technical", provenance["reason_code"], "Tool reason: ")
     if result["ok"]:
         budget.add(blocks, "heading", "Response")
         budget.add(blocks, "text", result["text"])

@@ -30,6 +30,9 @@ class BIMCodeAIPanel(forms.WPFPanel):
         self._request_refresh = None
         self._request_tool = None
         self._tools_busy = False
+        self._ai = None
+        self._ai_provenance = None
+        self._ai_waiting = False
         self._presentation = {"blocks": []}
         self._finder = ResultFind()
         self.FindName("FindInput").TextChanged += self._on_find
@@ -61,14 +64,25 @@ class BIMCodeAIPanel(forms.WPFPanel):
         self._start_provider("readiness")
 
     def _on_send(self, sender, args):
-        self._start_provider("text_response", self.FindName("MessageInput").Text)
+        self._start_provider("agent_turn" if self._ai is not None else "text_response",
+                             self.FindName("MessageInput").Text)
+
+    def bind_ai(self, coordinator):
+        self._ai = coordinator
 
     def _start_provider(self, operation, text=""):
         payload = self._provider_state.begin(operation, text)
         if payload is None:
             return
+        if operation == "agent_turn":
+            self._ai_provenance = None
+            self._ai_waiting = False
+            if not self._ai.begin(payload["request_id"]):
+                self._provider_complete(provider_bridge.failure(payload["request_id"], "MODELMIND_NOT_READY"))
+                return
+            self.set_tools_busy(True)
         self._update_provider_controls()
-        self.FindName("ProviderStatus").Text = ("Thinking..." if operation == "text_response"
+        self.FindName("ProviderStatus").Text = ("Thinking..." if operation in ("text_response", "agent_turn")
                                                else "Checking local provider configuration...")
         try:
             provider_ui.launch(payload, self.Dispatcher, self._provider_complete)
@@ -77,19 +91,59 @@ class BIMCodeAIPanel(forms.WPFPanel):
 
     def _provider_complete(self, result):
         operation = self._provider_state.active["operation"] if self._provider_state.active else None
+        if self._provider_state.active is None or result.get("request_id") != self._provider_state.active["request_id"]:
+            return
+        if result.get("state") == "TOOL_REQUEST":
+            if operation != "agent_turn" or self._ai is None or self._ai_waiting:
+                result = provider_bridge.failure(result["request_id"], "AI_TOOL_LOOP_LIMIT")
+            else:
+                self._ai_waiting = True
+                self.FindName("ProviderStatus").Text = "Reading selected pipes..."
+                try:
+                    self._ai.queue(result, lambda error, data: self._ai_tool_complete(result, error, data))
+                except Exception:
+                    self._provider_complete(provider_bridge.failure(result["request_id"], "AI_TOOL_PROTOCOL_ERROR"))
+                return
         if not self._provider_state.finish(result):
             return
         try:
             self.FindName("ProviderStatus").Text = (
                 "Text provider ready (authentication untested)." if operation == "readiness" and result["ok"]
                 else "Text request complete." if result["ok"] else result["error"]["message"])
-            if operation == "text_response":
+            if operation in ("text_response", "agent_turn", "tool_result"):
+                if operation != "text_response" and self._ai_provenance is not None:
+                    result["tool_provenance"] = self._ai_provenance
                 self._presentation = provider_ui.presentation(result)
                 self.FindName("FindInput").Text = ""
                 self._finder.search(self._presentation, "")
                 self._render_find()
         finally:
+            if operation in ("agent_turn", "tool_result") and self._ai is not None:
+                # Only release our coordinator; a concurrent M2 request stays busy.
+                owned = self._ai.turn is not None
+                self._ai.clear()
+                if owned:
+                    self.set_tools_busy(False)
             self._update_provider_controls()
+
+    def _ai_tool_complete(self, response, error, data):
+        active = self._provider_state.active
+        if active is None or active["request_id"] != response["request_id"]:
+            return
+        if error is not None:
+            self._provider_complete(error)
+            return
+        self._ai_provenance = dict(action_id=data["action_id"],
+                                   classification=data.get("classification", ""),
+                                   reason_code=data.get("reason_code", ""))
+        payload = dict(protocol_version=1, operation="tool_result", request_id=response["request_id"],
+                       tool_call=response["tool_call"], provider_state=response["provider_state"], tool_result=data)
+        active["operation"] = "tool_result"
+        self.FindName("ProviderStatus").Text = "Thinking..."
+        try:
+            provider_ui.launch(payload, self.Dispatcher, self._provider_complete)
+        except Exception:
+            self._provider_complete(provider_bridge.failure(payload["request_id"], "SIDECAR_START_FAILED"))
 
     def apply_current_theme(self):
         try:

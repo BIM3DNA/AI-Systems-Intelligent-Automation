@@ -72,7 +72,57 @@ assert len(completed) == 1 and completed[0]['ok']
 checks += 1
 print('PASS {0} native process/dispatcher probes'.format(checks))
 '@, $scope)
-foreach ($filename in @('panel.py', 'provider_bridge.py', 'provider_ui.py')) {
+foreach ($filename in @('panel.py', 'provider_bridge.py', 'provider_ui.py', 'ai_tool.py', 'lifecycle.py')) {
     [void]$engine.CreateScriptSourceFromFile((Join-Path $repo ('AI.extension/lib/bimcode_ai_pane/' + $filename))).Compile()
 }
-'PASS IronPython compilation of all M3A Revit-side files'
+'PASS IronPython compilation of 5 M3A/M3B Revit-side files'
+$engine.Execute(@'
+import json
+from bimcode_ai_pane import ai_tool
+class Scalar(object):
+    pass
+session = Scalar()
+session.document_identity = (1, 'doc', 'path')
+session.context_generation = 1
+session.selection_generation = 1
+session.tools = Scalar()
+session.tools.pending = None
+session.raise_ai_event = lambda: True
+uidoc = Scalar()
+uidoc.Document = object()
+app = Scalar()
+app.ActiveUIDocument = uidoc
+ai_tool.document_key = lambda app: session.document_identity
+ai_tool.resolve_headless_modelmind_specialty = lambda d, u: dict(ok=True, specialties=['PIPING'])
+executions = []
+def execute(action, d, u):
+    executions.append(action)
+    return dict(ok=True, action_id=ai_tool.ACTION, specialty='PIPING',
+                classification='PIPING_SELECTION_SUMMARY_OK', reason_code='COMPLETE', summary=['Count: 1'])
+ai_tool.execute_headless_modelmind_readonly = execute
+rid = 'a' * 32
+response = dict(protocol_version=1, request_id=rid, ok=True, provider='openai', model='test-model',
+                text=None, error=None, state='TOOL_REQUEST',
+                tool_call=dict(call_id='call_1', name=ai_tool.NAME, arguments={}),
+                provider_state=dict(response_id='resp_1', model='test-model'))
+coordinator = ai_tool.Coordinator(session)
+completed = []
+def done(error, data):
+    completed.append((error, data))
+assert coordinator.begin(rid)
+coordinator.queue(response, done)
+assert not executions
+coordinator.execute_approved(app)
+assert executions == [ai_tool.ACTION] and completed[-1][1]['summary'] == ['Count: 1']
+coordinator.queue(response, done)
+assert completed[-1][0]['error']['code'] == 'AI_TOOL_LOOP_LIMIT'
+coordinator.clear()
+assert coordinator.begin(rid)
+session.selection_generation += 1
+coordinator.queue(response, done)
+coordinator.execute_approved(app)
+assert completed[-1][0]['error']['code'] == 'STALE_CONTEXT'
+assert len(executions) == 1
+assert bridge.decode(json.dumps(response), rid, 0)['state'] == 'TOOL_REQUEST'
+print('PASS 4 native M3B probes: one-action parity, loop limit, stale selection, tool envelope')
+'@, $scope)

@@ -1,5 +1,13 @@
 # BIMCODE-REVIT-AI-PANE-001 / Milestone 1
 
+Current M3B checkpoint (2026-09-18): one approved AI read-only pipe-summary tool
+reuses the existing M2 ExternalEvent through a bounded coordinator. M1/M2/M3A
+remain source-control closed; prior milestone status below is historical.
+M3B final static validation PASS; required LIVE-M3B-01..03 COVERED / PASS
+(user-reported). M3B_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS; source-control closure
+PENDING, M3C not started. See repository
+BIMCode_Provider/M3B.md for exact scope, storage/privacy change, guards and tests.
+
 Implemented UI shell and live read-only context. Static validation is separate
 from live Revit acceptance. Verdict: M1_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
 Runtime defects: NONE REMAINING. M1 source-control status: UNCOMMITTED / UNPUSHED;
