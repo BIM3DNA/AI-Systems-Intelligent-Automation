@@ -142,3 +142,14 @@ is not unambiguous. No new KC note or prompt asset is allocated.
 Streaming, WebSocket, async tools, autonomous loops, conversation persistence,
 tool registries, approval flows, mutation dispatcher, and audit integration are
 deferred. No existing ModelMind semantics or catalog metadata are changed.
+# M3A current checkpoint (2026-09-18)
+
+M1/M2 remain closed. M3A adds a separate text-only Python 3 provider process;
+the prior disabled-Send/no-network descriptions above describe M1/M2 history.
+Local-only configuration readiness gates Send; provider work never uses the M2
+ExternalEvent. Lifecycle, deterministic tools, themes, bounded renderer and Find
+are preserved. User-reported LIVE-M3A-01..04 are COVERED / PASS. Final audit verdict:
+M3A_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. Source-control closure is PENDING;
+implementation/documentation remain unstaged, uncommitted and unpushed. M3B not started.
+See `BIMCode_Provider/README.md` at repository root for the authoritative M3A
+configuration/protocol/security contract, validation evidence and live procedure.

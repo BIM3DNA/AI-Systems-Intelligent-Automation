@@ -1425,3 +1425,31 @@ theme toggle, extremely large live result, workshared/family documents, live
 pyRevit reload and manually hidden pane. Linked traversal remains out of scope.
 M1 show_pending visibility defect remains fixed/retested/PASS.
 No M3/OpenAI runtime integration or source-control closure commit is claimed.
+
+## 2026-09-18 - M3A connectivity final closure-readiness assessment
+
+This current M3A entry supersedes only earlier pending M3A live status; preceding
+M1/M2 observations are historical and preserved. M1 and M2 remain closed.
+Verdict: M3A_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+Required live matrix: LIVE-M3A-01..04 COVERED / PASS, based on user-supplied evidence.
+Local-only readiness, authenticated configured gpt-6-astra exact reply, truthful
+capability boundary, and post-AI deterministic Pipe Summary all passed. Detailed
+observations: WBSO/Technical_Notes/evidence_reference.md final M3A audit section.
+
+Current offline rerun: 166 Python tests (119 existing + 47 new), 10 native
+process/dispatcher probes, 24 AST/compile/tabnanny files, 3 IronPython host-file
+compiles, native WPF/XAML/theme/Find, pip check and boundary checks PASS.
+1475 existing Workbench functions source-identical; prompt catalog unchanged / 237.
+No current runtime defect found. No required live blocker remains. Live auth,
+quota, rate-limit and timeout injection are nonblocking given mocks/native probes;
+do not invalidate credentials or intentionally consume credit. Optional live
+theme/long-response, additional sequential requests, document-switch, reload and
+multi-tab cases remain unclaimed. No new authenticated request made by this audit.
+
+SDK 3.15.0 runs outside IronPython in fixed Python 3.10.11; one-shot scalar JSON,
+child configuration, Responses API and WPF dispatcher keep M2 execution separate.
+No tools/function calling/autonomy/model mutation/AutoCAD; M3B NOT STARTED.
+Source-control closure PENDING: implementation and documentation remain unstaged,
+uncommitted and unpushed above dependency foundation 4b1a9fee6d4a3cd736fb123a815743087561071f.
+No runtime changes during this audit. Review combined scope before authorizing
+feat(bimcode): add OpenAI sidecar connectivity. IDs and hours PENDING; none allocated.

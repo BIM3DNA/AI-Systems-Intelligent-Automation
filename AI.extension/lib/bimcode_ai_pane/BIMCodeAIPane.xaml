@@ -86,7 +86,7 @@
             </WrapPanel>
         </Border>
         <StackPanel Grid.Row="1">
-            <TextBlock Text="AI connection is not enabled. ModelMind read-only tools are available."
+            <TextBlock x:Name="ProviderStatus" Text="Text provider not checked. ModelMind tools are separate."
                        Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"/>
             <DockPanel Margin="0,0,0,6" LastChildFill="True">
                 <TextBlock Text="ModelMind" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -122,13 +122,15 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBox x:Name="MessageInput" MinHeight="28" MaxLength="2000" Padding="6,3"
-                     VerticalContentAlignment="Center" ToolTip="AI connection is not configured. Send remains disabled."/>
-            <Button Grid.Column="1" Content="Send" IsEnabled="False" Margin="6,0,0,0"/>
+                     VerticalContentAlignment="Center" ToolTip="Text-only OpenAI request. No Revit tools or model access."/>
+            <Button x:Name="SendButton" Grid.Column="1" Content="Send" IsEnabled="False" Margin="6,0,0,0"/>
         </Grid>
         <WrapPanel Grid.Row="4">
             <TextBlock Text="Status:" FontWeight="SemiBold" Margin="0,0,5,0"/>
             <TextBlock x:Name="StatusText" Text="Ready" Margin="0,0,10,0"/>
-            <TextBlock Text="Read-only | No AI connection" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+            <TextBlock Text="Read-only | AI text only" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+            <Button x:Name="ProviderCheckButton" Content="Check AI config" Padding="4,2" Margin="6,0,0,0"
+                    ToolTip="Check local provider configuration only; no OpenAI request."/>
         </WrapPanel>
     </Grid>
 </Page>

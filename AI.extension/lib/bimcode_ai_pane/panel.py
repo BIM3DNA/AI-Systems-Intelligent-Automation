@@ -10,6 +10,7 @@ from bimcode_ai_pane.result_presentation import build_presentation
 from bimcode_ai_pane.rich_result import make_document
 from bimcode_ai_pane.result_find import ResultFind
 from bimcode_ai_pane.theme import current_theme, apply_resources
+from bimcode_ai_pane import provider_bridge, provider_ui
 
 TOOL_BUTTONS = (
     ("SummaryButton", "selection.summary"),
@@ -41,6 +42,54 @@ class BIMCodeAIPanel(forms.WPFPanel):
             control.Tag = tool
             control.Click += self._on_tool
         self.render(empty_context())
+        self._provider_state = provider_bridge.SendState()
+        self.FindName("MessageInput").Text = ""
+        self.FindName("SendButton").Click += self._on_send
+        self.FindName("ProviderCheckButton").Click += self._on_provider_check
+        self.FindName("MessageInput").TextChanged += self._on_provider_text
+        self._on_provider_check(None, None)
+
+    def _update_provider_controls(self):
+        self.FindName("SendButton").IsEnabled = self._provider_state.enabled(
+            self.FindName("MessageInput").Text)
+        self.FindName("ProviderCheckButton").IsEnabled = self._provider_state.active is None
+
+    def _on_provider_text(self, sender, args):
+        self._update_provider_controls()
+
+    def _on_provider_check(self, sender, args):
+        self._start_provider("readiness")
+
+    def _on_send(self, sender, args):
+        self._start_provider("text_response", self.FindName("MessageInput").Text)
+
+    def _start_provider(self, operation, text=""):
+        payload = self._provider_state.begin(operation, text)
+        if payload is None:
+            return
+        self._update_provider_controls()
+        self.FindName("ProviderStatus").Text = ("Thinking..." if operation == "text_response"
+                                               else "Checking local provider configuration...")
+        try:
+            provider_ui.launch(payload, self.Dispatcher, self._provider_complete)
+        except Exception:
+            self._provider_complete(provider_bridge.failure(payload["request_id"], "SIDECAR_START_FAILED"))
+
+    def _provider_complete(self, result):
+        operation = self._provider_state.active["operation"] if self._provider_state.active else None
+        if not self._provider_state.finish(result):
+            return
+        try:
+            self.FindName("ProviderStatus").Text = (
+                "Text provider ready (authentication untested)." if operation == "readiness" and result["ok"]
+                else "Text request complete." if result["ok"] else result["error"]["message"])
+            if operation == "text_response":
+                self._presentation = provider_ui.presentation(result)
+                self.FindName("FindInput").Text = ""
+                self._finder.search(self._presentation, "")
+                self._render_find()
+        finally:
+            self._update_provider_controls()
 
     def apply_current_theme(self):
         try:

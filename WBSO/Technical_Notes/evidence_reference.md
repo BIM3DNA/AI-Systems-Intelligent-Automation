@@ -3063,3 +3063,44 @@ No runtime change after 20c10f8... or during this documentation task.
 Identifier review still finds pending intervening allocations and mixed
 central/local references, not an authoritative next sequence. No new Evidence,
 Daily Log or KC allocation; no KC file or numeric hours created.
+
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M3A final audit evidence
+
+M3A_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS. M1/M2 remain source-control closed;
+M3A implementation/documentation are unstaged/uncommitted/unpushed. M3B not started.
+Dependency foundation: 4b1a9fee6d4a3cd736fb123a815743087561071f; main/origin aligned
+0/0 at audit. M2 closure: 2a3c904ebcb92f767249302ee35faf3821b2610b.
+
+User-supplied live evidence (not rerun by this audit):
+- LIVE-M3A-01 COVERED/PASS: local readiness, authentication explicitly untested,
+  no network claim and no exposed secret.
+- LIVE-M3A-02 COVERED/PASS: OpenAI, configured gpt-6-astra, COMPLETE, exact reply
+  BIMCode AI OpenAI connection OK. Proves authenticated Responses transport,
+  account/model access at test time, scalar extraction/rendering and Send recovery.
+- LIVE-M3A-03 COVERED/PASS: correctly describes Revit text-only assistance and
+  absence of active-model inspection/modification and ModelMind tools.
+- LIVE-M3A-04 COVERED/PASS: subsequent deterministic one-Pipe Summary:
+  PIPING_SELECTION_SUMMARY_OK, COMPLETE, PIPING-RO-001-A01, selected/supported/
+  processed each 1, 23000.0 mm, Default, Carbon Steel - Schedule 40, ASSIGNED,
+  Hydronic Supply 5, diameter 150.0 mm, no warnings. No AI substitution.
+
+Final rerun: 166 Python tests PASS (119 existing + 47 new); 10 native IronPython
+process/dispatcher probes PASS; 24 AST/compile/tabnanny files PASS; 3 IronPython
+host-file compiles PASS; native WPF/XAML/theme/Find and pip check PASS. All 1475
+Workbench functions source-identical; catalog 237 unchanged. Boundary and
+credential-pattern review PASS without reading or comparing the real API key.
+Fixed Python 3.10.11 child / SDK 3.15.0, canonical requirements_sidecar.txt,
+Responses API, external OPENAI_MODEL, one-shot JSON and child-owned configuration.
+Modern SDK remains outside incompatible IronPython 2.7. Existing Openai_Server
+and Model_Service unchanged; non-reuse decision C remains justified by their
+paid probe, model fallback, legacy action normalization and raw-error behavior.
+
+Current runtime defects NONE FOUND. No extra live case required for connectivity
+closure. Error injection, live theme/long-result, sequential prompts, document
+switch/reload/multi-tab coverage remain nonblocking; never revoke keys or exhaust
+quota to prove errors. No tools/function calling/autonomy/mutation/AutoCAD.
+No runtime/test/manifest change in this audit. Before documentation edits the
+delta matched 14 files / 1144 insertions / 4 deletions. No independently captured
+post-live byte snapshot was supplied; matching totals are not a byte-identity proof.
+Architecture and accepted limitations: BIMCode_Provider/README.md.
+Evidence/Daily Log/KC IDs and hours remain PENDING; no allocations or new KC file.

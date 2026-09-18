@@ -47,6 +47,67 @@ The authoritative project state is:
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
 
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M3A final closure-readiness audit
+
+Authoritative current M3A status: M3A_READY_FOR_CLOSURE_WITH_NONBLOCKING_GAPS.
+Implementation COMPLETE; required live validation SUFFICIENT / PASS; final static
+audit PASS; current runtime defects NONE FOUND. Source-control closure PENDING:
+implementation and closure-preparation documentation remain UNSTAGED / UNCOMMITTED /
+UNPUSHED. M1 and M2 remain source-control closed. M3B NOT STARTED.
+
+Verified main HEAD = origin/main = 4b1a9fee6d4a3cd736fb123a815743087561071f,
+ahead/behind 0/0. This is the dependency-foundation commit, not an M3A closure
+commit. Audit-start delta matched 14 files / 1144 insertions / 4 deletions;
+no unrelated changes or staged paths. This audit changes documentation only.
+Requirements manifests remain unchanged; requirements_sidecar.txt is canonical.
+Python 3.10.11 / SDK 3.15.0 / configured-model Responses API run outside IronPython.
+
+User-supplied LIVE-M3A-01..04 are COVERED / PASS: local readiness without network;
+authenticated gpt-6-astra exact connectivity reply; correct text-only capability
+boundary; post-AI PIPING-RO-001-A01 deterministic Summary. No live request was
+repeated by this audit. Static rerun: 166 Python tests (119 existing + 47 M3A),
+10 native process/dispatcher probes, 24 Python AST/compile/tabnanny files,
+3 IronPython host-file compiles, native WPF/XAML/theme/Find, pip check and boundary
+checks PASS. All 1475 existing Workbench functions source-identical; catalog 237
+unchanged. No ModelMind tool/function calling, autonomy, mutation or AutoCAD.
+
+Accepted nonblocking gaps: live error injection, theme toggle/long response,
+additional sequential prompts, document switching during a request, pyRevit
+reload and already-open multi-document tabs. No additional live case is required
+for connectivity-only closure; do not revoke keys or consume quota for error tests.
+Details and limits: BIMCode_Provider/README.md and WBSO/Technical_Notes/evidence_reference.md.
+Evidence/Daily Log/KC identifiers and hours remain PENDING; none allocated.
+Next: review the combined implementation/documentation scope, then obtain explicit
+commit/push authorization. Do not begin M3B in this task.
+
+## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M3A implementation checkpoint (historical, before live validation)
+
+M1 and M2 remain SOURCE-CONTROL CLOSED. M2 final documentation closure is committed
+and pushed in `2a3c904ebcb92f767249302ee35faf3821b2610b`; the pre-commit wording
+below is historical. M3A dependency foundation is committed/pushed in
+`4b1a9fee6d4a3cd736fb123a815743087561071f`. Starting main/HEAD/origin were aligned
+there, ahead/behind 0/0, clean, no staged or untracked paths.
+
+M3A: IMPLEMENTED IN WORKTREE / STATIC VALIDATION PASS / LIVE CONNECTIVITY PENDING.
+Not committed, not pushed, not closed. No authenticated API call made by this task.
+IronPython 2.7 cannot host the modern SDK; the authorized provider runs in a fixed
+repo-local Python 3 child using requirements_sidecar.txt / OpenAI 3.15.0 / Responses.
+One-shot stdin/stdout scalar JSON; child owns environment/.env.local configuration
+and credentials. Readiness is local-only. Send is text-only, one active request,
+background process wait and UI dispatcher completion; no ModelMind/AI tool integration.
+Only provider.py may access the fixed OpenAI endpoint. No model/view/selection mutation.
+M1 lifecycle and M2 ExternalEvent/routing/headless behavior remain unchanged.
+
+Offline validation: 166 Python tests PASS (119 existing + 47 new); 10 native
+process/dispatcher probes PASS; AST/py_compile/tabnanny 24 files PASS; IronPython
+compile and existing native XAML/WPF/theme/Find checks PASS. Workbench 1475 existing
+functions source-identical, catalog 237 unchanged. No secret contents inspected,
+no WBSO identifiers/hours allocated. No sidecar distribution packaging or AutoCAD.
+Architecture, legacy-service non-reuse rationale, safety limits, test commands and
+user-run live validation: BIMCode_Provider/README.md. Legacy full-manifest blockers
+remain outside this package and are not fixed. Next: review and user-run Revit/OpenAI
+connectivity validation; do not claim live PASS or package closure beforehand.
+
 ## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M2 Final Closure Reconciliation
 
 Authoritative current status; supersedes the historical 2026-09-17 partial
