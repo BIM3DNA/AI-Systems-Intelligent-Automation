@@ -72,10 +72,10 @@ assert len(completed) == 1 and completed[0]['ok']
 checks += 1
 print('PASS {0} native process/dispatcher probes'.format(checks))
 '@, $scope)
-foreach ($filename in @('panel.py', 'provider_bridge.py', 'provider_ui.py', 'ai_tool.py', 'lifecycle.py')) {
+foreach ($filename in @('panel.py', 'provider_bridge.py', 'provider_ui.py', 'ai_tool.py', 'lifecycle.py', 'ai_tool_registry.py')) {
     [void]$engine.CreateScriptSourceFromFile((Join-Path $repo ('AI.extension/lib/bimcode_ai_pane/' + $filename))).Compile()
 }
-'PASS IronPython compilation of 5 M3A/M3B Revit-side files'
+'PASS IronPython compilation of 6 M3A/M3B/M3C Revit-side files'
 $engine.Execute(@'
 import json
 from bimcode_ai_pane import ai_tool
@@ -125,4 +125,29 @@ assert completed[-1][0]['error']['code'] == 'STALE_CONTEXT'
 assert len(executions) == 1
 assert bridge.decode(json.dumps(response), rid, 0)['state'] == 'TOOL_REQUEST'
 print('PASS 4 native M3B probes: one-action parity, loop limit, stale selection, tool envelope')
+from bimcode_ai_pane.ai_tool_registry import TOOLS
+def execute_m3c(action, d, u):
+    executions.append(action)
+    return dict(ok=True, action_id=action, specialty='PIPING', classification='TEST',
+                reason_code='COMPLETE', summary=['Count: 1'])
+ai_tool.execute_headless_modelmind_readonly = execute_m3c
+for name, action, label in TOOLS:
+    coordinator.clear()
+    assert coordinator.begin(rid)
+    response['tool_call']['name'] = name
+    assert bridge.decode(json.dumps(response), rid, 0)['state'] == 'TOOL_REQUEST'
+    before = len(executions)
+    coordinator.queue(response, done)
+    assert len(executions) == before
+    coordinator.execute_approved(app)
+    assert executions[-1] == action and len(executions) == before + 1
+    assert completed[-1][1]['action_id'] == action
+    shown = bridge.failure(rid, 'OPENAI_TIMEOUT')
+    shown['tool_provenance'] = dict(action_id=action, classification='TEST', reason_code='COMPLETE')
+    assert label in str(provider_ui.presentation(shown))
+    coordinator.queue(response, done)
+    coordinator.execute_approved(app)
+    assert completed[-1][0]['error']['code'] == 'AI_TOOL_LOOP_LIMIT'
+    assert len(executions) == before + 1
+print('PASS 16 native M3C probes: four tools x envelope, execution, provenance, loop gate')
 '@, $scope)

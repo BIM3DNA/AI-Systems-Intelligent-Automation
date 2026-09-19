@@ -71,7 +71,7 @@ class ProviderTests(unittest.TestCase):
     def test_tool_schema_exact(self):
         self.send()
         args = self.client.responses.create.call_args.kwargs
-        self.assertEqual(args["tools"], [provider.TOOL])
+        self.assertEqual(args["tools"], provider.TOOLS)
         self.assertEqual(provider.TOOL["name"], tool_protocol.NAME)
         self.assertEqual(provider.TOOL["parameters"], dict(type="object", properties={}, required=[], additionalProperties=False))
         self.assertTrue(provider.TOOL["strict"])
@@ -344,7 +344,7 @@ class BoundaryTests(unittest.TestCase):
     def test_literal_action_and_no_mutation(self):
         tree=ast.parse((ROOT/'AI.extension/lib/bimcode_ai_pane/ai_tool.py').read_text())
         literals=[n.value for n in ast.walk(tree) if isinstance(n,ast.Constant) and isinstance(n.value,str) and '-RO-001-A' in n.value]
-        self.assertEqual(literals,[ai_tool.ACTION])
+        self.assertEqual(literals,[])  # Literal mappings now live in the fixed registry.
         names={n.attr for n in ast.walk(tree) if isinstance(n,ast.Attribute)}
         self.assertFalse(names & {'Transaction','TransactionGroup','SetElementIds','Set','Delete','Create'})
 

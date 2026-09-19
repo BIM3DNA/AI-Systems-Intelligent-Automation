@@ -1,8 +1,14 @@
-"""M3B scalar continuation contract. One approved function, no command arguments."""
+"""M3C scalar continuation contract. Four fixed functions, one call per turn."""
 import json
 import re
 
 NAME = "summarize_selected_pipes"
+ACTIONS = {
+    "summarize_selected_pipes": "PIPING-RO-001-A01",
+    "inspect_selected_pipe_connectors": "PIPING-RO-001-A02",
+    "inspect_selected_pipe_system_assignment": "PIPING-RO-001-A03",
+    "inspect_selected_pipe_qa_health": "PIPING-RO-001-A04",
+}
 MAX_REQUEST = 120000
 MAX_RESULT = 80000
 MESSAGES = {
@@ -27,7 +33,7 @@ def identifier(value):
 def validate_call(call):
     if not isinstance(call, dict) or set(call) != {"call_id", "name", "arguments"}:
         raise ToolError("AI_TOOL_PROTOCOL_ERROR")
-    if call["name"] != NAME:
+    if not isinstance(call["name"], str) or call["name"] not in ACTIONS:
         raise ToolError("AI_TOOL_NOT_ALLOWED")
     if type(call["arguments"]) is not dict or call["arguments"]:
         raise ToolError("AI_TOOL_ARGUMENTS_INVALID")
@@ -52,7 +58,7 @@ def validate_request(data):
                 or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", state["model"]) is None):
             raise ToolError("AI_TOOL_PROTOCOL_ERROR")
         result = data["tool_result"]
-        if (not isinstance(result, dict) or result.get("action_id") != "PIPING-RO-001-A01"
+        if (not isinstance(result, dict) or result.get("action_id") != ACTIONS[data["tool_call"]["name"]]
                 or result.get("specialty") != "PIPING"
                 or len(json.dumps(result, ensure_ascii=True, allow_nan=False)) > MAX_RESULT):
             raise ToolError("AI_TOOL_PROTOCOL_ERROR")

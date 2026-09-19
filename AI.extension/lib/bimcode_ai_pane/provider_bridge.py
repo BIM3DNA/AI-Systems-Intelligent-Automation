@@ -3,6 +3,7 @@ import json
 import os.path
 import uuid
 import re
+from bimcode_ai_pane.ai_tool_registry import ACTIONS
 
 TIMEOUT_MS = 75000
 MAX_OUTPUT = 100000
@@ -105,7 +106,7 @@ def decode_tool(data, request_id):
     call = data["tool_call"]
     if not isinstance(call, dict) or set(call) != set(("call_id", "name", "arguments")):
         return failure(request_id, "AI_TOOL_PROTOCOL_ERROR")
-    if call["name"] != "summarize_selected_pipes":
+    if not isinstance(call["name"], TEXT_TYPES) or call["name"] not in ACTIONS:
         return failure(request_id, "AI_TOOL_NOT_ALLOWED")
     if type(call["arguments"]) is not dict or call["arguments"]:
         return failure(request_id, "AI_TOOL_ARGUMENTS_INVALID")

@@ -6,19 +6,21 @@ import json
 from modelmind_headless import execute_headless_modelmind_readonly, project_value, resolve_headless_modelmind_specialty
 from bimcode_ai_pane.tools import document_key
 from bimcode_ai_pane import provider_bridge
+from bimcode_ai_pane.ai_tool_registry import ACTIONS, LABELS
 
 NAME = "summarize_selected_pipes"
-ACTION = "PIPING-RO-001-A01"
+ACTION = ACTIONS[NAME]  # Summary compatibility; execution uses validated turn action.
 FIELDS = ("action_id", "specialty", "classification", "reason_code", "summary",
           "selected_reference_count", "resolved_selected_count", "piping_checks",
           "generic_checks", "warnings", "warning_records", "warnings_total",
-          "warning_display_truncated", "tables")
+          "warning_display_truncated", "connector_rows_truncated", "next_guidance", "tables")
 
 
-def compact(data):
+def compact(data, expected_action=ACTION):
     """Copy domain fields unchanged; omit whole transport entries with disclosure."""
     data = project_value(data)
-    if data.get("action_id") != ACTION or data.get("specialty") != "PIPING":
+    if (expected_action not in LABELS or data.get("action_id") != expected_action
+            or data.get("specialty") != "PIPING"):
         raise ValueError("unexpected result")
     result = dict((key, data[key]) for key in FIELDS if key in data)
     omitted = {}
@@ -28,22 +30,32 @@ def compact(data):
             result[key] = result[key][:30]
     tables = []
     rows_left = 40
-    for title, headers, rows in result.get("tables", []):
-        shown = rows[:rows_left] if len(tables) < 12 else []
-        if shown:
+    source_tables = result.get("tables", [])
+    omitted_tables = []
+    for index, (title, headers, rows) in enumerate(source_tables):
+        # Share the existing row budget so early distributions cannot hide all
+        # connector/assignment detail. Values/order within each table stay exact.
+        slots = max(1, min(12, len(source_tables)) - index)
+        allowance = (rows_left + slots - 1) // slots if index < 12 else 0
+        shown = rows[:allowance]
+        if index < 12:
             tables.append([title, headers, shown])
             rows_left -= len(shown)
         omitted["table_rows"] = omitted.get("table_rows", 0) + len(rows) - len(shown)
+        if len(rows) > len(shown) or index >= 12:
+            omitted_tables.append(dict(index=index, title=title, rows=len(rows) - len(shown)))
+    if omitted_tables:
+        omitted["tables"] = omitted_tables
     if "tables" in result:
         result["tables"] = tables
     result["transport_omissions"] = omitted
-    # Never clip a fact mid-value. Drop optional whole fields, then fail closed.
-    for key in ("tables", "warning_records", "warnings", "piping_checks", "generic_checks"):
-        if len(json.dumps(result, ensure_ascii=True, allow_nan=False)) <= 80000:
-            break
-        if key in result:
-            result.pop(key)
-            omitted[key + "_field"] = True
+    # Optional table details may be omitted, never core summary/warnings/checks.
+    if len(json.dumps(result, ensure_ascii=True, allow_nan=False)) > 80000 and "tables" in result:
+        result.pop("tables")
+        omitted["tables_field"] = True
+        omitted["table_rows"] = sum(len(rows) for title, headers, rows in source_tables)
+        omitted["tables"] = [dict(index=i, title=t, rows=len(r))
+                             for i, (t, h, r) in enumerate(source_tables)]
     if len(json.dumps(result, ensure_ascii=True, allow_nan=False)) > 80000:
         raise ValueError("transport limit")
     return result
@@ -82,6 +94,7 @@ class Coordinator(object):
             callback(provider_bridge.failure(rid, "AI_TOOL_LOOP_LIMIT"), None)
             return
         self.turn["used"] = True
+        self.turn["action"] = ACTIONS[valid["tool_call"]["name"]]
         self.callback = callback
         self.pending = True
         try:
@@ -124,15 +137,16 @@ class Coordinator(object):
                 self.complete(provider_bridge.failure(rid, "MODELMIND_NOT_READY"), None)
                 return
             # Do not silently reinterpret a selected Duct/Electrical request as
-            # Piping. Other empty/unsupported/mixed cases still belong to A01.
+            # Piping. Other empty/unsupported/mixed cases belong to the builder.
             if scope.get("specialties") and "PIPING" not in scope["specialties"]:
                 self.complete(provider_bridge.failure(rid, "AI_TOOL_NOT_ALLOWED"), None)
                 return
-            data = execute_headless_modelmind_readonly(ACTION, uidoc.Document, uidoc)
+            action = turn["action"]
+            data = execute_headless_modelmind_readonly(action, uidoc.Document, uidoc)
             if not data.get("ok"):
                 self.complete(provider_bridge.failure(rid, "MODELMIND_EXECUTION_FAILED"), None)
                 return
-            payload = compact(data)
+            payload = compact(data, action)
         except Exception:
             self.complete(provider_bridge.failure(rid, "MODELMIND_EXECUTION_FAILED"), None)
             return

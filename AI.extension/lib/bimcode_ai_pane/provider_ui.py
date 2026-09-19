@@ -1,6 +1,7 @@
 """Provider UI dispatch and presentation, separate from ModelMind events."""
 from bimcode_ai_pane import provider_bridge
 from bimcode_ai_pane.result_presentation import _Budget, NOTICE
+from bimcode_ai_pane.ai_tool_registry import LABELS
 
 
 def launch(payload, dispatcher, complete):
@@ -33,7 +34,7 @@ def presentation(result):
                tone="SuccessBrush" if result["ok"] else "ErrorBrush")
     provenance = result.get("tool_provenance")
     if provenance:
-        budget.add(blocks, "fact", "Selected Pipes Summary", "Tool used: ")
+        budget.add(blocks, "fact", LABELS.get(provenance["action_id"], "Unavailable"), "Tool used: ")
         budget.add(blocks, "technical", provenance["action_id"], "Action: ")
         budget.add(blocks, "technical", provenance["classification"], "Tool classification: ")
         budget.add(blocks, "technical", provenance["reason_code"], "Tool reason: ")
