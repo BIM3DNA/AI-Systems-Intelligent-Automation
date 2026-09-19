@@ -1,5 +1,17 @@
 # M3C - full Piping read-only AI toolset
 
+## 2026-09-19 WBSO source-control reconciliation
+
+The implementation checkpoint `1364a0d691bb89db6169af205dd34a1757ce32bc`
+and project-local WBSO checkpoint `f346ebb39b69d87b454d8abf45a362e3dfa99c26`
+are both committed and pushed. The WBSO commit subject is
+`docs(wbso): record M3C implementation checkpoint`; its parent is the implementation
+checkpoint. Verified main/HEAD/origin/live remote alignment, 0/0 and clean before
+this documentation-only reconciliation. They are checkpoint anchors, not closure.
+M3C remains IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PENDING /
+NOT CLOSED. LIVE-M3C-01..05 remain NOT STARTED/PENDING. IDs and hours remain PENDING.
+The next section is retained as the accurate pre-WBSO-commit checkpoint record.
+
 ## 2026-09-19 source-control and WBSO checkpoint reconciliation
 
 Implementation/static checkpoint is committed and pushed as

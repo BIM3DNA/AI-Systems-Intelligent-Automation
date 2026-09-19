@@ -1,5 +1,22 @@
 # Validation Summary
 
+## 2026-09-19 - M3C source-control reconciliation (not closure)
+
+M3C implementation checkpoint `1364a0d691bb89db6169af205dd34a1757ce32bc`
+and project-local WBSO checkpoint `f346ebb39b69d87b454d8abf45a362e3dfa99c26`
+are committed/pushed. The WBSO subject is
+`docs(wbso): record M3C implementation checkpoint`; parent is `1364a0d...`.
+Verified main/HEAD/origin/live remote alignment, 0/0 and clean before this edit.
+The WBSO commit contains exactly eight documentation files (+219/-1), no runtime/tests.
+
+Status remains IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PENDING /
+NOT CLOSED. Preserved static state: 232 Python tests, 30 native probes, 6 IronPython
+compiles, 27 AST/compile/tabnanny checks, native WPF/theme/Find, 1475 Workbench
+functions source-identical, catalog237, requirements/config and security checks PASS.
+LIVE-M3C-01..05 remain NOT STARTED/PENDING; no parity or live PASS. IDs and hours
+remain PENDING. This reconciliation is documentation-only and awaits review/commit/
+push; it does not replace the pushed WBSO anchor or claim M3C closure.
+
 ## 2026-09-19 - M3C implementation checkpoint (not closure)
 
 IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PENDING / NOT CLOSED.

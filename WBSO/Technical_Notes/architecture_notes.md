@@ -1,5 +1,16 @@
 # Architecture Notes
 
+## 2026-09-19 - M3C checkpoint source-control reconciliation
+
+M3C implementation `1364a0d691bb89db6169af205dd34a1757ce32bc` and
+project-local WBSO checkpoint `f346ebb39b69d87b454d8abf45a362e3dfa99c26`
+are committed/pushed; the latter has subject
+`docs(wbso): record M3C implementation checkpoint`. These are checkpoint anchors,
+not closure. Architecture and static evidence below remain current; the preceding
+checkpoint's pending-commit wording is historical. M3C remains IMPLEMENTED /
+STATIC VALIDATION PASSED / LIVE VALIDATION PENDING / NOT CLOSED. No live cases,
+IDs or hours advanced. This reconciliation changes documentation only.
+
 ## 2026-09-19 - BIMCODE-REVIT-AI-PANE-001 M3C implementation checkpoint
 
 Current M3C: IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PENDING /

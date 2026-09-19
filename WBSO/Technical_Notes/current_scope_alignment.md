@@ -1,5 +1,16 @@
 # Current Scope Alignment
 
+## 2026-09-19 - M3C source-control status reconciliation
+
+Current M3C anchors: implementation `1364a0d691bb89db6169af205dd34a1757ce32bc`;
+project-local WBSO checkpoint `f346ebb39b69d87b454d8abf45a362e3dfa99c26`
+(`docs(wbso): record M3C implementation checkpoint`). Both are committed/pushed.
+This does not close M3C: IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION
+PENDING / NOT CLOSED. LIVE-M3C-01..05 remain NOT STARTED/PENDING, M3D NOT STARTED,
+and the four-tool Piping-only/one-execution/no-mutation boundary is unchanged.
+IDs/hours remain PENDING. The next section's pending-WBSO-commit statement is its
+historical pre-commit state; this reconciliation itself awaits review/commit/push.
+
 ## 2026-09-19 - M3C current implementation scope
 
 BIMCODE-REVIT-AI-PANE-001 M3C: IMPLEMENTED / STATIC VALIDATION PASSED /

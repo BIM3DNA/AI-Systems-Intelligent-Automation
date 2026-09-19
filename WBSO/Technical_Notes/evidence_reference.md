@@ -1,5 +1,25 @@
 # Evidence Reference
 
+## 2026-09-19 - M3C project-local WBSO source-control reconciliation
+
+Verified checkpoint anchors: M3C implementation
+`1364a0d691bb89db6169af205dd34a1757ce32bc`; project-local WBSO
+`f346ebb39b69d87b454d8abf45a362e3dfa99c26`, subject
+`docs(wbso): record M3C implementation checkpoint`, parent `1364a0d...`.
+Both are committed/pushed. At reconciliation start, main HEAD/origin/live remote
+were `f346ebb...`, ahead/behind 0/0, clean, with no staged or untracked paths.
+The WBSO checkpoint changed exactly eight documentation files (+219/-1) and no
+runtime/tests. This is source-control evidence for checkpoints only, not M3C closure.
+
+M3C remains IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PENDING /
+NOT CLOSED. LIVE-M3C-01..05 are NOT STARTED/PENDING; no live tool routing or
+A02/A03/A04 deterministic-button parity PASS. Static state, four Piping-only tools,
+one-execution gate, no HVAC/Electrical/mutation/autonomous loop/AutoCAD/catalog
+change remain as documented below. Evidence/Daily Log/KC IDs and hours remain
+PENDING because synchronization does not make their allocation unambiguous.
+No new evidence ID or live result is created by this documentation reconciliation.
+The next section preserves the pre-WBSO-commit state accurately.
+
 ## 2026-09-19 - M3C implementation/static checkpoint, live validation pending
 
 Package BIMCODE-REVIT-AI-PANE-001; milestone M3C; full Piping read-only AI surface.

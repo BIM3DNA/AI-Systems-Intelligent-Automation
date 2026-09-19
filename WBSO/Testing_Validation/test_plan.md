@@ -1,5 +1,17 @@
 # Test Plan
 
+## 2026-09-19 - M3C checkpoint reconciliation; live plan unchanged
+
+Implementation `1364a0d691bb89db6169af205dd34a1757ce32bc` and project-local
+WBSO checkpoint `f346ebb39b69d87b454d8abf45a362e3dfa99c26` are committed/pushed.
+The latter subject is `docs(wbso): record M3C implementation checkpoint`.
+This synchronization does not advance testing: LIVE-M3C-01 A02 Connectors,
+LIVE-M3C-02 A03 Assignment, LIVE-M3C-03 A04 QA, LIVE-M3C-04 direct/no-tool and
+LIVE-M3C-05 Duct boundary remain NOT STARTED / PENDING. Unchanged-selection
+deterministic-button parity for A02/A03/A04 remains required. No PASS, closure,
+M3D work, ID or hour is created here. The next section retains the full plan and
+its pre-WBSO-commit state; this reconciliation itself awaits review/commit/push.
+
 ## 2026-09-19 - M3C required live plan (all PENDING)
 
 BIMCODE-REVIT-AI-PANE-001 M3C is implemented/static-validated, NOT CLOSED.

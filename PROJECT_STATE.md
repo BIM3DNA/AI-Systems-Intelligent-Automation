@@ -47,6 +47,31 @@ The authoritative project state is:
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
 
+## 2026-09-19 - M3C source-control reconciliation
+
+BIMCODE-REVIT-AI-PANE-001 M3C remains IMPLEMENTED / STATIC VALIDATION PASSED /
+LIVE VALIDATION PENDING / NOT CLOSED. The runtime/test implementation checkpoint
+is committed and pushed at `1364a0d691bb89db6169af205dd34a1757ce32bc`.
+The project-local WBSO checkpoint is committed and pushed at
+`f346ebb39b69d87b454d8abf45a362e3dfa99c26`, subject
+`docs(wbso): record M3C implementation checkpoint`, with parent `1364a0d...`.
+Verified `main` HEAD = origin/main = live remote main = `f346ebb...`, ahead/behind
+0/0 and clean before this reconciliation edit. These are checkpoint anchors, not
+an M3C closure commit or source-control closure claim. The pending commit wording
+in the immediately following dated checkpoint records its pre-commit state.
+
+LIVE-M3C-01 through LIVE-M3C-05 remain NOT STARTED / PENDING; no A02/A03/A04
+live or deterministic-button parity PASS is claimed. Exactly four Piping AI tools
+and only PIPING-RO-001-A01/A02/A03/A04 remain exposed, with maximum one execution
+per request. No HVAC/Electrical/mutation tool, autonomous loop, AutoCAD, M3D or
+catalog change. Static validation state remains 232 Python tests, 30 native probes,
+6 IronPython compiles, 27 AST/compile/tabnanny checks, native WPF/theme/Find,
+1475 source-identical Workbench functions and catalog237 PASS. Requirements/config
+remain unchanged; `.env.local` remains ignored/untracked and was not read.
+Evidence/Daily Log/KC IDs and hours remain PENDING. This reconciliation update is
+documentation-only and awaits review/commit/push; it does not reopen the pushed
+WBSO checkpoint and does not close M3C.
+
 ## 2026-09-19 - M3C implementation checkpoint / project-local WBSO
 
 BIMCODE-REVIT-AI-PANE-001 M3C: IMPLEMENTED / STATIC VALIDATION PASSED /

@@ -1,5 +1,16 @@
 # Provider Registry
 
+## 2026-09-19 - M3C WBSO source-control reconciliation
+
+M3C implementation checkpoint `1364a0d691bb89db6169af205dd34a1757ce32bc`
+and project-local WBSO checkpoint `f346ebb39b69d87b454d8abf45a362e3dfa99c26`
+are committed/pushed. The WBSO subject is
+`docs(wbso): record M3C implementation checkpoint`. The exact four fixed Piping
+tool mappings, strict empty schemas, zero-or-one selection and disabled continuation
+tools documented below remain unchanged. No HVAC/Electrical/mutation tool or new
+provider/network/config dependency. M3C remains live-pending and not closed.
+The next section's pending documentation status is the pre-commit checkpoint state.
+
 ## 2026-09-19 - M3C provider tool-surface checkpoint
 
 M3A provider/config foundation remains unchanged. M3B is source-control closed at
