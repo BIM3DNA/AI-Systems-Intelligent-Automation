@@ -1,5 +1,30 @@
 # Validation Summary
 
+## 2026-09-19 - M3C implementation checkpoint (not closure)
+
+IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PENDING / NOT CLOSED.
+M1/M2/M3A/M3B remain source-control closed. M3C implementation is committed/pushed
+at 1364a0d691bb89db6169af205dd34a1757ce32bc, parent
+4be024fe1ad21a7e314bf6778ce185474f6de055; subject Update; 12 files +605/-37.
+main HEAD/origin/live remote match, 0/0, clean at documentation-audit start.
+This separate WBSO documentation checkpoint remains pending review/commit/push.
+
+Current rerun: 232 Python tests PASS (208 retained,24 M3C); 30 native probes PASS
+(14 retained,16 M3C); 6 IronPython host compiles PASS; 27 AST/in-memory compile/
+tabnanny PASS; native XAML/WPF/theme/Find PASS; pip check PASS. All 1475 existing
+Workbench functions source-identical; catalog unchanged/237; M3A config and
+requirements unchanged. Four exact tool mappings/strict empty schemas, stale guards,
+one-call limit, continuation disabling, action-specific bounded projection and
+provenance pass static/mock tests. Mutation/network/allowlist/credential-pattern
+scans and git diff --check PASS. .env.local ignored/untracked; contents not read.
+
+LIVE-M3C-01 A02, 02 A03, 03 A04, 04 direct text and 05 Duct boundary: all PENDING,
+NOT STARTED. No A02/A03/A04 live PASS or deterministic-button parity claimed.
+No authenticated call or Revit live test by this audit. Live routing/factual parity
+remain unassessed, not failed. See test_plan.md for unchanged-selection comparisons.
+No runtime/test/catalog changes in this docs task; no CSV edits; IDs/hours PENDING.
+No M3D, HVAC/Electrical/mutation AI tool, autonomous loop or AutoCAD introduced.
+
 ## 2026-05-06 AI-AGENT-002 Guided Project Startup Plan
 
 Status: runtime validated as plan-only.

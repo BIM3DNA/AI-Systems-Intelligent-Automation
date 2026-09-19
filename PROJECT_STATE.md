@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last updated: 2026-09-18
+Last updated: 2026-09-19
 
 Repository:
 C:\00_WORKS\DEVELOPMENT\AI
@@ -46,6 +46,34 @@ The authoritative project state is:
 5. verified runtime test evidence
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
+
+## 2026-09-19 - M3C implementation checkpoint / project-local WBSO
+
+BIMCODE-REVIT-AI-PANE-001 M3C: IMPLEMENTED / STATIC VALIDATION PASSED /
+LIVE VALIDATION PENDING / NOT CLOSED. M1/M2/M3A/M3B remain source-control closed.
+No M3C live test has started; no A02/A03/A04 live PASS or deterministic-button
+parity is claimed. M3D NOT STARTED.
+
+Git reconciliation: the previously reported 12-file / 605-insertion / 37-deletion
+M3C implementation is already COMMITTED AND PUSHED at
+1364a0d691bb89db6169af205dd34a1757ce32bc, parent
+4be024fe1ad21a7e314bf6778ce185474f6de055, subject Update. Verified main HEAD,
+origin/main and live remote main agree; ahead/behind 0/0. Audit-start worktree
+clean, staged/modified/non-ignored untracked paths none. Thus the 2026-09-18
+uncommitted/unpushed wording below is historical, not current implementation state.
+This new documentation-only WBSO checkpoint is PENDING REVIEW / COMMIT / PUSH;
+it does not claim M3C package/source-control closure.
+
+Exact four-tool mapping, execution/projection/storage boundaries and live plan
+remain in BIMCode_Provider/M3C.md. Current static rerun: 232 Python tests, 30 native
+probes, 6 IronPython host compiles, 27 AST/compile/tabnanny checks, native WPF/XAML/
+theme/Find, Workbench comparison, catalog count, boundary/allowlist/credential-pattern
+checks, pip check and diff check PASS. 1475 Workbench functions source-identical;
+catalog237 and requirements unchanged. No runtime/test changes in this docs task.
+Evidence/Daily Log/KC IDs and hours PENDING; local sequences remain ambiguous.
+Next: review the separate docs checkpoint, then user-run LIVE-M3C-01..05 with
+unchanged-selection deterministic-button comparisons for A02/A03/A04.
+No paid/live call, secret read, staging, commit or push performed by this task.
 
 ## 2026-09-18 - BIMCODE-REVIT-AI-PANE-001 M3C implementation checkpoint
 

@@ -1,5 +1,31 @@
 # Test Plan
 
+## 2026-09-19 - M3C required live plan (all PENDING)
+
+BIMCODE-REVIT-AI-PANE-001 M3C is implemented/static-validated, NOT CLOSED.
+Implementation 1364a0d691bb89db6169af205dd34a1757ce32bc is committed/pushed;
+new project-local WBSO checkpoint awaits review/commit/push. No M3C live test has
+started. Earlier M1/M2/M3A/M3B results cannot be promoted to M3C live PASS.
+
+| Case | Setup and prompt | Expected (not observed) | Status |
+| --- | --- | --- | --- |
+| LIVE-M3C-01 | Select supported rigid Pipe; Show me the connectors for the selected pipe. | inspect_selected_pipe_connectors -> PIPING-RO-001-A02; PIPING_CONNECTOR_REPORT_OK for complete fixture | PENDING |
+| LIVE-M3C-02 | Select supported rigid Pipe; What system is the selected pipe assigned to? | inspect_selected_pipe_system_assignment -> PIPING-RO-001-A03; PIPING_SYSTEM_ASSIGNMENT_OK for complete fixture | PENDING |
+| LIVE-M3C-03 | Select supported rigid Pipe; Check the QA health of the selected pipe. | inspect_selected_pipe_qa_health -> PIPING-RO-001-A04; exact deterministic QA classification | PENDING |
+| LIVE-M3C-04 | What does pipe slope mean in Revit? | Direct answer; no ModelMind tool/provenance/execution | PENDING |
+| LIVE-M3C-05 | Select only Duct; Check the connectors for the selected duct. | Safe capability explanation; no Piping or HVAC execution | PENDING |
+
+For A02/A03/A04 keep document/view/selection unchanged and compare authoritative
+AI-exposed facts with Connectors/Assignment/QA Health deterministic button output.
+Check counts, units, raw/reciprocal connector states, assignment metadata, QA checks,
+classification/reason, warnings, omissions and provenance. Prose need not match;
+facts must. Respect fixture-dependent PARTIAL/YELLOW; do not force an OK/GREEN result.
+Record discrepancies without inventing a PASS. All cases require no mutation and
+at most one execution; no chained follow-up tool. Optional Summary regression,
+Electrical-only boundary, ambiguity and large-result cases remain unclaimed.
+No automated paid calls. Static/mock routing coverage does not replace live parity.
+No closure decision or M3D implementation is authorized by this checkpoint.
+
 ## Project
 
 AI Systems & Intelligent Automation

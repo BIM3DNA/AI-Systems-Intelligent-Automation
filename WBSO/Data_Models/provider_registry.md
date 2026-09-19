@@ -1,5 +1,25 @@
 # Provider Registry
 
+## 2026-09-19 - M3C provider tool-surface checkpoint
+
+M3A provider/config foundation remains unchanged. M3B is source-control closed at
+4be024fe1ad21a7e314bf6778ce185474f6de055. M3C implementation is committed/pushed
+at 1364a0d691bb89db6169af205dd34a1757ce32bc; static PASS, live PENDING, NOT CLOSED.
+Only the declared Piping AI surface expands: summarize_selected_pipes -> A01,
+inspect_selected_pipe_connectors -> A02, inspect_selected_pipe_system_assignment
+-> A03, inspect_selected_pipe_qa_health -> A04; each literal action has prefix
+PIPING-RO-001-. These are four fixed mappings, not runtime string construction.
+Each function is strict with schema
+{"type":"object","properties":{},"required":[],"additionalProperties":false}.
+Model-selected zero/one tool, parallel_tool_calls=False; host one-execution gate.
+Continuation validates tool/result action agreement and disables tools. No new
+provider/model/dependency/endpoint, no HVAC/Electrical/mutation tool.
+Initial store=True; continuation store=False, tools=[], tool_choice=none, unchanged
+from M3B. No local database or broader persistence. Sidecar owns credentials;
+.env.local ignored/untracked and not read. Fixed child/endpoint/no-shell boundary
+retained. All M3C live tests and factual parity remain PENDING. This registry
+documentation update awaits review/commit/push; historical entries remain below.
+
 ## Project
 
 AI Systems & Intelligent Automation

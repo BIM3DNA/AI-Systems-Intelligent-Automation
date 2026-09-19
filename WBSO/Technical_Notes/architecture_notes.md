@@ -1,5 +1,40 @@
 # Architecture Notes
 
+## 2026-09-19 - BIMCODE-REVIT-AI-PANE-001 M3C implementation checkpoint
+
+Current M3C: IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PENDING /
+NOT CLOSED. M1/M2/M3A/M3B remain source-control closed; older milestone notes
+below are historical. Implementation commit 1364a0d691bb89db6169af205dd34a1757ce32bc
+is pushed; this project-local WBSO update is pending review/commit/push.
+
+M3C extends the closed M3B bridge to exactly four strict empty-object AI tools:
+
+| Tool | Static action |
+| --- | --- |
+| summarize_selected_pipes | PIPING-RO-001-A01 |
+| inspect_selected_pipe_connectors | PIPING-RO-001-A02 |
+| inspect_selected_pipe_system_assignment | PIPING-RO-001-A03 |
+| inspect_selected_pipe_qa_health | PIPING-RO-001-A04 |
+
+Pane -> Responses API -> one approved tool request -> host allowlist validation ->
+existing M2 ExternalEvent -> execute_headless_modelmind_readonly -> deterministic
+ModelMind result -> AI explanation -> host-owned provenance. No domain reimplementation.
+No dynamic action IDs, HVAC/Electrical/mutation tool or autonomous loop. Unknown,
+multiple and continuation tool requests fail closed. Maximum one execution per prompt.
+Document identity, lifecycle/selection generation and request correlation guards
+remain; no background/WPF/sidecar Revit API access or silent selection filtering.
+
+Action-specific summaries/tables/checks preserve deterministic meaning. Existing
+80,000-character result, 12-table/40-row and 30-entry list bounds remain. Table rows
+share the budget with explicit aggregate/per-table omission counts; optional table
+details may be dropped, but oversized core evidence fails closed. Provenance labels
+distinguish Summary/Connectors/Assignment/QA Health, action, classification and reason.
+Initial store=True and final store=False/tools=[]/tool_choice=none are inherited
+from M3B. No local conversation database or broader persistence/network path.
+R&D evidence concerns bounded four-action reuse, deterministic fact preservation,
+request isolation and fail-closed dispatch; actual AI routing/prose parity is still
+unproven live. No model/view/selection mutation, AutoCAD or catalog change.
+
 ## Project
 
 AI Systems & Intelligent Automation

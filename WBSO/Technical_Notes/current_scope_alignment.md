@@ -1,5 +1,21 @@
 # Current Scope Alignment
 
+## 2026-09-19 - M3C current implementation scope
+
+BIMCODE-REVIT-AI-PANE-001 M3C: IMPLEMENTED / STATIC VALIDATION PASSED /
+LIVE VALIDATION PENDING / NOT CLOSED. M1/M2/M3A/M3B remain source-control closed.
+Implementation is already committed/pushed at 1364a0d691bb89db6169af205dd34a1757ce32bc;
+this documentation-only checkpoint is pending review/commit/push, not closure.
+Exactly four Piping AI tools, only PIPING-RO-001-A01/A02/A03/A04; static mappings
+and strict empty schemas. Maximum one execution per user request through the
+existing M2 ExternalEvent. Closed deterministic semantics remain authoritative.
+Stale-context/request guards, bounded action-specific projection, explicit omissions
+and host provenance remain. M3B continuation storage is inherited without expansion.
+No HVAC/Electrical/mutation AI tool, autonomous loop, AutoCAD or catalog change.
+M3D not started. No live M3C test or direct-button parity has been performed.
+LIVE-M3C-01..05 remain required/PENDING; see test_plan.md. IDs/hours PENDING.
+Older milestone status and deferred-provider statements below are historical.
+
 ## Date
 
 2026-04-08

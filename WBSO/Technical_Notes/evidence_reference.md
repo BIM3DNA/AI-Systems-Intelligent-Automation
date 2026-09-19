@@ -1,5 +1,50 @@
 # Evidence Reference
 
+## 2026-09-19 - M3C implementation/static checkpoint, live validation pending
+
+Package BIMCODE-REVIT-AI-PANE-001; milestone M3C; full Piping read-only AI surface.
+IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PENDING / NOT CLOSED.
+M1/M2/M3A/M3B remain source-control closed. No M3C live test has started; none of
+LIVE-M3C-01..05 is PASS. No direct deterministic-button live parity is claimed.
+
+Source-control reconciliation: main HEAD = origin/main = live remote main =
+1364a0d691bb89db6169af205dd34a1757ce32bc, parent M3B closure
+4be024fe1ad21a7e314bf6778ce185474f6de055; subject Update; ahead/behind 0/0.
+Audit-start status short empty, staged/modified/untracked none. The expected M3C
+delta is already committed/pushed: 12 files / 605 insertions / 37 deletions.
+Breakdown: runtime 7 files +74/-33; tests 3 files +343/-4; docs 2 files +188/-0.
+No unrelated paths or requirement changes. This new WBSO documentation checkpoint
+is PENDING REVIEW / COMMIT / PUSH. A pushed implementation is not M3C closure.
+
+Exactly summarize_selected_pipes/A01, inspect_selected_pipe_connectors/A02,
+inspect_selected_pipe_system_assignment/A03 and inspect_selected_pipe_qa_health/A04,
+all PIPING-RO-001. Strict empty arguments, fixed allowlist, existing ExternalEvent,
+one execution maximum, stale document/lifecycle/selection/request rejection.
+No dynamic dispatch, HVAC/Electrical/mutation tool, autonomous loop or AutoCAD.
+Deterministic ModelMind authority, action-specific projection and host provenance
+are retained. M3B store=True initial and store=False/tools=[]/tool_choice=none
+continuation are unchanged; no local conversation database or new network path.
+
+2026-09-19 offline rerun PASS: 232 Python tests (208 retained +24 M3C); 30 native
+probes (14 retained +16 M3C); 6 IronPython host compiles; 27 AST/in-memory compile/
+tabnanny checks; native XAML/WPF/theme/Find; 1475 source-identical Workbench
+functions; catalog237 unchanged; manifests/config protected; mutation/network/
+allowlist/credential-pattern checks; pip check; git diff --check. Tests use mocks
+and a fake child, not authenticated requests. No secret file contents inspected.
+Static projection parity is not a claim of real model-selected routing/prose parity.
+No runtime/test edits in this documentation task. No CSV changed.
+
+Evidence ID: PENDING. Daily Log ID: PENDING. KC ID: PENDING. Hours: PENDING.
+Identifier review retains prior local EV-AI-371 / DL-2026-09-01-01 / KC-053;
+central references and several intervening unnumbered checkpoints leave the next
+canonical allocation ambiguous. No new ID, KC file or numeric hours invented.
+R&D checkpoint: four-action semantic-preserving projection and fail-closed host
+dispatch are statically supported; live natural-language routing and parity remain
+open evidence questions, not failures. Required next work: user-run test_plan.md
+LIVE-M3C-01..05 and unchanged-selection A02/A03/A04 deterministic comparisons.
+Recommend separate documentation commit because implementation is already pushed.
+No staging, commit, push or M3D work performed by this task.
+
 ## Purpose
 
 This file maps technical work in the repository to concrete WBSO evidence artifacts, validation notes, and repository-local documentation.

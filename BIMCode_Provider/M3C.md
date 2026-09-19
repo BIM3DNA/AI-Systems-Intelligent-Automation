@@ -1,5 +1,28 @@
 # M3C - full Piping read-only AI toolset
 
+## 2026-09-19 source-control and WBSO checkpoint reconciliation
+
+Implementation/static checkpoint is committed and pushed as
+1364a0d691bb89db6169af205dd34a1757ce32bc (parent M3B closure
+4be024fe1ad21a7e314bf6778ce185474f6de055; subject Update): exactly 12 files,
+605 insertions, 37 deletions. main HEAD/origin/main/live remote match, 0/0;
+worktree was clean before this documentation-only update. The earlier baseline
+and no-commit statements below describe the implementation task, not current Git.
+This separate project-local WBSO documentation checkpoint awaits review/commit/push.
+
+M3C IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PENDING / NOT CLOSED.
+No live test has started; no live A02/A03/A04 or deterministic-button parity PASS.
+M1/M2/M3A/M3B remain source-control closed. M3D has not started.
+2026-09-19 static rerun confirms the totals below: 232 Python tests, 30 native
+probes, 6 IronPython compiles, 27 AST/compile/tabnanny checks, WPF/theme/Find,
+1475 unchanged Workbench functions, catalog237, protected manifests/config,
+boundary/allowlist/credential-pattern checks, pip check and diff check PASS.
+No runtime/test changes, paid calls, secret reads, IDs/hours or staging/commit/push.
+Required live plan below remains PENDING. Project-local evidence is recorded in
+WBSO/Technical_Notes/evidence_reference.md and WBSO/Testing_Validation/test_plan.md.
+
+## Historical implementation task checkpoint
+
 2026-09-18 implementation checkpoint. IMPLEMENTED / STATIC PASS / LIVE PENDING.
 M3C is not closed. No authenticated request or Revit live test was run by this task.
 No staging, commit, push, Evidence/Daily Log/KC IDs or hours allocated.
