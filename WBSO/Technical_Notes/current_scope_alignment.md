@@ -1,5 +1,24 @@
 # Current Scope Alignment
 
+## 2026-09-21 - M3C final closure readiness
+
+Current status: IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PASSED /
+IMPLEMENTATION CHECKPOINT COMMITTED AND PUSHED / PROJECT-LOCAL WBSO CHECKPOINT
+COMMITTED AND PUSHED / SOURCE-CONTROL RECONCILIATION VERIFIED / READY FOR FINAL
+CLOSURE COMMIT / NOT YET SOURCE-CONTROL CLOSED. M1/M2/M3A/M3B remain closed.
+Implementation `1364a0d691bb89db6169af205dd34a1757ce32bc`; WBSO checkpoint
+`f346ebb39b69d87b454d8abf45a362e3dfa99c26`; reconciliation
+`dafb63ecd1613fcf8c698a9b84df09245c476b0d` (actual subject `project WBSO update...`).
+
+Required LIVE-M3C-01..05 all PASS, user-reported: A02 Connectors, A03 Assignment,
+A04 QA with deterministic parity; direct/no-tool; Duct boundary/no Piping or HVAC
+execution. No package-introduced runtime defect. Exactly four Piping A01-A04 tools,
+one execution maximum, no autonomous loop/mutation/HVAC/Electrical tool or AutoCAD.
+No M3D work. Optional additional live coverage remains unclaimed. Runtime/tests,
+catalog and manifests unchanged; this task updates final closure documentation only.
+IDs/hours PENDING. Next: review and authorize final docs commit/push. Historical
+pending-live and earlier source-control states below are superseded by this section.
+
 ## 2026-09-19 - M3C source-control status reconciliation
 
 Current M3C anchors: implementation `1364a0d691bb89db6169af205dd34a1757ce32bc`;

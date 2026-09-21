@@ -1,5 +1,27 @@
 # Architecture Notes
 
+## 2026-09-21 - M3C final closure audit
+
+M3C IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PASSED / READY FOR
+FINAL CLOSURE COMMIT / NOT YET SOURCE-CONTROL CLOSED. Earlier M3C pending-live
+statements below are historical. Implementation `1364a0d691bb89db6169af205dd34a1757ce32bc`
+and WBSO checkpoint `f346ebb39b69d87b454d8abf45a362e3dfa99c26` are committed/pushed;
+source-control reconciliation verified at `dafb63ecd1613fcf8c698a9b84df09245c476b0d`,
+actual subject `project WBSO update...`. No runtime/test changes since implementation.
+
+User-reported LIVE-M3C-01..05 all PASS establishes required A02/A03/A04 routing and
+deterministic-button parity, direct text/no execution and Duct capability isolation.
+Pipe353871 A04 retains YELLOW with three issues (one blank Mark, two unconnected
+physical connectors), no partial checks; domain interpretation is unchanged.
+Existing strict four-tool registry and one-execution gate, ExternalEvent-only Revit
+execution, document/lifecycle/selection/request checks, action-specific scalar
+projection/omissions and host provenance pass final regression. Multiple/second,
+unknown and nonempty calls fail closed. Provider continuation/storage unchanged.
+No package-introduced runtime defect. No mutation, HVAC/Electrical AI tool, autonomous
+loop, M3D, AutoCAD or catalog change. Full evidence: evidence_reference.md.
+Final documentation awaits review/commit/push; no runtime edits. IDs/hours remain
+PENDING; none allocated.
+
 ## 2026-09-19 - M3C checkpoint source-control reconciliation
 
 M3C implementation `1364a0d691bb89db6169af205dd34a1757ce32bc` and

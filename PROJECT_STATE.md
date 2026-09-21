@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last updated: 2026-09-19
+Last updated: 2026-09-21
 
 Repository:
 C:\00_WORKS\DEVELOPMENT\AI
@@ -46,6 +46,51 @@ The authoritative project state is:
 5. verified runtime test evidence
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
+
+## 2026-09-21 - M3C final closure audit
+
+Authoritative BIMCODE-REVIT-AI-PANE-001 / M3C status:
+
+- IMPLEMENTED
+- STATIC VALIDATION PASSED
+- LIVE VALIDATION PASSED
+- IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED
+- PROJECT-LOCAL WBSO CHECKPOINT COMMITTED / PUSHED
+- SOURCE-CONTROL RECONCILIATION VERIFIED
+- READY FOR FINAL CLOSURE COMMIT
+- NOT YET SOURCE-CONTROL CLOSED
+
+Verdict: M3C_READY_FOR_FINAL_CLOSURE_COMMIT. M1/M2/M3A/M3B remain source-control
+closed; M3D NOT STARTED. Required LIVE-M3C-01..05 all PASS, user-reported in the
+2026-09-21 audit request. A02/A03/A04 deterministic-button parity PASS for Pipe
+353871. A04 preserves PIPING_QA_HEALTH_YELLOW / COMPLETE and three issues:
+one SEL-QA-011 blank Mark plus two PIPING-QA-008 unconnected physical connectors.
+Direct text/no-tool and Duct refusal/no Piping or HVAC execution PASS.
+No package-introduced runtime defect identified. This audit did not repeat live tests.
+
+Verified anchors: implementation `1364a0d691bb89db6169af205dd34a1757ce32bc`;
+WBSO checkpoint `f346ebb39b69d87b454d8abf45a362e3dfa99c26`; reconciliation
+`dafb63ecd1613fcf8c698a9b84df09245c476b0d`, parent the WBSO checkpoint.
+The reconciliation's actual subject is `project WBSO update...`; the proposed
+`docs(wbso): reconcile M3C checkpoint source control` subject does not exist in
+available Git history. Its eight-document +119/-0 scope matches the reconciliation.
+At audit start main HEAD = origin/main = live remote = reconciliation SHA, 0/0,
+clean, no staged/modified/untracked paths. No runtime/test changes since implementation.
+
+Current rerun PASS: 232 Python tests, 30 native probes, 6 IronPython host compiles,
+27 AST/in-memory compile/tabnanny checks, native XAML/WPF/theme/Find, 1475 existing
+Workbench functions source-identical, catalog237 unchanged, mutation/network/tool
+allowlist/credential-pattern scans, pip check and diff check. Requirements/config
+unchanged; .env.local ignored/untracked, contents not read. Exactly four Piping AI
+tools map statically to A01-A04; one execution maximum, fail-closed errors, existing
+ExternalEvent and stale document/lifecycle/selection/request guards retained.
+Responses continuation remains store=True initial, previous_response_id/call_id/
+function_call_output then store=False/tools=[]/tool_choice=none. No runtime changes.
+
+Detailed live evidence: WBSO/Technical_Notes/evidence_reference.md. IDs and hours
+remain PENDING; none allocated. Final documentation is unstaged/uncommitted/unpushed.
+Proposed subject: `docs(wbso): close M3C live validation`. Earlier pending-live and
+checkpoint statuses below are historical and superseded by this audit.
 
 ## 2026-09-19 - M3C source-control reconciliation
 

@@ -1,5 +1,58 @@
 # M3C - full Piping read-only AI toolset
 
+## 2026-09-21 final closure audit
+
+M3C_READY_FOR_FINAL_CLOSURE_COMMIT. IMPLEMENTED / STATIC VALIDATION PASSED /
+LIVE VALIDATION PASSED / IMPLEMENTATION CHECKPOINT COMMITTED AND PUSHED /
+PROJECT-LOCAL WBSO CHECKPOINT COMMITTED AND PUSHED / SOURCE-CONTROL RECONCILIATION
+VERIFIED / READY FOR FINAL CLOSURE COMMIT / NOT YET SOURCE-CONTROL CLOSED.
+M1/M2/M3A/M3B remain source-control closed. No M3D or scope expansion.
+This section supersedes the historical pending-live checkpoint and plan below.
+
+Implementation `1364a0d691bb89db6169af205dd34a1757ce32bc`; WBSO checkpoint
+`f346ebb39b69d87b454d8abf45a362e3dfa99c26`; reconciliation/current HEAD
+`dafb63ecd1613fcf8c698a9b84df09245c476b0d`, parent the WBSO checkpoint.
+Actual reconciliation subject: `project WBSO update...`. The proposed subject
+`docs(wbso): reconcile M3C checkpoint source control` has no matching commit in
+available history. Verified reconciliation scope: eight docs, +119/-0; main and
+origin/live remote synchronized, 0/0, clean at audit start. Only documentation
+changed since implementation; runtime/tests are identical in Git and clean locally.
+
+Required live matrix supplied by the user in the 2026-09-21 audit request:
+
+| Case | Observed result | Deterministic parity / boundary |
+| --- | --- | --- |
+| LIVE-M3C-01 | Pipe353871; inspect_selected_pipe_connectors -> A02; PIPING_CONNECTOR_REPORT_OK / COMPLETE | PASS; two raw/physical End Round connectors, diameter150mm, zero reciprocal connections, two unconnected, zero unreadable; no warnings/truncation/transport omissions |
+| LIVE-M3C-02 | Same Pipe; inspect_selected_pipe_system_assignment -> A03; PIPING_SYSTEM_ASSIGNMENT_OK / COMPLETE | PASS; ASSIGNED, Hydronic Supply5, system353873, type132471, CONSISTENT, no contradictions/warnings |
+| LIVE-M3C-03 | Same Pipe; inspect_selected_pipe_qa_health -> A04; PIPING_QA_HEALTH_YELLOW / COMPLETE | PASS; 12 Piping checks, three issues (one SEL-QA-011 + two PIPING-QA-008), zero partial checks, no warnings/read failures/transport omissions |
+| LIVE-M3C-04 | Pipe slope question answered directly | PASS; no tool/provenance, ModelMind action, model inspection or mutation |
+| LIVE-M3C-05 | Duct-only connector request declined with correct capability explanation | PASS; no Piping/HVAC tool, ModelMind execution or provenance |
+
+All five PASS; A02/A03/A04 routing, factual parity and read-only behavior PASS;
+A04 issue accounting PASS. Full facts, including connector origins/directions and
+NOT_APPLICABLE checks, are in WBSO/Technical_Notes/evidence_reference.md.
+Live evidence is user-reported; no new authenticated request or Revit test by this audit.
+No package-introduced runtime defect found. Optional larger/ambiguous/Electrical-only
+or forced race/error live variations remain unclaimed; they do not change the supplied
+five-case required matrix or static boundary coverage.
+
+Final static rerun PASS: 232 Python tests (208 retained +24 M3C), 30 native probes
+(14 retained +16 M3C), 6 IronPython compiles, 27 AST/in-memory compile/tabnanny files,
+native XAML/WPF/theme/Find, 1475 source-identical Workbench functions, catalog237,
+mutation/network/allowlist/credential-pattern checks, pip check and diff check.
+No count differences. Requirements/configuration, M2 execution and M3A foundation
+remain unchanged. .env.local ignored/untracked and not read; no credential-pattern
+hits in 110 tracked files and no Authorization-header logging in provider paths.
+
+Exactly four strict empty-argument Piping tools remain. Static name/action mapping,
+one execution per request, multiple/second/unknown/nonempty-call rejection, existing
+ExternalEvent ownership and stale document/lifecycle/selection/request guards PASS.
+Initial store=True; continuation previous_response_id + call_id + function_call_output,
+store=False, tools=[], tool_choice=none preserved. No autonomous loop, HVAC/Electrical/
+mutation tool or AutoCAD. No runtime/test/catalog/manifest edits during this audit.
+Evidence/Daily Log/KC IDs and hours PENDING, no allocations. Final docs await review,
+commit and push; proposed subject `docs(wbso): close M3C live validation`.
+
 ## 2026-09-19 WBSO source-control reconciliation
 
 The implementation checkpoint `1364a0d691bb89db6169af205dd34a1757ce32bc`

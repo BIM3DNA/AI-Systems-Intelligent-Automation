@@ -1,5 +1,107 @@
 # Evidence Reference
 
+## 2026-09-21 - M3C final live-validation and closure audit
+
+Package BIMCODE-REVIT-AI-PANE-001 / M3C. Verdict M3C_READY_FOR_FINAL_CLOSURE_COMMIT.
+IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PASSED / IMPLEMENTATION
+CHECKPOINT COMMITTED AND PUSHED / PROJECT-LOCAL WBSO CHECKPOINT COMMITTED AND PUSHED /
+SOURCE-CONTROL RECONCILIATION VERIFIED / READY FOR FINAL CLOSURE COMMIT /
+NOT YET SOURCE-CONTROL CLOSED. This supersedes historical pending-live entries below.
+M1/M2/M3A/M3B remain source-control closed. M3D not started.
+
+Source-control audit: branch main, HEAD/origin/main/live remote
+`dafb63ecd1613fcf8c698a9b84df09245c476b0d`, parent WBSO checkpoint
+`f346ebb39b69d87b454d8abf45a362e3dfa99c26`, ahead/behind 0/0. Audit-start
+git status --short empty, staged/modified/untracked none, worktree clean.
+Reconciliation actual subject `project WBSO update...`; no commit with the proposed
+subject `docs(wbso): reconcile M3C checkpoint source control` exists in available
+history. Its eight-document +119/-0 diff verifies the intended reconciliation.
+Implementation anchor `1364a0d691bb89db6169af205dd34a1757ce32bc`, subject Update;
+M3B anchor `4be024fe1ad21a7e314bf6778ce185474f6de055`. Only the eight documentation
+paths differ since implementation: no runtime/test/catalog/manifest changes occurred.
+
+Live evidence below was supplied by the user in the 2026-09-21 audit request.
+The agent did not execute Revit or make an authenticated request during this audit.
+Reported deterministic-button parity is the user's observed comparison, not a new
+independent live run. Exact execution dates were not supplied separately.
+
+### LIVE-M3C-01 - Pipe Connectors: PASS
+
+Selection Pipe353871. Prompt: Show me the connectors for the selected pipe.
+Tool inspect_selected_pipe_connectors -> PIPING-RO-001-A02.
+PIPING_CONNECTOR_REPORT_OK / COMPLETE. Direct deterministic parity PASS.
+One selected reference and one supported rigid Pipe, ID353871. Two raw and two
+physical piping connectors; both End / Round, both diameter150.0mm. Origins:
+(-12386.7, -7754.9, 2276.6)mm and (10613.3, -7754.9, 2276.6)mm. Direction vectors:
+(-1,0,0) and (1,0,0). Zero reciprocal physical connections, two unconnected physical
+connectors, zero unreadable connectors, abnormal connector-count pipes zero.
+Warnings none; no truncation or transport omissions. AI routing, A02 parity and
+read-only behavior PASS.
+
+### LIVE-M3C-02 - Pipe System Assignment: PASS
+
+Same Pipe353871. Prompt: What system is the selected pipe assigned to?
+Tool inspect_selected_pipe_system_assignment -> PIPING-RO-001-A03.
+PIPING_SYSTEM_ASSIGNMENT_OK / COMPLETE. Direct deterministic parity PASS.
+Assignment ASSIGNED; system name Hydronic Supply 5; classification Hydronic Supply;
+MEP system ID353873; system type ID132471; consistency CONSISTENT; contradictions
+none; warnings none. AI routing, A03 parity and read-only behavior PASS.
+
+### LIVE-M3C-03 - Pipe QA Health: PASS
+
+Same Pipe353871. Prompt: Check the QA health of the selected pipe.
+Tool inspect_selected_pipe_qa_health -> PIPING-RO-001-A04.
+PIPING_QA_HEALTH_YELLOW / COMPLETE. Direct deterministic parity PASS.
+One selected reference, one supported rigid Pipe, one Pipe processed, 12 stable
+Piping checks evaluated, deterministic issue count three, partial check count zero.
+Issue accounting: SEL-QA-011 Missing or blank Mark, Pipe353871, issues one;
+PIPING-QA-008 Unconnected physical connector, Pipe353871, applicability two,
+issues two. The three issues are 1 + 2 occurrences, not three affected pipes.
+All other applicable Piping checks passed. Duplicate nonblank Mark and missing
+workset resolution NOT_APPLICABLE. No warnings, read failures or transport omissions.
+AI routing, A04 parity, issue accounting and read-only behavior PASS.
+
+### LIVE-M3C-04 - Direct answer / no tool: PASS
+
+Prompt: What does pipe slope mean in Revit? Direct OpenAI answer; no Tool used
+field, PIPING action, ModelMind execution, model-specific inspection or mutation.
+Direct-answer routing, no tool execution and no ModelMind action PASS.
+
+### LIVE-M3C-05 - Duct specialty boundary: PASS
+
+Selection one Duct. Prompt: Check the connectors for the selected duct.
+Observed response explained that the available connector tool supports rigid pipes
+only and no Duct connector inspection tool is available. No Tool used field,
+Piping action, HVAC action or ModelMind execution. Specialty boundary, no Piping
+misrouting, no HVAC tool execution and no ModelMind execution PASS.
+
+Required matrix complete: LIVE-M3C-01/02/03/04/05 PASS. No package-introduced runtime
+defect identified. Required live evidence is sufficient for final closure preparation.
+Additional optional large-result, Electrical-only, ambiguity and forced-race/error
+live cases remain unclaimed; static/mock boundary checks still cover those guards.
+
+Final static rerun PASS: 232 Python tests (208 retained +24 M3C); 30 native probes
+(14 retained +16 M3C); six IronPython host compiles; 27 AST/in-memory compile/
+tabnanny checks; native XAML/WPF/theme/Find; 1475 existing Workbench functions
+source-identical; catalog unchanged/237; mutation/network/tool-allowlist scans;
+credential-pattern scan of 110 tracked files without hits; pip check; git diff --check.
+Requirements/configuration remain unchanged from the M3B/M3A foundation. Real
+.env.local contents not read; ignored/untracked. No Authorization-header logging
+in the provider paths, no secret values recorded here. No authenticated call.
+
+Exactly four static Piping mappings A01-A04, strict empty schemas, one execution
+maximum. Multiple/second/unknown/nonempty requests fail closed, no recursion;
+existing M2 ExternalEvent is the Revit execution owner. Sidecar has no Revit API;
+document/lifecycle/selection/request guards remain active. Initial store=True;
+continuation previous_response_id/call_id/function_call_output with store=False,
+tools=[] and tool_choice=none unchanged. No HVAC/Electrical/mutation tool or AutoCAD.
+
+Evidence ID PENDING; Daily Log ID PENDING; KC ID PENDING; hours PENDING. Existing
+allocation ambiguity persists; no new IDs or numeric hours invented. This audit
+changes only final documentation, which remains unstaged/uncommitted/unpushed.
+Proposed subject: `docs(wbso): close M3C live validation`. No source-control closure
+claim until the reviewed final documentation commit is created and pushed.
+
 ## 2026-09-19 - M3C project-local WBSO source-control reconciliation
 
 Verified checkpoint anchors: M3C implementation

@@ -1,5 +1,33 @@
 # Test Plan
 
+## 2026-09-21 - M3C final required live-matrix disposition
+
+Required live validation COMPLETE / PASS, supplied by the user in the final audit
+request. No Revit/API live test repeated by the agent. Current status IMPLEMENTED /
+STATIC VALIDATION PASSED / LIVE VALIDATION PASSED / READY FOR FINAL CLOSURE COMMIT /
+NOT YET SOURCE-CONTROL CLOSED. Historical pending tables below retain their original
+checkpoint state and are superseded by this matrix.
+
+| Case | Observed result | Final disposition |
+| --- | --- | --- |
+| LIVE-M3C-01 | Pipe353871; inspect_selected_pipe_connectors -> A02; PIPING_CONNECTOR_REPORT_OK / COMPLETE | PASS; A02 deterministic parity and read-only behavior; two physical End/Round 150mm connectors, zero reciprocal, two unconnected, zero unreadable; no warnings/truncation/omissions |
+| LIVE-M3C-02 | Same Pipe; inspect_selected_pipe_system_assignment -> A03; PIPING_SYSTEM_ASSIGNMENT_OK / COMPLETE | PASS; A03 parity and read-only behavior; ASSIGNED Hydronic Supply5, system353873, type132471, CONSISTENT, no contradictions/warnings |
+| LIVE-M3C-03 | Same Pipe; inspect_selected_pipe_qa_health -> A04; PIPING_QA_HEALTH_YELLOW / COMPLETE | PASS; A04 parity/issue accounting/read-only; 12 Piping checks, three issues = one blank Mark + two unconnected connectors, zero partial checks |
+| LIVE-M3C-04 | General pipe-slope question answered directly | PASS; no tool/provenance, ModelMind action, model inspection or mutation |
+| LIVE-M3C-05 | Duct-only connector request receives correct capability explanation | PASS; no Piping/HVAC/ModelMind execution or tool provenance |
+
+Full user-supplied facts: evidence_reference.md, 2026-09-21 section. No package-
+introduced runtime defect identified. No required live case remains pending in
+the five-case matrix. Optional large/ambiguous/Electrical-only/stale race/error live
+variations remain unclaimed and do not require scope expansion or paid calls here.
+Final rerun: 232 Python tests, 30 native probes, six IronPython compiles, 27 Python
+static checks, native WPF/theme/Find and protected-runtime/security checks PASS.
+Implementation `1364a0d691bb89db6169af205dd34a1757ce32bc`, WBSO checkpoint
+`f346ebb39b69d87b454d8abf45a362e3dfa99c26` committed/pushed; reconciliation
+`dafb63ecd1613fcf8c698a9b84df09245c476b0d` verified (subject `project WBSO update...`).
+No runtime/test changes since implementation. Final docs pending commit/push;
+IDs/hours PENDING, no M3D. Proposed subject `docs(wbso): close M3C live validation`.
+
 ## 2026-09-19 - M3C checkpoint reconciliation; live plan unchanged
 
 Implementation `1364a0d691bb89db6169af205dd34a1757ce32bc` and project-local

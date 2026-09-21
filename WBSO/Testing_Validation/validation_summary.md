@@ -1,5 +1,41 @@
 # Validation Summary
 
+## 2026-09-21 - M3C final closure audit
+
+M3C_READY_FOR_FINAL_CLOSURE_COMMIT. IMPLEMENTED / STATIC VALIDATION PASSED /
+LIVE VALIDATION PASSED / IMPLEMENTATION CHECKPOINT COMMITTED AND PUSHED /
+PROJECT-LOCAL WBSO CHECKPOINT COMMITTED AND PUSHED / SOURCE-CONTROL RECONCILIATION
+VERIFIED / READY FOR FINAL CLOSURE COMMIT / NOT YET SOURCE-CONTROL CLOSED.
+M1/M2/M3A/M3B remain closed. Prior pending-live entries below are historical.
+
+Required LIVE-M3C-01..05 all PASS, user-reported in the 2026-09-21 audit request.
+A02/A03/A04 on Pipe353871 match direct deterministic buttons: connector report OK,
+assignment OK/ASSIGNED/CONSISTENT, QA YELLOW, all COMPLETE. A04 has 12 stable Piping
+checks and exactly three issues: one SEL-QA-011 blank Mark + two PIPING-QA-008
+unconnected physical connectors, zero partial checks, no warnings/read failures/
+transport omissions. Direct text has no tool/action; Duct request has no Piping,
+HVAC or ModelMind execution. Routing, parity, accounting and read-only behavior PASS.
+Detailed evidence is in evidence_reference.md; no live test repeated by this audit.
+No package-introduced runtime defect identified; no required matrix case outstanding.
+
+Final rerun: 232 Python tests (208+24), 30 native probes (14+16), 6 IronPython
+host compiles, 27 AST/in-memory compile/tabnanny checks, native XAML/WPF/theme/Find,
+1475 source-identical Workbench functions, catalog237 unchanged, mutation/network/
+tool-allowlist/credential-pattern checks, pip check and diff check PASS. No count
+differences. No credential-pattern hits in 110 tracked files; .env.local ignored/
+untracked and not read, provider paths do not log Authorization headers.
+
+main HEAD/origin/live remote `dafb63ecd1613fcf8c698a9b84df09245c476b0d`, 0/0 and
+clean at audit start, parent WBSO checkpoint `f346ebb39b69d87b454d8abf45a362e3dfa99c26`.
+Actual subject `project WBSO update...`; proposed reconciliation subject has no
+matching commit, but its eight-document +119/-0 scope matches the reconciliation.
+No runtime/test changes since implementation `1364a0d691bb89db6169af205dd34a1757ce32bc`.
+M3A requirements/config and M2 execution boundary intact. One-call limit, static
+four-tool Piping allowlist, stale guards and Responses continuation/storage retained.
+No autonomous loop, HVAC/Electrical/mutation tool, AutoCAD, catalog change or M3D.
+Final documentation remains unstaged/uncommitted/unpushed; IDs/hours PENDING.
+Proposed subject: `docs(wbso): close M3C live validation`.
+
 ## 2026-09-19 - M3C source-control reconciliation (not closure)
 
 M3C implementation checkpoint `1364a0d691bb89db6169af205dd34a1757ce32bc`

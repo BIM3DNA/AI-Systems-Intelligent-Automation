@@ -1,5 +1,27 @@
 # Provider Registry
 
+## 2026-09-21 - M3C final live-validation and provider audit
+
+M3C implementation/static/live validation PASS; READY FOR FINAL CLOSURE COMMIT /
+NOT YET SOURCE-CONTROL CLOSED. This supersedes earlier M3C pending-live status below.
+Implementation `1364a0d691bb89db6169af205dd34a1757ce32bc` and WBSO checkpoint
+`f346ebb39b69d87b454d8abf45a362e3dfa99c26` are committed/pushed. Reconciliation
+`dafb63ecd1613fcf8c698a9b84df09245c476b0d` is verified/pushed, actual subject
+`project WBSO update...`, rather than the previously proposed subject. Runtime/tests
+unchanged since implementation; current documentation awaits final commit/push.
+
+User-reported LIVE-M3C-01..05 all PASS: model-selected A02/A03/A04 with deterministic
+parity and read-only behavior; direct text without tool; Duct refusal without Piping
+or HVAC execution. No package-introduced runtime defect identified. Four Piping tools
+only, static A01-A04 allowlist, strict empty schemas, maximum one execution. Unknown,
+nonempty, multiple or second calls fail closed; existing ExternalEvent/stale guards
+retained. No HVAC/Electrical/mutation tool, autonomous loop or AutoCAD.
+Initial store=True; previous_response_id/call_id/function_call_output continuation
+uses store=False, tools=[], tool_choice=none. M3A config/manifests/fixed network
+boundary and sidecar credential ownership unchanged. .env.local ignored/untracked,
+contents not read; credential-pattern/logging checks PASS. No new provider/model,
+network route or local persistence. IDs/hours PENDING. No paid call by this audit.
+
 ## 2026-09-19 - M3C WBSO source-control reconciliation
 
 M3C implementation checkpoint `1364a0d691bb89db6169af205dd34a1757ce32bc`
