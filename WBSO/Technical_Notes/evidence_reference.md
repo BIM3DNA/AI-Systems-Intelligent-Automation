@@ -1,5 +1,119 @@
 # Evidence Reference
 
+## 2026-09-21 - M3D partial live-validation checkpoint
+
+BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
+
+- IMPLEMENTED
+- STATIC VALIDATION PASSED
+- IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED
+- PROJECT-LOCAL WBSO CHECKPOINT COMMITTED / PUSHED
+- LIVE VALIDATION IN PROGRESS
+- LIVE-M3D-01 PASS
+- LIVE-M3D-02 PASS
+- LIVE-M3D-03 THROUGH LIVE-M3D-07 PENDING
+- NOT CLOSED
+
+User-reported partial live evidence, recorded 2026-09-21; no additional Revit or
+authenticated OpenAI tests run by this documentation task. This section supersedes
+earlier pending-all/pre-commit statuses, which remain historical below.
+Implementation: `433a3c36540e4ae1637ce2740e2447331ae11b54`, subject
+`feat(bimcode): add read-only HVAC AI tools`.
+Project-local WBSO checkpoint: `c70a21b070d611f18019ba331b10eeccbb414dff`,
+subject `docs(wbso): record M3D implementation checkpoint`, parent the implementation.
+Before this edit: main HEAD = origin/main = live remote = WBSO checkpoint,
+0/0, status --short empty, clean. This new partial-live documentation is not yet
+committed/pushed and does not establish final validation or closure readiness.
+
+Project2 / {3D}, one rigid non-placeholder OVAL Duct 353895. A01 Summary and
+A02 Connectors passed routing, deterministic parity and read-only behavior using
+OpenAI / gpt-6-astra, status COMPLETE. A01 classification HVAC_SELECTION_SUMMARY_OK;
+A02 HVAC_CONNECTOR_REPORT_OK; both reason COMPLETE. A01 explicitly disclosed six
+omitted selection-scope rows and zero omitted duct records. A02 had two physical
+End connectors, zero non-End connectors, zero abnormal-End-count ducts, no warnings,
+unreadability, truncation or transport omissions.
+
+Initial A01 AI attempt returned FAILED / AI_TOOL_NOT_ALLOWED / "Requested AI tool
+is not available." Revit was still using the previous loaded runtime. Full Revit
+restart followed by the same request succeeded. Record as RUNTIME RELOAD / STALE
+LOADED REGISTRY CONDITION: persistent Revit/pyRevit had not loaded the new HVAC
+registry, per supplied observations; not a confirmed M3D implementation defect.
+No runtime correction was made. This straight-duct case is consistent with
+HVAC-QA-009 but does NOT independently retest Curve/tap topology.
+
+### LIVE-M3D-01 - Summary: PASS
+
+Fixture: Project2, view {3D}, one supported rigid non-placeholder Duct 353895.
+Direct action HVAC-RO-001-A01 / show selected ducts summary produced
+HVAC_SELECTION_SUMMARY_OK / COMPLETE. Selected references 1, resolved 1,
+supported 1, processed 1, unsupported/unresolved 0, complete-read 1, partial-read 0.
+
+| Deterministic field | Value |
+| --- | --- |
+| Element / family / type / type ID | 353895 / Oval Duct / Default / 176921 |
+| Shape / diameter | OVAL / unavailable |
+| Width / height | 304.8 mm / 304.8 mm |
+| Area / source | 0.072966 m2 / CALCULATED_ELLIPSE |
+| Length | 16000.0 mm / 16.000 m / 52.493 ft |
+| Volume / source / discrepancy | 1.179733 m3 / HOST_VOLUME_COMPUTED / WITHIN_TOLERANCE |
+| Curve | Line |
+| Slope state / source / value | AVAILABLE / RBS_DUCT_SLOPE / 0.000 % |
+| Start / end elevation | 6743.2 mm / 6743.2 mm |
+| Reference level | Level 2 |
+| System state / name | ASSIGNED / Mechanical Supply Air 1 |
+| Insulation / lining | NONE / NONE |
+| Workset | Workset1 [0] |
+| Pinned / group / assembly | false / none-not available / none-not available |
+| Warnings | none |
+
+After full Revit restart, prompt "Summarize the selected duct." returned OpenAI /
+gpt-6-astra / COMPLETE; Tool used Selected Ducts Summary; action HVAC-RO-001-A01;
+classification HVAC_SELECTION_SUMMARY_OK; reason COMPLETE. AI preserved the ID,
+family/type, supported scope, width/height, unavailable diameter, all reported length
+units, slope, elevations, level/system, layers, workset, pinned/group/assembly and
+classification/reason. It explicitly disclosed six selection-scope classification
+rows omitted and zero duct-record rows omitted. Routing, deterministic A01 parity,
+bounded projection/omission metadata and read-only behavior PASS. Area/volume values
+above are supplied deterministic facts, not an extra claim of AI verbal coverage.
+
+### LIVE-M3D-02 - Connectors: PASS
+
+Same Duct 353895. Direct HVAC-RO-001-A02 / show selected duct connectors produced
+HVAC_CONNECTOR_REPORT_OK / COMPLETE. Selected/resolved/supported/processed each 1.
+Raw connectors 2; physical HVAC 2; physical End 2; physical non-End 0; unreadable
+physical connector types 0; reciprocally connected physical 0; unconnected physical
+2; unreadable connectors 0; abnormal physical End connector-count ducts 0.
+Two detail rows; connector detail truncation false; warnings none.
+
+| Connector field | Connector 1 | Connector 2 |
+| --- | --- | --- |
+| Type / domain / shape | End / DomainHvac / OVAL | End / DomainHvac / OVAL |
+| Origin mm | (-11250.4, -5649.5, 6743.2) | (4749.6, -5649.5, 6743.2) |
+| Diameter | unavailable | unavailable |
+| Width / height mm | 304.8 / 304.8 | 304.8 / 304.8 |
+| Direction | (-1, 0, 0) | (1, 0, 0) |
+| Flow direction | Bidirectional | Bidirectional |
+| Raw IsConnected / reciprocal physical connection | false / false | false / false |
+| Connected owners | none | none |
+| Unreadable / warning | false / none | false / none |
+
+Prompt "Show me the connectors for the selected duct." returned OpenAI /
+gpt-6-astra / COMPLETE; Selected Duct Connectors; HVAC-RO-001-A02;
+HVAC_CONNECTOR_REPORT_OK / COMPLETE. AI preserved both connectors' type/shape,
+dimensions, unavailable diameter, exact origins/directions, flow direction,
+unconnected state/owners and all supplied summary counts. No warnings, truncation
+or transport omissions. Routing, A02 parity, End-connector semantics and read-only
+behavior PASS. No Curve/tap fixture was tested in these cases; no A04 QA PASS implied.
+
+Eight fixed read-only tools remain: four PIPING-RO-001 and four HVAC-RO-001
+A01-A04 (complete mappings in provider_registry.md and BIMCode_Provider/M3D.md).
+Strict empty-object schemas, maximum one execution, existing M2 ExternalEvent,
+execute_headless_modelmind_readonly and stale document/lifecycle/selection/request
+guards remain unchanged. Sidecar is Revit-API-free; bounded projections preserve
+ModelMind authority. No model mutation, Electrical AI tools, generic action dispatch,
+autonomous multi-tool loop, AutoCAD or ScanAI. Evidence ID / Daily Log ID / KC ID /
+hours: PENDING; none allocated. No runtime/tests/catalog/manifests changed.
+
 ## 2026-09-21 - M3D pushed implementation / project-local WBSO checkpoint
 
 Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.

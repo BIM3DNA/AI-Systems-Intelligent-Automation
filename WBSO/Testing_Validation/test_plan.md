@@ -1,5 +1,69 @@
 # Test Plan
 
+## 2026-09-21 - M3D partial live-validation checkpoint
+
+BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
+
+- IMPLEMENTED
+- STATIC VALIDATION PASSED
+- IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED
+- PROJECT-LOCAL WBSO CHECKPOINT COMMITTED / PUSHED
+- LIVE VALIDATION IN PROGRESS
+- LIVE-M3D-01 PASS
+- LIVE-M3D-02 PASS
+- LIVE-M3D-03 THROUGH LIVE-M3D-07 PENDING
+- NOT CLOSED
+
+User-reported partial live evidence, recorded 2026-09-21; no additional Revit or
+authenticated OpenAI tests run by this documentation task. This section supersedes
+earlier pending-all/pre-commit statuses, which remain historical below.
+Implementation: `433a3c36540e4ae1637ce2740e2447331ae11b54`, subject
+`feat(bimcode): add read-only HVAC AI tools`.
+Project-local WBSO checkpoint: `c70a21b070d611f18019ba331b10eeccbb414dff`,
+subject `docs(wbso): record M3D implementation checkpoint`, parent the implementation.
+Before this edit: main HEAD = origin/main = live remote = WBSO checkpoint,
+0/0, status --short empty, clean. This new partial-live documentation is not yet
+committed/pushed and does not establish final validation or closure readiness.
+
+| Case | Prompt / fixture | Expected / disposition |
+| --- | --- | --- |
+| LIVE-M3D-01 | Summarize the selected duct. | PASS: A01 Summary parity after full restart |
+| LIVE-M3D-02 | Show me the connectors for the selected duct. | PASS: A02 Connectors parity |
+| LIVE-M3D-03 | What system is the selected duct assigned to? | NOT STARTED / PENDING: inspect_selected_duct_system_assignment -> HVAC-RO-001-A03; direct parity |
+| LIVE-M3D-04 | Check the QA health of the selected duct. | NOT STARTED / PENDING: inspect_selected_duct_qa_health -> HVAC-RO-001-A04; deterministic QA parity |
+| LIVE-M3D-05 | What is the purpose of a supply air duct system? | NOT STARTED / PENDING: direct answer, no ModelMind execution |
+| LIVE-M3D-06 | Electrical selection: Check the connectors for the selected electrical element. | NOT STARTED / PENDING: no Piping/HVAC/Electrical execution, safe explanation |
+| LIVE-M3D-07 | Pipe+Duct: Summarize the selected MEP elements. | NOT STARTED / PENDING: no automatic chain, at most one execution, safe mixed-specialty refusal |
+
+Remaining cases must not be inferred from A01/A02. Keep selection fixed for direct
+comparisons; record tool/action, classification/reason, counts, warnings/omissions
+and read-only behavior. No further tests performed by this documentation task.
+
+Project2 / {3D}, one rigid non-placeholder OVAL Duct 353895. A01 Summary and
+A02 Connectors passed routing, deterministic parity and read-only behavior using
+OpenAI / gpt-6-astra, status COMPLETE. A01 classification HVAC_SELECTION_SUMMARY_OK;
+A02 HVAC_CONNECTOR_REPORT_OK; both reason COMPLETE. A01 explicitly disclosed six
+omitted selection-scope rows and zero omitted duct records. A02 had two physical
+End connectors, zero non-End connectors, zero abnormal-End-count ducts, no warnings,
+unreadability, truncation or transport omissions.
+
+Initial A01 AI attempt returned FAILED / AI_TOOL_NOT_ALLOWED / "Requested AI tool
+is not available." Revit was still using the previous loaded runtime. Full Revit
+restart followed by the same request succeeded. Record as RUNTIME RELOAD / STALE
+LOADED REGISTRY CONDITION: persistent Revit/pyRevit had not loaded the new HVAC
+registry, per supplied observations; not a confirmed M3D implementation defect.
+No runtime correction was made. This straight-duct case is consistent with
+HVAC-QA-009 but does NOT independently retest Curve/tap topology.
+
+Eight fixed read-only tools remain: four PIPING-RO-001 and four HVAC-RO-001
+A01-A04 (complete mappings in provider_registry.md and BIMCode_Provider/M3D.md).
+Strict empty-object schemas, maximum one execution, existing M2 ExternalEvent,
+execute_headless_modelmind_readonly and stale document/lifecycle/selection/request
+guards remain unchanged. Sidecar is Revit-API-free; bounded projections preserve
+ModelMind authority. No model mutation, Electrical AI tools, generic action dispatch,
+autonomous multi-tool loop, AutoCAD or ScanAI. Evidence ID / Daily Log ID / KC ID /
+hours: PENDING; none allocated. No runtime/tests/catalog/manifests changed.
+
 ## 2026-09-21 - M3D pushed implementation / project-local WBSO checkpoint
 
 Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
