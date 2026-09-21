@@ -58,10 +58,10 @@ class RegistryProviderTests(unittest.TestCase):
     send = old.ProviderTests.send
 
     def test_exact_registry_and_schemas(self):
-        self.assertEqual(registry.ACTIONS, EXPECTED)
-        self.assertEqual(old.tool_protocol.ACTIONS, EXPECTED)
-        self.assertEqual(len(old.provider.TOOLS), 4)
-        self.assertEqual({t['name'] for t in old.provider.TOOLS}, set(EXPECTED))
+        self.assertEqual({k: v for k, v in registry.ACTIONS.items() if k in EXPECTED}, EXPECTED)
+        self.assertEqual({k: v for k, v in old.tool_protocol.ACTIONS.items() if k in EXPECTED}, EXPECTED)
+        self.assertEqual(len(old.provider.TOOLS), 8)
+        self.assertEqual({t['name'] for t in old.provider.TOOLS[:4]}, set(EXPECTED))
         descriptions = ('summary', 'connector report', 'system-assignment report', 'QA-health report')
         for tool, report in zip(old.provider.TOOLS, descriptions):
             self.assertEqual(tool, dict(type='function', name=tool['name'], strict=True,
@@ -106,7 +106,7 @@ class RegistryProviderTests(unittest.TestCase):
                              'AI_TOOL_LOOP_LIMIT')
 
     def test_bad_names_and_arguments_both_boundaries(self):
-        for name in ('inspect_selected_duct_connectors', 'inspect_selected_electrical_qa', 'delete_pipes', '', [], None):
+        for name in ('inspect_selected_flex_duct_connectors', 'inspect_selected_electrical_qa', 'delete_pipes', '', [], None):
             self.assertEqual(self.send([old.output_call(name=name)])['error']['code'], 'AI_TOOL_NOT_ALLOWED')
             self.assertEqual(old.provider_bridge.decode(json.dumps(response(name)), old.RID, 0)['error']['code'], 'AI_TOOL_NOT_ALLOWED')
         for name in EXPECTED:
@@ -125,7 +125,7 @@ class RegistryProviderTests(unittest.TestCase):
 
     def test_policy_preserves_qa_and_ambiguity(self):
         instruction = old.provider.TOOL_INSTRUCTION
-        for text in ('authoritative', 'clarification', 'YELLOW', 'partial/unreadable', 'At most one', 'ducts, electrical'):
+        for text in ('authoritative', 'clarification', 'YELLOW', 'partial/unreadable', 'At most one', 'Never use either for electrical'):
             self.assertIn(text, instruction)
 
 
@@ -259,7 +259,7 @@ class ProjectionPresentationTests(unittest.TestCase):
         with self.assertRaises(ValueError): old.ai_tool.compact(value)
 
     def test_exact_provenance_and_no_raw_json(self):
-        for name, action, label in registry.TOOLS:
+        for name, action, label in registry.TOOLS[:4]:
             result = old.protocol.success(old.RID, 'test-model', 'Readable explanation')
             value = result_for(name)
             result['tool_provenance'] = {key: value[key] for key in ('action_id', 'classification', 'reason_code')}
@@ -281,7 +281,7 @@ class FourActionPaneTests(unittest.TestCase):
     start_ai = old.PaneTests.start_ai
 
     def test_four_sequential_turns_followup_and_provenance(self):
-        for name, action, label in registry.TOOLS:
+        for name, action, label in registry.TOOLS[:4]:
             self.start_ai()
             value = response(name); value['request_id'] = self.rid
             self.panel._provider_complete(value)
@@ -300,7 +300,7 @@ class FourActionPaneTests(unittest.TestCase):
                 self.assertTrue(self.panel.FindName(button).IsEnabled)
 
     def test_each_continuation_error_preserves_provenance(self):
-        for name, action, label in registry.TOOLS:
+        for name, action, label in registry.TOOLS[:4]:
             self.start_ai()
             value = response(name); value['request_id'] = self.rid
             self.panel._provider_complete(value)

@@ -226,12 +226,13 @@ class CoordinatorTests(unittest.TestCase):
         self.execute();self.execute_headless_modelmind_readonly.assert_not_called()
         self.assertEqual(self.done.call_args.args[0]["error"]["code"],"AI_TOOL_NOT_ALLOWED")
 
-    def test_empty_and_mixed_owned_by_builder(self):
+    def test_empty_owned_by_builder_mixed_rejected(self):
         for specialties in ([],['PIPING','HVAC']):
             self.coordinator.clear();self.coordinator.begin(RID)
             self.resolve_headless_modelmind_specialty.return_value=dict(ok=True,specialties=specialties)
             self.execute()
-        self.assertEqual(self.execute_headless_modelmind_readonly.call_count,2)
+        self.assertEqual(self.execute_headless_modelmind_readonly.call_count,1)
+        self.assertEqual(self.done.call_args.args[0]['error']['code'], 'AI_TOOL_NOT_ALLOWED')
 
     def test_raise_rejected(self):
         self.session.raise_ai_event.return_value=False

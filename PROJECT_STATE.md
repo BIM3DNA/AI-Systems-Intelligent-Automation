@@ -47,6 +47,29 @@ The authoritative project state is:
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
 
+## 2026-09-21 - M3D implementation checkpoint
+
+BIMCODE-REVIT-AI-PANE-001 M3D: IMPLEMENTED IN WORKTREE / STATIC VALIDATION
+PASSED / LIVE VALIDATION PENDING / NOT CLOSED. Unstaged, uncommitted, unpushed.
+M3C is SOURCE-CONTROL CLOSED at `b8e9bed04ce1e1e93c93ac251725e308df352b88`,
+subject `docs(wbso): close M3C live validation`. Its dated pre-commit audit below
+is historical. Starting main HEAD = origin/main, ahead/behind 0/0, worktree clean.
+
+Eight fixed AI tools: retained four Piping actions plus HVAC-RO-001-A01/A02/A03/A04.
+Closed canonical HVAC mappings verified before implementation. Strict empty schemas,
+one execution maximum, existing ExternalEvent/headless and stale-context guards.
+Host rejects cross-specialty/mixed Pipe+Duct and unsupported-only selections.
+Closed deterministic semantics, HVAC-QA-009 End/Curve behavior, catalog and Workbench
+unchanged. No Electrical/mutation tools, autonomous loop, AutoCAD or ScanAI.
+Continuation/storage and network/configuration foundation unchanged.
+
+Static PASS: 251 Python tests, 46 native probes, six IronPython host compiles,
+30 AST/compile/tabnanny checks, native WPF/theme/Find, 1475 source-identical
+Workbench functions, catalog237, boundary scans, credential-pattern scan, pip/diff
+checks. .env.local ignored/untracked and not read. No authenticated API or Revit
+live test performed. LIVE-M3D-01..07 all PENDING. Scope, mappings, validation and
+manual matrix: BIMCode_Provider/M3D.md. No project-local WBSO update or IDs/hours.
+
 ## 2026-09-21 - M3C final closure audit
 
 Authoritative BIMCODE-REVIT-AI-PANE-001 / M3C status:

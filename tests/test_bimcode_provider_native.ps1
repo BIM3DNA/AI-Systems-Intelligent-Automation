@@ -128,10 +128,11 @@ print('PASS 4 native M3B probes: one-action parity, loop limit, stale selection,
 from bimcode_ai_pane.ai_tool_registry import TOOLS
 def execute_m3c(action, d, u):
     executions.append(action)
-    return dict(ok=True, action_id=action, specialty='PIPING', classification='TEST',
+    return dict(ok=True, action_id=action, specialty=action.split('-')[0], classification='TEST',
                 reason_code='COMPLETE', summary=['Count: 1'])
 ai_tool.execute_headless_modelmind_readonly = execute_m3c
 for name, action, label in TOOLS:
+    ai_tool.resolve_headless_modelmind_specialty = lambda d, u: dict(ok=True, specialties=[action.split('-')[0]])
     coordinator.clear()
     assert coordinator.begin(rid)
     response['tool_call']['name'] = name
@@ -149,5 +150,5 @@ for name, action, label in TOOLS:
     coordinator.execute_approved(app)
     assert completed[-1][0]['error']['code'] == 'AI_TOOL_LOOP_LIMIT'
     assert len(executions) == before + 1
-print('PASS 16 native M3C probes: four tools x envelope, execution, provenance, loop gate')
+print('PASS 32 native M3C/M3D probes: eight tools x envelope, execution, provenance, loop gate')
 '@, $scope)

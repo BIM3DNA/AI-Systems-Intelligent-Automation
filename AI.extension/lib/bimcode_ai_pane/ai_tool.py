@@ -6,13 +6,13 @@ import json
 from modelmind_headless import execute_headless_modelmind_readonly, project_value, resolve_headless_modelmind_specialty
 from bimcode_ai_pane.tools import document_key
 from bimcode_ai_pane import provider_bridge
-from bimcode_ai_pane.ai_tool_registry import ACTIONS, LABELS
+from bimcode_ai_pane.ai_tool_registry import ACTIONS, LABELS, SPECIALTIES
 
 NAME = "summarize_selected_pipes"
 ACTION = ACTIONS[NAME]  # Summary compatibility; execution uses validated turn action.
 FIELDS = ("action_id", "specialty", "classification", "reason_code", "summary",
           "selected_reference_count", "resolved_selected_count", "piping_checks",
-          "generic_checks", "warnings", "warning_records", "warnings_total",
+          "hvac_checks", "generic_checks", "warnings", "warning_records", "warnings_total",
           "warning_display_truncated", "connector_rows_truncated", "next_guidance", "tables")
 
 
@@ -20,11 +20,11 @@ def compact(data, expected_action=ACTION):
     """Copy domain fields unchanged; omit whole transport entries with disclosure."""
     data = project_value(data)
     if (expected_action not in LABELS or data.get("action_id") != expected_action
-            or data.get("specialty") != "PIPING"):
+            or data.get("specialty") != SPECIALTIES[expected_action]):
         raise ValueError("unexpected result")
     result = dict((key, data[key]) for key in FIELDS if key in data)
     omitted = {}
-    for key in ("warnings", "warning_records", "piping_checks", "generic_checks"):
+    for key in ("warnings", "warning_records", "piping_checks", "hvac_checks", "generic_checks"):
         if isinstance(result.get(key), list) and len(result[key]) > 30:
             omitted[key] = len(result[key]) - 30
             result[key] = result[key][:30]
@@ -136,12 +136,15 @@ class Coordinator(object):
             if not scope.get("ok"):
                 self.complete(provider_bridge.failure(rid, "MODELMIND_NOT_READY"), None)
                 return
-            # Do not silently reinterpret a selected Duct/Electrical request as
-            # Piping. Other empty/unsupported/mixed cases belong to the builder.
-            if scope.get("specialties") and "PIPING" not in scope["specialties"]:
+            action = turn["action"]
+            specialty = SPECIALTIES[action]
+            # Never filter or orchestrate a mixed selection. Empty selection and
+            # supported + ordinary unsupported retain the closed builder report.
+            specialties = scope.get("specialties") or []
+            if (specialties and specialties != [specialty]) or (
+                    not specialties and scope.get("unsupported_count", 0)):
                 self.complete(provider_bridge.failure(rid, "AI_TOOL_NOT_ALLOWED"), None)
                 return
-            action = turn["action"]
             data = execute_headless_modelmind_readonly(action, uidoc.Document, uidoc)
             if not data.get("ok"):
                 self.complete(provider_bridge.failure(rid, "MODELMIND_EXECUTION_FAILED"), None)

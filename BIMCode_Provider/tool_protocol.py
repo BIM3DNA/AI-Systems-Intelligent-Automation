@@ -1,4 +1,4 @@
-"""M3C scalar continuation contract. Four fixed functions, one call per turn."""
+"""M3D scalar continuation contract. Eight fixed functions, one call per turn."""
 import json
 import re
 
@@ -8,7 +8,12 @@ ACTIONS = {
     "inspect_selected_pipe_connectors": "PIPING-RO-001-A02",
     "inspect_selected_pipe_system_assignment": "PIPING-RO-001-A03",
     "inspect_selected_pipe_qa_health": "PIPING-RO-001-A04",
+    "summarize_selected_ducts": "HVAC-RO-001-A01",
+    "inspect_selected_duct_connectors": "HVAC-RO-001-A02",
+    "inspect_selected_duct_system_assignment": "HVAC-RO-001-A03",
+    "inspect_selected_duct_qa_health": "HVAC-RO-001-A04",
 }
+SPECIALTIES = dict((action, action.split("-", 1)[0]) for action in ACTIONS.values())
 MAX_REQUEST = 120000
 MAX_RESULT = 80000
 MESSAGES = {
@@ -59,7 +64,7 @@ def validate_request(data):
             raise ToolError("AI_TOOL_PROTOCOL_ERROR")
         result = data["tool_result"]
         if (not isinstance(result, dict) or result.get("action_id") != ACTIONS[data["tool_call"]["name"]]
-                or result.get("specialty") != "PIPING"
+                or result.get("specialty") != SPECIALTIES[ACTIONS[data["tool_call"]["name"]]]
                 or len(json.dumps(result, ensure_ascii=True, allow_nan=False)) > MAX_RESULT):
             raise ToolError("AI_TOOL_PROTOCOL_ERROR")
     return data

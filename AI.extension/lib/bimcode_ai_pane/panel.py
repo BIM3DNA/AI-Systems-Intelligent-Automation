@@ -98,7 +98,7 @@ class BIMCodeAIPanel(forms.WPFPanel):
                 result = provider_bridge.failure(result["request_id"], "AI_TOOL_LOOP_LIMIT")
             else:
                 self._ai_waiting = True
-                self.FindName("ProviderStatus").Text = "Reading selected pipes..."
+                self.FindName("ProviderStatus").Text = "Reading selected elements..."
                 try:
                     self._ai.queue(result, lambda error, data: self._ai_tool_complete(result, error, data))
                 except Exception:
