@@ -1,5 +1,40 @@
 # Provider Registry
 
+## 2026-09-21 - M3D pushed implementation / project-local WBSO checkpoint
+
+Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
+IMPLEMENTED / STATIC VALIDATION PASSED / IMPLEMENTATION CHECKPOINT COMMITTED /
+PUSHED / LIVE VALIDATION PENDING / NOT CLOSED.
+Implementation: `433a3c36540e4ae1637ce2740e2447331ae11b54`, parent
+`b8e9bed04ce1e1e93c93ac251725e308df352b88` (M3C closure), subject
+`feat(bimcode): add read-only HVAC AI tools`; 13 files, +445/-32.
+Verified before this documentation edit: main HEAD = origin/main = live remote,
+ahead/behind 0/0, status --short empty, clean worktree.
+This separate project-local WBSO checkpoint awaits review/commit/push; it does
+not claim M3D live validation or milestone/source-control closure. Earlier dated
+sections retain their historical checkpoint state and are superseded here.
+
+Exactly eight read-only AI tools, with static name-to-action mappings:
+
+| Tool | Fixed action |
+| --- | --- |
+| summarize_selected_pipes | PIPING-RO-001-A01 |
+| inspect_selected_pipe_connectors | PIPING-RO-001-A02 |
+| inspect_selected_pipe_system_assignment | PIPING-RO-001-A03 |
+| inspect_selected_pipe_qa_health | PIPING-RO-001-A04 |
+| summarize_selected_ducts | HVAC-RO-001-A01 |
+| inspect_selected_duct_connectors | HVAC-RO-001-A02 |
+| inspect_selected_duct_system_assignment | HVAC-RO-001-A03 |
+| inspect_selected_duct_qa_health | HVAC-RO-001-A04 |
+
+Strict empty-object schemas; no model/user action IDs or executable arguments.
+One execution maximum; no Electrical AI tool, mutation tool, arbitrary dispatch,
+autonomous multi-tool loop, AutoCAD or ScanAI integration. Python 3 sidecar remains
+Revit-API-free. Existing provider/config/manifests and continuation retained:
+initial store=True; previous_response_id/call_id/function_call_output followed by
+store=False, tools=[], tool_choice=none. No local conversation database.
+Full scope and pending LIVE-M3D-01..07: BIMCode_Provider/M3D.md.
+
 ## 2026-09-21 - M3C final live-validation and provider audit
 
 M3C implementation/static/live validation PASS; READY FOR FINAL CLOSURE COMMIT /

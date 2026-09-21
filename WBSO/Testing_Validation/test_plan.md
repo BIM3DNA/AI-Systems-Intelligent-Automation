@@ -1,5 +1,41 @@
 # Test Plan
 
+## 2026-09-21 - M3D pushed implementation / project-local WBSO checkpoint
+
+Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
+IMPLEMENTED / STATIC VALIDATION PASSED / IMPLEMENTATION CHECKPOINT COMMITTED /
+PUSHED / LIVE VALIDATION PENDING / NOT CLOSED.
+Implementation: `433a3c36540e4ae1637ce2740e2447331ae11b54`, parent
+`b8e9bed04ce1e1e93c93ac251725e308df352b88` (M3C closure), subject
+`feat(bimcode): add read-only HVAC AI tools`; 13 files, +445/-32.
+Verified before this documentation edit: main HEAD = origin/main = live remote,
+ahead/behind 0/0, status --short empty, clean worktree.
+This separate project-local WBSO checkpoint awaits review/commit/push; it does
+not claim M3D live validation or milestone/source-control closure. Earlier dated
+sections retain their historical checkpoint state and are superseded here.
+
+Required live matrix: all NOT STARTED / PENDING. Do not infer live PASS from the
+static audit. Use rigid non-placeholder Duct scope. Keep selection unchanged when
+comparing AI output against the direct canonical deterministic action.
+
+| Case | Prompt / fixture | Expected action or boundary | Status |
+| --- | --- | --- | --- |
+| LIVE-M3D-01 | Summarize the selected duct. | HVAC-RO-001-A01; show selected ducts summary parity | NOT STARTED / PENDING |
+| LIVE-M3D-02 | Show me the connectors for the selected duct. | HVAC-RO-001-A02; show selected duct connectors parity | NOT STARTED / PENDING |
+| LIVE-M3D-03 | What system is the selected duct assigned to? | HVAC-RO-001-A03; check selected ducts system assignment parity | NOT STARTED / PENDING |
+| LIVE-M3D-04 | Check the QA health of the selected duct. | HVAC-RO-001-A04; check selected ducts qa health parity | NOT STARTED / PENDING |
+| LIVE-M3D-05 | What is the purpose of a supply air duct system? | Direct answer, no tool/provenance | NOT STARTED / PENDING |
+| LIVE-M3D-06 | Electrical selection: Check the connectors for the selected electrical element. | No Piping/HVAC/Electrical execution; safe explanation | NOT STARTED / PENDING |
+| LIVE-M3D-07 | Pipe+Duct selection: Summarize the selected MEP elements. | Mixed-specialty refusal; no automatic tool chain | NOT STARTED / PENDING |
+
+Record exact tool/action, classification/reason, deterministic counts and fields,
+affected IDs, warnings and explicit omissions; verify UI recovery, maximum one
+execution and no model/view/selection mutation. A02/A04 should include End/Curve
+comparison with a tap fixture if available: Curve connectors must not be treated
+as abnormal Ends under HVAC-QA-009. Natural-language refusal remains live-pending.
+Static results are in validation_summary.md; full tool mapping and prompts are in
+BIMCode_Provider/M3D.md. Evidence/Daily Log/KC IDs and hours remain PENDING.
+
 ## 2026-09-21 - M3C final required live-matrix disposition
 
 Required live validation COMPLETE / PASS, supplied by the user in the final audit

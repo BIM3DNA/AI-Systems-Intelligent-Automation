@@ -1,8 +1,14 @@
 # M3D - full HVAC read-only AI tool surface
 
-Implementation checkpoint: 2026-09-21, working tree only. IMPLEMENTED / STATIC
-VALIDATION PASSED / LIVE VALIDATION PENDING / NOT CLOSED. No staging, commit,
-push, authenticated API request or live Revit test performed by this task.
+Implementation checkpoint: 2026-09-21. IMPLEMENTED / STATIC VALIDATION PASSED /
+IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED / LIVE VALIDATION PENDING / NOT CLOSED.
+Verified Git implementation: `433a3c36540e4ae1637ce2740e2447331ae11b54`, parent
+`b8e9bed04ce1e1e93c93ac251725e308df352b88`, subject
+`feat(bimcode): add read-only HVAC AI tools`; 13 files, +445/-32.
+Before this documentation update: main HEAD = origin/main = live remote at that
+implementation SHA; ahead/behind 0/0, status --short empty, worktree clean.
+This separate project-local WBSO documentation checkpoint awaits review/commit/push.
+No authenticated API request or live Revit test performed by this documentation task.
 Baseline: main / HEAD / origin/main `b8e9bed04ce1e1e93c93ac251725e308df352b88`,
 M3C closure (`docs(wbso): close M3C live validation`), clean and 0/0 before work.
 
@@ -87,9 +93,11 @@ No Electrical/mutation tools, autonomous loop, AutoCAD or ScanAI implementation.
   print/header logging. This is a pattern check, not an exhaustive secret proof.
 - .env.local ignored/untracked; contents not read. pip check and diff check PASS.
 
-No WBSO update, IDs, prompt-asset IDs or hours allocated. No live PASS claimed.
+Project-local WBSO checkpoint now records the preceding implementation audit totals;
+this documentation task does not rerun static/live tests or claim live PASS.
+Evidence ID, Daily Log ID, KC ID and hours: PENDING; none allocated.
 
-## Required user-run live matrix (all PENDING)
+## Required user-run live matrix (all NOT STARTED / PENDING)
 
 Use a supported rigid non-placeholder Duct; keep selection fixed while comparing
 each AI result with its canonical deterministic action above. For each case record

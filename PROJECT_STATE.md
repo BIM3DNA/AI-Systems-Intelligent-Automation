@@ -49,8 +49,14 @@ The authoritative project state is:
 
 ## 2026-09-21 - M3D implementation checkpoint
 
-BIMCODE-REVIT-AI-PANE-001 M3D: IMPLEMENTED IN WORKTREE / STATIC VALIDATION
-PASSED / LIVE VALIDATION PENDING / NOT CLOSED. Unstaged, uncommitted, unpushed.
+BIMCODE-REVIT-AI-PANE-001 M3D: IMPLEMENTED / STATIC VALIDATION PASSED /
+IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED / LIVE VALIDATION PENDING / NOT CLOSED.
+Implementation `433a3c36540e4ae1637ce2740e2447331ae11b54`, parent
+`b8e9bed04ce1e1e93c93ac251725e308df352b88`, subject
+`feat(bimcode): add read-only HVAC AI tools`; 13 files, +445/-32.
+Verified before this documentation edit: main HEAD = origin/main = live remote at
+the implementation SHA; 0/0, clean, status --short empty, no staged/untracked files.
+The separate project-local WBSO documentation checkpoint is pending review/commit/push.
 M3C is SOURCE-CONTROL CLOSED at `b8e9bed04ce1e1e93c93ac251725e308df352b88`,
 subject `docs(wbso): close M3C live validation`. Its dated pre-commit audit below
 is historical. Starting main HEAD = origin/main, ahead/behind 0/0, worktree clean.
@@ -67,8 +73,10 @@ Static PASS: 251 Python tests, 46 native probes, six IronPython host compiles,
 30 AST/compile/tabnanny checks, native WPF/theme/Find, 1475 source-identical
 Workbench functions, catalog237, boundary scans, credential-pattern scan, pip/diff
 checks. .env.local ignored/untracked and not read. No authenticated API or Revit
-live test performed. LIVE-M3D-01..07 all PENDING. Scope, mappings, validation and
-manual matrix: BIMCode_Provider/M3D.md. No project-local WBSO update or IDs/hours.
+live test performed. LIVE-M3D-01..07 all NOT STARTED / PENDING. Scope, mappings,
+validation and manual matrix: BIMCode_Provider/M3D.md. Project-local WBSO now
+records the preceding implementation audit, not a new test run or closure.
+Evidence ID, Daily Log ID, KC ID and hours remain PENDING; none allocated.
 
 ## 2026-09-21 - M3C final closure audit
 

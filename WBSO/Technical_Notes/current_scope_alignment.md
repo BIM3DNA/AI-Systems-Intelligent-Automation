@@ -1,5 +1,33 @@
 # Current Scope Alignment
 
+## 2026-09-21 - M3D pushed implementation / project-local WBSO checkpoint
+
+Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
+IMPLEMENTED / STATIC VALIDATION PASSED / IMPLEMENTATION CHECKPOINT COMMITTED /
+PUSHED / LIVE VALIDATION PENDING / NOT CLOSED.
+Implementation: `433a3c36540e4ae1637ce2740e2447331ae11b54`, parent
+`b8e9bed04ce1e1e93c93ac251725e308df352b88` (M3C closure), subject
+`feat(bimcode): add read-only HVAC AI tools`; 13 files, +445/-32.
+Verified before this documentation edit: main HEAD = origin/main = live remote,
+ahead/behind 0/0, status --short empty, clean worktree.
+This separate project-local WBSO checkpoint awaits review/commit/push; it does
+not claim M3D live validation or milestone/source-control closure. Earlier dated
+sections retain their historical checkpoint state and are superseded here.
+
+Scope is controlled exposure of the four closed HVAC-RO-001 A01-A04 actions,
+retaining the four PIPING-RO-001 A01-A04 tools: eight read-only tools total.
+No Electrical AI tool, mutation tool, arbitrary dispatch, autonomous multi-tool
+loop, AutoCAD, ScanAI integration or new specialty orchestration.
+Closed HVAC/Piping semantics and HVAC-QA-009 End-versus-Curve behavior remain
+unchanged. Existing ExternalEvent/headless ownership and stale-context guards
+remain; maximum one execution. Provider projection transports deterministic data,
+not an alternate domain evaluator. Catalog remains 237; manifests unchanged.
+
+Implementation/static checkpoint only, not live acceptance. LIVE-M3D-01..07 are
+NOT STARTED / PENDING. Next: review this documentation, then user-run live matrix
+in BIMCode_Provider/M3D.md and test_plan.md. Evidence ID, Daily Log ID, KC ID and
+hours: PENDING; none allocated. No closure or live PASS claimed.
+
 ## 2026-09-21 - M3C final closure readiness
 
 Current status: IMPLEMENTED / STATIC VALIDATION PASSED / LIVE VALIDATION PASSED /

@@ -1,5 +1,42 @@
 # Validation Summary
 
+## 2026-09-21 - M3D pushed implementation / project-local WBSO checkpoint
+
+Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
+IMPLEMENTED / STATIC VALIDATION PASSED / IMPLEMENTATION CHECKPOINT COMMITTED /
+PUSHED / LIVE VALIDATION PENDING / NOT CLOSED.
+Implementation: `433a3c36540e4ae1637ce2740e2447331ae11b54`, parent
+`b8e9bed04ce1e1e93c93ac251725e308df352b88` (M3C closure), subject
+`feat(bimcode): add read-only HVAC AI tools`; 13 files, +445/-32.
+Verified before this documentation edit: main HEAD = origin/main = live remote,
+ahead/behind 0/0, status --short empty, clean worktree.
+This separate project-local WBSO checkpoint awaits review/commit/push; it does
+not claim M3D live validation or milestone/source-control closure. Earlier dated
+sections retain their historical checkpoint state and are superseded here.
+
+Recorded implementation checkpoint audit results (not rerun in this docs task):
+
+| Validation | Actual audited result |
+| --- | --- |
+| Python tests | 251 PASS: 232 retained + 19 M3D |
+| Native probes | 46 PASS: 10 process/dispatcher + 4 M3B + 32 eight-tool |
+| IronPython host compiles | 6 PASS |
+| AST / in-memory compile / tabnanny | 30 files PASS |
+| Native XAML/WPF/theme/Find | PASS |
+| Workbench comparison | 1475 existing functions source-identical; full runtime unchanged |
+| Prompt catalog | 237 unchanged |
+| Mutation / network-boundary / AI-tool allowlist scans | PASS; exactly eight fixed Piping/HVAC tools |
+| Credential-pattern scan | PASS: 107 tracked text files, zero findings; not exhaustive secret proof |
+| pip check / git diff --check | PASS |
+
+.env.local ignored/untracked and not read; no provider Authorization-header logging.
+Counts exceed M3C because HVAC adds 19 tests and 16 native probes; the audited
+30-file syntax scope includes Workbench and current test files. No closed HVAC
+logic was changed: HVAC-QA-009 still evaluates physical Ends, not Curve/tap count.
+No Electrical/mutation tools, arbitrary dispatch, autonomous loop, AutoCAD or ScanAI.
+All LIVE-M3D-01..07 remain NOT STARTED / PENDING; no live or final closure verdict.
+Evidence ID / Daily Log ID / KC ID / hours: PENDING. No IDs/hours allocated.
+
 ## 2026-09-21 - M3C final closure audit
 
 M3C_READY_FOR_FINAL_CLOSURE_COMMIT. IMPLEMENTED / STATIC VALIDATION PASSED /
