@@ -37,6 +37,9 @@ TOOLS += [dict(type="function", name=name, strict=True,
               ("inspect_selected_electrical_circuit_assignment", "circuit-assignment report"),
               ("inspect_selected_electrical_qa_health", "QA-health report"))]
 TOOL = TOOLS[0]  # Existing Summary contract remains available to offline probes.
+TOOLS.append(dict(type="function", name="summarize_selected_mep_elements", strict=True,
+                  description="Summarize selected MEP elements, including mixed Pipe, rigid Duct and supported Electrical fixtures/equipment. Summary only; host chooses fixed read-only children.",
+                  parameters=dict(type="object", properties={}, required=[], additionalProperties=False)))
 TOOL_INSTRUCTION = (
     "You are BIMCode AI running inside Autodesk Revit. Answer text questions. "
     "Four read-only Piping, four HVAC and four Electrical tools are available for the current selection: summary, "
@@ -44,8 +47,10 @@ TOOL_INSTRUCTION = (
     "a request about selected pipes, rigid non-placeholder ducts or supported electrical fixtures/equipment; answer general questions without a tool. "
     "If intent is materially ambiguous, ask a concise clarification; never run a sweep. "
     "Use Piping tools only for pipes and HVAC tools only for ducts. Never use either for electrical elements. "
-    "Mixed Pipe+Duct selections require a single supported specialty selection; explain this, never orchestrate tools. "
-    "The same restriction applies to Pipe+Electrical, Duct+Electrical and Pipe+Duct+Electrical selections. "
+    "Mixed Pipe+Duct or Electrical combinations may use summarize_selected_mep_elements for Summary only. "
+    "For connectors, assignment or QA, request a single supported specialty selection; never orchestrate tools. "
+    "Use the composite for selected MEP or mixed-selection summary requests; prefer existing specialty tools for clearly single-specialty requests. "
+    "Preserve child identities, classifications, warnings and omissions; never infer cross-specialty connectivity, systems or QA. "
     "Use Electrical tools only for Lighting Fixtures, Electrical Fixtures and Electrical Equipment. "
     "Conduit, cable tray, wires, circuits alone, linked instances and other device categories are unsupported. "
     "Electrical DEVICE_PROFILE and EQUIPMENT_PROFILE, LOAD and BASE_EQUIPMENT roles, "

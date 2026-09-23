@@ -1,5 +1,43 @@
 # Current Scope Alignment
 
+## 2026-09-23 - M3F mixed-specialty Summary scope checkpoint
+
+BIMCODE-REVIT-AI-PANE-001 / M3F: DISCOVERY COMPLETE / IMPLEMENTATION COMPLETE /
+STATIC VALIDATION PASSED / LIVE VALIDATION PENDING /
+IMPLEMENTATION CHECKPOINT NOT YET COMMITTED / PUSHED / NOT CLOSED.
+One added capability: summarize_selected_mep_elements -> MEP-MULTI-RO-001-A01.
+Thirteen read-only AI tools; exact mappings in provider_registry.md.
+Supported scope remains closed rigid Pipe, rigid non-placeholder Duct,
+DEVICE_PROFILE Lighting/Electrical Fixtures and EQUIPMENT_PROFILE Electrical
+Equipment. Conduit and other closed unsupported categories are not widened.
+
+Single Pipe/Duct/Electrical groups produce only their corresponding A01 child.
+Pipe+Duct, Pipe+Electrical, Duct+Electrical and all three produce fixed ordered
+Piping/HVAC/Electrical A01 subsets as applicable. Supported+unsupported retains
+usable children with explicit PARTIAL scope. Unsupported-only is NOT_READY /
+NO_SUPPORTED_SELECTED_ELEMENTS; empty is NOT_READY / NO_ELEMENTS_SELECTED.
+Any unresolved reference fails the entire selection closed as NOT_READY /
+SELECTION_UNREADABLE before child evaluation, even when supported references exist.
+
+Exact composite classification set: MEP_MULTI_SELECTION_SUMMARY_OK,
+MEP_MULTI_SELECTION_SUMMARY_PARTIAL, MEP_MULTI_SELECTION_NOT_READY,
+MEP_MULTI_SELECTION_FAILED. No MEP_MULTI_SELECTION_UNSUPPORTED classification.
+With a usable sibling, failed/not-ready/partial children yield PARTIAL; no usable
+child yields FAILED / NO_USABLE_SPECIALTY_RESULT. Stale results are discarded.
+Partial reason precedence: SUBACTION_FAILED, SUBACTION_NOT_READY, SUBACTION_PARTIAL,
+UNSUPPORTED_ELEMENTS_PRESENT. Transport/display omissions alone are not semantic
+PARTIAL. Child classifications/reasons, warnings and omissions remain authoritative.
+
+Out of scope: mixed connectors, assignment, QA health, remediation, writes,
+tagging, parameter changes, view/sheet creation and autonomous multi-tool execution.
+No inferred cross-specialty connectivity/systems/coordination conflicts/QA/remediation.
+No arbitrary action dispatch, provider-selected child list or mutation tool.
+All twelve previous tools and closed domain rules remain unchanged; only the three
+approved snapshot-fed wrapper/core seams differ in Workbench source. No catalog,
+manifest, Dashboard, Issue Index, workflow/export or selection behavior change.
+LIVE-M3F-01..12 NOT STARTED / PENDING. Evidence/Daily Log/KC IDs and hours PENDING.
+Earlier M3E sections describe historical checkpoints; M3E closure remains intact.
+
 ## 2026-09-23 - M3E final closure audit
 
 BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.

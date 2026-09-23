@@ -1,5 +1,44 @@
 # Validation Summary
 
+## 2026-09-23 - M3F implementation validation checkpoint (not closure)
+
+BIMCODE-REVIT-AI-PANE-001 / M3F: DISCOVERY COMPLETE / IMPLEMENTATION COMPLETE /
+STATIC VALIDATION PASSED / LIVE VALIDATION PENDING /
+IMPLEMENTATION CHECKPOINT NOT YET COMMITTED / PUSHED / NOT CLOSED.
+Prior implementation verdict: M3F_IMPLEMENTED_READY_FOR_LIVE_TEST.
+This documentation task records actual preceding results, not a test-suite rerun.
+
+| Validation | Recorded implementation result |
+| --- | --- |
+| Python tests | 288 PASS:261 baseline +27 M3F |
+| Native probes | 66 PASS:10 process/dispatcher +4 M3B +48 twelve-tool +4 composite |
+| IronPython host compile | 7 PASS |
+| Sanitized AST / in-memory compile / tabnanny | 33 files PASS |
+| Native XAML/WPF/theme/Find | PASS |
+| Workbench comparison | 1472 existing functions source-identical;3 reviewed wrappers +3 exact-body cores; reconstructed1475-function AST equivalent;1478 current functions |
+| Prompt catalog | 237 unchanged |
+| Mutation/network-boundary/allowlist | PASS; exactly13 read-only AI tools |
+| Credential-pattern scan | 47 scoped non-env files; no findings, not exhaustive |
+| pip check | PASS |
+| git diff --check | PASS |
+
+Static tests cover partition combinations/profiles and reference conservation;
+empty/unsupported/unresolved fail-closed paths; sibling/all-child failures;
+stale document/lifecycle/selection/request guards; lock/context cleanup; one event/
+token and no nested execution; admission599/600/601; deadline, row/table/warning/
+Unicode/core transport bounds; strict arguments; continuation and loop rejection.
+Semantic PARTIAL differs from transport truncation. Closed specialty authority is
+preserved by source/AST comparison; live Revit parity and latency remain unverified.
+
+.env.local remains ignored/untracked, contents not read. No key found by the scoped
+implementation scan; no Authorization-header logging introduced. No secrets copied.
+Catalog/manifests and the existing implementation runtime/tests are unchanged by
+this WBSO task. No authenticated request or Revit live test performed.
+LIVE-M3F-01 through LIVE-M3F-12 all NOT STARTED / PENDING; none PASS.
+No final closure/source-control-closed claim. Git anchors and pre-existing delta:
+evidence_reference.md M3F section. Evidence/Daily Log/KC IDs and hours PENDING.
+Older M3E validation sections below are historical; M3E is already Git-closed.
+
 ## 2026-09-23 - M3E final closure audit
 
 BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.

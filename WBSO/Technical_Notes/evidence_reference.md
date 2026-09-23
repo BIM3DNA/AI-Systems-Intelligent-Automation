@@ -1,5 +1,54 @@
 # Evidence Reference
 
+## 2026-09-23 - M3F end-of-day implementation evidence checkpoint
+
+BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Summary.
+DISCOVERY COMPLETE / IMPLEMENTATION COMPLETE / STATIC VALIDATION PASSED /
+LIVE VALIDATION PENDING / IMPLEMENTATION CHECKPOINT NOT YET COMMITTED / PUSHED /
+NOT CLOSED. Evidence ID / Daily Log ID / KC ID / hours: PENDING; none allocated.
+This records the preceding implementation result, not a new runtime validation run.
+
+Git read directly at documentation-task start: main HEAD = origin/main =
+ae06fc6e5fc4cede99279b9921d2826f94a5fc75, subject
+docs(bimcode): record M3F orchestration discovery. Parent/M3E final closure:
+c281b0c85d9254072db390843b8c107713a606b1, subject
+docs(wbso): close M3E live validation. Ahead/behind0/0; dirty worktree, no staged
+files. These are verified Git checkpoints, not a committed M3F implementation.
+
+Pre-existing implementation delta: 16 files, +871/-13 including untracked files;
+13 modified tracked files, three untracked, no unrelated change identified.
+Tracked runtime: script.py; bimcode_ai_pane/{ai_tool,ai_tool_registry,panel,provider_ui}.py;
+BIMCode_Provider/{provider,tool_protocol}.py. Tracked tests:
+test_bimcode_{electrical,hvac,piping}_ai_tools.py, test_bimcode_provider_native.ps1,
+test_modelmind_headless.py (all under tests/). Tracked document: PROJECT_STATE.md.
+Untracked: AI.extension/lib/modelmind_composite.py, BIMCode_Provider/M3F.md,
+tests/test_modelmind_composite.py. This documentation task must not claim ownership
+of those existing runtime/test changes. It updates eight documentation records only.
+
+Recorded actual implementation validation: 288 Python tests PASS (261 retained
+baseline +27 M3F); 66 native probes PASS (10 process/dispatcher +4 M3B +48 existing
+twelve-tool +4 composite); seven IronPython host compiles PASS; 33 sanitized
+AST/in-memory compile/tabnanny files PASS; native XAML/WPF/theme/Find PASS.
+Workbench: 1472 source-identical existing functions, three approved wrapper
+extractions, three exact original-body cores; reconstructed AST matches1475 original
+functions, current total1478. Do not claim all1475 functions remain source-identical.
+Catalog237 unchanged; manifests unchanged; mutation/network-boundary/exact13-tool
+allowlist checks PASS; pip check and git diff --check PASS.
+Credential-pattern scan:47 scoped non-env source/docs/test files, no findings;
+not an exhaustive secret proof. No API key found in that scanned source scope,
+no Authorization-header logging introduced. .env.local ignored/untracked and not
+read; status rechecked for this documentation task, no secret contents copied.
+
+Source/test evidence: modelmind_composite.py and test_modelmind_composite.py;
+wrapper-equivalence checks in test_modelmind_headless.py; strict schemas/mappings,
+one-event/token guards and fixed continuation in existing provider/host tests.
+Full implemented contract, bounds and provenance: BIMCode_Provider/M3F.md.
+No authenticated OpenAI request or Revit live test executed by this task.
+LIVE-M3F-01..12 all NOT STARTED / PENDING; no runtime parity/PASS/closure claim.
+Uncertainties and static-only limitations: architecture_notes.md M3F section.
+Next: checkpoint audit, separately authorized implementation and WBSO commits/pushes,
+live matrix, then final closure assessment. Earlier M3E evidence remains historical.
+
 ## 2026-09-23 - M3E final closure audit
 
 BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.

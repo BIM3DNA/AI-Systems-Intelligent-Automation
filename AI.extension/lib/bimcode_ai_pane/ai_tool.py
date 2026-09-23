@@ -132,6 +132,21 @@ class Coordinator(object):
                 self.complete(provider_bridge.failure(rid, "MODELMIND_NOT_READY"), None)
                 return
             uidoc = uiapp.ActiveUIDocument
+            if turn["action"] == ACTIONS["summarize_selected_mep_elements"]:
+                from modelmind_composite import execute
+
+                def guard():
+                    return (self.turn is turn and turn["request_id"] == rid
+                            and turn["key"] == document_key(uiapp)
+                            and turn["generation"] == session.context_generation
+                            and turn["selection"] == session.selection_generation)
+
+                payload = execute(uidoc.Document, uidoc, rid, guard)
+                if payload.get("reason_code") == "STALE_CONTEXT":
+                    self.complete(provider_bridge.failure(rid, "STALE_CONTEXT"), None)
+                else:
+                    self.complete(None, payload)
+                return
             scope = resolve_headless_modelmind_specialty(uidoc.Document, uidoc)
             if not scope.get("ok"):
                 self.complete(provider_bridge.failure(rid, "MODELMIND_NOT_READY"), None)

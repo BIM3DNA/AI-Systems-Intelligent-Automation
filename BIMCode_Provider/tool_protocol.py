@@ -1,4 +1,4 @@
-"""M3E scalar continuation contract. Twelve fixed functions, one call per turn."""
+"""M3F scalar continuation contract. Thirteen fixed functions, one call per turn."""
 import json
 import re
 
@@ -16,6 +16,7 @@ ACTIONS = {
     "inspect_selected_electrical_connectors": "ELECTRICAL-RO-001-A02",
     "inspect_selected_electrical_circuit_assignment": "ELECTRICAL-RO-001-A03",
     "inspect_selected_electrical_qa_health": "ELECTRICAL-RO-001-A04",
+    "summarize_selected_mep_elements": "MEP-MULTI-RO-001-A01",
 }
 SPECIALTIES = dict((action, action.split("-", 1)[0]) for action in ACTIONS.values())
 MAX_REQUEST = 120000
@@ -71,4 +72,32 @@ def validate_request(data):
                 or result.get("specialty") != SPECIALTIES[ACTIONS[data["tool_call"]["name"]]]
                 or len(json.dumps(result, ensure_ascii=True, allow_nan=False)) > MAX_RESULT):
             raise ToolError("AI_TOOL_PROTOCOL_ERROR")
+        if data["tool_call"]["name"] == "summarize_selected_mep_elements":
+            validate_composite(result)
     return data
+
+
+def validate_composite(result):
+    """Fixed host-result contract, never a provider-controlled execution plan."""
+    order = ("PIPING", "HVAC", "ELECTRICAL")
+    children = result.get("specialties")
+    if (result.get("feature_id") != "MEP-MULTI-RO-001" or not isinstance(children, dict)
+            or set(children) != set(order)
+            or result.get("classification") not in (
+                "MEP_MULTI_SELECTION_NOT_READY", "MEP_MULTI_SELECTION_FAILED",
+                "MEP_MULTI_SELECTION_SUMMARY_OK", "MEP_MULTI_SELECTION_SUMMARY_PARTIAL")):
+        raise ToolError("AI_TOOL_PROTOCOL_ERROR")
+    evaluated = []
+    for specialty in order:
+        child = children[specialty]
+        action = specialty + "-RO-001-A01"
+        if (not isinstance(child, dict) or child.get("specialty") != specialty
+                or child.get("action_id") not in (None, action)
+                or type(child.get("evaluated")) is not bool):
+            raise ToolError("AI_TOOL_PROTOCOL_ERROR")
+        if child["evaluated"]:
+            if child.get("action_id") != action:
+                raise ToolError("AI_TOOL_PROTOCOL_ERROR")
+            evaluated.append(action)
+    if result.get("sub_actions") != evaluated:
+        raise ToolError("AI_TOOL_PROTOCOL_ERROR")

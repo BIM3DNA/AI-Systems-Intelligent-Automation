@@ -1,5 +1,35 @@
 # PROJECT STATE
 
+## 2026-09-23 - M3F mixed-specialty Summary implementation (current)
+
+BIMCODE-REVIT-AI-PANE-001 / M3F: IMPLEMENTED; STATIC VALIDATION PASSED;
+LIVE VALIDATION PENDING; NOT CLOSED. DISCOVERY COMPLETE; IMPLEMENTATION COMPLETE.
+IMPLEMENTATION CHECKPOINT NOT YET COMMITTED / PUSHED; unstaged.
+Exactly one new AI tool, summarize_selected_mep_elements -> MEP-MULTI-RO-001-A01;
+13 total tools. One provider tool/event, fixed up-to-three A01 core evaluations.
+Details, bounds, static evidence and LIVE-M3F-01..12 (all PENDING):
+[BIMCode_Provider/M3F.md](BIMCode_Provider/M3F.md).
+
+Verified implementation-start main HEAD = origin/main =
+`ae06fc6e5fc4cede99279b9921d2826f94a5fc75` (M3F discovery checkpoint), 0/0, clean.
+M3E final closure is committed/pushed at
+`c281b0c85d9254072db390843b8c107713a606b1`; earlier M3E pre-closure statements below
+describe historical audit checkpoints, not current open-package status.
+Project-local M3F end-of-day WBSO checkpoint is now prepared, not committed/pushed.
+Evidence ID / Daily Log ID / KC ID / hours: PENDING; none allocated.
+At this documentation-task start, main HEAD/origin remained at the discovery SHA,
+0/0; worktree dirty with the prior implementation: 13 modified tracked files and
+three untracked files, nothing staged; combined scope 16 files, +871/-13.
+This WBSO task changes documentation only, preserving that runtime/test delta.
+Recorded prior implementation validation: 288 Python tests, 66 native probes,
+seven IronPython compiles, 33 AST/compile/tabnanny files and native WPF/theme/Find
+PASS. 1472 original Workbench functions source-identical; three reviewed wrappers
+delegate to three source-identical extracted cores; reconstructed 1475-function
+AST unchanged. Catalog237 and manifests unchanged. No live PASS is claimed.
+Next session: implementation checkpoint audit; authorized implementation commit/
+push; separate WBSO checkpoint commit/push; LIVE-M3F-01..12; final closure audit.
+No authenticated OpenAI requests or live Revit tests; no staging/commit/push.
+
 ## 2026-09-23 - M3E final closure audit
 
 BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.

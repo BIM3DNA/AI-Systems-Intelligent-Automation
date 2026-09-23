@@ -1,5 +1,61 @@
 # Architecture Notes
 
+## 2026-09-23 - M3F fixed composite implementation checkpoint
+
+BIMCODE-REVIT-AI-PANE-001 / M3F: DISCOVERY COMPLETE / IMPLEMENTATION COMPLETE /
+STATIC VALIDATION PASSED / LIVE VALIDATION PENDING /
+IMPLEMENTATION CHECKPOINT NOT YET COMMITTED / PUSHED / NOT CLOSED.
+Current architecture: OpenAI -> summarize_selected_mep_elements -> fixed
+MEP-MULTI-RO-001-A01 -> host context validation -> existing M2 ExternalEvent ->
+one selection evaluation snapshot -> deterministic partition -> fixed A01 specialty
+cores -> composite result -> bounded projection -> existing OpenAI final response.
+
+Discovery identified two obstacles to direct recursive reuse: specialty builders
+captured the whole live UI selection, and nested public headless execution would
+conflict with the non-reentrant lock. Three existing build_data wrappers now capture
+the same snapshot as before and delegate to build_from_snapshot cores, each retaining
+the exact old body after capture. Composite obtains one lock/document context and
+passes explicit Piping/HVAC/Electrical subsets. No UI-selection mutation, nested
+ExternalEvent, recursive execute_headless_modelmind_readonly or sidecar Revit access.
+Final ID reread is an integrity guard, not a second evaluation snapshot.
+Request/document/lifecycle/selection guards discard stale facts; lock/globals restore.
+
+Fixed order: PIPING-RO-001-A01, HVAC-RO-001-A01, ELECTRICAL-RO-001-A01, present
+groups only; maximum three attempts under one provider tool/request/event token.
+Closed cores own all domain calculations. Composite only partitions, invokes,
+aggregates counts/status, preserves facts/warnings/scope and adds bounded provenance.
+No provider-controlled plan, retry, continuation tool loop or cross-specialty QA.
+
+Current scalar envelope fields (from modelmind_composite.py): ok, feature_id,
+action_id, specialty, request_id, timestamp, document_title, active_view_name,
+active_view_type, classification, reason_code, selected_reference_count,
+resolved_selected_count, supported_reference_count, supported_specialty_count,
+unsupported_reference_count, unresolved_reference_count, partial, warnings,
+warnings_total, sub_actions, transport_truncated, transport_omissions, reasons,
+timings, unsupported_scope, unresolved_scope, specialties. Document/view fields are
+display metadata; host identity/generation guards are not serialized Revit objects.
+Unavailable count fields remain null rather than invented zero counts.
+Each fixed specialty slot has specialty, present, selected_count, supported_count,
+action_id, classification, reason_code, execution_state, evaluated, warnings,
+warnings_total, result, transport_omissions; error_code is added on caught child
+failure. Scope objects have count, samples, omitted_count. Unsupported samples:
+id/category_id/category/reason; unresolved samples: id/reason.
+
+Admission600; existing child processing200; combined12 tables/40 rows; first30
+warnings/records and scope samples; <=20000 escaped JSON characters per child and
+<=80000 total. Whole optional entries omitted with disclosure; oversized core fails
+closed. Advisory2-second inter-child budget cannot interrupt a running API read.
+Timing fields distinguish snapshot processed references, child submitted_references,
+composition child_results and total supported_references. Live latency unverified.
+
+R&D uncertainties: preserving heterogeneous deterministic authority and wrapper
+equivalence; stable snapshot/partition without selection mutation; lock-safe reuse;
+one-event isolation; safe partial results; bounded combined transport; auditable
+specialty provenance; preventing provider-controlled orchestration. Static evidence
+addresses these boundaries, but Revit parity and budget practicality remain pending.
+Evidence/Daily Log/KC IDs and hours PENDING. No new runtime work in this WBSO task.
+M3E sections below are historical checkpoints; current M3F contract is M3F.md.
+
 ## 2026-09-23 - M3E final closure audit
 
 BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.

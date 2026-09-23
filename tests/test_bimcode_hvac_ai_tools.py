@@ -65,7 +65,7 @@ class RegistryProviderTests(unittest.TestCase):
         expected = dict(piping.EXPECTED, **EXPECTED)
         self.assertEqual({k: registry.ACTIONS[k] for k in expected}, expected)
         self.assertEqual({k: old.tool_protocol.ACTIONS[k] for k in expected}, expected)
-        self.assertEqual(len(old.provider.TOOLS), 12)
+        self.assertEqual(len(old.provider.TOOLS), 13)
         self.assertEqual({t['name'] for t in old.provider.TOOLS[:8]}, set(expected))
 
     def test_strict_empty_schemas(self):

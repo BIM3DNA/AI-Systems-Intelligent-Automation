@@ -1,5 +1,41 @@
 # Test Plan
 
+## 2026-09-23 - M3F implementation checkpoint / pending live plan
+
+BIMCODE-REVIT-AI-PANE-001 / M3F: DISCOVERY COMPLETE / IMPLEMENTATION COMPLETE /
+STATIC VALIDATION PASSED / LIVE VALIDATION PENDING /
+IMPLEMENTATION CHECKPOINT NOT YET COMMITTED / PUSHED / NOT CLOSED.
+All following cases NOT STARTED / PENDING; no live tests run during documentation.
+For01-10 use: Summarize the selected MEP elements.
+
+| Case | Fixture / intent | Required evidence | Status |
+| --- | --- | --- | --- |
+| LIVE-M3F-01 | Pipe only | Piping A01 parity | PENDING |
+| LIVE-M3F-02 | Rigid non-placeholder Duct only | HVAC A01 parity | PENDING |
+| LIVE-M3F-03 | Electrical DEVICE_PROFILE | Device A01 parity | PENDING |
+| LIVE-M3F-04 | Electrical EQUIPMENT_PROFILE | Equipment A01 parity | PENDING |
+| LIVE-M3F-05 | Pipe + Duct | Two correct child subsets/provenances | PENDING |
+| LIVE-M3F-06 | Pipe + Electrical | Two correct child subsets/provenances | PENDING |
+| LIVE-M3F-07 | Duct + Electrical | Two correct child subsets/provenances | PENDING |
+| LIVE-M3F-08 | Pipe + Duct + Electrical | Three A01s, exact child parity | PENDING |
+| LIVE-M3F-09 | Supported + unsupported | Explicit PARTIAL, supported evidence retained | PENDING |
+| LIVE-M3F-10 | Unsupported only, e.g. Conduit | NOT_READY, no child execution | PENDING |
+| LIVE-M3F-11 | General MEP knowledge question | No tool/provenance/model inspection | PENDING |
+| LIVE-M3F-12 | Mutation request | No mutation tool or model change | PENDING |
+
+Compare each child with the direct closed specialty A01 using manually prepared
+subsets, then restore mixed selection; runtime may never change selection. Record
+doc/view/IDs, exact counts/classifications/reasons, warnings/omissions, provenance
+and elapsed time. Verify one provider tool/host request/existing ExternalEvent,
+at most three fixed internal A01 attempts, no retry and unchanged model/view/selection.
+Supplemental empty selection, practical admission/transport bounds and advisory
+two-second-budget usability remain pending. Unsafe unresolved/stale/failure states
+are synthetic probes, not permission to corrupt a live model or pay for error tests.
+Prior static coverage/totals: validation_summary.md; detailed procedure M3F.md.
+Next: implementation audit; separately authorized implementation then WBSO commits/
+pushes; twelve live cases; final closure. No source-control action authorized here.
+Evidence/Daily Log/KC IDs and hours PENDING. M3E matrices below remain historical.
+
 ## 2026-09-23 - M3E final closure audit
 
 BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.

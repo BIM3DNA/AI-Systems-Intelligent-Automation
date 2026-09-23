@@ -75,7 +75,8 @@ print('PASS {0} native process/dispatcher probes'.format(checks))
 foreach ($filename in @('panel.py', 'provider_bridge.py', 'provider_ui.py', 'ai_tool.py', 'lifecycle.py', 'ai_tool_registry.py')) {
     [void]$engine.CreateScriptSourceFromFile((Join-Path $repo ('AI.extension/lib/bimcode_ai_pane/' + $filename))).Compile()
 }
-'PASS IronPython compilation of 6 M3A/M3B/M3C Revit-side files'
+[void]$engine.CreateScriptSourceFromFile((Join-Path $repo 'AI.extension/lib/modelmind_composite.py')).Compile()
+'PASS IronPython compilation of 7 Revit-side files'
 $engine.Execute(@'
 import json
 from bimcode_ai_pane import ai_tool
@@ -131,7 +132,7 @@ def execute_m3c(action, d, u):
     return dict(ok=True, action_id=action, specialty=action.split('-')[0], classification='TEST',
                 reason_code='COMPLETE', summary=['Count: 1'])
 ai_tool.execute_headless_modelmind_readonly = execute_m3c
-for name, action, label in TOOLS:
+for name, action, label in TOOLS[:12]:
     ai_tool.resolve_headless_modelmind_specialty = lambda d, u: dict(ok=True, specialties=[action.split('-')[0]])
     coordinator.clear()
     assert coordinator.begin(rid)
@@ -151,4 +152,27 @@ for name, action, label in TOOLS:
     assert completed[-1][0]['error']['code'] == 'AI_TOOL_LOOP_LIMIT'
     assert len(executions) == before + 1
 print('PASS 48 native M3C/M3D/M3E probes: twelve tools x envelope, execution, provenance, loop gate')
+import modelmind_composite
+def execute_composite(d, u, request_id, guard):
+    assert guard()
+    executions.append(modelmind_composite.ACTION)
+    return modelmind_composite.envelope(request_id)
+modelmind_composite.execute = execute_composite
+coordinator.clear()
+assert coordinator.begin(rid)
+response['tool_call']['name'] = 'summarize_selected_mep_elements'
+assert bridge.decode(json.dumps(response), rid, 0)['state'] == 'TOOL_REQUEST'
+before = len(executions)
+coordinator.queue(response, done)
+assert len(executions) == before
+coordinator.execute_approved(app)
+assert executions[-1] == modelmind_composite.ACTION and len(executions) == before + 1
+assert completed[-1][1]['action_id'] == modelmind_composite.ACTION
+shown['tool_provenance'] = dict(action_id=modelmind_composite.ACTION, classification='TEST', reason_code='COMPLETE')
+assert 'Selected MEP Elements Summary' in str(provider_ui.presentation(shown))
+coordinator.queue(response, done)
+coordinator.execute_approved(app)
+assert completed[-1][0]['error']['code'] == 'AI_TOOL_LOOP_LIMIT'
+assert len(executions) == before + 1
+print('PASS 4 native M3F probes: composite envelope, execution, provenance, loop gate')
 '@, $scope)

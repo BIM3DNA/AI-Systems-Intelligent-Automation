@@ -136,6 +136,13 @@ class BIMCodeAIPanel(forms.WPFPanel):
         self._ai_provenance = dict(action_id=data["action_id"],
                                    classification=data.get("classification", ""),
                                    reason_code=data.get("reason_code", ""))
+        if data["action_id"] == "MEP-MULTI-RO-001-A01":
+            self._ai_provenance["sub_actions"] = data.get("sub_actions", [])
+            self._ai_provenance["children"] = [dict(action_id=c["action_id"],
+                classification=c.get("classification"), reason_code=c.get("error_code") or c.get("reason_code"),
+                execution_state=c["execution_state"]) for c in
+                [data["specialties"][s] for s in ("PIPING", "HVAC", "ELECTRICAL")] if c["present"]]
+            self._ai_provenance["transport_truncated"] = data.get("transport_truncated", False)
         payload = dict(protocol_version=1, operation="tool_result", request_id=response["request_id"],
                        tool_call=response["tool_call"], provider_state=response["provider_state"], tool_result=data)
         active["operation"] = "tool_result"

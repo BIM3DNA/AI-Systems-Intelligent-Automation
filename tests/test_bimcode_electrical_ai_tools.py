@@ -37,10 +37,11 @@ class ProviderTests(unittest.TestCase):
 
     def test_exact_twelve_and_strict_schemas(self):
         expected = dict(piping.EXPECTED, **hvac.EXPECTED); expected.update(EXPECTED)
+        expected['summarize_selected_mep_elements'] = 'MEP-MULTI-RO-001-A01'
         self.assertEqual(registry.ACTIONS, expected)
         self.assertEqual(old.tool_protocol.ACTIONS, expected)
         self.assertEqual({t['name'] for t in old.provider.TOOLS}, set(expected))
-        self.assertEqual(len(old.provider.TOOLS), 12)
+        self.assertEqual(len(old.provider.TOOLS), 13)
         for tool in old.provider.TOOLS:
             self.assertTrue(tool['strict'])
             self.assertEqual(tool['parameters'], dict(type='object', properties={}, required=[], additionalProperties=False))

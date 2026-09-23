@@ -38,6 +38,13 @@ def presentation(result):
         budget.add(blocks, "technical", provenance["action_id"], "Action: ")
         budget.add(blocks, "technical", provenance["classification"], "Tool classification: ")
         budget.add(blocks, "technical", provenance["reason_code"], "Tool reason: ")
+        if provenance["action_id"] == "MEP-MULTI-RO-001-A01":
+            budget.add(blocks, "technical", ", ".join(provenance.get("sub_actions", [])) or "None", "Sub-actions evaluated: ")
+            for child in provenance.get("children", []):
+                budget.add(blocks, "technical", "{0}: {1} / {2} / {3}".format(child["action_id"],
+                    child["execution_state"], child["classification"], child["reason_code"]), "Child: ")
+            if provenance.get("transport_truncated"):
+                budget.add(blocks, "note", "Composite transport omissions apply.", tone="WarningBrush")
     if result["ok"]:
         budget.add(blocks, "heading", "Response")
         budget.add(blocks, "text", result["text"])

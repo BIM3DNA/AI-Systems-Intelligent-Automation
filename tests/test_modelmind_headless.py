@@ -309,6 +309,22 @@ class ProjectionAndGuardTests(unittest.TestCase):
 
 
 class RegressionTests(unittest.TestCase):
+    def reconstructed(self):
+        import copy
+        tree = copy.deepcopy(self.current)
+        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'OllamaAIChat')
+        methods = {n.name: n for n in cls.body if isinstance(n, ast.FunctionDef)}
+        for specialty in ('piping', 'hvac', 'electrical'):
+            name = '_' + specialty + '_ro_001_build_data'
+            core_name = '_' + specialty + '_ro_001_build_from_snapshot'
+            wrapper, core = methods[name], methods[core_name]
+            expected = ast.parse('def '+name+'(self, prompt, action_key):\n    snapshot = self._mep_ro_001_selection_snapshot()\n    return self.'+core_name+'(prompt, action_key, snapshot)').body[0]
+            self.assertEqual(ast.dump(wrapper), ast.dump(expected))
+            self.assertEqual([a.arg for a in core.args.args], ['self', 'prompt', 'action_key', 'snapshot'])
+            wrapper.body = wrapper.body[:1] + core.body
+            cls.body.remove(core)
+        return tree
+
     @classmethod
     def setUpClass(cls):
         cls.current = ast.parse(sanitized(SCRIPT.read_bytes()))
@@ -318,7 +334,7 @@ class RegressionTests(unittest.TestCase):
     def test_every_existing_function_ast_unchanged(self):
         def functions(tree):
             return [ast.dump(n, include_attributes=False) for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
-        self.assertEqual(functions(self.baseline), functions(self.current))
+        self.assertEqual(functions(self.baseline), functions(self.reconstructed()))
 
     def test_builders_have_no_uninitialized_instance_fields(self):
         cls = next(n for n in self.current.body if isinstance(n, ast.ClassDef) and n.name == 'OllamaAIChat')
@@ -335,7 +351,7 @@ class RegressionTests(unittest.TestCase):
                     self.assertIn(node.attr, methods, (name, node.attr))
                     self.assertIsInstance(node.ctx, ast.Load)
                     pending.append(node.attr)
-        self.assertEqual(len(visited), 102)
+        self.assertEqual(len(visited), 105)  # Three snapshot-fed cores; same closure.
 
     def test_normal_bootstrap_ast_is_baseline_when_guard_is_false(self):
         class NormalMode(ast.NodeTransformer):
@@ -370,7 +386,7 @@ class RegressionTests(unittest.TestCase):
                 return (node.body if node.test.value else node.orelse) if isinstance(node.test, ast.Constant) else node
 
         import copy
-        normal = NormalMode().visit(copy.deepcopy(self.current))
+        normal = NormalMode().visit(self.reconstructed())
         self.assertEqual(ast.dump(normal), ast.dump(self.baseline))
 
     def test_default_guard_is_explicit_and_false(self):
@@ -405,7 +421,7 @@ class RegressionTests(unittest.TestCase):
                     self.assertNotIn(node.attr, forbidden_attributes, name)
                     if isinstance(node.value, ast.Name) and node.value.id == 'self':
                         pending.append(node.attr)
-        self.assertEqual(len(visited), 119)
+        self.assertEqual(len(visited), 122)  # Three snapshot-fed cores.
 
     def test_catalog_unchanged_and_237(self):
         path = 'AI.extension/lib/prompt_catalog.json'

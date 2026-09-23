@@ -1,4 +1,4 @@
-"""Fixed M3E host allowlist. No discovery or caller-supplied action IDs."""
+"""Fixed M3F host allowlist. No discovery or caller-supplied action IDs."""
 TOOLS = (
     ("summarize_selected_pipes", "PIPING-RO-001-A01", "Selected Pipes Summary"),
     ("inspect_selected_pipe_connectors", "PIPING-RO-001-A02", "Selected Pipe Connectors"),
@@ -12,6 +12,7 @@ TOOLS = (
     ("inspect_selected_electrical_connectors", "ELECTRICAL-RO-001-A02", "Selected Electrical Connectors"),
     ("inspect_selected_electrical_circuit_assignment", "ELECTRICAL-RO-001-A03", "Selected Electrical Circuit Assignment"),
     ("inspect_selected_electrical_qa_health", "ELECTRICAL-RO-001-A04", "Selected Electrical QA Health"),
+    ("summarize_selected_mep_elements", "MEP-MULTI-RO-001-A01", "Selected MEP Elements Summary"),
 )
 ACTIONS = dict((name, action) for name, action, label in TOOLS)
 LABELS = dict((action, label) for name, action, label in TOOLS)

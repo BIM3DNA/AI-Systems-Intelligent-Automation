@@ -1,5 +1,45 @@
 # Provider Registry
 
+## 2026-09-23 - M3F end-of-day implementation checkpoint
+
+BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Summary.
+DISCOVERY COMPLETE / IMPLEMENTATION COMPLETE / STATIC VALIDATION PASSED /
+LIVE VALIDATION PENDING / IMPLEMENTATION CHECKPOINT NOT YET COMMITTED / PUSHED /
+NOT CLOSED. This WBSO checkpoint is also uncommitted/unpushed.
+Source: current host ai_tool_registry.py, provider.py and tool_protocol.py;
+implementation contract: BIMCode_Provider/M3F.md. Thirteen read-only AI tools:
+
+| Exact AI tool name | Fixed action |
+| --- | --- |
+| summarize_selected_pipes | PIPING-RO-001-A01 |
+| inspect_selected_pipe_connectors | PIPING-RO-001-A02 |
+| inspect_selected_pipe_system_assignment | PIPING-RO-001-A03 |
+| inspect_selected_pipe_qa_health | PIPING-RO-001-A04 |
+| summarize_selected_ducts | HVAC-RO-001-A01 |
+| inspect_selected_duct_connectors | HVAC-RO-001-A02 |
+| inspect_selected_duct_system_assignment | HVAC-RO-001-A03 |
+| inspect_selected_duct_qa_health | HVAC-RO-001-A04 |
+| summarize_selected_electrical_elements | ELECTRICAL-RO-001-A01 |
+| inspect_selected_electrical_connectors | ELECTRICAL-RO-001-A02 |
+| inspect_selected_electrical_circuit_assignment | ELECTRICAL-RO-001-A03 |
+| inspect_selected_electrical_qa_health | ELECTRICAL-RO-001-A04 |
+| summarize_selected_mep_elements | MEP-MULTI-RO-001-A01 |
+
+Four Piping + four HVAC + four Electrical mappings retained; one composite Summary
+added. Strict empty-object schemas: no arguments, action override or provider-selected
+sub-action list. No mutation tool, arbitrary dispatch or autonomous tool loop.
+One provider tool call, one host request, one existing M2 ExternalEvent; internal
+fan-out is at most three fixed A01 cores, not three provider tool executions.
+No recursive headless executor or nested event. Python 3 sidecar uses no Revit API.
+Initial store=True; previous_response_id/call_id/function_call_output continuation;
+final store=False, tools=[], tool_choice="none". Existing rejection guards retained.
+Only mixed Summary is newly allowed; single-specialty tools retain their behavior.
+No mixed connectors/assignment/QA, writes or provider-derived cross-specialty facts.
+Host-generated provenance preserves composite and attempted child identities.
+Evidence ID / Daily Log ID / KC ID / hours: PENDING. No live tests run here.
+Git anchors and prior validation totals: evidence_reference.md M3F checkpoint.
+M3E audit sections below are historical; Git closure is c281b0c85d9254072db390843b8c107713a606b1.
+
 ## 2026-09-23 - M3E final closure audit
 
 BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.

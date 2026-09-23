@@ -38291,6 +38291,9 @@ class OllamaAIChat(object if _MODELMIND_HEADLESS else forms.WPFWindow):
 
     def _piping_ro_001_build_data(self, prompt, action_key):
         snapshot = self._mep_ro_001_selection_snapshot()
+        return self._piping_ro_001_build_from_snapshot(prompt, action_key, snapshot)
+
+    def _piping_ro_001_build_from_snapshot(self, prompt, action_key, snapshot):
         data = self._piping_ro_001_base_data(prompt, action_key, snapshot)
         scope = self._piping_ro_001_scope(snapshot)
         data["scope"] = scope
@@ -40255,6 +40258,9 @@ class OllamaAIChat(object if _MODELMIND_HEADLESS else forms.WPFWindow):
 
     def _hvac_ro_001_build_data(self, prompt, action_key):
         snapshot = self._mep_ro_001_selection_snapshot()
+        return self._hvac_ro_001_build_from_snapshot(prompt, action_key, snapshot)
+
+    def _hvac_ro_001_build_from_snapshot(self, prompt, action_key, snapshot):
         data = self._hvac_ro_001_base_data(prompt, action_key, snapshot)
         scope = self._hvac_ro_001_scope(snapshot)
         data["scope"] = scope
@@ -42779,6 +42785,9 @@ class OllamaAIChat(object if _MODELMIND_HEADLESS else forms.WPFWindow):
 
     def _electrical_ro_001_build_data(self, prompt, action_key):
         snapshot = self._mep_ro_001_selection_snapshot()
+        return self._electrical_ro_001_build_from_snapshot(prompt, action_key, snapshot)
+
+    def _electrical_ro_001_build_from_snapshot(self, prompt, action_key, snapshot):
         data = self._electrical_ro_001_base_data(prompt, action_key, snapshot)
         if snapshot.get("selection_read_error"):
             data["classification"] = "ELECTRICAL_SELECTION_REPORT_FAILED"
