@@ -12,7 +12,7 @@ NAME = "summarize_selected_pipes"
 ACTION = ACTIONS[NAME]  # Summary compatibility; execution uses validated turn action.
 FIELDS = ("action_id", "specialty", "classification", "reason_code", "summary",
           "selected_reference_count", "resolved_selected_count", "piping_checks",
-          "hvac_checks", "generic_checks", "warnings", "warning_records", "warnings_total",
+          "hvac_checks", "electrical_checks", "generic_checks", "warnings", "warning_records", "warnings_total",
           "warning_display_truncated", "connector_rows_truncated", "next_guidance", "tables")
 
 
@@ -24,7 +24,7 @@ def compact(data, expected_action=ACTION):
         raise ValueError("unexpected result")
     result = dict((key, data[key]) for key in FIELDS if key in data)
     omitted = {}
-    for key in ("warnings", "warning_records", "piping_checks", "hvac_checks", "generic_checks"):
+    for key in ("warnings", "warning_records", "piping_checks", "hvac_checks", "electrical_checks", "generic_checks"):
         if isinstance(result.get(key), list) and len(result[key]) > 30:
             omitted[key] = len(result[key]) - 30
             result[key] = result[key][:30]

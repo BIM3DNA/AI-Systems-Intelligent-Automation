@@ -2,6 +2,18 @@
 
 Last updated: 2026-09-23
 
+## Current M3E implementation checkpoint
+
+BIMCODE-REVIT-AI-PANE-001 M3E: IMPLEMENTED / STATIC VALIDATION PASSED /
+LIVE VALIDATION PENDING / NOT CLOSED. Working-tree implementation above the
+verified M3D closure `4cae32f6ffdcbe161cea7e166417926a31752051`.
+Exactly 12 read-only AI tools: four Piping, four HVAC, four Electrical; fixed
+ELECTRICAL-RO-001-A01..A04 mappings and unchanged closed Electrical scope/QA.
+Existing ExternalEvent/headless execution and one-execution guard retained.
+LIVE-M3E-01 through LIVE-M3E-10 are PENDING; see `BIMCode_Provider/M3E.md`.
+No M3E commit/push or full project-local WBSO update performed.
+Historical milestone statements below retain their checkpoint-specific meaning.
+
 Repository:
 C:\00_WORKS\DEVELOPMENT\AI
 

@@ -60,7 +60,7 @@ class RegistryProviderTests(unittest.TestCase):
     def test_exact_registry_and_schemas(self):
         self.assertEqual({k: v for k, v in registry.ACTIONS.items() if k in EXPECTED}, EXPECTED)
         self.assertEqual({k: v for k, v in old.tool_protocol.ACTIONS.items() if k in EXPECTED}, EXPECTED)
-        self.assertEqual(len(old.provider.TOOLS), 8)
+        self.assertEqual(len(old.provider.TOOLS), 12)
         self.assertEqual({t['name'] for t in old.provider.TOOLS[:4]}, set(EXPECTED))
         descriptions = ('summary', 'connector report', 'system-assignment report', 'QA-health report')
         for tool, report in zip(old.provider.TOOLS, descriptions):

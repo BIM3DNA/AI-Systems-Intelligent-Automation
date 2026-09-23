@@ -9,7 +9,7 @@ TIMEOUT_MS = 75000
 MAX_OUTPUT = 100000
 TEXT_TYPES = (str, type(u""))
 ERRORS = {
-    "AI_TOOL_NOT_ALLOWED": "Requested AI tool is unavailable for this selection. Select a single supported specialty: rigid pipes or non-placeholder ducts.",
+    "AI_TOOL_NOT_ALLOWED": "Requested AI tool is unavailable for this selection. Select a single supported specialty: rigid pipes, non-placeholder ducts, or supported Lighting Fixtures / Electrical Fixtures / Electrical Equipment.",
     "AI_TOOL_ARGUMENTS_INVALID": "The approved tool accepts no arguments.",
     "AI_TOOL_PROTOCOL_ERROR": "Invalid AI tool exchange.",
     "AI_TOOL_LOOP_LIMIT": "Only one tool call is allowed per request.",

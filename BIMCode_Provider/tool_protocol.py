@@ -1,4 +1,4 @@
-"""M3D scalar continuation contract. Eight fixed functions, one call per turn."""
+"""M3E scalar continuation contract. Twelve fixed functions, one call per turn."""
 import json
 import re
 
@@ -12,6 +12,10 @@ ACTIONS = {
     "inspect_selected_duct_connectors": "HVAC-RO-001-A02",
     "inspect_selected_duct_system_assignment": "HVAC-RO-001-A03",
     "inspect_selected_duct_qa_health": "HVAC-RO-001-A04",
+    "summarize_selected_electrical_elements": "ELECTRICAL-RO-001-A01",
+    "inspect_selected_electrical_connectors": "ELECTRICAL-RO-001-A02",
+    "inspect_selected_electrical_circuit_assignment": "ELECTRICAL-RO-001-A03",
+    "inspect_selected_electrical_qa_health": "ELECTRICAL-RO-001-A04",
 }
 SPECIALTIES = dict((action, action.split("-", 1)[0]) for action in ACTIONS.values())
 MAX_REQUEST = 120000

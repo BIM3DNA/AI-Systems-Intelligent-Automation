@@ -150,5 +150,5 @@ for name, action, label in TOOLS:
     coordinator.execute_approved(app)
     assert completed[-1][0]['error']['code'] == 'AI_TOOL_LOOP_LIMIT'
     assert len(executions) == before + 1
-print('PASS 32 native M3C/M3D probes: eight tools x envelope, execution, provenance, loop gate')
+print('PASS 48 native M3C/M3D/M3E probes: twelve tools x envelope, execution, provenance, loop gate')
 '@, $scope)

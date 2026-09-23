@@ -122,13 +122,13 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBox x:Name="MessageInput" MinHeight="28" MaxLength="2000" Padding="6,3"
-                     VerticalContentAlignment="Center" ToolTip="OpenAI text or one read-only selected-pipe or rigid-duct report: Summary, Connectors, Assignment, or QA Health. Select a single supported specialty. Bounded tool data is sent to OpenAI. Initial AI turn is stored for response-ID continuation. No model changes."/>
+                     VerticalContentAlignment="Center" ToolTip="OpenAI text or one read-only selected-pipe, rigid-duct or supported Electrical fixture/equipment report: Summary, Connectors, Assignment, or QA Health. Select a single supported specialty. Bounded tool data is sent to OpenAI. Initial AI turn is stored for response-ID continuation. No model changes."/>
             <Button x:Name="SendButton" Grid.Column="1" Content="Send" IsEnabled="False" Margin="6,0,0,0"/>
         </Grid>
         <WrapPanel Grid.Row="4">
             <TextBlock Text="Status:" FontWeight="SemiBold" Margin="0,0,5,0"/>
             <TextBlock x:Name="StatusText" Text="Ready" Margin="0,0,10,0"/>
-            <TextBlock Text="Read-only | AI Piping + HVAC tools" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
+            <TextBlock Text="Read-only | AI Piping + HVAC + Electrical tools" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
             <Button x:Name="ProviderCheckButton" Content="Check AI config" Padding="4,2" Margin="6,0,0,0"
                     ToolTip="Check local provider configuration only; no OpenAI request."/>
         </WrapPanel>

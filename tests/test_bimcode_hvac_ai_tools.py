@@ -63,10 +63,10 @@ class RegistryProviderTests(unittest.TestCase):
 
     def test_exact_eight_static_tools(self):
         expected = dict(piping.EXPECTED, **EXPECTED)
-        self.assertEqual(registry.ACTIONS, expected)
-        self.assertEqual(old.tool_protocol.ACTIONS, expected)
-        self.assertEqual(len(old.provider.TOOLS), 8)
-        self.assertEqual({t['name'] for t in old.provider.TOOLS}, set(expected))
+        self.assertEqual({k: registry.ACTIONS[k] for k in expected}, expected)
+        self.assertEqual({k: old.tool_protocol.ACTIONS[k] for k in expected}, expected)
+        self.assertEqual(len(old.provider.TOOLS), 12)
+        self.assertEqual({t['name'] for t in old.provider.TOOLS[:8]}, set(expected))
 
     def test_strict_empty_schemas(self):
         for tool in old.provider.TOOLS:
@@ -222,7 +222,7 @@ class ProjectionTests(unittest.TestCase):
             with self.assertRaises(ValueError): old.ai_tool.compact(value, action)
 
     def test_hvac_provenance(self):
-        for name, action, label in registry.TOOLS[4:]:
+        for name, action, label in registry.TOOLS[4:8]:
             result = old.protocol.success(old.RID, 'test-model', 'Explanation')
             value = result_for(name)
             result['tool_provenance'] = {k: value[k] for k in ('action_id', 'classification', 'reason_code')}
