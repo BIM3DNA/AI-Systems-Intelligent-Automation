@@ -1,5 +1,117 @@
 # Evidence Reference
 
+## 2026-09-23 - M3E final closure audit
+
+BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.
+
+- IMPLEMENTED
+- STATIC VALIDATION PASSED
+- LIVE VALIDATION PASSED
+- IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED
+- PROJECT-LOCAL WBSO CHECKPOINT COMMITTED / PUSHED
+- READY FOR FINAL CLOSURE COMMIT
+- NOT YET SOURCE-CONTROL CLOSED
+
+Verdict: M3E_READY_FOR_FINAL_CLOSURE_COMMIT. Required LIVE-M3E-01 through
+LIVE-M3E-10 all PASS, based on user-supplied live evidence; no live Revit test or
+authenticated OpenAI request repeated. No package-introduced runtime defect
+identified. Earlier pending/pre-commit sections below are historical and superseded.
+
+Git-verified implementation: `ee2b8346dddce8e7532ab7c0adc244947eeaf719`,
+subject `feat(bimcode): add read-only Electrical AI tools`.
+WBSO checkpoint / audit-start HEAD: `f7fde73ca95b5b316f410ff5fee75aa2b3349b8a`,
+subject `docs(wbso): record M3E implementation checkpoint`, parent the implementation.
+At audit start: main HEAD = origin/main = live remote main at WBSO SHA, 0/0,
+clean; status --short empty, staged/modified/untracked paths none.
+No runtime/test changes since implementation; this audit changes documentation only.
+Final documentation awaits review/commit/push; no final source-control closure claim.
+Evidence ID / Daily Log ID / KC ID / hours: PENDING; none allocated.
+
+| Case | User-supplied live result | Status |
+| --- | --- | --- |
+| LIVE-M3E-01 | Electrical Fixture356066, DEVICE_PROFILE, A01 SUMMARY_OK / COMPLETE, zero systems, DEVICE_UNASSIGNED_REVIEW; AI parity | PASS |
+| LIVE-M3E-02 | Same element, A02 CONNECTOR_REPORT_OK / COMPLETE; one End/DomainElectrical/PHYSICAL_ELECTRICAL connector; no references; AI parity | PASS |
+| LIVE-M3E-03 | Same element, A03 CIRCUIT_ASSIGNMENT_OK / COMPLETE; zero assignment rows, no circuit/panel; AI parity | PASS |
+| LIVE-M3E-04 | Same element, A04 ELECTRICAL_QA_HEALTH_YELLOW / COMPLETE; only QA-003 issue1, partial0; AI parity | PASS |
+| LIVE-M3E-05 | Equipment354806, P109, EQUIPMENT_PROFILE, A01 SUMMARY_OK / COMPLETE; zero systems, EQUIPMENT_DISTRIBUTION_EMPTY_REVIEW; AI parity | PASS |
+| LIVE-M3E-06 | General panelboard question answered directly; no tool/provenance/action or ModelMind execution | PASS |
+| LIVE-M3E-07 | Conduit rejected FAILED / AI_TOOL_NOT_ALLOWED; no Electrical execution or Piping/HVAC misrouting | PASS |
+| LIVE-M3E-08 | Pipe + Electrical Equipment: single-specialty clarification; no execution or chain | PASS |
+| LIVE-M3E-09 | Duct + Electrical Equipment: single-specialty clarification; no execution or chain | PASS |
+| LIVE-M3E-10 | Pipe + Duct + Electrical: reduce mixed selection; no execution or autonomous chain | PASS |
+
+Summary/connector/assignment classification abbreviations above retain the
+ELECTRICAL_ prefix; exact evidence is in WBSO/Technical_Notes/evidence_reference.md.
+
+### Supplied live evidence (not independently rerun)
+
+LIVE-M3E-01: Element356066, Electrical Fixtures, Duplex Receptacle : Standard,
+DEVICE_PROFILE. Direct ELECTRICAL-RO-001-A01 / ELECTRICAL_SELECTION_SUMMARY_OK /
+COMPLETE. Supported1/device1; MEPModel, ConnectorManager and ElectricalSystems
+AVAILABLE; systems0; DEVICE_UNASSIGNED_REVIEW. No circuits, panels, relationships,
+voltage/load/PF/poles values or warnings. summarize_selected_electrical_elements
+mapped to A01; deterministic parity PASS. Initial pre-restart AI_TOOL_NOT_ALLOWED:
+RUNTIME RELOAD / STALE LOADED AI TOOL REGISTRY; not a confirmed M3E defect.
+
+LIVE-M3E-02: Same356066; ELECTRICAL-RO-001-A02 / ELECTRICAL_CONNECTOR_REPORT_OK /
+COMPLETE. Connectors analyzed1; End, DomainElectrical, PHYSICAL_ELECTRICAL,
+PHYSICAL, shape Invalid. Origin AVAILABLE (3.682343, -20.793191, 20.560379);
+direction AVAILABLE (0.000000, -0.606720, 0.794916); system type PowerCircuit.
+AllRefs0; no circuit/wire/other owners; reciprocal NO_REFERENCES; read AVAILABLE.
+No connector-row truncation or warnings. Open-connector/count QA both false.
+inspect_selected_electrical_connectors -> A02; deterministic parity PASS.
+
+LIVE-M3E-03: Same356066; ELECTRICAL-RO-001-A03 / ELECTRICAL_CIRCUIT_ASSIGNMENT_OK /
+COMPLETE. DEVICE_PROFILE, ElectricalSystems AVAILABLE, DEVICE_UNASSIGNED_REVIEW;
+zero authoritative assignment rows, no circuit number/panel/warnings.
+inspect_selected_electrical_circuit_assignment -> A03; deterministic parity PASS.
+
+LIVE-M3E-04: Same356066; ELECTRICAL-RO-001-A04 / ELECTRICAL_QA_HEALTH_YELLOW /
+COMPLETE. Selected1, supported processed1, electrical checks11, issues1, partial0,
+no warnings or generic QA issue/partial reads/model changes.
+Only ELECTRICAL-QA-003 Missing device circuit assignment: affected356066,
+issues1, ISSUES_FOUND. QA-004/005/006/007/008/009/010 NOT_APPLICABLE; QA-011 PASS.
+inspect_selected_electrical_qa_health -> A04; deterministic parity PASS.
+
+LIVE-M3E-05: Element354806, Electrical Equipment, Lighting and Appliance Panelboard
+- 208V MCB, Type225 A, nameP109. ELECTRICAL-RO-001-A01 /
+ELECTRICAL_SELECTION_SUMMARY_OK / COMPLETE. EQUIPMENT_PROFILE1/device0,
+SUPPORTED_ELECTRICAL_EQUIPMENT; MEPModel/ConnectorManager/ElectricalSystems AVAILABLE.
+Systems0, EQUIPMENT_DISTRIBUTION_EMPTY_REVIEW, LOAD0/BASE_EQUIPMENT0; no circuits,
+panels, relationships, voltage/load/PF/poles or warnings.
+summarize_selected_electrical_elements -> A01; parity and equipment semantics PASS.
+Earlier receptacle-based attempt was INVALID TEST SETUP, not a failure; the
+Electrical Equipment fixture above is the authoritative case05 result.
+
+LIVE-M3E-06: "What is the purpose of an electrical panelboard in a building?"
+Direct OpenAI answer; no Tool used field, Electrical/Piping/HVAC action or
+ModelMind execution. PASS.
+
+LIVE-M3E-07: Conduit; "Summarize the selected electrical element."
+FAILED / AI_TOOL_NOT_ALLOWED, with supported-scope message listing rigid pipes,
+non-placeholder ducts, Lighting Fixtures, Electrical Fixtures and Electrical
+Equipment. No Electrical action or Piping/HVAC misrouting. Correct fail-closed PASS.
+
+LIVE-M3E-08/09/10: "Summarize the selected MEP elements."
+08 selected supported Pipe + Electrical Equipment; 09 supported Duct + Electrical
+Equipment; 10 supported Pipe + Duct + Electrical element. Direct OpenAI responses
+requested one supported specialty at a time / reduced mixed selection. No relevant
+Piping/HVAC/Electrical or ModelMind execution, multi-tool chain or autonomous
+three-specialty chain. Each PASS.
+Document/view names and test timestamps were not supplied; none inferred.
+
+Final static rerun: 261 Python tests PASS; 62 native probes PASS
+(10 process/dispatcher + 4 M3B + 48 twelve-tool); six IronPython host compiles PASS;
+31 AST/in-memory compile/tabnanny files PASS; native XAML/WPF/theme/Find PASS.
+1475 baseline Workbench functions source-identical; catalog237 unchanged.
+Mutation/network-boundary/exact twelve-tool allowlist review PASS; credential-pattern
+scan of 111 non-env tracked source/document files found no keys (not an exhaustive
+secret proof). No Authorization-header logging found; .env.local ignored/untracked
+and not read. pip check and git diff --check PASS. No secrets copied to records.
+
+Proposed subject: `docs(wbso): close M3E live validation`. No staging/commit/push.
+
+
 ## 2026-09-23 - M3E pushed implementation / project-local WBSO checkpoint
 
 BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.

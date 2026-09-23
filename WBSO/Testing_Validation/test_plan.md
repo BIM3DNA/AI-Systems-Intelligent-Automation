@@ -1,5 +1,55 @@
 # Test Plan
 
+## 2026-09-23 - M3E final closure audit
+
+BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.
+
+- IMPLEMENTED
+- STATIC VALIDATION PASSED
+- LIVE VALIDATION PASSED
+- IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED
+- PROJECT-LOCAL WBSO CHECKPOINT COMMITTED / PUSHED
+- READY FOR FINAL CLOSURE COMMIT
+- NOT YET SOURCE-CONTROL CLOSED
+
+Verdict: M3E_READY_FOR_FINAL_CLOSURE_COMMIT. Required LIVE-M3E-01 through
+LIVE-M3E-10 all PASS, based on user-supplied live evidence; no live Revit test or
+authenticated OpenAI request repeated. No package-introduced runtime defect
+identified. Earlier pending/pre-commit sections below are historical and superseded.
+
+Git-verified implementation: `ee2b8346dddce8e7532ab7c0adc244947eeaf719`,
+subject `feat(bimcode): add read-only Electrical AI tools`.
+WBSO checkpoint / audit-start HEAD: `f7fde73ca95b5b316f410ff5fee75aa2b3349b8a`,
+subject `docs(wbso): record M3E implementation checkpoint`, parent the implementation.
+At audit start: main HEAD = origin/main = live remote main at WBSO SHA, 0/0,
+clean; status --short empty, staged/modified/untracked paths none.
+No runtime/test changes since implementation; this audit changes documentation only.
+Final documentation awaits review/commit/push; no final source-control closure claim.
+Evidence ID / Daily Log ID / KC ID / hours: PENDING; none allocated.
+
+| Case | User-supplied live result | Status |
+| --- | --- | --- |
+| LIVE-M3E-01 | Electrical Fixture356066, DEVICE_PROFILE, A01 SUMMARY_OK / COMPLETE, zero systems, DEVICE_UNASSIGNED_REVIEW; AI parity | PASS |
+| LIVE-M3E-02 | Same element, A02 CONNECTOR_REPORT_OK / COMPLETE; one End/DomainElectrical/PHYSICAL_ELECTRICAL connector; no references; AI parity | PASS |
+| LIVE-M3E-03 | Same element, A03 CIRCUIT_ASSIGNMENT_OK / COMPLETE; zero assignment rows, no circuit/panel; AI parity | PASS |
+| LIVE-M3E-04 | Same element, A04 ELECTRICAL_QA_HEALTH_YELLOW / COMPLETE; only QA-003 issue1, partial0; AI parity | PASS |
+| LIVE-M3E-05 | Equipment354806, P109, EQUIPMENT_PROFILE, A01 SUMMARY_OK / COMPLETE; zero systems, EQUIPMENT_DISTRIBUTION_EMPTY_REVIEW; AI parity | PASS |
+| LIVE-M3E-06 | General panelboard question answered directly; no tool/provenance/action or ModelMind execution | PASS |
+| LIVE-M3E-07 | Conduit rejected FAILED / AI_TOOL_NOT_ALLOWED; no Electrical execution or Piping/HVAC misrouting | PASS |
+| LIVE-M3E-08 | Pipe + Electrical Equipment: single-specialty clarification; no execution or chain | PASS |
+| LIVE-M3E-09 | Duct + Electrical Equipment: single-specialty clarification; no execution or chain | PASS |
+| LIVE-M3E-10 | Pipe + Duct + Electrical: reduce mixed selection; no execution or autonomous chain | PASS |
+
+Summary/connector/assignment classification abbreviations above retain the
+ELECTRICAL_ prefix; exact evidence is in WBSO/Technical_Notes/evidence_reference.md.
+
+Required matrix complete. Initial stale loaded registry and invalid case05 setup
+are documented in evidence_reference.md, not counted as runtime defects.
+Earlier pending matrix below is historical; no live test repeated by this audit.
+
+Proposed subject: `docs(wbso): close M3E live validation`. No staging/commit/push.
+
+
 ## 2026-09-23 - M3E pushed implementation / project-local WBSO checkpoint
 
 BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.
