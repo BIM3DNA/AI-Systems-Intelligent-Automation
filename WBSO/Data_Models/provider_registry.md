@@ -1,5 +1,66 @@
 # Provider Registry
 
+## 2026-09-23 - M3D final closure audit
+
+Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
+
+- IMPLEMENTED
+- STATIC VALIDATION PASSED
+- LIVE VALIDATION PASSED
+- IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED
+- PROJECT-LOCAL WBSO CHECKPOINT COMMITTED / PUSHED
+- PARTIAL LIVE-VALIDATION CHECKPOINT COMMITTED / PUSHED
+- READY FOR FINAL CLOSURE COMMIT
+- NOT YET SOURCE-CONTROL CLOSED
+
+M3D_READY_FOR_FINAL_CLOSURE_COMMIT. All seven required live cases PASS, supplied
+by the user; no authenticated OpenAI request or live Revit test repeated here.
+No package-introduced runtime defect identified. Earlier pending/partial/pre-commit
+sections below are historical and superseded. Final documentation is not committed
+or pushed; no final source-control closure is claimed.
+
+Git-verified anchors:
+- Implementation: `433a3c36540e4ae1637ce2740e2447331ae11b54`,
+  `feat(bimcode): add read-only HVAC AI tools`.
+- WBSO: `c70a21b070d611f18019ba331b10eeccbb414dff`,
+  `docs(wbso): record M3D implementation checkpoint`.
+- Partial-live / audit-start HEAD: `aa812925c9d1e5e00bd7be74495212e52763a677`,
+  `docs(wbso): record M3D partial live validation`, parent the WBSO SHA above.
+
+At audit start: main HEAD = origin/main = live remote at partial-live SHA; 0/0,
+clean, status --short empty, no staged/modified/untracked paths. No runtime/test
+changes since implementation. This audit changes documentation only.
+
+| Tool | Fixed action |
+| --- | --- |
+| summarize_selected_pipes | PIPING-RO-001-A01 |
+| inspect_selected_pipe_connectors | PIPING-RO-001-A02 |
+| inspect_selected_pipe_system_assignment | PIPING-RO-001-A03 |
+| inspect_selected_pipe_qa_health | PIPING-RO-001-A04 |
+| summarize_selected_ducts | HVAC-RO-001-A01 |
+| inspect_selected_duct_connectors | HVAC-RO-001-A02 |
+| inspect_selected_duct_system_assignment | HVAC-RO-001-A03 |
+| inspect_selected_duct_qa_health | HVAC-RO-001-A04 |
+
+Exactly eight fixed strict empty-object tools remain: four Piping + four HVAC.
+No caller action ID, Electrical/mutation tool, generic command execution, autonomous
+multi-tool loop, AutoCAD or ScanAI. Maximum one execution; unknown/malformed/nonempty/
+multiple/second calls fail closed. Existing M2 ExternalEvent and
+execute_headless_modelmind_readonly remain the execution boundary; Python3 sidecar
+is Revit-API-free. Document/lifecycle/selection/request guards remain active.
+Initial store=True; previous_response_id/call_id/function_call_output; final
+store=False, tools=[], tool_choice=none. No local conversation database.
+
+No HVAC recomputation: geometry, shape/dimensions/area/volume, slope/vertical state,
+assignment, topology/type/flow, insulation/lining, QA classifications/counts/warnings
+remain deterministic ModelMind outputs. Projection only bounds transport with
+explicit omissions. HVAC-QA-009 remains abnormal physical End count; valid Curve/tap
+connectors do not cause false abnormal-End issues. No independent Curve/tap live
+retest is claimed. Initial pre-restart AI_TOOL_NOT_ALLOWED resolved on full Revit
+restart: stale loaded registry/runtime reload condition, not a confirmed M3D defect.
+
+All LIVE-M3D-01 through LIVE-M3D-07 PASS; details in evidence_reference.md.
+
 ## 2026-09-21 - M3D partial live-validation checkpoint
 
 BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.

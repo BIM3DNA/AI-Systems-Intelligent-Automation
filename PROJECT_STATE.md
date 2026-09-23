@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last updated: 2026-09-21
+Last updated: 2026-09-23
 
 Repository:
 C:\00_WORKS\DEVELOPMENT\AI
@@ -46,6 +46,59 @@ The authoritative project state is:
 5. verified runtime test evidence
 
 # 2. CURRENT MODELMIND PACKAGE STATUS
+
+## 2026-09-23 - M3D final closure audit
+
+Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
+
+- IMPLEMENTED
+- STATIC VALIDATION PASSED
+- LIVE VALIDATION PASSED
+- IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED
+- PROJECT-LOCAL WBSO CHECKPOINT COMMITTED / PUSHED
+- PARTIAL LIVE-VALIDATION CHECKPOINT COMMITTED / PUSHED
+- READY FOR FINAL CLOSURE COMMIT
+- NOT YET SOURCE-CONTROL CLOSED
+
+M3D_READY_FOR_FINAL_CLOSURE_COMMIT. All seven required live cases PASS, supplied
+by the user; no authenticated OpenAI request or live Revit test repeated here.
+No package-introduced runtime defect identified. Earlier pending/partial/pre-commit
+sections below are historical and superseded. Final documentation is not committed
+or pushed; no final source-control closure is claimed.
+
+Git-verified anchors:
+- Implementation: `433a3c36540e4ae1637ce2740e2447331ae11b54`,
+  `feat(bimcode): add read-only HVAC AI tools`.
+- WBSO: `c70a21b070d611f18019ba331b10eeccbb414dff`,
+  `docs(wbso): record M3D implementation checkpoint`.
+- Partial-live / audit-start HEAD: `aa812925c9d1e5e00bd7be74495212e52763a677`,
+  `docs(wbso): record M3D partial live validation`, parent the WBSO SHA above.
+
+At audit start: main HEAD = origin/main = live remote at partial-live SHA; 0/0,
+clean, status --short empty, no staged/modified/untracked paths. No runtime/test
+changes since implementation. This audit changes documentation only.
+
+| Case | Supplied live evidence | Result |
+| --- | --- | --- |
+| LIVE-M3D-01 | Duct353895, Project2/{3D}; A01 HVAC_SELECTION_SUMMARY_OK / COMPLETE; Summary parity, explicit bounded omissions | PASS |
+| LIVE-M3D-02 | Same Duct; A02 HVAC_CONNECTOR_REPORT_OK / COMPLETE; raw/physical/End2, non-End0, unconnected2, abnormal-End0; exact parity | PASS |
+| LIVE-M3D-03 | A03 HVAC_SYSTEM_ASSIGNMENT_OK / COMPLETE; ASSIGNED, Mechanical Supply Air1, Supply Air, type132467, system353896, CONSISTENT | PASS |
+| LIVE-M3D-04 | A04 HVAC_QA_HEALTH_YELLOW / COMPLETE; 12 HVAC + 12 generic checks; issues3, partial0; SEL-QA-011=1, HVAC-QA-008=2, HVAC-QA-009=0 | PASS |
+| LIVE-M3D-05 | Supply-air purpose question answered directly; no provenance/tool, action, ModelMind execution or model inspection | PASS |
+| LIVE-M3D-06 | Electrical Fixture connector request declined with capability explanation; no Piping/HVAC/Electrical action or ModelMind execution | PASS |
+| LIVE-M3D-07 | Pipe+Duct request prompted single-specialty clarification; no provenance, Piping/HVAC/ModelMind execution or dual-tool chain | PASS |
+
+Final rerun 2026-09-23: 251 Python tests PASS; 46 native probes PASS
+(10 process/dispatcher + 4 M3B + 32 eight-tool); six IronPython host compiles PASS;
+30 AST/in-memory compile/tabnanny files PASS; native XAML/WPF/theme/Find PASS.
+1475 existing Workbench functions source-identical; catalog237 unchanged.
+Mutation/network-boundary/exact eight-tool allowlist scans PASS. Credential-pattern
+scan: 109 tracked text files, zero findings; previous 107 excluded the then-untracked
+M3D document/test file. Pattern scan is not an exhaustive secret proof. No provider
+Authorization-header logging; .env.local ignored/untracked and not read. No secret
+copied to documentation. pip check and git diff --check PASS.
+Evidence ID / Daily Log ID / KC ID / hours: PENDING; none allocated.
+Proposed subject: `docs(wbso): close M3D live validation`. No staging/commit/push.
 
 ## 2026-09-21 - M3D partial live-validation checkpoint
 

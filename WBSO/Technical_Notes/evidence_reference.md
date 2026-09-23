@@ -1,5 +1,122 @@
 # Evidence Reference
 
+## 2026-09-23 - M3D final closure audit
+
+Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
+
+- IMPLEMENTED
+- STATIC VALIDATION PASSED
+- LIVE VALIDATION PASSED
+- IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED
+- PROJECT-LOCAL WBSO CHECKPOINT COMMITTED / PUSHED
+- PARTIAL LIVE-VALIDATION CHECKPOINT COMMITTED / PUSHED
+- READY FOR FINAL CLOSURE COMMIT
+- NOT YET SOURCE-CONTROL CLOSED
+
+M3D_READY_FOR_FINAL_CLOSURE_COMMIT. All seven required live cases PASS, supplied
+by the user; no authenticated OpenAI request or live Revit test repeated here.
+No package-introduced runtime defect identified. Earlier pending/partial/pre-commit
+sections below are historical and superseded. Final documentation is not committed
+or pushed; no final source-control closure is claimed.
+
+Git-verified anchors:
+- Implementation: `433a3c36540e4ae1637ce2740e2447331ae11b54`,
+  `feat(bimcode): add read-only HVAC AI tools`.
+- WBSO: `c70a21b070d611f18019ba331b10eeccbb414dff`,
+  `docs(wbso): record M3D implementation checkpoint`.
+- Partial-live / audit-start HEAD: `aa812925c9d1e5e00bd7be74495212e52763a677`,
+  `docs(wbso): record M3D partial live validation`, parent the WBSO SHA above.
+
+At audit start: main HEAD = origin/main = live remote at partial-live SHA; 0/0,
+clean, status --short empty, no staged/modified/untracked paths. No runtime/test
+changes since implementation. This audit changes documentation only.
+
+| Case | Supplied live evidence | Result |
+| --- | --- | --- |
+| LIVE-M3D-01 | Duct353895, Project2/{3D}; A01 HVAC_SELECTION_SUMMARY_OK / COMPLETE; Summary parity, explicit bounded omissions | PASS |
+| LIVE-M3D-02 | Same Duct; A02 HVAC_CONNECTOR_REPORT_OK / COMPLETE; raw/physical/End2, non-End0, unconnected2, abnormal-End0; exact parity | PASS |
+| LIVE-M3D-03 | A03 HVAC_SYSTEM_ASSIGNMENT_OK / COMPLETE; ASSIGNED, Mechanical Supply Air1, Supply Air, type132467, system353896, CONSISTENT | PASS |
+| LIVE-M3D-04 | A04 HVAC_QA_HEALTH_YELLOW / COMPLETE; 12 HVAC + 12 generic checks; issues3, partial0; SEL-QA-011=1, HVAC-QA-008=2, HVAC-QA-009=0 | PASS |
+| LIVE-M3D-05 | Supply-air purpose question answered directly; no provenance/tool, action, ModelMind execution or model inspection | PASS |
+| LIVE-M3D-06 | Electrical Fixture connector request declined with capability explanation; no Piping/HVAC/Electrical action or ModelMind execution | PASS |
+| LIVE-M3D-07 | Pipe+Duct request prompted single-specialty clarification; no provenance, Piping/HVAC/ModelMind execution or dual-tool chain | PASS |
+
+### Supplied parity details
+
+LIVE-M3D-01: summarize_selected_ducts -> HVAC-RO-001-A01. Duct353895,
+Project2 / {3D}, Oval Duct / Default, OVAL304.8 x304.8mm, diameter unavailable;
+16000.0mm / 16.000m / 52.493ft, slope0.000%, start/end elevation6743.2mm,
+Level2, Mechanical Supply Air1, insulation/lining NONE, Workset1 [0]. No material
+fact drift; explicit omission metadata. Prior detailed record retains six omitted
+selection-scope rows and zero omitted duct-record rows. Pre-restart failure is
+not a confirmed implementation defect; restart loaded the new registry.
+
+LIVE-M3D-02: inspect_selected_duct_connectors -> HVAC-RO-001-A02. Raw2,
+physicalHVAC2, End2, non-End0, reciprocal-connected0, unconnected2, unreadable0,
+abnormal-End-count ducts0; OVAL304.8 x304.8mm. Origins/directions exactly preserved
+(full coordinates retained in earlier evidence); Bidirectional, no connected
+owners, warnings or truncation. No independent Curve/tap fixture retest.
+
+LIVE-M3D-03: inspect_selected_duct_system_assignment -> HVAC-RO-001-A03.
+Duct353895 ASSIGNED; Mechanical Supply Air1; classification Supply Air;
+system type ID132467; MEP system ID353896; CONSISTENT; contradictions none,
+warnings none, complete read. Bounded transport omission explicitly reported;
+count not supplied and not invented. Deterministic parity PASS.
+
+LIVE-M3D-04: inspect_selected_duct_qa_health -> HVAC-RO-001-A04;
+HVAC_QA_HEALTH_YELLOW / COMPLETE. Selected references1, supported processed1,
+12 stable HVAC checks, 12 reused generic checks, deterministic issues3, partial0.
+SEL-QA-011 Missing or blank Mark: one issue, affected Duct353895.
+HVAC-QA-008 Unconnected physical connector: two issues, affected Duct353895.
+HVAC-QA-009 PASS, issues0. All other applicable HVAC checks passed.
+No read failures, warnings, transport omissions or model changes. Three issues
+are not three distinct elements; YELLOW is not healthy/GREEN. Parity PASS.
+
+LIVE-M3D-05: "What is the purpose of a supply air duct system?" Direct OpenAI
+answer; no Tool used field, HVAC/Piping action, ModelMind execution or model-specific
+inspection. PASS.
+
+LIVE-M3D-06: one supported Electrical Fixture. "Check the connectors for the
+selected electrical element." Response explained Electrical connector inspection
+is unavailable; current tools support Pipes and rigid non-placeholder Ducts only.
+No Tool used field, Piping/HVAC/Electrical action or ModelMind execution. PASS.
+
+LIVE-M3D-07: supported Pipe + rigid non-placeholder Duct. "Summarize the selected
+MEP elements." Response asked whether pipes/ducts/another MEP type were selected,
+explained one specialty at a time and selecting just one if both were selected.
+No Tool used field, Piping/HVAC execution, dual-tool chain or ModelMind execution.
+PASS. This proves live clarification/refusal, not a forced host-rejection path;
+that path remains statically covered.
+
+Exactly eight fixed strict empty-object tools remain: four Piping + four HVAC.
+No caller action ID, Electrical/mutation tool, generic command execution, autonomous
+multi-tool loop, AutoCAD or ScanAI. Maximum one execution; unknown/malformed/nonempty/
+multiple/second calls fail closed. Existing M2 ExternalEvent and
+execute_headless_modelmind_readonly remain the execution boundary; Python3 sidecar
+is Revit-API-free. Document/lifecycle/selection/request guards remain active.
+Initial store=True; previous_response_id/call_id/function_call_output; final
+store=False, tools=[], tool_choice=none. No local conversation database.
+
+No HVAC recomputation: geometry, shape/dimensions/area/volume, slope/vertical state,
+assignment, topology/type/flow, insulation/lining, QA classifications/counts/warnings
+remain deterministic ModelMind outputs. Projection only bounds transport with
+explicit omissions. HVAC-QA-009 remains abnormal physical End count; valid Curve/tap
+connectors do not cause false abnormal-End issues. No independent Curve/tap live
+retest is claimed. Initial pre-restart AI_TOOL_NOT_ALLOWED resolved on full Revit
+restart: stale loaded registry/runtime reload condition, not a confirmed M3D defect.
+
+Final rerun 2026-09-23: 251 Python tests PASS; 46 native probes PASS
+(10 process/dispatcher + 4 M3B + 32 eight-tool); six IronPython host compiles PASS;
+30 AST/in-memory compile/tabnanny files PASS; native XAML/WPF/theme/Find PASS.
+1475 existing Workbench functions source-identical; catalog237 unchanged.
+Mutation/network-boundary/exact eight-tool allowlist scans PASS. Credential-pattern
+scan: 109 tracked text files, zero findings; previous 107 excluded the then-untracked
+M3D document/test file. Pattern scan is not an exhaustive secret proof. No provider
+Authorization-header logging; .env.local ignored/untracked and not read. No secret
+copied to documentation. pip check and git diff --check PASS.
+Evidence ID / Daily Log ID / KC ID / hours: PENDING; none allocated.
+Proposed subject: `docs(wbso): close M3D live validation`. No staging/commit/push.
+
 ## 2026-09-21 - M3D partial live-validation checkpoint
 
 BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
