@@ -1,5 +1,44 @@
 # Test Plan
 
+## 2026-09-23 - M3E pushed implementation / project-local WBSO checkpoint
+
+BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.
+IMPLEMENTED / STATIC VALIDATION PASSED /
+IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED / LIVE VALIDATION PENDING / NOT CLOSED.
+Implementation: `ee2b8346dddce8e7532ab7c0adc244947eeaf719`, subject
+`feat(bimcode): add read-only Electrical AI tools`; parent / M3D closure:
+`4cae32f6ffdcbe161cea7e166417926a31752051`. Implementation scope: 12 files, +281/-16.
+Verified before documentation edits: main HEAD = origin/main = live remote main
+at implementation SHA; 0/0, clean, status --short empty. This separate WBSO
+documentation checkpoint awaits review/commit/push; it is not M3E final closure.
+Earlier dated milestone statements below retain their historical checkpoint scope.
+Evidence ID / Daily Log ID / KC ID / hours: PENDING; none allocated.
+No authenticated OpenAI request or Revit live test performed by this task.
+
+All cases below are NOT STARTED / PENDING. No live PASS claimed.
+Detailed prompts, setup and expected mappings: BIMCode_Provider/M3E.md.
+Compare with closed canonical actions using unchanged selection; verify provenance,
+classification/reason, counts, warnings, roles and read states, plus no mutation.
+
+| Case | Required coverage | State |
+| --- | --- | --- |
+| LIVE-M3E-01 | Electrical DEVICE_PROFILE Summary | NOT STARTED / PENDING |
+| LIVE-M3E-02 | Electrical Connectors | NOT STARTED / PENDING |
+| LIVE-M3E-03 | Electrical Circuit Assignment | NOT STARTED / PENDING |
+| LIVE-M3E-04 | Electrical QA Health | NOT STARTED / PENDING |
+| LIVE-M3E-05 | EQUIPMENT_PROFILE Summary | NOT STARTED / PENDING |
+| LIVE-M3E-06 | General Electrical question / no tool | NOT STARTED / PENDING |
+| LIVE-M3E-07 | Unsupported Electrical boundary, preferably Conduit | NOT STARTED / PENDING |
+| LIVE-M3E-08 | Pipe + Electrical mixed boundary | NOT STARTED / PENDING |
+| LIVE-M3E-09 | Duct + Electrical mixed boundary | NOT STARTED / PENDING |
+| LIVE-M3E-10 | Pipe + Duct + Electrical mixed boundary | NOT STARTED / PENDING |
+
+If Conduit unavailable, record exact closed-runtime unsupported substitute category.
+Mixed cases must not chain tools; maximum one execution, safe single-specialty
+explanation/fail closed. Static evidence is recorded separately, not live acceptance.
+
+
+
 ## 2026-09-23 - M3D final closure audit
 
 Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.

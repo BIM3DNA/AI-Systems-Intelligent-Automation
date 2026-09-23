@@ -1,5 +1,41 @@
 # Architecture Notes
 
+## 2026-09-23 - M3E pushed implementation / project-local WBSO checkpoint
+
+BIMCODE-REVIT-AI-PANE-001 / M3E - Full Electrical Read-Only AI Tool Surface.
+IMPLEMENTED / STATIC VALIDATION PASSED /
+IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED / LIVE VALIDATION PENDING / NOT CLOSED.
+Implementation: `ee2b8346dddce8e7532ab7c0adc244947eeaf719`, subject
+`feat(bimcode): add read-only Electrical AI tools`; parent / M3D closure:
+`4cae32f6ffdcbe161cea7e166417926a31752051`. Implementation scope: 12 files, +281/-16.
+Verified before documentation edits: main HEAD = origin/main = live remote main
+at implementation SHA; 0/0, clean, status --short empty. This separate WBSO
+documentation checkpoint awaits review/commit/push; it is not M3E final closure.
+Earlier dated milestone statements below retain their historical checkpoint scope.
+Evidence ID / Daily Log ID / KC ID / hours: PENDING; none allocated.
+No authenticated OpenAI request or Revit live test performed by this task.
+
+Execution remains: OpenAI -> static tool allowlist -> fixed action mapping ->
+Revit host validation -> existing M2 ExternalEvent ->
+execute_headless_modelmind_readonly(...) -> deterministic Electrical result ->
+bounded provider projection -> OpenAI final response.
+No second execution architecture; Python 3 sidecar remains Revit-API-free.
+Maximum one ModelMind execution per request. Stale document identity, lifecycle
+generation, selection generation and request identity guards retained.
+Unknown/malformed/non-empty/multiple/second tool requests fail closed.
+Mixed supported specialties require one-specialty-at-a-time selection, never a chain.
+
+ModelMind remains authoritative; provider summarizes only. Projection copies the
+existing action tables, summary, warnings and checks without recomputation.
+30 check/warning entries, 12 tables, 40 shared rows and 80,000-character serialized
+budget; omissions explicit, oversized core rejected. No new domain inference.
+Continuation unchanged: initial store=True; previous_response_id, call_id and
+function_call_output; final store=False, tools=[], tool_choice="none".
+No local conversation database. No mutation, generic dispatch, AutoCAD or ScanAI.
+Complete mappings: provider_registry.md. Live parity remains pending.
+
+
+
 ## 2026-09-23 - M3D final closure audit
 
 Package: BIMCODE-REVIT-AI-PANE-001 / M3D - Full HVAC Read-Only AI Tool Surface.
