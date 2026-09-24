@@ -1,6 +1,38 @@
 # PROJECT STATE
 
-## 2026-09-23 - M3F mixed-specialty Summary implementation (current)
+## 2026-09-24 - M3F implementation checkpoint reconciliation (current)
+
+BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Summary.
+
+- DISCOVERY COMPLETE
+- IMPLEMENTATION COMPLETE
+- STATIC VALIDATION PASSED
+- IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED
+- PROJECT-LOCAL WBSO CHECKPOINT COMMITTED / PUSHED
+- LIVE VALIDATION PENDING
+- NOT CLOSED
+
+Implementation and project-local WBSO share the verified checkpoint
+`8b43f006c1b1bb7c5a013c89d261e96801911d9e`, subject `project WBSO update...`.
+At reconciliation start: main HEAD = origin/main = that SHA; ahead/behind 0/0.
+This is an implementation checkpoint, not M3F final/source-control closure.
+LIVE-M3F-01 through LIVE-M3F-12 remain NOT STARTED / PENDING; no live PASS claimed.
+
+Technical state unchanged: summarize_selected_mep_elements -> MEP-MULTI-RO-001-A01,
+mixed-specialty SUMMARY ONLY; 13 read-only tools (Piping4/HVAC4/Electrical4/MEP1).
+One provider-selected tool, one host request, one existing Revit ExternalEvent;
+host-controlled partition/fan-out to snapshot-fed specialty A01 cores; no recursive
+execute_headless_modelmind_readonly, nested event, UI-selection mutation or
+autonomous multi-tool loop. Existing technical details and validation evidence below
+remain applicable; old uncommitted/push-pending wording and planned commit steps
+describe the historical pre-commit checkpoint only and are superseded here.
+
+This reconciliation is documentation-only and itself awaits review/commit/push.
+No runtime/test change, authenticated OpenAI request or Revit live test performed.
+Next: review reconciliation, then pending live validation; no duplicate
+implementation commit or amendment. Evidence/Daily Log/KC IDs and hours unchanged.
+
+## Historical pre-commit M3F implementation / WBSO checkpoint - 2026-09-23
 
 BIMCODE-REVIT-AI-PANE-001 / M3F: IMPLEMENTED; STATIC VALIDATION PASSED;
 LIVE VALIDATION PENDING; NOT CLOSED. DISCOVERY COMPLETE; IMPLEMENTATION COMPLETE.
