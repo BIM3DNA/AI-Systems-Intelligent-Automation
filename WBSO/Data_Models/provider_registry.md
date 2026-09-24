@@ -1,6 +1,92 @@
 # Provider Registry
 
-## 2026-09-24 - M3F implementation checkpoint reconciliation (current)
+## 2026-09-24 - M3F final documentation checkpoint (current)
+
+BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Read-Only Summary.
+
+- DISCOVERY COMPLETE
+- IMPLEMENTATION COMPLETE
+- STATIC VALIDATION PASSED
+- IMPLEMENTATION CHECKPOINT COMMITTED / PUSHED
+- PROJECT-LOCAL WBSO CHECKPOINT COMMITTED / PUSHED
+- STATUS RECONCILIATION COMMITTED / PUSHED
+- LIVE VALIDATION 12/12 PASS
+- FINAL STATIC / REGRESSION AUDIT PASSED
+- READY FOR SOURCE-CONTROL CLOSURE
+- FINAL DOCUMENTATION UPDATED
+- FINAL CLOSURE COMMIT / PUSH PENDING
+- NOT YET SOURCE-CONTROL CLOSED
+
+Authoritative current status supersedes earlier pending-live/pre-commit wording.
+Earlier dated checkpoints below are historical, not current closure claims.
+Discovery: ae06fc6e5fc4cede99279b9921d2826f94a5fc75.
+Implementation / project-local WBSO: 8b43f006c1b1bb7c5a013c89d261e96801911d9e.
+Status reconciliation: 3cb9a4724d58b1d643ecddecb6e52c178fadc644,
+subject: docs(wbso): reconcile M3F implementation checkpoint status.
+Before this edit: main HEAD = origin/main = reconciliation SHA, ahead/behind 0/0;
+parent = implementation/WBSO SHA. No staged or non-ignored untracked files.
+This final documentation is not committed/pushed; no final closure commit exists.
+
+Feature MEP-MULTI-RO-001; action MEP-MULTI-RO-001-A01; AI tool
+summarize_selected_mep_elements. Read-only mixed-selection SUMMARY ONLY.
+Current AI surface: 13 READ-ONLY TOOLS (Piping 4 / HVAC 4 / Electrical 4 / MEP 1).
+One provider-selected tool, one host orchestration request, one existing Revit
+ExternalEvent, one captured evaluation selection/context snapshot, deterministic
+host partition, snapshot-fed specialty A01 cores, one composite deterministic
+result, bounded provider projection, then final natural-language response.
+The final selection integrity reread is not another evaluation snapshot.
+No UI-selection mutation, recursive execute_headless_modelmind_readonly call,
+nested ExternalEvent, provider-selected specialty list or child action IDs,
+autonomous provider multi-tool loop, model writes, generic Revit command tool,
+ElementId tool arguments or generated-code execution. Sidecar has no Revit API.
+Provider network scope unchanged; .env.local ignored/untracked and not read.
+No Authorization-header logging found. No secret contents copied to records.
+
+Final audit evidence (recorded here, not rerun by this documentation task):
+288 Python tests PASS; 66 native probes PASS; 7 IronPython host files PASS;
+33 sanitized AST/in-memory compile/tabnanny files PASS; native XAML/WPF/theme/Find
+PASS; catalog 237 unchanged; mutation/network-boundary/AI-allowlist protections
+PASS; credential-pattern scan 115 tracked text files, 0 findings (not exhaustive
+secret proof); dependency check: no broken requirements; git diff --check PASS.
+Workbench discovery baseline: 1475 original functions, 1478 current; 1472 original
+functions source-identical, 3 reviewed wrappers and 3 new snapshot-fed cores.
+Extracted cores preserve original implementation remainders; reconstructed
+baseline equivalence PASS. Closed PIPING-RO-001/HVAC-RO-001/ELECTRICAL-RO-001
+semantics and single-specialty A01 contracts preserved. HVAC-QA-009 still uses
+physical End count and permits valid Curve/tap connectors. Electrical QA has
+neither open-connector nor connector-count checks. No introduced defect found.
+
+LIVE-M3F-01 through LIVE-M3F-12 are PASS, based on user-supplied Revit evidence;
+Codex did not independently rerun live cases or authenticated OpenAI requests.
+Exact matrix, actual prompts and classification/reason contract are recorded in
+BIMCode_Provider/M3F.md and WBSO/Technical_Notes/evidence_reference.md, in their
+current final documentation sections. Transport/display truncation is distinct
+from semantic PARTIAL: successful 01-08 remain SUMMARY_OK / COMPLETE despite
+explicit lower-priority display omissions; actual unsupported scope caused 09.
+
+Nonblocking coverage, not defects: unresolved-reference, child-failure PARTIAL,
+child-NOT_READY PARTIAL, processing/admission-cap exceedance, larger mixed-selection
+performance and advisory time-budget paths were not deliberately reproduced live.
+Relevant fail-closed behavior has offline/static coverage. Provider projection
+can omit lower-priority display details; no unobserved live PASS is claimed.
+
+Nonblocking Git observation: AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py
+is reported modified by status, but its content diff is empty. Filtered working-tree
+and HEAD objects both equal 98c548c522874f736063446d2c048b9d325afc98.
+Status/index/line-ending anomaly with no identified content difference, not a
+runtime modification or M3F defect. Worktree must not be called clean.
+File left untouched; source-control housekeeping may be reviewed next session.
+
+M3F Evidence ID: PENDING. Daily Log ID: PENDING. Knowledge Capture ID: PENDING.
+Project-local hours: PENDING. No identifiers/hours allocated or central IDs reused.
+Central WBSO remains separately managed outside this repository.
+Next: audit this documentation delta, authorize final documentation commit/push,
+verify HEAD/origin alignment and closure, then mark M3F SOURCE-CONTROL CLOSED.
+Next R&D milestone after closure: M4 controlled low-risk write research.
+No M4 implementation, runtime/test/dependency/catalog/secret change, staging,
+commit or push is performed by this documentation-only task.
+
+## Historical M3F implementation checkpoint reconciliation - 2026-09-24
 
 BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Summary.
 
