@@ -1,0 +1,2 @@
+title: M4A Fixture Setup
+tooltip: Human-only setup for a disposable non-workshared project. Select one rigid Pipe. Creates the fixed shared Text instance binding; never sets parameter values.
