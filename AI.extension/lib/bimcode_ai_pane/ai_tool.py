@@ -69,6 +69,8 @@ class Coordinator(object):
         self.callback = None
 
     def begin(self, request_id):
+        if getattr(self.session, "write_busy", False):
+            return False
         if self.turn is not None or self.session.tools.pending is not None:
             return False
         self.turn = dict(request_id=request_id, key=self.session.document_identity,

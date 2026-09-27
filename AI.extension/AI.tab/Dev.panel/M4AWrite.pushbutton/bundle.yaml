@@ -1,0 +1,2 @@
+title: M4A Write
+tooltip: Human-only controlled write to the fixed test parameter on one selected Pipe. Preview and explicit confirmation required. If a transaction is unresolved, this button only checks its status.

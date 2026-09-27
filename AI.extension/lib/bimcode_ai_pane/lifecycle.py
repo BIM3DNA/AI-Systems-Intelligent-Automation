@@ -142,6 +142,8 @@ class PaneSession(object):
 
     def request_tool(self, tool_name):
         # WPF callback: cached scalar identity only. No Revit reads here.
+        if getattr(self, "write_busy", False):
+            return
         if getattr(self, "ai", None) is not None and self.ai.turn is not None:
             return
         request = self.tools.begin(tool_name, self.document_identity, self.context_generation)

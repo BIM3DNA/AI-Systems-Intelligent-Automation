@@ -28,10 +28,19 @@ for value in ('', ' A', 'A ', ' ', 'A\n', 'A\t', 'A\x00', 'A' * 65, 'A.B', None,
 for name in ('AI.extension/lib/bimcode_ai_pane/write_contracts.py',
              'AI.extension/lib/bimcode_write_runtime.py',
              'AI.extension/AI.tab/Dev.panel/M4ASetup.pushbutton/script.py',
-             'AI.extension/AI.tab/Dev.panel/M4APreview.pushbutton/script.py'):
+             'AI.extension/AI.tab/Dev.panel/M4APreview.pushbutton/script.py',
+             'AI.extension/lib/bimcode_write_execution.py',
+             'AI.extension/lib/bimcode_ai_pane/write_coordinator.py',
+             'AI.extension/AI.tab/Dev.panel/M4AWrite.pushbutton/script.py'):
     with open(os.path.join(repo, name), 'rb') as source:
         compile(source.read(), name, 'exec')
-print('PASS: 15 native contract assertions; 4 IronPython compiles; no Revit execution')
+from bimcode_write_execution import freeze
+preview = dict(classification=c.PREVIEW_OK, reason_code='COMPLETE', request_id='native')
+request = freeze(preview, (1, 2, 3), 1.0, 2.0)
+preview['request_id'] = 'changed'
+assert 'changed' not in request.preview_json
+assert request.epochs == (1, 2, 3)
+print('PASS: 17 native contract assertions; 7 IronPython compiles; no Revit execution')
 '@, $scope) | Out-Null
 } finally {
     Remove-Item -LiteralPath $archive
