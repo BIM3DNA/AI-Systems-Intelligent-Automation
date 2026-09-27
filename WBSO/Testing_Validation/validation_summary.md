@@ -1,6 +1,6 @@
 # Validation Summary
 
-## 2026-09-24 - M3F final documentation checkpoint (current)
+## 2026-09-27 - M3F post-closure status reconciliation (current)
 
 BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Read-Only Summary.
 
@@ -12,10 +12,8 @@ BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Read-Only Summary.
 - STATUS RECONCILIATION COMMITTED / PUSHED
 - LIVE VALIDATION 12/12 PASS
 - FINAL STATIC / REGRESSION AUDIT PASSED
-- READY FOR SOURCE-CONTROL CLOSURE
-- FINAL DOCUMENTATION UPDATED
-- FINAL CLOSURE COMMIT / PUSH PENDING
-- NOT YET SOURCE-CONTROL CLOSED
+- FINAL DOCUMENTATION COMMITTED / PUSHED
+- SOURCE-CONTROL CLOSED
 
 Authoritative current status supersedes earlier pending-live/pre-commit wording.
 Earlier dated checkpoints below are historical, not current closure claims.
@@ -23,9 +21,15 @@ Discovery: ae06fc6e5fc4cede99279b9921d2826f94a5fc75.
 Implementation / project-local WBSO: 8b43f006c1b1bb7c5a013c89d261e96801911d9e.
 Status reconciliation: 3cb9a4724d58b1d643ecddecb6e52c178fadc644,
 subject: docs(wbso): reconcile M3F implementation checkpoint status.
-Before this edit: main HEAD = origin/main = reconciliation SHA, ahead/behind 0/0;
-parent = implementation/WBSO SHA. No staged or non-ignored untracked files.
-This final documentation is not committed/pushed; no final closure commit exists.
+Final live-validation closure documentation: f284e03123a946579dd14b95ea4ee4050dc6796b.
+Subject: docs(wbso): close M3F live validation.
+Parent: 3cb9a4724d58b1d643ecddecb6e52c178fadc644.
+Verified committed/pushed scope: eight documentation files, 787 insertions,
+9 deletions; no runtime/test/dependency/catalog/secret changes.
+Before this reconciliation: main HEAD = origin/main = final closure SHA,
+ahead/behind 0/0; clean worktree, no staged/modified/untracked files.
+This post-closure status reconciliation records the existing closure; it does not
+replace or amend the final live-validation closure checkpoint.
 
 Feature MEP-MULTI-RO-001; action MEP-MULTI-RO-001-A01; AI tool
 summarize_selected_mep_elements. Read-only mixed-selection SUMMARY ONLY.
@@ -70,21 +74,19 @@ performance and advisory time-budget paths were not deliberately reproduced live
 Relevant fail-closed behavior has offline/static coverage. Provider projection
 can omit lower-priority display details; no unobserved live PASS is claimed.
 
-Nonblocking Git observation: AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py
-is reported modified by status, but its content diff is empty. Filtered working-tree
-and HEAD objects both equal 98c548c522874f736063446d2c048b9d325afc98.
-Status/index/line-ending anomaly with no identified content difference, not a
-runtime modification or M3F defect. Worktree must not be called clean.
-File left untouched; source-control housekeeping may be reviewed next session.
+Historical Git observation (2026-09-24): script.py was status-dirty with an empty
+content diff, not a runtime modification or M3F defect. At this reconciliation
+the anomaly is absent: status/raw diff/numstat are empty; filtered working-tree
+and HEAD objects both remain 98c548c522874f736063446d2c048b9d325afc98.
+The runtime file is untouched; the starting worktree is clean.
 
 M3F Evidence ID: PENDING. Daily Log ID: PENDING. Knowledge Capture ID: PENDING.
 Project-local hours: PENDING. No identifiers/hours allocated or central IDs reused.
 Central WBSO remains separately managed outside this repository.
-Next: audit this documentation delta, authorize final documentation commit/push,
-verify HEAD/origin alignment and closure, then mark M3F SOURCE-CONTROL CLOSED.
-Next R&D milestone after closure: M4 controlled low-risk write research.
-No M4 implementation, runtime/test/dependency/catalog/secret change, staging,
-commit or push is performed by this documentation-only task.
+M3F is SOURCE-CONTROL CLOSED at the final closure checkpoint recorded above.
+Next R&D milestone: M4 controlled low-risk write research; not implemented here.
+This authorized task commits/pushes only the eight-document status reconciliation.
+No runtime/test/dependency/catalog/secret changes or additional live tests.
 
 ## Historical M3F implementation checkpoint reconciliation - 2026-09-24
 
