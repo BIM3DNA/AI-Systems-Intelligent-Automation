@@ -27,10 +27,11 @@ for value in ('', ' A', 'A ', ' ', 'A\n', 'A\t', 'A\x00', 'A' * 65, 'A.B', None,
     assert not c.validate_value(value)['valid']
 for name in ('AI.extension/lib/bimcode_ai_pane/write_contracts.py',
              'AI.extension/lib/bimcode_write_runtime.py',
-             'AI.extension/AI.tab/Dev.panel/M4ASetup.pushbutton/script.py'):
+             'AI.extension/AI.tab/Dev.panel/M4ASetup.pushbutton/script.py',
+             'AI.extension/AI.tab/Dev.panel/M4APreview.pushbutton/script.py'):
     with open(os.path.join(repo, name), 'rb') as source:
         compile(source.read(), name, 'exec')
-print('PASS: 15 native contract assertions; 3 IronPython compiles; no Revit execution')
+print('PASS: 15 native contract assertions; 4 IronPython compiles; no Revit execution')
 '@, $scope) | Out-Null
 } finally {
     Remove-Item -LiteralPath $archive

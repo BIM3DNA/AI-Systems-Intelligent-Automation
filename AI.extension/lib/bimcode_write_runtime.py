@@ -4,6 +4,8 @@ No pane/provider integration, confirmation token, transaction or value setter.
 Returned scalar data is descriptive, never authorization for a future write.
 """
 from datetime import datetime
+import hashlib
+import json
 import unicodedata
 from bimcode_ai_pane import write_contracts as contract
 
@@ -23,15 +25,44 @@ def _id(value):
     return int(value.Value)
 
 
-def resolve_target(uiapp, db):
-    """Resolve exclusively from current host selection, never a supplied ID."""
-    uidoc = uiapp.ActiveUIDocument
-    _require(uidoc is not None, "NO_VALID_DOCUMENT")
-    doc = uidoc.Document
+def capture_preview_context(uiapp):
+    """Host-only invocation snapshot; API references never leave this callback."""
+    try:
+        uidoc = uiapp.ActiveUIDocument
+        _require(uidoc is not None, "NO_VALID_DOCUMENT")
+        doc = uidoc.Document
+        _require(doc is not None and doc.IsValidObject, "NO_VALID_DOCUMENT")
+        ids = tuple(uidoc.Selection.GetElementIds())
+        view = uidoc.ActiveView
+        _require(view is not None and view.IsValidObject, "NO_VALID_DOCUMENT")
+        metadata = dict(document_identity=dict(session_hash=doc.GetHashCode(), title=doc.Title),
+                        view_identity=dict(element_id=_id(view.Id), unique_id=view.UniqueId),
+                        selected_element_ids=sorted(_id(eid) for eid in ids))
+        fingerprint = hashlib.sha256(json.dumps(metadata, sort_keys=True,
+                                                separators=(",", ":")).encode("utf-8")).hexdigest()
+        return dict(uidoc=uidoc, doc=doc, ids=ids, metadata=metadata,
+                    fingerprint=fingerprint, reason=None)
+    except PreviewBlocked as error:
+        return dict(reason=error.reason, failed=False)
+    except Exception:
+        return dict(reason="READ_FAILED", failed=True)
+
+
+def resolve_target(uiapp, db, context=None):
+    """Resolve only the explicit host snapshot; never reread or substitute IDs."""
+    if context is None:
+        context = capture_preview_context(uiapp)
+    if context["reason"]:
+        if context.get("failed"):
+            raise RuntimeError("Selection capture failed")
+        raise PreviewBlocked(context["reason"])
+    uidoc, doc, ids = context["uidoc"], context["doc"], context["ids"]
+    # Context may span the modal value dialog, but never another active document.
+    current = uiapp.ActiveUIDocument
+    _require(current is not None and current.Document.Equals(doc), "STALE_CONTEXT")
     _require(doc is not None and doc.IsValidObject, "NO_VALID_DOCUMENT")
     _require(not (doc.IsFamilyDocument or doc.IsWorkshared or doc.IsReadOnly or
                   doc.IsModifiable), "UNSUPPORTED_DOCUMENT")
-    ids = list(uidoc.Selection.GetElementIds())
     _require(len(ids) != 0, "NO_ELEMENTS_SELECTED")
     _require(len(ids) == 1, "MULTIPLE_ELEMENTS_SELECTED")
     element = doc.GetElement(ids[0])
@@ -78,10 +109,11 @@ def resolve_parameter(doc, element, db, guid):
     return parameter
 
 
-def _preview(uiapp, request_id, value, selection_generation, db, guid):
+def _preview(uiapp, request_id, value, selection_generation, db, guid, context=None):
     result = dict(feature_id=contract.M4A_FEATURE_ID, action_id=contract.M4A_ACTION_ID,
                   request_id=request_id, document_identity=None, view_identity=None,
                   selection_generation=selection_generation, target_element_id=None,
+                  selection_snapshot=None, selection_fingerprint=None,
                   target_unique_id=None, target_category=contract.M4A_CATEGORY,
                   pipe_type=None, parameter_guid=contract.M4A_TEST_PARAMETER_GUID,
                   parameter_display_name=contract.M4A_TEST_PARAMETER_NAME,
@@ -94,7 +126,11 @@ def _preview(uiapp, request_id, value, selection_generation, db, guid):
         return result
     result["proposed_value"] = value
     try:
-        doc, uidoc, element = resolve_target(uiapp, db)
+        if context is None:
+            context = capture_preview_context(uiapp)
+        result.update(selection_snapshot=context.get("metadata"),
+                      selection_fingerprint=context.get("fingerprint"))
+        doc, uidoc, element = resolve_target(uiapp, db, context)
         view = uidoc.ActiveView
         _require(view is not None and view.IsValidObject, "NO_VALID_DOCUMENT")
         result.update(document_identity=dict(session_hash=doc.GetHashCode(), title=doc.Title),
@@ -121,9 +157,9 @@ def _preview(uiapp, request_id, value, selection_generation, db, guid):
     return result
 
 
-def build_preview(uiapp, request_id, value, selection_generation=None):
+def build_preview(uiapp, request_id, value, selection_generation=None, context=None):
     """Host-only synchronous API-context entry; no queue or provider dispatch."""
     from Autodesk.Revit import DB
     from System import Guid
     return _preview(uiapp, request_id, value, selection_generation, DB,
-                    Guid(contract.M4A_TEST_PARAMETER_GUID))
+                    Guid(contract.M4A_TEST_PARAMETER_GUID), context=context)

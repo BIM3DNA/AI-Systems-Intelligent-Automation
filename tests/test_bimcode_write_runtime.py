@@ -88,6 +88,40 @@ class Preview(unittest.TestCase):
         self.f.uidoc.Selection.GetElementIds = lambda: []
         self.reason("NO_ELEMENTS_SELECTED")
 
+    def test_consecutive_invocations_never_reuse_target(self):
+        selection = Mock(return_value=[Identity(1)])
+        self.f.uidoc.Selection.GetElementIds = selection
+        first = self.run_preview()
+        self.assertEqual(first["classification"], c.PREVIEW_OK)
+        for ids, reason in (([], "NO_ELEMENTS_SELECTED"),
+                            ([Identity(1), Identity(2)], "MULTIPLE_ELEMENTS_SELECTED")):
+            selection.return_value = ids
+            result = self.run_preview()
+            self.assertEqual(result["reason_code"], reason)
+            self.assertIsNone(result["target_element_id"])
+            self.assertIsNone(result["target_unique_id"])
+            self.assertNotEqual(result["selection_fingerprint"], first["selection_fingerprint"])
+            self.assertFalse(result["transaction_started"])
+            self.assertFalse(result["model_modified"])
+        self.assertEqual(selection.call_count, 3)
+
+    def test_explicit_empty_snapshot_not_replaced_by_later_selection(self):
+        selection = Mock(return_value=[])
+        self.f.uidoc.Selection.GetElementIds = selection
+        context = runtime.capture_preview_context(self.f.app)
+        selection.return_value = [Identity(1)]
+        f = self.f
+        result = runtime._preview(f.app, "request", "Test", None, f.db, f.guid, context)
+        self.assertEqual(result["reason_code"], "NO_ELEMENTS_SELECTED")
+        self.assertEqual(result["selection_snapshot"]["selected_element_ids"], [])
+        selection.assert_called_once()
+
+    def test_fingerprint_deterministic_and_context_sensitive(self):
+        first = runtime.capture_preview_context(self.f.app)
+        self.assertEqual(first["fingerprint"], runtime.capture_preview_context(self.f.app)["fingerprint"])
+        self.f.uidoc.ActiveView.UniqueId = "other-view"
+        self.assertNotEqual(first["fingerprint"], runtime.capture_preview_context(self.f.app)["fingerprint"])
+
     def test_multiple(self):
         self.f.uidoc.Selection.GetElementIds = lambda: [Identity(1), Identity(2)]
         self.reason("MULTIPLE_ELEMENTS_SELECTED")
