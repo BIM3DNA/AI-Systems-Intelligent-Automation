@@ -1,5 +1,32 @@
 # Current Scope Alignment
 
+## 2026-09-27 - M4A end-of-day scope (authoritative current)
+
+M4A discovery/design/preview foundation/harness COMPLETE / COMMITTED / PUSHED.
+Invocation-time selection snapshot correction implemented; provisioning and current
+preview matrix PASS. Host-only write IMPLEMENTED / STATIC PASS / COMMITTED / PUSHED
+at60b1818ef00bac7a058c751f24e2d4afaf857666 (Git verified).
+Host live validation PARTIAL / IN PROGRESS: WRITE-01..05 PASS, including confirmed
+write, post-commit verification and manual Revit Undo. WRITE-06..13 PENDING.
+M4A NOT SOURCE-CONTROL CLOSED; final write matrix and closure audit pending.
+
+Only human-invoked Dev mutation of BIMCode_M4A_TestText by fixed GUID
+2f3c955d-45ee-4258-bc61-08acd40a2912 on one eligible host rigid Pipe is in scope.
+Instance Text / OST_PipeCurves. MEP-PARAM-WR-001 / MEP-PARAM-WR-001-A01.
+One scalar, explicit confirmation, dedicated event, one transaction/Set, exact
+verification. No arbitrary parameters/IDs/actions, batch, generic commands,
+generated code, retry or chained writes. Provisioning remains a separate human
+binding operation. Provider write tool and OpenAI integration NOT IMPLEMENTED;
+13 READ-ONLY provider tools and catalog237 remain unchanged.
+
+Open coverage, not observed defects: same-value path, practical stale interleaving,
+write empty/multiple/unsupported/invalid guards, preview/M3F regressions; live
+Pending/rollback/verification-failure injection unclaimed. Workshared models remain
+outside initial disposable scope. Next: review docs, continue WRITE-06 onward,
+finish host validation/final audit before provider integration or closure.
+Do not start M4B or broader mutation. IDs/hours PENDING; central WBSO separate.
+Full Git anchors and evidence: PROJECT_STATE.md and evidence_reference.md.
+
 ## 2026-09-27 - M3F post-closure status reconciliation (current)
 
 BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Read-Only Summary.

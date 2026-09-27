@@ -1,5 +1,50 @@
 # Validation Summary
 
+## 2026-09-27 - M4A end-of-day validation (authoritative current)
+
+M4A discovery/design/preview foundation/harness committed/pushed.
+Host-only write IMPLEMENTED / STATIC PASS / COMMITTED / PUSHED at
+60b1818ef00bac7a058c751f24e2d4afaf857666; live PARTIAL / IN PROGRESS.
+M4A NOT SOURCE-CONTROL CLOSED; final matrix pending. Full anchors: PROJECT_STATE.md.
+
+User-supplied results, not rerun here:
+- Project2 human Fixture Setup, explicit PROVISION, fixed-GUID instance Text/Pipes
+  binding and selected Pipe writability verified; no initial value set: PASS.
+- Preview01 valid Pipe353871 unset -> M4A_Test_01: PASS.
+- Preview02 M4A/Test invalid: PASS.
+- Preview03 initial stale Pipe353871 symptom: FAIL; exact cause NOT proven.
+  No cached fallback identified. Invocation-time before-dialog capture correction;
+  [] -> NO_ELEMENTS_SELECTED/null target retest: PASS.
+- Preview01 regression,04 Pipe+Duct multiple,05 unsupported Duct,06 Cancel: PASS.
+- WRITE-01 exact preview/TaskDialog before mutation (generation32): PASS.
+- WRITE-02 Cancel / USER_CANCELLED, no transaction or model change: PASS.
+- WRITE-03 explicit Confirm / COMPLETE, unset -> M4A_Write_01, one committed
+  BIMCode M4A Set Test Text transaction; Properties palette confirmation: PASS.
+- WRITE-04 fixed-GUID exact reread, verification_performed/passed=true: PASS.
+- WRITE-05 one normal Revit Undo restores blank/unset: PASS.
+
+WRITE-06..13 ALL PENDING: same value, practical stale interleaving, empty, multiple,
+Duct, invalid value, preview read-only regression, M3F read-only regression.
+Live Pending/rollback/verification-failure states not deliberately reproduced.
+Workshared outside scope. Do not claim these gaps as passes or observed defects.
+Exact flags/results and IDs: evidence_reference.md; remaining matrix: test_plan.md.
+
+Implementation-checkpoint counts (recorded, not rerun):362 Python tests PASS
+(74 M4A included);17 native assertions;66 bridge probes;14 IronPython compiles;
+7 AST/compile/tabnanny files; whitespace/dependency/mutation/credential scans PASS.
+Dedicated executor:one transaction constructor/one Parameter.Set; preview contains
+neither; provisioning binding transaction remains separate.13 READ-ONLY provider
+tools/catalog237. No provider write tool or OpenAI write integration.
+No arbitrary parameter/ID/action, generated execution, retries, batch or chaining.
+Single-use approval uses exact context/snapshot and counters/model epoch;60-second
+expiry; null standalone preview generation is not write authorization.
+
+At documentation start main HEAD=origin/main=60b1818...,0/0,clean: no uncommitted
+runtime/test delta despite the task's expectation. This new documentation remains
+uncommitted/unpushed; implementation checkpoint is not package closure.
+Evidence/Daily Log/KC IDs and hours PENDING; central WBSO separate.
+Next: continue host-only validation and final audit before provider exposure.
+
 ## 2026-09-27 - M3F post-closure status reconciliation (current)
 
 BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Read-Only Summary.

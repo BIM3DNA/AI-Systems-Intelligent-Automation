@@ -1,5 +1,23 @@
 # M4A controlled parameter write - discovery only
 
+## Current checkpoint - 2026-09-27
+
+Discovery is COMPLETE / COMMITTED / PUSHED at
+4db623b120b7fa19ce9a80bfa32fc682e089225c. Design, preview foundation and preview
+harness are also committed/pushed; exact Git anchors and authoritative status:
+[PROJECT_STATE.md](../PROJECT_STATE.md).
+Host-only write implementation is now committed/pushed at
+60b1818ef00bac7a058c751f24e2d4afaf857666 (nine runtime/test files, +749/-2).
+Provisioning and preview matrix PASS; user-reported WRITE-01..05 PASS including
+confirmed write, exact reread and manual Undo. WRITE-06..13 remain PENDING.
+M4A host-write live validation PARTIAL / IN PROGRESS; NOT SOURCE-CONTROL CLOSED.
+Provider write tool / OpenAI write integration NOT IMPLEMENTED;13 read-only tools.
+Evidence/Daily Log/KC IDs and hours PENDING. No runtime/live tests performed by
+this documentation update. Continue host-only validation; no broader mutation.
+
+The original discovery below is preserved as a historical design checkpoint;
+its no-implementation statements describe that time, not the current milestone.
+
 Date: 2026-09-27. Package: BIMCODE-REVIT-AI-PANE-001 / M4A.
 Verdict: M4A_DISCOVERY_READY_FOR_IMPLEMENTATION_DESIGN.
 This is a design recommendation, not implementation or live validation approval.

@@ -1,5 +1,40 @@
 # Architecture Notes
 
+## 2026-09-27 - M4A controlled host-write architecture (current)
+
+Authoritative anchors/status: PROJECT_STATE.md. Host implementation committed/
+pushed at60b1818ef00bac7a058c751f24e2d4afaf857666; M4A NOT SOURCE-CONTROL CLOSED.
+Human M4A Write -> capture current selection before value dialog -> deterministic
+preview -> native TaskDialog -> explicit Confirm -> dedicated write ExternalEvent
+-> full precondition reread -> one DB.Transaction -> fixed-GUID Parameter.Set
+-> Commit -> same-GUID reread/exact comparison -> deterministic result.
+Transaction name: BIMCode M4A Set Test Text. No retry/compensation/batch.
+Executor: bimcode_write_execution.py; preview: bimcode_write_runtime.py;
+coordinator: bimcode_ai_pane/write_coordinator.py. Existing Workbench unchanged.
+
+Fixed parameter BIMCode_M4A_TestText, GUID2f3c955d-45ee-4258-bc61-08acd40a2912,
+instance Text, Pipes only; one eligible rigid host Pipe. No name lookup fallback.
+TaskDialog shows document/view/Pipe/type/parameter/GUID/before/after/request ID;
+Cancel default. Single-use immutable approval binds request, document, target ID/
+UniqueId, GUID, before/HasValue, proposed value, exact selection/fingerprint,
+existing pane lifecycle/selection counters, model epoch and confirmation timestamp.
+Expiry60 seconds. One retained DocumentChanged handler increments a write-only
+epoch for all documents conservatively, including Undo/Redo/ABA; it never writes.
+Pending/unknown transactions retain ownership and block new work; manual status
+check uses no new Start/Set/Commit. Committed verification failure never claims
+rollback; no compensating transaction. Existing read-only executor lock unchanged.
+
+Standalone preview selection_generation=null remains intentional: exact invocation
+snapshot and SHA-256 fingerprint are diagnostic, not confirmed-write authority.
+Original empty-selection stale-target cause unproven; corrected capture occurs
+before input dialog; empty retest PASS. No prior-target fallback identified.
+Preview has transaction_started=false/model_modified=false, no Set/provisioning.
+
+User-supplied provisioning/preview PASS; WRITE-01..05 PASS;06..13 PENDING.
+13 provider tools remain read-only, catalog237; no OpenAI write integration.
+Evidence/Daily Log/KC IDs/hours PENDING. Continue host-only validation before
+provider exposure; no M4B. Historical architecture sections below remain dated.
+
 ## 2026-09-27 - M3F post-closure status reconciliation (current)
 
 BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Read-Only Summary.

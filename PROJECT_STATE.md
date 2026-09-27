@@ -1,5 +1,79 @@
 # PROJECT STATE
 
+## 2026-09-27 - M4A end-of-day checkpoint (authoritative current status)
+
+BIMCODE-REVIT-AI-PANE-001 / M4A - Controlled Parameter Write.
+This section supersedes older next-milestone/current-state wording below;
+earlier dated checkpoints remain historical.
+
+- M4A DISCOVERY COMPLETE / COMMITTED / PUSHED
+- M4A IMPLEMENTATION DESIGN COMPLETE / COMMITTED / PUSHED
+- M4A PREVIEW FOUNDATION IMPLEMENTED / STATIC PASS / COMMITTED / PUSHED
+- M4A PARAMETER PROVISIONING LIVE PASS
+- M4A PREVIEW HARNESS IMPLEMENTED / COMMITTED / PUSHED
+- M4A INVOCATION-TIME SELECTION SNAPSHOT CORRECTION IMPLEMENTED
+- M4A PREVIEW LIVE VALIDATION PASS FOR CURRENT MATRIX
+- M4A HOST-ONLY WRITE EXECUTION IMPLEMENTED / STATIC VALIDATION PASSED
+- M4A HOST-ONLY WRITE IMPLEMENTATION COMMITTED / PUSHED (Git verified)
+- M4A HOST-ONLY WRITE LIVE VALIDATION PARTIAL / IN PROGRESS
+- M4A WRITE-01 THROUGH WRITE-05 PASS; CONFIRMED WRITE / REREAD / REVIT UNDO PASS
+- M4A PROVIDER WRITE TOOL / OPENAI WRITE INTEGRATION NOT IMPLEMENTED
+- M4A FINAL WRITE MATRIX PENDING
+- M4A NOT SOURCE-CONTROL CLOSED
+
+Git-verified checkpoints:
+- Discovery: 4db623b120b7fa19ce9a80bfa32fc682e089225c,
+  docs(bimcode): record M4A controlled-write discovery.
+- Design: dc14eaea00e92f75837ef98abbf012c007d3ab47,
+  docs(bimcode): record M4A implementation design.
+- Preview foundation: 83a87ee5c58782dffb86a5add8936273c4bff647,
+  feat(bimcode): add M4A parameter preview foundation.
+- Preview harness/snapshot: 74d14b80931d4f218a2adb04b2889de65dc268d6,
+  feat(bimcode): add M4A read-only preview harness.
+- Host-write implementation: 60b1818ef00bac7a058c751f24e2d4afaf857666,
+  subject project WBSO update..., parent 74d14b80931d4f218a2adb04b2889de65dc268d6;
+  actual scope nine runtime/test files, +749/-2, not WBSO documentation despite
+  its subject. At this documentation-task start main HEAD = origin/main at
+  this SHA, ahead/behind 0/0, clean; no staged, modified or untracked paths.
+  Thus no pre-existing uncommitted runtime/test delta exists. This documentation
+  checkpoint itself is uncommitted/unpushed; implementation commit is not closure.
+
+Fixed contract: MEP-PARAM-WR-001 / MEP-PARAM-WR-001-A01;
+BIMCode_M4A_TestText; GUID 2f3c955d-45ee-4258-bc61-08acd40a2912.
+Shared instance Text, OST_PipeCurves only; exactly one eligible rigid host Pipe.
+GUID-only runtime identity, no name fallback or provider IDs/actions/parameter names.
+Value: string 1-64, ^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$; host additionally rejects
+leading/trailing whitespace and controls, without normalization.
+
+Host-only human command: snapshot -> proposed value -> read-only preview ->
+native Cancel-default TaskDialog -> dedicated write ExternalEvent -> precondition
+reread -> one transaction/Set -> commit -> fixed-GUID exact verification.
+Transaction: BIMCode M4A Set Test Text. No retry, batch or compensating write.
+13 provider tools remain READ-ONLY; catalog237. No provider mutation registration.
+Standalone preview generation remains null, with exact snapshot/SHA-256 fingerprint;
+write approval instead binds existing lifecycle/selection counters plus model epoch.
+
+User-supplied live evidence, not rerun here: provisioning in disposable Project2,
+preview01-06 and valid-path regression PASS; write01-05 PASS, including Cancel,
+confirmed Pipe353871 unset -> M4A_Write_01, exact reread and one manual Undo to
+blank/unset. Original empty-selection stale-target symptom was observed; exact
+cause NOT proven. Before-dialog snapshot correction passed the empty retest;
+no cached fallback was identified. Details: WBSO/Technical_Notes/evidence_reference.md.
+
+Implementation-checkpoint validation (recorded, not rerun for documentation):
+362 Python tests PASS (74 M4A included),17 native assertions,66 bridge probes,
+14 IronPython compiles,7 AST/compile/tabnanny files; whitespace/dependency/mutation/
+credential-pattern scans PASS. Preview/provisioning remain separate from executor.
+Write06-13 PENDING; Pending/rollback/verification-failure live injection unclaimed.
+Workshared behavior outside initial scope. No M4B/broader mutation work.
+
+Evidence ID / Daily Log ID / KC ID / project-local hours: PENDING.
+Central WBSO is maintained separately. No IDs/hours allocated.
+Next: review this documentation delta, continue host-only WRITE-06 onward, finish
+live matrix and final static/regression audit, then assess closure and any further
+checkpoint. The existing host-write implementation commit must not be duplicated.
+Provider integration comes later; M4A remains NOT SOURCE-CONTROL CLOSED.
+
 ## 2026-09-27 - M3F post-closure status reconciliation (current)
 
 BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Read-Only Summary.

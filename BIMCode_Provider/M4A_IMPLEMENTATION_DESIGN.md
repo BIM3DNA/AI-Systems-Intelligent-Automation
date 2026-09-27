@@ -1,5 +1,43 @@
 # M4A implementation design - parameter provisioning and write contract
 
+## Current implementation checkpoint - 2026-09-27
+
+Design COMPLETE / COMMITTED / PUSHED at dc14eaea00e92f75837ef98abbf012c007d3ab47.
+Discovery, preview foundation and harness are committed/pushed; see
+[PROJECT_STATE.md](../PROJECT_STATE.md) for exact anchors.
+Host-only write implementation COMMITTED / PUSHED at
+60b1818ef00bac7a058c751f24e2d4afaf857666, parent
+74d14b80931d4f218a2adb04b2889de65dc268d6. Despite subject project WBSO update...,
+this is the nine-file runtime/test implementation (+749/-2), not final closure.
+
+Implemented refinement authorized after this design: Dev command builds preview
+and obtains native confirmation BEFORE queuing a dedicated write ExternalEvent.
+The event consumes the immutable request and revalidates before mutation.
+Executor is isolated in AI.extension/lib/bimcode_write_execution.py, leaving
+bimcode_write_runtime.py preview transaction-free. Coordinator lives in
+bimcode_ai_pane/write_coordinator.py; M4AWrite is the sole human entry.
+Existing pane lifecycle/selection counters are reused; one retained DocumentChanged
+subscription increments a write-only epoch conservatively for all documents.
+This also invalidates commit/Undo/Redo/change-back; callback never writes/schedules.
+Single-use approval expires after60 seconds and binds exact snapshot, fingerprint,
+target/UniqueId/GUID/before/HasValue/proposed value/context and confirmation time.
+Pending/unknown transaction ownership is retained; another human invocation only
+checks status, never retries Set/Commit. Read/provider admission is blocked while
+write work is pending. Provider integration remains absent;13 read-only tools.
+
+Fixed identity remains BIMCode_M4A_TestText /
+2f3c955d-45ee-4258-bc61-08acd40a2912, instance Text / OST_PipeCurves, one eligible
+host rigid Pipe. Action MEP-PARAM-WR-001-A01; feature MEP-PARAM-WR-001.
+Provisioning PASS; preview01-06 PASS; host WRITE-01..05 PASS (user supplied).
+WRITE-06..13 PENDING; host live validation PARTIAL; M4A NOT SOURCE-CONTROL CLOSED.
+Static checkpoint:362 tests (74 M4A),17 native assertions,66 bridge probes,
+14 IronPython compiles,7 syntax files PASS; recorded, not rerun here.
+Evidence/Daily Log/KC IDs/hours PENDING. Next: complete host-only validation.
+
+The original design below remains historical. Its original in-event confirmation
+ordering and proposed file list are superseded by the implemented refinement above;
+it does not imply that provider execution or final package closure exists.
+
 Date: 2026-09-27. Design/preparation only; no runtime implementation.
 Baseline: main HEAD = origin/main = 4db623b120b7fa19ce9a80bfa32fc682e089225c,
 parent 1d9c3a9a7525011d20f6753bcd663ffdc950ce7a. Starting worktree clean.

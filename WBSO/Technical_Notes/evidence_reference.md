@@ -1,5 +1,113 @@
 # Evidence Reference
 
+## 2026-09-27 - M4A end-of-day live evidence (current)
+
+Source: user-supplied Revit observations; not independently rerun by this
+documentation task. Project2 is a disposable project. No Revit/API/provider call,
+secret read, fixture modification, identifiers or hours allocated here.
+Evidence ID / Daily Log ID / Knowledge Capture ID / hours: PENDING.
+Central WBSO is maintained separately.
+
+### Git reconciliation
+
+Discovery4db623b120b7fa19ce9a80bfa32fc682e089225c;
+designdc14eaea00e92f75837ef98abbf012c007d3ab47;
+preview foundation83a87ee5c58782dffb86a5add8936273c4bff647;
+preview harness/snapshot74d14b80931d4f218a2adb04b2889de65dc268d6.
+Host write60b1818ef00bac7a058c751f24e2d4afaf857666, subject project WBSO update...,
+parent74d14b80931d4f218a2adb04b2889de65dc268d6: nine runtime/test files,+749/-2.
+All are committed/pushed ancestors of synchronized main. At task start
+HEAD=origin/main=60b1818...,0/0,clean; no pre-existing runtime/test delta or staged
+paths. Subject notwithstanding, host commit is not WBSO documentation or closure.
+This new EOD documentation is uncommitted/unpushed. Full subjects: PROJECT_STATE.md.
+
+### Fixed contract and provisioning - PASS
+
+Feature MEP-PARAM-WR-001; action MEP-PARAM-WR-001-A01.
+Parameter BIMCode_M4A_TestText; GUID2f3c955d-45ee-4258-bc61-08acd40a2912.
+Shared instance Text, OST_PipeCurves only; one eligible rigid host Pipe.
+GUID-only runtime lookup; no name fallback/provider parameter name/ElementId/action.
+Value string1-64, ^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$; reject boundary whitespace
+and controls without normalization.
+
+User ran AI -> Dev -> M4A Fixture Setup and explicitly entered PROVISION.
+User-selected dedicated shared file:
+C:\Users\Korisnik\Desktop\BIMCode_M4A_fixture_shared_parameters.txt
+Observed entry: PARAM / 2f3c955d-45ee-4258-bc61-08acd40a2912 /
+BIMCode_M4A_TestText / TEXT.
+Result: PROVISIONED / selected Pipe GUID, binding, Text storage and writability verified.
+Instance/Pipes-only/Text/writable confirmed. No value set during provisioning;
+human-invoked binding setup is outside AI path. No broader category claim.
+
+### Initial stale-target symptom and corrected preview
+
+Initial LIVE-M4A-PREVIEW-03: FAIL. After user cleared UI selection, preview
+unexpectedly returned PREVIEW_OK / COMPLETE for prior Pipe353871.
+Expected NO_ELEMENTS_SELECTED. Exact original cause NOT proven.
+Inspected path main -> build_preview -> _preview -> resolve_target ->
+uidoc.Selection.GetElementIds() contained no explicit cached target/fallback.
+Correction captures active document/current selected IDs once at invocation,
+BEFORE proposed-value dialog, then passes explicit snapshot; exposes IDs and
+deterministic SHA-256 fingerprint, without prior-target fallback.
+Empty retest PASS; stale target no longer reproduced.
+Standalone selection_generation=null is acceptable only for this preview harness,
+not for future confirmed-write stale-context protection.
+
+| Preview case | User-supplied result | Status |
+| --- | --- | --- |
+| LIVE-M4A-PREVIEW-01 | [353871], PREVIEW_OK / COMPLETE, Pipe353871; fixed parameter, INSTANCE/String/writable, current unset, proposed M4A_Test_01; confirmation_required=true | PASS |
+| LIVE-M4A-PREVIEW-02 | M4A/Test -> PREVIEW_NOT_READY / INVALID_VALUE; no target write preparation | PASS |
+| LIVE-M4A-PREVIEW-03 retest | [] -> PREVIEW_NOT_READY / NO_ELEMENTS_SELECTED; target null; previous target not reused | PASS |
+| LIVE-M4A-PREVIEW-01 regression | [353871] -> PREVIEW_OK / COMPLETE after correction | PASS |
+| LIVE-M4A-PREVIEW-04 | [353871,353895] Pipe+Duct -> PREVIEW_NOT_READY / MULTIPLE_ELEMENTS_SELECTED; target null | PASS |
+| LIVE-M4A-PREVIEW-05 | Duct[353895] -> PREVIEW_NOT_READY / UNSUPPORTED_TARGET; target null | PASS |
+| LIVE-M4A-PREVIEW-06 | Input dialog Cancel/close; preview evaluation stopped; no parameter write | PASS |
+
+Classification abbreviations above have prefix MEP_PARAMETER_WRITE_.
+All evaluated preview cases: transaction_started=false/model_modified=false.
+Preview FAILED family remains MEP_PARAMETER_WRITE_PREVIEW_FAILED.
+No Set, provisioning or provider mutation occurs in preview.
+
+### Host-only write live evidence - PARTIAL / IN PROGRESS
+
+Flow: human M4A Write -> snapshot/value/preview -> native TaskDialog -> explicit
+Confirm -> dedicated write ExternalEvent -> full precondition revalidation ->
+one DB.Transaction / fixed-GUID Set -> Commit -> exact same-GUID reread.
+Transaction name: BIMCode M4A Set Test Text.
+TaskDialog displays exact document/view/Pipe/type/parameter/GUID/before/after/
+request; Cancel safe/default. Single-use approval binds before/HasValue, target/
+UniqueId, selection/fingerprint, lifecycle/selection counters and model epoch;
+expiry60 seconds. Model changes/Undo/Redo/ABA invalidate approval. No retry,
+compensation, batch or chained writes. Pending outcomes retain ownership.
+
+| Case | Exact supplied evidence | Status |
+| --- | --- | --- |
+| LIVE-M4A-WRITE-01 | Pipe353871; selection_generation32; snapshot[353871]; PREVIEW_OK / COMPLETE; unset -> M4A_Write_01; transaction_started=false/model_modified=false; exact TaskDialog before mutation | PASS |
+| LIVE-M4A-WRITE-02 | User Cancel; MEP_PARAMETER_WRITE_CANCELLED / USER_CANCELLED; confirmation_result=NOT_CONFIRMED; transaction_started=false, transaction_committed=false, transaction_status=NOT_STARTED, model_modified=false; verification_performed=false, verification_passed=false, final_value=null | PASS |
+| LIVE-M4A-WRITE-03 | Explicit Confirm; MEP_PARAMETER_WRITE_OK / COMPLETE; confirmation_result=CONFIRMED; transaction_started=true, transaction_committed=true, transaction_status=Committed, model_modified=true; final_value=M4A_Write_01; no warnings; Properties palette confirms value | PASS |
+| LIVE-M4A-WRITE-04 | verification_performed=true, verification_passed=true, final_value=M4A_Write_01; exact fixed-GUID post-commit reread, not provider inference | PASS |
+| LIVE-M4A-WRITE-05 | One normal manual Revit Undo restores blank/unset; no compensating M4A transaction | PASS |
+
+### Recorded implementation static evidence (not rerun here)
+
+362 Python tests PASS, including74 M4A tests;17 native contract assertions PASS;
+66 native bridge probes PASS;14 IronPython compiles PASS;7 AST/compile/tabnanny
+files PASS; whitespace/dependency/mutation/credential-pattern scans PASS.
+One transaction constructor/one Set in dedicated executor. Preview transaction-free;
+provisioning separate. Workbench/provider implementation/catalog/WBSO unchanged
+during runtime implementation; pane admission guards are not provider integration.
+
+### Remaining work and limits
+
+WRITE-06 same-value NO_CHANGE_REQUIRED;07 practical stale/precondition interleaving;
+08 empty;09 multiple;10 unsupported Duct;11 invalid value;12 preview read-only;
+13 M3F mixed-summary regression: ALL PENDING, no live PASS claimed.
+Pending, rollback/failure and verification-failure live states not deliberately
+reproduced; offline coverage is not live evidence. Workshared outside initial scope.
+Provider write tool/OpenAI integration NOT IMPLEMENTED;13 read-only AI tools,
+catalog237. M4A NOT SOURCE-CONTROL CLOSED. Continue host-only validation before
+provider integration, M4B or broader mutation.
+
 ## 2026-09-27 - M3F post-closure status reconciliation (current)
 
 BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Read-Only Summary.

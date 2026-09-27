@@ -1,5 +1,24 @@
 # Provider Registry
 
+## 2026-09-27 - M4A host-only write checkpoint (current)
+
+M4A provider write tool NOT IMPLEMENTED; OpenAI write integration NOT IMPLEMENTED.
+Existing AI surface remains exactly13 READ-ONLY TOOLS (Piping4/HVAC4/Electrical4/
+mixed-summary1); prompt catalog237. set_selected_pipe_test_text is not registered.
+Human Dev commands are not provider tools: Fixture Setup, Preview, M4A Write.
+One fixed GUID parameter, one eligible host rigid Pipe, one validated scalar;
+no provider parameter-name, ElementId or action-ID input, arbitrary editing,
+generic dispatcher, generated code, batching, chained writes or autonomous retry.
+
+Fixed contract: MEP-PARAM-WR-001 / MEP-PARAM-WR-001-A01; BIMCode_M4A_TestText;
+2f3c955d-45ee-4258-bc61-08acd40a2912; instance Text / OST_PipeCurves only.
+Discovery/design/preview checkpoints and host implementation committed/pushed;
+host commit60b1818ef00bac7a058c751f24e2d4afaf857666. Full anchors: PROJECT_STATE.md.
+Provisioning/preview PASS; host WRITE-01..05 PASS including verification/Undo;
+WRITE-06..13 PENDING. M4A live validation PARTIAL; NOT SOURCE-CONTROL CLOSED.
+Evidence/Daily Log/KC IDs/hours PENDING; central WBSO separate. This is a new,
+uncommitted documentation checkpoint, not runtime/provider implementation.
+
 ## 2026-09-27 - M3F post-closure status reconciliation (current)
 
 BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Read-Only Summary.

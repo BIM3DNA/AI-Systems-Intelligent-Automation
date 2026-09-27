@@ -1,5 +1,47 @@
 # Test Plan
 
+## 2026-09-27 - M4A remaining host-write validation (current)
+
+M4A host-write implementation/static validation complete, committed/pushed at
+60b1818ef00bac7a058c751f24e2d4afaf857666; live validation PARTIAL / IN PROGRESS.
+Discovery/design/preview anchors: PROJECT_STATE.md. Evidence: evidence_reference.md.
+This EOD task records user-supplied evidence; no live tests or static suite rerun.
+Provisioning in Project2 PASS. Preview01-06 and valid regression PASS.
+Original empty-preview stale symptom initially FAIL; exact cause unproven;
+before-dialog snapshot correction and empty retest PASS.
+
+| Host-write case | Validation | Current status |
+| --- | --- | --- |
+| LIVE-M4A-WRITE-01 | Exact preview/TaskDialog before mutation, Pipe353871, selection_generation32 | PASS |
+| LIVE-M4A-WRITE-02 | Cancel -> USER_CANCELLED, no transaction/model change | PASS |
+| LIVE-M4A-WRITE-03 | Confirm unset -> M4A_Write_01, one committed transaction | PASS |
+| LIVE-M4A-WRITE-04 | Exact fixed-GUID post-write verification | PASS |
+| LIVE-M4A-WRITE-05 | One manual Revit Undo restores blank/unset | PASS |
+| LIVE-M4A-WRITE-06 | Same current value -> NO_CHANGE_REQUIRED/no transaction | PENDING |
+| LIVE-M4A-WRITE-07 | Controlled stale/precondition interleaving if practical | PENDING |
+| LIVE-M4A-WRITE-08 | Empty selection in write harness; no confirmation/write | PENDING |
+| LIVE-M4A-WRITE-09 | Multiple selection in write harness; no confirmation/write | PENDING |
+| LIVE-M4A-WRITE-10 | Unsupported Duct in write harness; no confirmation/write | PENDING |
+| LIVE-M4A-WRITE-11 | Invalid value in write harness; no confirmation/write | PENDING |
+| LIVE-M4A-WRITE-12 | Existing Preview remains read-only | PENDING |
+| LIVE-M4A-WRITE-13 | M3F mixed summary remains read-only | PENDING |
+
+Use disposable Project2, one eligible host rigid Pipe and fixed shared instance
+Text BIMCode_M4A_TestText / GUID2f3c955d-45ee-4258-bc61-08acd40a2912.
+No broader category/workshared coverage. Do not promote prior preview guard passes
+to write-harness passes. WRITE-06 requires a matching current value; Undo restored
+unset, so do not assume M4A_Write_01 is still stored. Case07 may be impractical
+with modal confirmation; retain pending status unless controlled evidence exists.
+Do not claim live Pending/rollback/verification-failure injection from mock coverage.
+
+Recorded static checkpoint:362 Python (74 M4A),17 native assertions,66 bridge
+probes,14 IronPython,7 syntax files, whitespace/dependency/mutation/credential
+checks PASS.13 read-only provider tools/catalog237; provider write tool absent.
+Next: review docs, continue06 onward, complete host validation/final static audit,
+then assess closure/further checkpoint. Existing implementation is already committed;
+do not duplicate it. No provider integration/M4B/broader mutation yet.
+M4A NOT SOURCE-CONTROL CLOSED. Evidence/Daily Log/KC IDs/hours PENDING.
+
 ## 2026-09-27 - M3F post-closure status reconciliation (current)
 
 BIMCODE-REVIT-AI-PANE-001 / M3F - Mixed-Specialty Read-Only Summary.
