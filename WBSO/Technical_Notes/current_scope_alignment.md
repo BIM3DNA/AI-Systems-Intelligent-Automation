@@ -1,5 +1,46 @@
 # Current Scope Alignment
 
+## 2026-09-28 - Host-only M4A closure scope (authoritative current)
+
+M4A HOST-ONLY WRITE LAYER READY FOR SOURCE-CONTROL CLOSURE.
+Host-only live validation PASSED WITH DOCUMENTED NONBLOCKING COVERAGE GAPS;
+final static/regression audit PASSED. This final documentation is prepared for
+review, not yet committed/pushed; host-only source-control closure is not yet claimed.
+Provider write tool / OpenAI write integration NOT IMPLEMENTED.
+PROVIDER-FACING WRITE PHASE NOT STARTED / NOT CLOSED.
+No natural-language provider request can invoke M4A Write. Provider surface remains
+13 READ-ONLY TOOLS (4 Piping / 4 HVAC / 4 Electrical / 1 mixed summary); catalog237.
+Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours: PENDING.
+No central WBSO identifiers reused. No runtime/test/provider/configuration/secret
+changes or live/API tests performed by this documentation task.
+
+Discovery/design/preview foundation/harness COMPLETE / COMMITTED / PUSHED;
+provisioning and preview LIVE PASS; invocation-time snapshot correction implemented.
+Host-only implementation COMMITTED / PUSHED at60b1818ef00bac7a058c751f24e2d4afaf857666.
+EOD docs COMMITTED / PUSHED at1f592632c8c14bf79f32e35002bbf43200347a4a.
+Exact chain/subjects: PROJECT_STATE.md. No full provider-facing milestone closure.
+
+Validated scope: exactly one eligible host rigid Pipe / OST_PipeCurves and
+BIMCode_M4A_TestText fixed GUID2f3c955d-45ee-4258-bc61-08acd40a2912, INSTANCE Text.
+One valid scalar, explicit human confirmation, dedicated event, transaction/Set/
+Commit and exact post-write verification. No arbitrary identity/action inputs.
+Live WRITE-01..06,07A,08..12 PASS;13 PASS on repeat. Original preview stale symptom
+cause unproven; snapshot correction retests passed. WRITE-07 nonblocking live gap.
+
+Nonblocking limits: WRITE-07 model-change/change-back not deliberately reproduced
+live (static/offline coverage retained); Pending, explicit rollback/failure and
+post-commit verification-failure injection not deliberately reproduced live.
+Workshared documents, broader targets/categories/parameters remain outside scope.
+The first WRITE-13 attempt hit TIME_BUDGET_EXCEEDED, then immediate repeat passed;
+retain as INTERMITTENT / ADVISORY TIME-BUDGET OBSERVATION, not a demonstrated
+persistent M4A-induced regression. Approval lifetime starts before the value dialog,
+not at explicit Confirm: a known usability/timing limitation for later hardening.
+WRITE-07A expiry PASS is separate from WRITE-07 model-change coverage.
+
+Next: audit final docs, explicitly authorize host-only closure commit/push, verify
+source-control closure; then separately design provider-facing writes. No automatic
+provider exposure, M4B or broader mutation. Earlier dated status sections are historical.
+
 ## 2026-09-27 - M4A end-of-day scope (authoritative current)
 
 M4A discovery/design/preview foundation/harness COMPLETE / COMMITTED / PUSHED.

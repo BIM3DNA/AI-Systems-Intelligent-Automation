@@ -1,5 +1,35 @@
 # Provider Registry
 
+## 2026-09-28 - Host-only M4A final validation / provider boundary (current)
+
+M4A HOST-ONLY WRITE LAYER READY FOR SOURCE-CONTROL CLOSURE.
+Host-only live validation PASSED WITH DOCUMENTED NONBLOCKING COVERAGE GAPS;
+final static/regression audit PASSED. This final documentation is prepared for
+review, not yet committed/pushed; host-only source-control closure is not yet claimed.
+Provider write tool / OpenAI write integration NOT IMPLEMENTED.
+PROVIDER-FACING WRITE PHASE NOT STARTED / NOT CLOSED.
+No natural-language provider request can invoke M4A Write. Provider surface remains
+13 READ-ONLY TOOLS (4 Piping / 4 HVAC / 4 Electrical / 1 mixed summary); catalog237.
+Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours: PENDING.
+No central WBSO identifiers reused. No runtime/test/provider/configuration/secret
+changes or live/API tests performed by this documentation task.
+
+set_selected_pipe_test_text: NOT REGISTERED. OpenAI cannot invoke M4A Write.
+Host-only layer is ready independently; no claim of entire M4A/provider completion.
+Only human Dev invocation may confirm one fixed-GUID BIMCode_M4A_TestText write
+on one eligible host rigid Pipe: MEP-PARAM-WR-001 / MEP-PARAM-WR-001-A01;
+GUID2f3c955d-45ee-4258-bc61-08acd40a2912, INSTANCE Text / OST_PipeCurves.
+No arbitrary parameter name, ElementId, action-ID, generic dispatcher or generated
+code; no batch/retry/chained writes. Preview/provisioning remain separate.
+
+Implementation60b1818ef00bac7a058c751f24e2d4afaf857666 and EOD docs
+1f592632c8c14bf79f32e35002bbf43200347a4a committed/pushed; all anchors:
+PROJECT_STATE.md. Final audit PASS; user-reported WRITE-01..06/07A/08..12 PASS,
+13 PASS on repeat with first time-budget observation retained;07 live gap.
+Future provider phase requires separate design/authorization, including approval
+timing hardening (current60 seconds starts before input, not at Confirm).
+Earlier status sections below are historical and superseded.
+
 ## 2026-09-27 - M4A host-only write checkpoint (current)
 
 M4A provider write tool NOT IMPLEMENTED; OpenAI write integration NOT IMPLEMENTED.

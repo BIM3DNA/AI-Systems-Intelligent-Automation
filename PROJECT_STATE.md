@@ -1,5 +1,90 @@
 # PROJECT STATE
 
+## 2026-09-28 - M4A host-only final validation (authoritative current)
+
+M4A HOST-ONLY WRITE LAYER READY FOR SOURCE-CONTROL CLOSURE.
+Host-only live validation PASSED WITH DOCUMENTED NONBLOCKING COVERAGE GAPS;
+final static/regression audit PASSED. This final documentation is prepared for
+review, not yet committed/pushed; host-only source-control closure is not yet claimed.
+Provider write tool / OpenAI write integration NOT IMPLEMENTED.
+PROVIDER-FACING WRITE PHASE NOT STARTED / NOT CLOSED.
+No natural-language provider request can invoke M4A Write. Provider surface remains
+13 READ-ONLY TOOLS (4 Piping / 4 HVAC / 4 Electrical / 1 mixed summary); catalog237.
+Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours: PENDING.
+No central WBSO identifiers reused. No runtime/test/provider/configuration/secret
+changes or live/API tests performed by this documentation task.
+
+Verified checkpoints, all committed/pushed:
+- Discovery: 4db623b120b7fa19ce9a80bfa32fc682e089225c,
+  docs(bimcode): record M4A controlled-write discovery.
+- Design: dc14eaea00e92f75837ef98abbf012c007d3ab47,
+  docs(bimcode): record M4A implementation design.
+- Preview foundation: 83a87ee5c58782dffb86a5add8936273c4bff647,
+  feat(bimcode): add M4A parameter preview foundation.
+- Preview harness/invocation snapshot: 74d14b80931d4f218a2adb04b2889de65dc268d6,
+  feat(bimcode): add M4A read-only preview harness.
+- Host-write implementation: 60b1818ef00bac7a058c751f24e2d4afaf857666,
+  project WBSO update...; actual nine runtime/test files, +749/-2.
+- EOD documentation: 1f592632c8c14bf79f32e35002bbf43200347a4a,
+  update...; actual nine documentation files, +406/-0.
+Generic subjects do not alter verified contents. At this task start:
+main HEAD = origin/main = EOD SHA, parent the host-write SHA; ahead/behind0/0,
+clean, no staged/modified/untracked files. Earlier EOD pre-commit wording is
+historical and superseded, not evidence that implementation remains uncommitted.
+
+- DISCOVERY COMPLETE / COMMITTED / PUSHED
+- IMPLEMENTATION DESIGN COMPLETE / COMMITTED / PUSHED
+- PREVIEW FOUNDATION IMPLEMENTED / STATIC PASS / COMMITTED / PUSHED
+- PARAMETER PROVISIONING LIVE PASS
+- PREVIEW HARNESS IMPLEMENTED / COMMITTED / PUSHED
+- INVOCATION-TIME SELECTION SNAPSHOT CORRECTION IMPLEMENTED
+- PREVIEW LIVE VALIDATION PASSED
+- HOST-ONLY WRITE EXECUTION IMPLEMENTED / COMMITTED / PUSHED
+- HOST-ONLY WRITE STATIC / REGRESSION AUDIT PASSED
+- HOST-ONLY WRITE LIVE VALIDATION PASSED WITH NONBLOCKING COVERAGE GAPS
+
+Fixed contract: MEP-PARAM-WR-001 / MEP-PARAM-WR-001-A01;
+BIMCode_M4A_TestText / 2f3c955d-45ee-4258-bc61-08acd40a2912.
+INSTANCE String/Text, OST_PipeCurves, exactly one eligible rigid host-document Pipe.
+GUID-only runtime identity; no name fallback or arbitrary parameter/ElementId/action
+input. Required string1-64, ^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$, boundary whitespace/
+controls rejected without normalization. Transaction: BIMCode M4A Set Test Text.
+
+User-supplied live results: preview01-06 PASS; WRITE-01..06 PASS; WRITE-07A expiry
+PASS (two observations); WRITE-08..12 PASS; WRITE-13 PASS ON IMMEDIATE REPEAT.
+WRITE-07 remains a NONBLOCKING LIVE-COVERAGE GAP, not a live PASS.
+Successful Pipe353871 unset -> M4A_Write_01 commit and exact reread PASS;
+one native Undo restored blank/unset, without compensation. Preview remains
+read-only. Original empty-preview stale-target cause remains NOT PROVEN; explicit
+before-dialog snapshot correction and retests passed. Exact flags, both WRITE-13
+attempts and full matrix: WBSO/Technical_Notes/evidence_reference.md.
+
+Final audit evidence from the preceding audit (not rerun in this documentation task):
+362 Python tests PASS, including74 M4A-specific;17 native contract assertions;
+66 native bridge probes;14 IronPython compiles;7 AST/py_compile/tabnanny files;
+native XAML/WPF/theme/Find, whitespace, dependency, mutation-location and registry
+checks PASS. Catalog237 unchanged. Credential-pattern scan reviewed126 tracked text
+files: two existing identifier false positives; no newly introduced leak identified.
+M3F composite/two-second budget/deadline/order/headless/Workbench source unchanged.
+HVAC-QA-009 retains physical End rule and valid Curve/tap connectors; Electrical
+QA still excludes open-connector and connector-count rules.
+
+Nonblocking limits: WRITE-07 model-change/change-back not deliberately reproduced
+live (static/offline coverage retained); Pending, explicit rollback/failure and
+post-commit verification-failure injection not deliberately reproduced live.
+Workshared documents, broader targets/categories/parameters remain outside scope.
+The first WRITE-13 attempt hit TIME_BUDGET_EXCEEDED, then immediate repeat passed;
+retain as INTERMITTENT / ADVISORY TIME-BUDGET OBSERVATION, not a demonstrated
+persistent M4A-induced regression. Approval lifetime starts before the value dialog,
+not at explicit Confirm: a known usability/timing limitation for later hardening.
+WRITE-07A expiry PASS is separate from WRITE-07 model-change coverage.
+
+Next repository task: audit this nine-document delta; obtain explicit authority
+for host-only closure documentation commit/push; verify that closure; then
+separately design provider-facing writes. Do not mark all M4A/provider work closed.
+All earlier dated sections below are historical, including their pending-case
+and uncommitted-EOD wording; this section is the current authority.
+
 ## 2026-09-27 - M4A end-of-day checkpoint (authoritative current status)
 
 BIMCODE-REVIT-AI-PANE-001 / M4A - Controlled Parameter Write.

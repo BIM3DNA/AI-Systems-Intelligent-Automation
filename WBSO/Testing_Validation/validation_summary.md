@@ -1,5 +1,99 @@
 # Validation Summary
 
+## 2026-09-28 - M4A host-only final validation / closure readiness (current)
+
+M4A HOST-ONLY WRITE LAYER READY FOR SOURCE-CONTROL CLOSURE.
+Host-only live validation PASSED WITH DOCUMENTED NONBLOCKING COVERAGE GAPS;
+final static/regression audit PASSED. This final documentation is prepared for
+review, not yet committed/pushed; host-only source-control closure is not yet claimed.
+Provider write tool / OpenAI write integration NOT IMPLEMENTED.
+PROVIDER-FACING WRITE PHASE NOT STARTED / NOT CLOSED.
+No natural-language provider request can invoke M4A Write. Provider surface remains
+13 READ-ONLY TOOLS (4 Piping / 4 HVAC / 4 Electrical / 1 mixed summary); catalog237.
+Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours: PENDING.
+No central WBSO identifiers reused. No runtime/test/provider/configuration/secret
+changes or live/API tests performed by this documentation task.
+
+Discovery/design/preview foundation/harness implemented and committed/pushed;
+provisioning/preview LIVE PASS; invocation-time snapshot correction implemented.
+Host implementation60b1818ef00bac7a058c751f24e2d4afaf857666 and EOD documentation
+1f592632c8c14bf79f32e35002bbf43200347a4a are committed/pushed, not pending.
+Exact subjects/chain: PROJECT_STATE.md. New final documentation remains uncommitted.
+No claim of provider-phase completion or final host source-control closure yet.
+
+| Case | Supplied result | Status |
+| --- | --- | --- |
+| LIVE-M4A-WRITE-01 | Pipe353871, M4A_Write_01, MEP_PARAMETER_WRITE_PREVIEW_OK / COMPLETE; exact preview/TaskDialog before transaction | PASS |
+| LIVE-M4A-WRITE-02 | MEP_PARAMETER_WRITE_CANCELLED / USER_CANCELLED; started=false, committed=false, status=NOT_STARTED, model_modified=false | PASS |
+| LIVE-M4A-WRITE-03 | Explicit Confirm, Pipe353871 unset -> M4A_Write_01; MEP_PARAMETER_WRITE_OK / COMPLETE; started=true, committed=true, status=Committed, model_modified=true | PASS |
+| LIVE-M4A-WRITE-04 | verification_performed=true, verification_passed=true, final_value=M4A_Write_01; fixed-GUID reread | PASS |
+| LIVE-M4A-WRITE-05 | One native Revit Undo restores blank/unset; no compensating M4A transaction | PASS |
+| LIVE-M4A-WRITE-06 | current_value=proposed_value=M4A_Write_01; PREVIEW_NOT_READY / NO_CHANGE_REQUIRED; no confirmation; started=false/model_modified=false | PASS |
+| LIVE-M4A-WRITE-07A | Two MEP_PARAMETER_WRITE_NOT_READY / CONFIRMATION_EXPIRED observations; started=false, committed=false, status=NOT_STARTED, model_modified=false | PASS |
+| LIVE-M4A-WRITE-07 | Model-change/change-back interleaving not deliberately reproduced live; static/offline coverage retained | NONBLOCKING LIVE-COVERAGE GAP |
+| LIVE-M4A-WRITE-08 | Snapshot[]; PREVIEW_NOT_READY / NO_ELEMENTS_SELECTED; no confirmation/transaction/mutation | PASS |
+| LIVE-M4A-WRITE-09 | Pipe353871+Duct353895, snapshot[353871,353895]; PREVIEW_NOT_READY / MULTIPLE_ELEMENTS_SELECTED; no confirmation/transaction/mutation | PASS |
+| LIVE-M4A-WRITE-10 | Duct353895; PREVIEW_NOT_READY / UNSUPPORTED_TARGET; no confirmation/transaction/mutation | PASS |
+| LIVE-M4A-WRITE-11 | Pipe353871, M4A/Write; PREVIEW_NOT_READY / INVALID_VALUE; target resolution not entered; no confirmation/transaction/mutation | PASS |
+| LIVE-M4A-WRITE-12 | Pipe353871 current M4A_Write_01, proposed M4A_Test_02; PREVIEW_OK / COMPLETE; started=false/model_modified=false; manual Properties still M4A_Write_01 | PASS |
+| LIVE-M4A-WRITE-13 | Pipe353871+Duct353895+Electrical Fixture356066; first partial, immediate unchanged-selection repeat COMPLETE for all children | PASS ON IMMEDIATE REPEAT |
+
+Preview abbreviations above expand to MEP_PARAMETER_WRITE_PREVIEW_OK or
+MEP_PARAMETER_WRITE_PREVIEW_NOT_READY. started/committed abbreviate
+transaction_started/transaction_committed. These are supplied live observations,
+not tests performed by this documentation task.
+
+WRITE-07A: two actual expiry observations prove no execution after expiry.
+The lifetime begins before value input, not Confirm; retain as usability limitation.
+WRITE-07 model-change/change-back remains a NONBLOCKING LIVE-COVERAGE GAP.
+These two cases must not be merged.
+
+First WRITE-13 attempt is retained: MEP_MULTI_SELECTION_SUMMARY_PARTIAL /
+SUBACTION_FAILED. Piping COMPLETED / PIPING_SELECTION_SUMMARY_OK / COMPLETE;
+HVAC FAILED / TIME_BUDGET_EXCEEDED; Electrical FAILED / TIME_BUDGET_EXCEEDED.
+No unsupported/unresolved references or model changes.
+Immediate repeat, unchanged selection: MEP_MULTI_SELECTION_SUMMARY_OK / COMPLETE;
+PIPING-RO-001-A01 -> PIPING_SELECTION_SUMMARY_OK / COMPLETE;
+HVAC-RO-001-A01 -> HVAC_SELECTION_SUMMARY_OK / COMPLETE;
+ELECTRICAL-RO-001-A01 -> ELECTRICAL_SELECTION_SUMMARY_OK / COMPLETE.
+No write tool, confirmation dialog, transaction or model modification.
+Audit confirmed composite source, two-second budget, deadline calculation,
+Piping -> HVAC -> Electrical order, headless runtime and Workbench unchanged.
+Classification: INTERMITTENT / ADVISORY TIME-BUDGET OBSERVATION.
+Persistent M4A-induced M3F regression: NOT REPRODUCED.
+
+Final audit evidence from the preceding audit (not rerun in this documentation task):
+362 Python tests PASS, including74 M4A-specific;17 native contract assertions;
+66 native bridge probes;14 IronPython compiles;7 AST/py_compile/tabnanny files;
+native XAML/WPF/theme/Find, whitespace, dependency, mutation-location and registry
+checks PASS. Catalog237 unchanged. Credential-pattern scan reviewed126 tracked text
+files: two existing identifier false positives; no newly introduced leak identified.
+M3F composite/two-second budget/deadline/order/headless/Workbench source unchanged.
+HVAC-QA-009 retains physical End rule and valid Curve/tap connectors; Electrical
+QA still excludes open-connector and connector-count rules.
+
+Mutation audit: one constructor at bimcode_write_execution.py:121 and one Set at:132;
+separate human provisioning at M4ASetup.pushbutton/script.py:58. Preview has no
+transaction/Set; no TransactionGroup/compensation/retry/batch/arbitrary mutation/
+generated execution/provider write dispatcher. Fixed GUID-only INSTANCE Text
+BIMCode_M4A_TestText / 2f3c955d-45ee-4258-bc61-08acd40a2912; one eligible host rigid
+Pipe / OST_PipeCurves; transaction BIMCode M4A Set Test Text. Exact reason/classification
+list, provisioning and preview evidence: evidence_reference.md.
+
+Nonblocking limits: WRITE-07 model-change/change-back not deliberately reproduced
+live (static/offline coverage retained); Pending, explicit rollback/failure and
+post-commit verification-failure injection not deliberately reproduced live.
+Workshared documents, broader targets/categories/parameters remain outside scope.
+The first WRITE-13 attempt hit TIME_BUDGET_EXCEEDED, then immediate repeat passed;
+retain as INTERMITTENT / ADVISORY TIME-BUDGET OBSERVATION, not a demonstrated
+persistent M4A-induced regression. Approval lifetime starts before the value dialog,
+not at explicit Confirm: a known usability/timing limitation for later hardening.
+WRITE-07A expiry PASS is separate from WRITE-07 model-change coverage.
+
+Verdict: HOST-ONLY WRITE LAYER READY FOR SOURCE-CONTROL CLOSURE WITH NONBLOCKING
+GAPS. Next: documentation audit/authorized commit/push/closure verification, then
+separate provider-facing design. Earlier dated pending statuses remain historical.
+
 ## 2026-09-27 - M4A end-of-day validation (authoritative current)
 
 M4A discovery/design/preview foundation/harness committed/pushed.

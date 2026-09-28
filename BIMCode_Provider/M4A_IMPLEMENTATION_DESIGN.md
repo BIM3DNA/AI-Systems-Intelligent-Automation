@@ -1,5 +1,66 @@
 # M4A implementation design - parameter provisioning and write contract
 
+## 2026-09-28 - Validated host-only implementation (current)
+
+M4A HOST-ONLY WRITE LAYER READY FOR SOURCE-CONTROL CLOSURE.
+Host-only live validation PASSED WITH DOCUMENTED NONBLOCKING COVERAGE GAPS;
+final static/regression audit PASSED. This final documentation is prepared for
+review, not yet committed/pushed; host-only source-control closure is not yet claimed.
+Provider write tool / OpenAI write integration NOT IMPLEMENTED.
+PROVIDER-FACING WRITE PHASE NOT STARTED / NOT CLOSED.
+No natural-language provider request can invoke M4A Write. Provider surface remains
+13 READ-ONLY TOOLS (4 Piping / 4 HVAC / 4 Electrical / 1 mixed summary); catalog237.
+Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours: PENDING.
+No central WBSO identifiers reused. No runtime/test/provider/configuration/secret
+changes or live/API tests performed by this documentation task.
+
+Design COMPLETE / COMMITTED / PUSHED at dc14eaea00e92f75837ef98abbf012c007d3ab47.
+Host implementation60b1818ef00bac7a058c751f24e2d4afaf857666 and EOD documentation
+1f592632c8c14bf79f32e35002bbf43200347a4a are committed/pushed.
+Full checkpoint chain/subjects: PROJECT_STATE.md.
+
+Validated flow: human Dev command -> current context snapshot -> scalar validation
+-> read-only preview -> native Cancel-default TaskDialog -> explicit confirmation
+-> immutable single-use approval -> dedicated write ExternalEvent -> full final
+precondition checks -> one transaction/Set/Commit -> GUID reread/exact verification.
+No provider, retry, batch, second write, compensation or TransactionGroup.
+Fixed contract remains MEP-PARAM-WR-001 / MEP-PARAM-WR-001-A01,
+BIMCode_M4A_TestText / 2f3c955d-45ee-4258-bc61-08acd40a2912, INSTANCE String/Text,
+OST_PipeCurves, one eligible rigid host Pipe. Transaction: BIMCode M4A Set Test Text.
+
+Timing clarification: the implemented60-second lifetime begins before the proposed-
+value dialog, not at Confirm. Two WRITE-07A CONFIRMATION_EXPIRED observations PASS
+with no transaction/mutation. This usability limitation is retained for later
+provider-facing hardening; it is not live proof of model-change/change-back rejection.
+WRITE-07 model-change path retains offline coverage, no deliberate live reproduction.
+Provisioning, preview, cancel, confirmed write, exact reread, native Undo, same-value,
+empty/multiple/Duct/invalid guards and read-only regressions passed; M3F repeat
+passed after an initial unchanged-source time-budget observation.
+
+Final audit evidence from the preceding audit (not rerun in this documentation task):
+362 Python tests PASS, including74 M4A-specific;17 native contract assertions;
+66 native bridge probes;14 IronPython compiles;7 AST/py_compile/tabnanny files;
+native XAML/WPF/theme/Find, whitespace, dependency, mutation-location and registry
+checks PASS. Catalog237 unchanged. Credential-pattern scan reviewed126 tracked text
+files: two existing identifier false positives; no newly introduced leak identified.
+M3F composite/two-second budget/deadline/order/headless/Workbench source unchanged.
+HVAC-QA-009 retains physical End rule and valid Curve/tap connectors; Electrical
+QA still excludes open-connector and connector-count rules.
+
+Nonblocking limits: WRITE-07 model-change/change-back not deliberately reproduced
+live (static/offline coverage retained); Pending, explicit rollback/failure and
+post-commit verification-failure injection not deliberately reproduced live.
+Workshared documents, broader targets/categories/parameters remain outside scope.
+The first WRITE-13 attempt hit TIME_BUDGET_EXCEEDED, then immediate repeat passed;
+retain as INTERMITTENT / ADVISORY TIME-BUDGET OBSERVATION, not a demonstrated
+persistent M4A-induced regression. Approval lifetime starts before the value dialog,
+not at explicit Confirm: a known usability/timing limitation for later hardening.
+WRITE-07A expiry PASS is separate from WRITE-07 model-change coverage.
+
+Next: audit/authorize final host-only documentation checkpoint, verify closure,
+then separately design provider integration. Original design/EOD text below is
+historical; current authority is this section and PROJECT_STATE.md.
+
 ## Current implementation checkpoint - 2026-09-27
 
 Design COMPLETE / COMMITTED / PUSHED at dc14eaea00e92f75837ef98abbf012c007d3ab47.

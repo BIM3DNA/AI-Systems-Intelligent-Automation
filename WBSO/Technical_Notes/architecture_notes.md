@@ -1,5 +1,59 @@
 # Architecture Notes
 
+## 2026-09-28 - Validated host-only M4A architecture (current)
+
+M4A HOST-ONLY WRITE LAYER READY FOR SOURCE-CONTROL CLOSURE.
+Host-only live validation PASSED WITH DOCUMENTED NONBLOCKING COVERAGE GAPS;
+final static/regression audit PASSED. This final documentation is prepared for
+review, not yet committed/pushed; host-only source-control closure is not yet claimed.
+Provider write tool / OpenAI write integration NOT IMPLEMENTED.
+PROVIDER-FACING WRITE PHASE NOT STARTED / NOT CLOSED.
+No natural-language provider request can invoke M4A Write. Provider surface remains
+13 READ-ONLY TOOLS (4 Piping / 4 HVAC / 4 Electrical / 1 mixed summary); catalog237.
+Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours: PENDING.
+No central WBSO identifiers reused. No runtime/test/provider/configuration/secret
+changes or live/API tests performed by this documentation task.
+
+Human M4A Write -> active document/view/selection snapshot -> validate scalar ->
+deterministic read-only preview -> native TaskDialog (document/view/Pipe/type/
+parameter/GUID/before/after/request ID; Cancel default) -> explicit Confirm ->
+immutable approval -> dedicated write ExternalEvent -> reread context, target,
+UniqueId, GUID, instance binding, String storage, writability and exact before/
+HasValue -> one DB.Transaction -> one fixed-GUID Parameter.Set -> one Commit ->
+same-GUID reread -> exact equality required for success.
+Transaction: BIMCode M4A Set Test Text. Fixed parameter BIMCode_M4A_TestText /
+2f3c955d-45ee-4258-bc61-08acd40a2912; INSTANCE Text, OST_PipeCurves; one eligible
+rigid host Pipe. Feature/action MEP-PARAM-WR-001 / MEP-PARAM-WR-001-A01.
+No arbitrary parameter/ElementId/action inputs, generated/generic commands,
+TransactionGroup, compensation, retry, batching or second write.
+
+Mutation locations at audited implementation: bimcode_write_execution.py:121
+(one transaction), :132 (one Set); M4ASetup.pushbutton/script.py:58 separate
+human provisioning transaction. Preview has neither transaction nor Set.
+Approval uses request/context/target/GUID/before/proposed/snapshot/fingerprint,
+existing lifecycle/selection counters and write-only DocumentChanged epoch.
+Single-use/replay rejection; conservative model commit/Undo/Redo/ABA invalidation.
+Pending/unknown ownership retained, new work blocked; human status resolution
+does not retry Start/Set/Commit. Committed verification failure never claims rollback.
+
+Expiry is60 seconds from BEFORE the input dialog, not the Confirm click.
+WRITE-07A live expiry PASS; WRITE-07 model-change live gap remains separate.
+One native Undo restored unset after confirmed M4A_Write_01; no custom compensation.
+M3F timing/budget/deadline/order/headless/Workbench unchanged; first WRITE-13 partial
+then immediate COMPLETE is advisory intermittent timing, not a persistent regression.
+Nonblocking limits: WRITE-07 model-change/change-back not deliberately reproduced
+live (static/offline coverage retained); Pending, explicit rollback/failure and
+post-commit verification-failure injection not deliberately reproduced live.
+Workshared documents, broader targets/categories/parameters remain outside scope.
+The first WRITE-13 attempt hit TIME_BUDGET_EXCEEDED, then immediate repeat passed;
+retain as INTERMITTENT / ADVISORY TIME-BUDGET OBSERVATION, not a demonstrated
+persistent M4A-induced regression. Approval lifetime starts before the value dialog,
+not at explicit Confirm: a known usability/timing limitation for later hardening.
+WRITE-07A expiry PASS is separate from WRITE-07 model-change coverage.
+
+Source anchors: PROJECT_STATE.md; full evidence: evidence_reference.md.
+Earlier architecture records below are historical, not current pending-status claims.
+
 ## 2026-09-27 - M4A controlled host-write architecture (current)
 
 Authoritative anchors/status: PROJECT_STATE.md. Host implementation committed/

@@ -1,5 +1,40 @@
 # M4A controlled parameter write - discovery only
 
+## 2026-09-28 - Current host-only validation disposition
+
+M4A HOST-ONLY WRITE LAYER READY FOR SOURCE-CONTROL CLOSURE.
+Host-only live validation PASSED WITH DOCUMENTED NONBLOCKING COVERAGE GAPS;
+final static/regression audit PASSED. This final documentation is prepared for
+review, not yet committed/pushed; host-only source-control closure is not yet claimed.
+Provider write tool / OpenAI write integration NOT IMPLEMENTED.
+PROVIDER-FACING WRITE PHASE NOT STARTED / NOT CLOSED.
+No natural-language provider request can invoke M4A Write. Provider surface remains
+13 READ-ONLY TOOLS (4 Piping / 4 HVAC / 4 Electrical / 1 mixed summary); catalog237.
+Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours: PENDING.
+No central WBSO identifiers reused. No runtime/test/provider/configuration/secret
+changes or live/API tests performed by this documentation task.
+
+Discovery COMPLETE / COMMITTED / PUSHED at
+4db623b120b7fa19ce9a80bfa32fc682e089225c; design/preview/host implementation and
+EOD documentation anchors are verified in PROJECT_STATE.md.
+Provisioning/preview matrix PASS; WRITE-01..06,07A,08..12 PASS;13 PASS on repeat.
+WRITE-07 remains a nonblocking live-coverage gap. The initial preview stale-target
+cause remains unproven; corrected capture and retests passed.
+Nonblocking limits: WRITE-07 model-change/change-back not deliberately reproduced
+live (static/offline coverage retained); Pending, explicit rollback/failure and
+post-commit verification-failure injection not deliberately reproduced live.
+Workshared documents, broader targets/categories/parameters remain outside scope.
+The first WRITE-13 attempt hit TIME_BUDGET_EXCEEDED, then immediate repeat passed;
+retain as INTERMITTENT / ADVISORY TIME-BUDGET OBSERVATION, not a demonstrated
+persistent M4A-induced regression. Approval lifetime starts before the value dialog,
+not at explicit Confirm: a known usability/timing limitation for later hardening.
+WRITE-07A expiry PASS is separate from WRITE-07 model-change coverage.
+
+Detailed live observations/audit: WBSO/Technical_Notes/evidence_reference.md and
+WBSO/Testing_Validation/validation_summary.md. Next: final documentation review/
+authorized host-only closure checkpoint, then separate provider-phase design.
+Earlier discovery and EOD sections below are historical, superseded for status.
+
 ## Current checkpoint - 2026-09-27
 
 Discovery is COMPLETE / COMMITTED / PUSHED at
