@@ -1,5 +1,114 @@
 # Architecture Notes
 
+## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+
+M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
+M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.
+M4B DISCOVERY DOCUMENT CREATED.
+M4B DISCOVERY STATIC / DOCUMENTATION CHECKS PASSED.
+M4B DISCOVERY COMMIT / PUSH PENDING.
+M4B IMPLEMENTATION DESIGN NOT STARTED / NOT CREATED.
+M4B IMPLEMENTATION DESIGN BLOCKED ONLY BY UNCOMMITTED DISCOVERY BASELINE.
+M4B RUNTIME IMPLEMENTATION NOT STARTED.
+M4B TEST IMPLEMENTATION NOT STARTED.
+M4B PROVIDER WRITE TOOL NOT REGISTERED.
+M4B OPENAI WRITE INTEGRATION NOT IMPLEMENTED.
+M4B LIVE VALIDATION NOT STARTED.
+M4B NOT SOURCE-CONTROL CLOSED.
+
+Discovery result: M4B_DISCOVERY_READY_FOR_IMPLEMENTATION_DESIGN.
+Pre-existing deliverable: BIMCode_Provider/M4B_DISCOVERY.md, UNTRACKED /
+NOT COMMITTED / NOT PUSHED. It is not created or modified by this WBSO update.
+Attempted design result: M4B_IMPLEMENTATION_DESIGN_BLOCKED. Required committed/
+pushed discovery baseline was absent. Classification: SOURCE-CONTROL / WORKFLOW
+PREREQUISITE, not a runtime, architecture, test, provider or Revit defect.
+BIMCode_Provider/M4B_IMPLEMENTATION_DESIGN.md does not exist.
+
+Current runtime: 13 READ-ONLY TOOLS (Piping 4 / HVAC 4 / Electrical 4 / mixed MEP
+Summary 1); catalog 237. set_selected_pipe_test_text is NOT REGISTERED.
+Natural-language provider requests cannot execute the host-only M4A write path.
+M4B Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours:
+PENDING. No allocation or reuse of central WBSO identifiers.
+
+R&D uncertainty: connect one fixed provider-selected intent to deterministic Revit
+preview/confirmation/event/transaction/verification while preserving one tool,
+human consent, host authority, stale rejection, transaction truth independent of
+provider explanation, bounded provenance and no autonomous second mutation.
+
+Recommendation: OPTION A WITH ASYNCHRONOUS HOST COORDINATION.
+Natural-language request -> one fixed function call -> sidecar returns/exits ->
+host validation/preview -> native TaskDialog -> dedicated write ExternalEvent if
+confirmed -> deterministic completion callback -> pane launches final continuation
+-> provider explains host result with no second tool. No HTTP wait spans consent.
+
+Required changes are findings, not implemented fixes:
+- Owner-aware admission: current host-only write rejects an active AI turn; retain
+  one owner across preview, consent, queue, execution, result and continuation.
+  Never weaken existing read-only locks.
+- Completion callback: current write output is Dev-window oriented.
+- Separate strict write arguments: do not relax read-only empty-object validators.
+- Bounded scalar write projection: preserve exact transaction/verification facts.
+- Independent HOST_WRITE_STATUS and PROVIDER_EXPLANATION_STATUS: explanation
+  failure/unavailability/misstatement never overwrites committed verified success.
+
+Proposed function parameters, with strict=true wrapper:
+```json
+{
+  "type": "object",
+  "properties": {
+    "value": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$"
+    }
+  },
+  "required": ["value"],
+  "additionalProperties": false
+}
+```
+Fixed set_selected_pipe_test_text -> MEP-PARAM-WR-001-A01.
+Only bounded scalar value; no confirmation, ElementId, name/GUID, action/document
+ID, transaction option, batch, command/path/URL/script arguments. Full host
+validation is mandatory; schema is not consent. Literal text is never interpreted
+as an ID or code. Unsupported path/URL punctuation fails the value contract.
+
+ONLY THE HUMAN USER CAN CONFIRM THE WRITE through host-owned native TaskDialog.
+No model token/boolean, original request wording, old consent, changed preview,
+expired approval or final text may confirm. Provider interprets intent, chooses
+one tool/value and later explains data. Host owns enablement, eligibility, snapshot,
+target/GUID/binding/storage/writability, before/proposed validation, preview, consent,
+admission, event, transaction, verification, classification and provenance.
+
+Current 60-second M4A lifetime starts before proposed-value input. Two live
+CONFIRMATION_EXPIRED rejections were safe; provider UX motivates proposed separate
+120-second preview lease and 30-second queue lease beginning at Confirm.
+Not implemented; explicit static/live validation required. No automatic retry.
+
+Continuation: initial store=True; retain previous_response_id, call_id, tool name,
+validated arguments and logical request ID. After host completion send one
+function_call_output; final store=False, tools=[], tool_choice="none".
+Host result remains visible if final explanation fails. ONE TOOL TOTAL: no
+read+write, write+read, two writes, retry, second function call or autonomous loop.
+
+Current M4A human path remains closed: validation -> read-only preview -> native
+consent -> immutable approval -> dedicated event -> stale/precondition reread ->
+one DB.Transaction / fixed-GUID Parameter.Set / Commit -> exact verification.
+Native Undo was validated; it is a separate human action, not automatic execution.
+
+Next session (requires separate source-control authorization):
+1. Audit M4B_DISCOVERY.md and commit/push it as an isolated checkpoint.
+2. Commit/push this project-local M4B WBSO checkpoint separately.
+3. Rerun implementation design from the committed discovery baseline.
+4. Review and commit the design.
+5. Begin explicitly authorized staged implementation with feature flag and registry
+   separation; do not implement the complete provider-write pipeline in one pass.
+
+This update is documentation-only, uncommitted/unpushed. No runtime/test/provider
+registration/catalog/configuration/dependency/secret changes, Revit runs or
+authenticated OpenAI requests. Earlier dated sections retain checkpoint history;
+M4A closure is preserved. Current M4B roadmap/status is this section.
+
 ## 2026-09-28 - Validated host-only M4A architecture (current)
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.

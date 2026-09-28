@@ -1,5 +1,65 @@
 # Provider Registry
 
+## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+
+M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
+M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.
+M4B DISCOVERY DOCUMENT CREATED.
+M4B DISCOVERY STATIC / DOCUMENTATION CHECKS PASSED.
+M4B DISCOVERY COMMIT / PUSH PENDING.
+M4B IMPLEMENTATION DESIGN NOT STARTED / NOT CREATED.
+M4B IMPLEMENTATION DESIGN BLOCKED ONLY BY UNCOMMITTED DISCOVERY BASELINE.
+M4B RUNTIME IMPLEMENTATION NOT STARTED.
+M4B TEST IMPLEMENTATION NOT STARTED.
+M4B PROVIDER WRITE TOOL NOT REGISTERED.
+M4B OPENAI WRITE INTEGRATION NOT IMPLEMENTED.
+M4B LIVE VALIDATION NOT STARTED.
+M4B NOT SOURCE-CONTROL CLOSED.
+
+Discovery result: M4B_DISCOVERY_READY_FOR_IMPLEMENTATION_DESIGN.
+Pre-existing deliverable: BIMCode_Provider/M4B_DISCOVERY.md, UNTRACKED /
+NOT COMMITTED / NOT PUSHED. It is not created or modified by this WBSO update.
+Attempted design result: M4B_IMPLEMENTATION_DESIGN_BLOCKED. Required committed/
+pushed discovery baseline was absent. Classification: SOURCE-CONTROL / WORKFLOW
+PREREQUISITE, not a runtime, architecture, test, provider or Revit defect.
+BIMCode_Provider/M4B_IMPLEMENTATION_DESIGN.md does not exist.
+
+Current runtime: 13 READ-ONLY TOOLS (Piping 4 / HVAC 4 / Electrical 4 / mixed MEP
+Summary 1); catalog 237. set_selected_pipe_test_text is NOT REGISTERED.
+Natural-language provider requests cannot execute the host-only M4A write path.
+M4B Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours:
+PENDING. No allocation or reuse of central WBSO identifiers.
+
+Proposed registry separation only: READ_ONLY_TOOL_REGISTRY and
+CONTROLLED_WRITE_TOOL_REGISTRY. Preserve all 13 read-only mappings unchanged.
+The controlled-write entry would require safety class CONTROLLED_WRITE, default-off
+enablement predicate, strict value-only schema, dedicated dispatcher, deterministic
+projection and provenance renderer. None of this separation is implemented.
+
+Fixed proposed mapping: set_selected_pipe_test_text -> MEP-PARAM-WR-001-A01.
+Feature MEP-PARAM-WR-001; fixed BIMCode_M4A_TestText GUID
+2f3c955d-45ee-4258-bc61-08acd40a2912. No caller-selected identity/action.
+Schema and responsibility split: current M4B architecture_notes.md section.
+Active-tool counts 13 disabled / 14 enabled and document-eligible are design targets;
+actual runtime remains 13 read-only. Omit write tool entirely while disabled.
+Enablement requires explicit human session action, resets on restart, and cannot
+follow from API-key or environment-variable presence. Visible pane indicator:
+CONTROLLED WRITES: DISABLED / CONTROLLED WRITES: ENABLED FOR THIS SESSION.
+No hidden active mutation tool; no new configuration is created here.
+
+Next session (requires separate source-control authorization):
+1. Audit M4B_DISCOVERY.md and commit/push it as an isolated checkpoint.
+2. Commit/push this project-local M4B WBSO checkpoint separately.
+3. Rerun implementation design from the committed discovery baseline.
+4. Review and commit the design.
+5. Begin explicitly authorized staged implementation with feature flag and registry
+   separation; do not implement the complete provider-write pipeline in one pass.
+
+This update is documentation-only, uncommitted/unpushed. No runtime/test/provider
+registration/catalog/configuration/dependency/secret changes, Revit runs or
+authenticated OpenAI requests. Earlier dated sections retain checkpoint history;
+M4A closure is preserved. Current M4B roadmap/status is this section.
+
 ## 2026-09-28 - Host-only M4A final validation / provider boundary (current)
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.

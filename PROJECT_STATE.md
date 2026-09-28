@@ -1,5 +1,71 @@
 # PROJECT STATE
 
+## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+
+M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
+M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.
+M4B DISCOVERY DOCUMENT CREATED.
+M4B DISCOVERY STATIC / DOCUMENTATION CHECKS PASSED.
+M4B DISCOVERY COMMIT / PUSH PENDING.
+M4B IMPLEMENTATION DESIGN NOT STARTED / NOT CREATED.
+M4B IMPLEMENTATION DESIGN BLOCKED ONLY BY UNCOMMITTED DISCOVERY BASELINE.
+M4B RUNTIME IMPLEMENTATION NOT STARTED.
+M4B TEST IMPLEMENTATION NOT STARTED.
+M4B PROVIDER WRITE TOOL NOT REGISTERED.
+M4B OPENAI WRITE INTEGRATION NOT IMPLEMENTED.
+M4B LIVE VALIDATION NOT STARTED.
+M4B NOT SOURCE-CONTROL CLOSED.
+
+Discovery result: M4B_DISCOVERY_READY_FOR_IMPLEMENTATION_DESIGN.
+Pre-existing deliverable: BIMCode_Provider/M4B_DISCOVERY.md, UNTRACKED /
+NOT COMMITTED / NOT PUSHED. It is not created or modified by this WBSO update.
+Attempted design result: M4B_IMPLEMENTATION_DESIGN_BLOCKED. Required committed/
+pushed discovery baseline was absent. Classification: SOURCE-CONTROL / WORKFLOW
+PREREQUISITE, not a runtime, architecture, test, provider or Revit defect.
+BIMCode_Provider/M4B_IMPLEMENTATION_DESIGN.md does not exist.
+
+Current runtime: 13 READ-ONLY TOOLS (Piping 4 / HVAC 4 / Electrical 4 / mixed MEP
+Summary 1); catalog 237. set_selected_pipe_test_text is NOT REGISTERED.
+Natural-language provider requests cannot execute the host-only M4A write path.
+M4B Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours:
+PENDING. No allocation or reuse of central WBSO identifiers.
+
+Verified at task start: main HEAD = origin/main =
+84bb732df8c391a909f17c33d28ed25f47a1bd41, subject
+docs(wbso): mark M4A host-only write closed; parent
+d4561fc3670b2dd13d70de5a3c5ec6d9eb784a5e, subject
+docs(wbso): record M4A host-only write validation.
+Ahead/behind 0/0; tracked worktree clean, no staged/modified tracked files.
+Only untracked path: BIMCode_Provider/M4B_DISCOVERY.md. No discovery commit exists.
+
+Selected discovery recommendation: OPTION A WITH ASYNCHRONOUS HOST COORDINATION.
+One logical pane request: provider selects fixed tool/value -> short-lived sidecar
+exits -> host preview -> native human confirmation -> dedicated write ExternalEvent
+-> deterministic host result -> one tools-disabled provider continuation.
+No HTTP connection must remain open during human confirmation or Revit execution.
+Required design work: owner-aware admission, write completion callback, separate
+value-only validation, bounded write projection, independent host/explanation status.
+Proposed preview lease 120 seconds; confirmed queue lease 30 seconds from Confirm;
+not implemented. Current M4A 60-second pre-input lifetime remains unchanged.
+Default-off, explicit session-only human enablement: 13 tools disabled, 14 only when
+enabled/document-eligible; one eligible Pipe checked at execution, not registry build.
+All LIVE-M4B-01 through LIVE-M4B-18 remain PENDING / NOT STARTED.
+Detailed technical checkpoint: evidence_reference.md, architecture_notes.md and
+test_plan.md under WBSO. Discovery readiness does not authorize implementation.
+
+Next session (requires separate source-control authorization):
+1. Audit M4B_DISCOVERY.md and commit/push it as an isolated checkpoint.
+2. Commit/push this project-local M4B WBSO checkpoint separately.
+3. Rerun implementation design from the committed discovery baseline.
+4. Review and commit the design.
+5. Begin explicitly authorized staged implementation with feature flag and registry
+   separation; do not implement the complete provider-write pipeline in one pass.
+
+This update is documentation-only, uncommitted/unpushed. No runtime/test/provider
+registration/catalog/configuration/dependency/secret changes, Revit runs or
+authenticated OpenAI requests. Earlier dated sections retain checkpoint history;
+M4A closure is preserved. Current M4B roadmap/status is this section.
+
 ## 2026-09-28 - M4A host-only final validation (authoritative current)
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.

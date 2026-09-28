@@ -1,5 +1,85 @@
 # Test Plan
 
+## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+
+M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
+M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.
+M4B DISCOVERY DOCUMENT CREATED.
+M4B DISCOVERY STATIC / DOCUMENTATION CHECKS PASSED.
+M4B DISCOVERY COMMIT / PUSH PENDING.
+M4B IMPLEMENTATION DESIGN NOT STARTED / NOT CREATED.
+M4B IMPLEMENTATION DESIGN BLOCKED ONLY BY UNCOMMITTED DISCOVERY BASELINE.
+M4B RUNTIME IMPLEMENTATION NOT STARTED.
+M4B TEST IMPLEMENTATION NOT STARTED.
+M4B PROVIDER WRITE TOOL NOT REGISTERED.
+M4B OPENAI WRITE INTEGRATION NOT IMPLEMENTED.
+M4B LIVE VALIDATION NOT STARTED.
+M4B NOT SOURCE-CONTROL CLOSED.
+
+Discovery result: M4B_DISCOVERY_READY_FOR_IMPLEMENTATION_DESIGN.
+Pre-existing deliverable: BIMCode_Provider/M4B_DISCOVERY.md, UNTRACKED /
+NOT COMMITTED / NOT PUSHED. It is not created or modified by this WBSO update.
+Attempted design result: M4B_IMPLEMENTATION_DESIGN_BLOCKED. Required committed/
+pushed discovery baseline was absent. Classification: SOURCE-CONTROL / WORKFLOW
+PREREQUISITE, not a runtime, architecture, test, provider or Revit defect.
+BIMCode_Provider/M4B_IMPLEMENTATION_DESIGN.md does not exist.
+
+Current runtime: 13 READ-ONLY TOOLS (Piping 4 / HVAC 4 / Electrical 4 / mixed MEP
+Summary 1); catalog 237. set_selected_pipe_test_text is NOT REGISTERED.
+Natural-language provider requests cannot execute the host-only M4A write path.
+M4B Evidence ID / Daily Log ID / Knowledge Capture ID / project-local hours:
+PENDING. No allocation or reuse of central WBSO identifiers.
+
+No M4B runtime/test implementation or live execution has started.
+Future static groups: exact 13/14 gated registry counts; strict value-only schema
+and full host validation; read/write routing; explicit native consent; owner locks;
+duplicate/late callbacks and lifecycle races; expiry; one-tool/no-retry enforcement;
+bounded result projection and independent host/provider statuses; existing 13-tool,
+M3F, M4A Preview/Write regressions. Static routing fixtures cannot guarantee model
+intent selection; consent and deterministic scope remain independent safety gates.
+
+Security probes: extra action/ElementId/parameter/GUID/confirmation fields,
+multiple values/arrays, code/path/URL/punctuation payloads, ignore-confirmation
+prompts, unsupported categories/multiple targets, model output demanding another
+write. No generated execution; values are inert data. No second continuation tool.
+
+| Future case | Purpose | Status |
+| --- | --- | --- |
+| LIVE-M4B-01 | Write tool disabled by default | PENDING / NOT STARTED |
+| LIVE-M4B-02 | Explicit session enablement in disposable project | PENDING / NOT STARTED |
+| LIVE-M4B-03 | Fixed tool/value and deterministic preview | PENDING / NOT STARTED |
+| LIVE-M4B-04 | Cancel native TaskDialog | PENDING / NOT STARTED |
+| LIVE-M4B-05 | Confirmed provider-originated write and verification | PENDING / NOT STARTED |
+| LIVE-M4B-06 | Native Undo restores previous value | PENDING / NOT STARTED |
+| LIVE-M4B-07 | Same-value NO_CHANGE_REQUIRED | PENDING / NOT STARTED |
+| LIVE-M4B-08 | Empty selection rejection | PENDING / NOT STARTED |
+| LIVE-M4B-09 | Multiple selection rejection | PENDING / NOT STARTED |
+| LIVE-M4B-10 | Unsupported Duct rejection | PENDING / NOT STARTED |
+| LIVE-M4B-11 | Invalid value rejection | PENDING / NOT STARTED |
+| LIVE-M4B-12 | Unsupported mutation does not route to tool | PENDING / NOT STARTED |
+| LIVE-M4B-13 | General question, no tool | PENDING / NOT STARTED |
+| LIVE-M4B-14 | Read-only Pipe summary regression | PENDING / NOT STARTED |
+| LIVE-M4B-15 | M3F mixed-summary regression | PENDING / NOT STARTED |
+| LIVE-M4B-16 | Second provider call rejected | PENDING / NOT STARTED |
+| LIVE-M4B-17 | Confirmation expiry, no transaction | PENDING / NOT STARTED |
+| LIVE-M4B-18 | Provider/direct-host deterministic parity | PENDING / NOT STARTED |
+
+Refine setup/prompts/expected flags during implementation design after source-control
+prerequisite is resolved. This table is not permission to run Revit or paid requests.
+
+Next session (requires separate source-control authorization):
+1. Audit M4B_DISCOVERY.md and commit/push it as an isolated checkpoint.
+2. Commit/push this project-local M4B WBSO checkpoint separately.
+3. Rerun implementation design from the committed discovery baseline.
+4. Review and commit the design.
+5. Begin explicitly authorized staged implementation with feature flag and registry
+   separation; do not implement the complete provider-write pipeline in one pass.
+
+This update is documentation-only, uncommitted/unpushed. No runtime/test/provider
+registration/catalog/configuration/dependency/secret changes, Revit runs or
+authenticated OpenAI requests. Earlier dated sections retain checkpoint history;
+M4A closure is preserved. Current M4B roadmap/status is this section.
+
 ## 2026-09-28 - Final host-only M4A validation disposition (current)
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
