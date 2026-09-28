@@ -2,10 +2,27 @@
 
 ## 2026-09-28 - Host-only M4A closure scope (authoritative current)
 
-M4A HOST-ONLY WRITE LAYER READY FOR SOURCE-CONTROL CLOSURE.
-Host-only live validation PASSED WITH DOCUMENTED NONBLOCKING COVERAGE GAPS;
-final static/regression audit PASSED. This final documentation is prepared for
-review, not yet committed/pushed; host-only source-control closure is not yet claimed.
+M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
+M4A HOST-ONLY FINAL VALIDATION DOCUMENTATION COMMITTED / PUSHED.
+Final validation documentation commit: d4561fc3670b2dd13d70de5a3c5ec6d9eb784a5e
+Subject: docs(wbso): record M4A host-only write validation.
+This reconciliation records that pushed checkpoint; it does not replace it.
+
+- M4A DISCOVERY COMPLETE / COMMITTED / PUSHED
+- M4A IMPLEMENTATION DESIGN COMPLETE / COMMITTED / PUSHED
+- M4A PREVIEW FOUNDATION IMPLEMENTED / STATIC PASS / COMMITTED / PUSHED
+- M4A PARAMETER PROVISIONING LIVE VALIDATION PASSED
+- M4A PREVIEW HARNESS IMPLEMENTED / COMMITTED / PUSHED
+- M4A PREVIEW LIVE VALIDATION PASSED
+- M4A HOST-ONLY WRITE EXECUTION IMPLEMENTED / COMMITTED / PUSHED
+- M4A HOST-ONLY WRITE STATIC / REGRESSION AUDIT PASSED
+- M4A HOST-ONLY WRITE LIVE VALIDATION PASSED
+  WITH DOCUMENTED NONBLOCKING COVERAGE GAPS
+
+M4A PROVIDER WRITE TOOL NOT IMPLEMENTED.
+M4A OPENAI WRITE INTEGRATION NOT IMPLEMENTED.
+M4A PROVIDER-FACING WRITE PHASE NOT IMPLEMENTED / NOT STARTED / NOT CLOSED.
+set_selected_pipe_test_text remains NOT REGISTERED.
 Provider write tool / OpenAI write integration NOT IMPLEMENTED.
 PROVIDER-FACING WRITE PHASE NOT STARTED / NOT CLOSED.
 No natural-language provider request can invoke M4A Write. Provider surface remains
@@ -37,8 +54,8 @@ persistent M4A-induced regression. Approval lifetime starts before the value dia
 not at explicit Confirm: a known usability/timing limitation for later hardening.
 WRITE-07A expiry PASS is separate from WRITE-07 model-change coverage.
 
-Next: audit final docs, explicitly authorize host-only closure commit/push, verify
-source-control closure; then separately design provider-facing writes. No automatic
+Next: separately design provider-facing writes; host-only source-control closure
+is complete. No automatic
 provider exposure, M4B or broader mutation. Earlier dated status sections are historical.
 
 ## 2026-09-27 - M4A end-of-day scope (authoritative current)

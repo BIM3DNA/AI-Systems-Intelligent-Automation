@@ -2,10 +2,27 @@
 
 ## 2026-09-28 - Host-only M4A final validation / provider boundary (current)
 
-M4A HOST-ONLY WRITE LAYER READY FOR SOURCE-CONTROL CLOSURE.
-Host-only live validation PASSED WITH DOCUMENTED NONBLOCKING COVERAGE GAPS;
-final static/regression audit PASSED. This final documentation is prepared for
-review, not yet committed/pushed; host-only source-control closure is not yet claimed.
+M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
+M4A HOST-ONLY FINAL VALIDATION DOCUMENTATION COMMITTED / PUSHED.
+Final validation documentation commit: d4561fc3670b2dd13d70de5a3c5ec6d9eb784a5e
+Subject: docs(wbso): record M4A host-only write validation.
+This reconciliation records that pushed checkpoint; it does not replace it.
+
+- M4A DISCOVERY COMPLETE / COMMITTED / PUSHED
+- M4A IMPLEMENTATION DESIGN COMPLETE / COMMITTED / PUSHED
+- M4A PREVIEW FOUNDATION IMPLEMENTED / STATIC PASS / COMMITTED / PUSHED
+- M4A PARAMETER PROVISIONING LIVE VALIDATION PASSED
+- M4A PREVIEW HARNESS IMPLEMENTED / COMMITTED / PUSHED
+- M4A PREVIEW LIVE VALIDATION PASSED
+- M4A HOST-ONLY WRITE EXECUTION IMPLEMENTED / COMMITTED / PUSHED
+- M4A HOST-ONLY WRITE STATIC / REGRESSION AUDIT PASSED
+- M4A HOST-ONLY WRITE LIVE VALIDATION PASSED
+  WITH DOCUMENTED NONBLOCKING COVERAGE GAPS
+
+M4A PROVIDER WRITE TOOL NOT IMPLEMENTED.
+M4A OPENAI WRITE INTEGRATION NOT IMPLEMENTED.
+M4A PROVIDER-FACING WRITE PHASE NOT IMPLEMENTED / NOT STARTED / NOT CLOSED.
+set_selected_pipe_test_text remains NOT REGISTERED.
 Provider write tool / OpenAI write integration NOT IMPLEMENTED.
 PROVIDER-FACING WRITE PHASE NOT STARTED / NOT CLOSED.
 No natural-language provider request can invoke M4A Write. Provider surface remains
@@ -15,7 +32,7 @@ No central WBSO identifiers reused. No runtime/test/provider/configuration/secre
 changes or live/API tests performed by this documentation task.
 
 set_selected_pipe_test_text: NOT REGISTERED. OpenAI cannot invoke M4A Write.
-Host-only layer is ready independently; no claim of entire M4A/provider completion.
+Host-only layer is source-control closed; no claim of entire M4A/provider completion.
 Only human Dev invocation may confirm one fixed-GUID BIMCode_M4A_TestText write
 on one eligible host rigid Pipe: MEP-PARAM-WR-001 / MEP-PARAM-WR-001-A01;
 GUID2f3c955d-45ee-4258-bc61-08acd40a2912, INSTANCE Text / OST_PipeCurves.
