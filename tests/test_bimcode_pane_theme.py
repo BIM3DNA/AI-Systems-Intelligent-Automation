@@ -85,6 +85,7 @@ class PresentationTests(unittest.TestCase):
         class WPF:
             def __init__(self):
                 self.controls, self.Resources = {}, {}
+                self.Unloaded = m1.Event()
 
             def FindName(self, name):
                 return self.controls.setdefault(name, Control())

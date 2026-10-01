@@ -1,6 +1,79 @@
 # PROJECT STATE
 
-## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
+M4B_SESSION_GATE_READY_FOR_LIVE_TEST.
+Session gate: IMPLEMENTED / STATIC VALIDATION PASSED / UNCOMMITTED /
+LIVE REVIT VALIDATION PENDING. No session-gate commit SHA exists.
+Production provider tools: 13 READ-ONLY; dormant controlled-write metadata: 1;
+provider-exposed write tools: 0; provider write dispatch: NOT IMPLEMENTED;
+OpenAI-triggered mutation: NOT AVAILABLE, including when local permission is enabled.
+Live Revit validation deferred to next work session (planned 2026-10-02).
+LIVE-M4B-GATE-01 through LIVE-M4B-GATE-10 are all PENDING, not PASS.
+
+This section supersedes earlier M4B discovery/design-prerequisite current-state
+wording. Earlier dated sections remain historical; M4A host-only closure and
+prior runtime/catalog hashes remain unchanged. This EOD documentation is itself
+UNCOMMITTED / UNPUSHED. It does not close M4B or the uncommitted session gate.
+
+### Source-control evidence and preserved implementation delta
+
+Verified main HEAD = origin/main = live remote main =
+7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db; ahead/behind 0/0; no staged files.
+The worktree is NOT clean: the pre-existing gate implementation is nine modified
+tracked files plus two new files, 11 files / 765 insertions / 1 deletion.
+This documentation task preserves those 11 files byte-for-byte and adds only
+project-local documentation changes; it does not rerun runtime/live/API tests.
+
+Today's committed/pushed implementation checkpoints (source-control closed
+checkpoints, not overall M4B feature closure):
+
+- 9e19caf8804c1fd49fa3f9db6895acf8cc919cda, parent
+  037bb01aa44cc1d8ea07ee84fa1ad4c0517c0a97:
+  feat(bimcode): add M4B admission and completion callback.
+
+- b703acaa143c5a834f35184001ef1b1b8c8228ca, parent
+  9e19caf8804c1fd49fa3f9db6895acf8cc919cda:
+  feat(bimcode): add M4B provider continuation coordinator.
+
+- 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db, parent
+  b703acaa143c5a834f35184001ef1b1b8c8228ca:
+  feat(bimcode): add M4B write leases and lifecycle cleanup.
+
+Earlier committed prerequisites: discovery plus WBSO 3782c179a2b30fba2948b1bb825542b12470126d;
+design b2e4c9344983251864f9f948fa8e85c4b03ec070; registry foundation
+a0e45bf10646bd3ad49b6053cddb830fe833257c; 22-state coordination contracts
+037bb01aa44cc1d8ea07ee84fa1ad4c0517c0a97. The former missing-design/source-control
+prerequisite is resolved; the design now exists. No duplicate checkpoint is needed.
+
+M4B-8A now has a visible default-off memory-only permission, explicit Enable/Disable,
+exact document eligibility, Cancel-default native local confirmation, automatic
+document/pane/shutdown cleanup, and diagnostic fields. Normal same-document view
+activation and existing selection updates remain intact. Enabling does not write
+or expose a tool. The 120-second preview / 30-second post-Confirm queue foundation
+is implemented; closed M4A's separate 60-second behavior remains unchanged.
+
+Recorded static gate evidence: 531 Python tests including 42 new gate/integration;
+78 native contract assertions; 74 native bridge/process probes; IronPython PASS;
+8 Python syntax/compile/tabnanny files; native XAML/WPF/theme/Find PASS;
+27 protected complete-source comparisons; dependency/whitespace/credential-pattern
+checks PASS; catalog 237 unchanged. These are the preceding implementation results,
+not new runs in this documentation task. No added transaction or Parameter.Set.
+
+Exact pre-existing scope, checkpoint validations, IDs/hours disposition and source
+links: WBSO/Technical_Notes/evidence_reference.md, 2026-10-01 section.
+Knowledge checkpoint: WBSO/Technical_Notes/architecture_notes.md.
+Pending manual matrix: WBSO/Testing_Validation/test_plan.md.
+Evidence ID / Daily Log ID / KC ID / project-local Hours (2026-10-01): PENDING.
+No numeric hours supplied; no central identifiers copied or guessed.
+
+Next: review this EOD documentation; user performs the first session-gate live
+validation next work session. Record actual results before assessing further
+integration. No provider write exposure/dispatcher/AI-triggered mutation is added
+or authorized by this checkpoint. No staging, commit or push by this task.
+
+## Historical 2026-09-28 - M4B end-of-day discovery checkpoint
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
 M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.

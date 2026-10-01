@@ -146,6 +146,31 @@ for name in ('write_clock.py', 'write_leases.py', 'write_lifecycle.py', 'provide
     with open(os.path.join(repo, 'AI.extension/lib/bimcode_ai_pane', name), 'rb') as source:
         compile(source.read(), name, 'exec')
 print('PASS: 23 M4B lease/lifecycle assertions; 3 additional IronPython compiles; reducer recompiled')
+from bimcode_ai_pane.session_write_gate import SessionWriteGate
+gate = SessionWriteGate(OperationAdmission())
+assert gate.view_model()['status'] == 'CONTROLLED WRITES: DISABLED'
+gate.observe('doc', facts)
+assert gate.queue_enable()
+ticket, gate.enable_pending = gate.enable_pending, None
+assert not gate.enable(ticket, False)
+assert gate.enable(ticket, True)
+assert gate.view_model()['status'] == 'CONTROLLED WRITES: ENABLED FOR THIS SESSION'
+assert gate.view_model()['active_provider_tool_count'] == 13
+assert gate.view_model()['controlled_write_metadata_count'] == 1
+assert not gate.view_model()['controlled_write_provider_exposed']
+assert not gate.view_model()['controlled_write_dispatch_available']
+assert gate.view_model()['eligibility_text'] == 'Eligible: YES (COMPLETE)'
+gate.cleanup('DOCUMENT_CLOSE')
+assert not gate.view_model()['controlled_write_permission_enabled']
+assert gate.view_model()['eligibility_text'] == 'Eligible: NO (NO_VALID_DOCUMENT)'
+generation = gate.cleanup_generation
+gate.cleanup('DOCUMENT_CLOSE')
+assert gate.cleanup_generation == generation
+assert not SessionWriteGate(OperationAdmission()).permission.view_model()['enabled']
+for name in ('session_write_gate.py', 'lifecycle.py', 'panel.py'):
+    with open(os.path.join(repo, 'AI.extension/lib/bimcode_ai_pane', name), 'rb') as source:
+        compile(source.read(), name, 'exec')
+print('PASS: 14 M4B-8A gate assertions; 3 additional IronPython compiles')
 '@, $scope) | Out-Null
 } finally {
     Remove-Item -LiteralPath $archive

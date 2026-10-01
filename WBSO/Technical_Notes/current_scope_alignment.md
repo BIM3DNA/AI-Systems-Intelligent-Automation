@@ -1,6 +1,53 @@
 # Current Scope Alignment
 
-## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
+M4B_SESSION_GATE_READY_FOR_LIVE_TEST.
+Session gate: IMPLEMENTED / STATIC VALIDATION PASSED / UNCOMMITTED /
+LIVE REVIT VALIDATION PENDING. No session-gate commit SHA exists.
+Production provider tools: 13 READ-ONLY; dormant controlled-write metadata: 1;
+provider-exposed write tools: 0; provider write dispatch: NOT IMPLEMENTED;
+OpenAI-triggered mutation: NOT AVAILABLE, including when local permission is enabled.
+Live Revit validation deferred to next work session (planned 2026-10-02).
+LIVE-M4B-GATE-01 through LIVE-M4B-GATE-10 are all PENDING, not PASS.
+
+This section supersedes earlier M4B discovery/design-prerequisite current-state
+wording. Earlier dated sections remain historical; M4A host-only closure and
+prior runtime/catalog hashes remain unchanged. This EOD documentation is itself
+UNCOMMITTED / UNPUSHED. It does not close M4B or the uncommitted session gate.
+
+### Scope at end of day
+
+Committed/pushed foundations: admission and immutable callback
+9e19caf8804c1fd49fa3f9db6895acf8cc919cda; continuation
+b703acaa143c5a834f35184001ef1b1b8c8228ca; leases and callable cleanup
+7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db. These implementation checkpoints are
+source-control closed; M4B as a whole is NOT CLOSED.
+Visible gate/event wiring is UNCOMMITTED, not part of the pushed baseline.
+
+Document eligibility: valid active host project, non-family/non-linked,
+non-workshared, writable, non-modifiable, fixed-GUID parameter provisioned with
+Text/instance/Pipe binding. Unknown facts fail closed with exact implemented
+reasons. Selection remains an execution-time check, not permission to enable.
+Session-only permission cannot come from credentials, environment or provider text.
+Both permission states retain 13 production read-only tools and 0 exposed writes.
+The closed M4A human Dev path remains separately usable; it is not an AI dispatcher.
+
+Pending work is first manual gate validation, not implementation of broader writes.
+The ten LIVE-M4B-GATE cases are separate from future LIVE-M4B-01..18 end-to-end
+provider-write cases; neither matrix is claimed executed by this EOD update.
+The future 14-tool design target and provider-confirmed write flow remain deferred.
+No expansion to other parameters/categories, batches, geometry, systems, generated
+code, autonomous retries/multi-tool loops, AutoCAD or central WBSO.
+
+EOD scope: existing project-local documentation only, preserving all 11 pre-existing
+gate implementation/test files (765 insertions/1 deletion) unchanged.
+No runtime/test/catalog/configuration/dependency changes, Revit runs or
+authenticated OpenAI requests in this task. IDs and actual hours remain PENDING.
+Detailed source-control evidence: evidence_reference.md; pending cases: test_plan.md.
+
+## Historical 2026-09-28 - M4B end-of-day discovery checkpoint
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
 M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.

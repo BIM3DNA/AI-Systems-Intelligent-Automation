@@ -177,9 +177,22 @@ class CleanupTests(unittest.TestCase):
         import subprocess
         paths = ['AI.extension/lib/bimcode_write_execution.py', 'AI.extension/lib/bimcode_write_runtime.py',
                  'AI.extension/lib/bimcode_ai_pane/write_coordinator.py', 'AI.extension/lib/bimcode_ai_pane/write_continuation.py',
-                 'AI.extension/lib/bimcode_ai_pane/lifecycle.py', 'AI.extension/lib/bimcode_ai_pane/ai_tool_registry.py',
+                 'AI.extension/lib/bimcode_ai_pane/ai_tool_registry.py',
                  'AI.extension/lib/prompt_catalog.json', 'AI.extension/AI.tab/Dev.panel/AI_01.pushbutton/script.py']
         baseline = 'b703acaa143c5a834f35184001ef1b1b8c8228ca'
         for path in paths:
             old = subprocess.check_output(['git', 'show', baseline + ':' + path])
             self.assertEqual(old.replace(b'\r\n', b'\n'), (ROOT / path).read_bytes().replace(b'\r\n', b'\n'), path)
+        # M4B-8A explicitly wires lifecycle.py; protect the existing read-only
+        # dispatch/selection functions rather than freezing that entire adapter.
+        import ast
+        path = 'AI.extension/lib/bimcode_ai_pane/lifecycle.py'
+        old = ast.parse(subprocess.check_output(['git', 'show', baseline + ':' + path]).decode())
+        new = ast.parse((ROOT / path).read_text())
+        def protected(tree):
+            names = {'request_tool', 'finish_tool', 'raise_ai_event', 'on_selection_changed',
+                     'on_theme_changed', 'try_initial_show', 'invalidate_tool_context', 'request_refresh'}
+            return {n.name: ast.dump(n, include_attributes=False) for n in ast.walk(tree)
+                    if isinstance(n, ast.FunctionDef) and n.name in names or
+                    isinstance(n, ast.ClassDef) and n.name == 'ModelMindReadOnlyHandler'}
+        self.assertEqual(protected(old), protected(new))

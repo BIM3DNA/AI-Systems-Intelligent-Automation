@@ -1,6 +1,86 @@
 # Architecture Notes
 
-## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
+M4B_SESSION_GATE_READY_FOR_LIVE_TEST.
+Session gate: IMPLEMENTED / STATIC VALIDATION PASSED / UNCOMMITTED /
+LIVE REVIT VALIDATION PENDING. No session-gate commit SHA exists.
+Production provider tools: 13 READ-ONLY; dormant controlled-write metadata: 1;
+provider-exposed write tools: 0; provider write dispatch: NOT IMPLEMENTED;
+OpenAI-triggered mutation: NOT AVAILABLE, including when local permission is enabled.
+Live Revit validation deferred to next work session (planned 2026-10-02).
+LIVE-M4B-GATE-01 through LIVE-M4B-GATE-10 are all PENDING, not PASS.
+
+This section supersedes earlier M4B discovery/design-prerequisite current-state
+wording. Earlier dated sections remain historical; M4A host-only closure and
+prior runtime/catalog hashes remain unchanged. This EOD documentation is itself
+UNCOMMITTED / UNPUSHED. It does not close M4B or the uncommitted session gate.
+
+### Knowledge checkpoint: controlled-write architecture before provider exposure
+
+Technical uncertainty: how can a short-lived provider intent eventually span
+human consent and Revit execution without losing exclusive ownership, accepting
+stale consent, retrying a write, or confusing explanation success with model truth?
+
+The implemented, statically supported foundation now includes:
+
+- Separate read-only and dormant controlled-write registries, strict value-only
+  contract, default-off memory-only permission and 22-state coordination contracts.
+
+- Seven owner types and compare-and-release admission across provider, human Dev
+  write/preview, parameter provisioning and deterministic read-only operations.
+
+- Immutable host completion, optional at-most-once callback, callback-failure
+  isolation and retained Pending/indeterminate mutation safety.
+
+- Deterministic bounded result projection and independent provider-explanation
+  status; an explanation failure cannot rewrite actual host transaction evidence.
+
+- A one-attempt continuation seam in a new repo-local Python sidecar, original
+  correlation required, final tools disabled, bounded stdout and 75-second timeout.
+
+- Host monotonic clock with injectable fake-clock tests and UTC provenance;
+  120-second preview lease from deterministic preview creation and 30-second
+  execution-queue lease from explicit Confirm. Exact-boundary expiry, immutable
+  correlation, no renewal, no automatic retry.
+
+- Callable document_switch/document_close/pane_disposal/shutdown/abandon/
+  continuation_terminal cleanup; authoritative receipts and unresolved safety
+  retained. Closed human M4A 60-second CONFIRMATION_EXPIRED semantics unchanged.
+
+- Uncommitted M4B-8A visible session gate and lifecycle wiring. Native enable
+  confirmation is Cancel-default and local-human-only, scheduled through the
+  existing context ExternalEvent. Document eligibility uses host/family/link/
+  workshared/read-only/modifiable checks and the fixed-GUID Text/instance/Pipe
+  binding validator, without selection-based permission or automatic provisioning.
+
+The pane gate uses the existing permission object, not a second UI-local boolean.
+Enablement and dispatch are independent: ENABLED FOR THIS SESSION still visibly
+says PROVIDER WRITE DISPATCH: NOT YET AVAILABLE. Disable is immediate.
+ViewActivated checks document transitions; DocumentOpened/Created/Closed revoke;
+pane visibility/Unloaded/disposal and UIApplication.ApplicationClosing clean up.
+Ordinary same-document views and SelectionChanged behavior are preserved.
+Cleanup can invalidate leases/callbacks and suppress stale continuation, release
+quiescent ownership, and retain executing owners/indeterminate safety. No timer,
+polling, background Revit API, new transaction or Parameter.Set was introduced.
+
+Checkpoint provenance: admission 9e19caf8804c1fd49fa3f9db6895acf8cc919cda;
+continuation b703acaa143c5a834f35184001ef1b1b8c8228ca;
+clock/leases/cleanup 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db.
+Automatic Revit lifecycle wiring was DEFERRED at those committed checkpoints;
+it is implemented only in the current UNCOMMITTED M4B-8A delta.
+Detailed static counts and source paths: evidence_reference.md, 2026-10-01.
+
+Conclusion: architecture seams are implemented and statically validated before
+provider exposure, but not an end-to-end provider write feature. The write tool
+remains dormant; dispatcher unimplemented; exposure zero; AI-triggered mutation
+unavailable; gate live validation pending. M4B is not complete.
+No new KC file/number is allocated because the project-local allocation sequence
+is unresolved. This knowledge record stays in the existing architecture notes.
+Evidence ID / Daily Log ID / KC ID / actual 2026-10-01 hours: PENDING.
+
+## Historical 2026-09-28 - M4B end-of-day discovery checkpoint
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
 M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.

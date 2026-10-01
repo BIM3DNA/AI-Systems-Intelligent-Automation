@@ -1,6 +1,51 @@
 # Provider Registry
 
-## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
+M4B_SESSION_GATE_READY_FOR_LIVE_TEST.
+Session gate: IMPLEMENTED / STATIC VALIDATION PASSED / UNCOMMITTED /
+LIVE REVIT VALIDATION PENDING. No session-gate commit SHA exists.
+Production provider tools: 13 READ-ONLY; dormant controlled-write metadata: 1;
+provider-exposed write tools: 0; provider write dispatch: NOT IMPLEMENTED;
+OpenAI-triggered mutation: NOT AVAILABLE, including when local permission is enabled.
+Live Revit validation deferred to next work session (planned 2026-10-02).
+LIVE-M4B-GATE-01 through LIVE-M4B-GATE-10 are all PENDING, not PASS.
+
+This section supersedes earlier M4B discovery/design-prerequisite current-state
+wording. Earlier dated sections remain historical; M4A host-only closure and
+prior runtime/catalog hashes remain unchanged. This EOD documentation is itself
+UNCOMMITTED / UNPUSHED. It does not close M4B or the uncommitted session gate.
+
+### Current registry and continuation boundary
+
+The host read-only registry and production provider TOOLS remain the same 13
+entries: Piping 4 / HVAC 4 / Electrical 4 / mixed-summary 1.
+controlled_write_registry.py contains one DORMANT metadata definition:
+set_selected_pipe_test_text -> MEP-PARAM-WR-001-A01, strict value-only arguments,
+fixed BIMCode_M4A_TestText GUID 2f3c955d-45ee-4258-bc61-08acd40a2912.
+dispatcher_state=NOT_IMPLEMENTED; provider_exposure_allowed=false.
+There are 13 active tools with permission DISABLED and also 13 with permission
+ENABLED. The design's future 14-tool surface is NOT current behavior.
+
+Committed registry/coordination foundations now support owner-aware admission,
+immutable completion and bounded deterministic result projection. The committed
+continuation seam validates original correlation, makes at most one new-sidecar
+attempt, and separates host-write truth from provider-explanation status.
+Final continuation: store=False, tools=[], tool_choice=none; 75-second process
+timeout; bounded output; second tool rejected. This callable seam is not a live
+provider-to-host write path.
+
+Commit references: admission 9e19caf8804c1fd49fa3f9db6895acf8cc919cda;
+continuation b703acaa143c5a834f35184001ef1b1b8c8228ca;
+lease/cleanup 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db.
+Exact parents, subjects and validation counts: evidence_reference.md, 2026-10-01.
+The visible session gate is additional uncommitted host UI work, not registry
+exposure. It performs no model write and does not invoke the provider.
+No provider/configuration/dependency/catalog/secret changes in this EOD task.
+Evidence/Daily Log/KC IDs and actual hours remain PENDING.
+
+## Historical 2026-09-28 - M4B end-of-day discovery checkpoint
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
 M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.

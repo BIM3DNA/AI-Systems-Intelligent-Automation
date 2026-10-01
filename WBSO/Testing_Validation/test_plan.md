@@ -1,6 +1,61 @@
 # Test Plan
 
-## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
+M4B_SESSION_GATE_READY_FOR_LIVE_TEST.
+Session gate: IMPLEMENTED / STATIC VALIDATION PASSED / UNCOMMITTED /
+LIVE REVIT VALIDATION PENDING. No session-gate commit SHA exists.
+Production provider tools: 13 READ-ONLY; dormant controlled-write metadata: 1;
+provider-exposed write tools: 0; provider write dispatch: NOT IMPLEMENTED;
+OpenAI-triggered mutation: NOT AVAILABLE, including when local permission is enabled.
+Live Revit validation deferred to next work session (planned 2026-10-02).
+LIVE-M4B-GATE-01 through LIVE-M4B-GATE-10 are all PENDING, not PASS.
+
+This section supersedes earlier M4B discovery/design-prerequisite current-state
+wording. Earlier dated sections remain historical; M4A host-only closure and
+prior runtime/catalog hashes remain unchanged. This EOD documentation is itself
+UNCOMMITTED / UNPUSHED. It does not close M4B or the uncommitted session gate.
+
+### First session-gate live matrix (not executed)
+
+User plans first Revit validation in the next work session, 2026-10-02.
+Use a disposable eligible Project2 with the fixed parameter already provisioned.
+The local enable dialog is NOT write approval. Enabling alone never changes the
+model. Diagnostic tooltip must show 13 active provider tools and exposure=false.
+Confirm visible eligibility and the exact reason for every rejection.
+
+| Case | Human procedure and expected result | Status |
+| --- | --- | --- |
+| LIVE-M4B-GATE-01 | Full Revit restart; pane shows CONTROLLED WRITES: DISABLED | PENDING |
+| LIVE-M4B-GATE-02 | Eligible Project2: first Enable then Cancel stays disabled; repeat Enable then explicit native confirmation enables current session/document; provider dispatch still unavailable; no model write | PENDING |
+| LIVE-M4B-GATE-03 | While disabled request a test-text mutation; no write tool, no write TaskDialog, no transaction | PENDING |
+| LIVE-M4B-GATE-04 | While permission enabled repeat mutation request; still no write tool, no write TaskDialog, no transaction; 13 active provider tools | PENDING |
+| LIVE-M4B-GATE-05 | Explicit Disable immediately returns disabled | PENDING |
+| LIVE-M4B-GATE-06 | Enable then activate another document; permission resets; new eligibility displayed; switching back does not restore permission | PENDING |
+| LIVE-M4B-GATE-07 | Enable then close document; permission resets; no-document state when last project closes; reopen remains disabled | PENDING |
+| LIVE-M4B-GATE-08 | Enable then exit/restart Revit; disabled again, no persisted permission | PENDING |
+| LIVE-M4B-GATE-09 | Family/workshared/read-only/unprovisioned or otherwise ineligible document; enable rejected with deterministic implemented reason | PENDING |
+| LIVE-M4B-GATE-10 | Separate human M4A Preview/Write Dev regression: preview read-only, Cancel prevents write, confirmed disposable-model write/reread and native Undo retain closed behavior | PENDING |
+
+Do not record expected results as observations. Cases 03/04 refer to no WRITE
+TaskDialog from the provider prompt; the separate human-only Enable dialog in 02
+is deliberate. Case 10 is manual M4A execution, not evidence of AI-triggered write.
+Native pane hide/unload/disposal/shutdown cleanup has static coverage; record any
+additional live observations separately rather than inventing extra PASS results.
+
+Required static evidence already recorded: 531 Python tests,42 new gate/integration,
+78 native assertions,74 bridge/process probes, IronPython compilation,8 syntax/
+compile/tabnanny files, XAML/WPF/theme/Find,27 protected-source comparisons,
+dependency/whitespace/credential-pattern checks; catalog 237. No rerun here.
+Detailed checkpoint-by-checkpoint counts: validation_summary.md/evidence_reference.md.
+
+Future LIVE-M4B-01 through LIVE-M4B-18 remain PENDING / NOT STARTED; their write
+dispatch/exposure prerequisites are not implemented. Do not run them as though
+the current gate enables provider writes. No authenticated request or Revit live
+test is run by this documentation task. Actual hours and IDs remain PENDING.
+
+## Historical 2026-09-28 - M4B end-of-day discovery checkpoint
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
 M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.

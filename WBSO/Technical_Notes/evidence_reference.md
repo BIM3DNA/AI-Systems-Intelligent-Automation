@@ -1,6 +1,203 @@
 # Evidence Reference
 
-## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
+M4B_SESSION_GATE_READY_FOR_LIVE_TEST.
+Session gate: IMPLEMENTED / STATIC VALIDATION PASSED / UNCOMMITTED /
+LIVE REVIT VALIDATION PENDING. No session-gate commit SHA exists.
+Production provider tools: 13 READ-ONLY; dormant controlled-write metadata: 1;
+provider-exposed write tools: 0; provider write dispatch: NOT IMPLEMENTED;
+OpenAI-triggered mutation: NOT AVAILABLE, including when local permission is enabled.
+Live Revit validation deferred to next work session (planned 2026-10-02).
+LIVE-M4B-GATE-01 through LIVE-M4B-GATE-10 are all PENDING, not PASS.
+
+This section supersedes earlier M4B discovery/design-prerequisite current-state
+wording. Earlier dated sections remain historical; M4A host-only closure and
+prior runtime/catalog hashes remain unchanged. This EOD documentation is itself
+UNCOMMITTED / UNPUSHED. It does not close M4B or the uncommitted session gate.
+
+### Source-control checkpoints completed today
+
+Git objects, parents and subjects were inspected; all three are ancestors of
+main/origin/main and live remote main 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db.
+Ahead/behind 0/0. These are COMMITTED / PUSHED / SOURCE-CONTROL-CLOSED implementation
+checkpoints, not final closure of the M4B feature or the uncommitted gate.
+The following validation counts are recorded prior checkpoint results supplied
+in the EOD request, not freshly rerun tests in this documentation task.
+
+#### A. Admission and completion callback
+
+Commit: 9e19caf8804c1fd49fa3f9db6895acf8cc919cda.
+Parent: 037bb01aa44cc1d8ea07ee84fa1ad4c0517c0a97.
+Subject: feat(bimcode): add M4B admission and completion callback.
+Author/commit date: 2026-10-01T19:56:39+02:00.
+
+Owner-aware admission uses seven owner types: PROVIDER_TURN,
+READ_ONLY_PROVIDER_TOOL, CONTROLLED_WRITE_PROVIDER_TOOL, HUMAN_DEV_WRITE,
+HUMAN_DEV_PREVIEW, PARAMETER_PROVISIONING, DETERMINISTIC_READ_ONLY_TOOL.
+Immutable host completion, optional at-most-once callback, callback-failure
+isolation and retained Pending/indeterminate mutation safety are implemented.
+Automatic Revit lifecycle wiring was deferred at this checkpoint.
+Production tools remained 13 read-only; dormant definition 1; exposed writes 0;
+provider write dispatch NOT IMPLEMENTED.
+Validation: 424 Python tests PASS; 18 admission/callback tests; 41 native assertions
+PASS; 66 bridge probes PASS; 19 IronPython compiles PASS; 10 syntax checks PASS.
+Sources: AI.extension/lib/bimcode_ai_pane/write_access.py, write_completion.py and
+write_coordinator.py; associated admission/completion regression tests.
+
+#### B. Provider continuation coordinator
+
+Commit: b703acaa143c5a834f35184001ef1b1b8c8228ca.
+Parent: 9e19caf8804c1fd49fa3f9db6895acf8cc919cda.
+Subject: feat(bimcode): add M4B provider continuation coordinator.
+Author/commit date: 2026-10-01T22:03:02+02:00.
+
+Immutable continuation snapshot; correlation validation; one continuation attempt;
+new short-lived repo-local Python sidecar; 75-second continuation-process timeout;
+bounded stdout and deterministic process cleanup. Final request has store=False,
+tools=[], tool_choice=none. Host-write result remains authoritative, independently
+of provider-explanation status; a second tool request is rejected.
+This is a callable continuation seam, not provider-to-host mutation dispatch.
+Implemented failure reasons:
+CONTINUATION_TIMEOUT; SIDECAR_START_FAILED; SIDECAR_EXIT_FAILED;
+MALFORMED_CONTINUATION_RESPONSE; SECOND_TOOL_REQUESTED;
+RESPONSE_CORRELATION_FAILED; OUTPUT_TOO_LARGE; PROVIDER_UNAVAILABLE;
+INTERNAL_CONTINUATION_ERROR.
+Validation: 448 Python tests PASS; 24 continuation tests; 41 native assertions PASS;
+74 bridge/process probes PASS; 21 IronPython checks PASS; 11 changed Python files
+syntax/compile PASS; catalog 237 unchanged.
+Sources: AI.extension/lib/bimcode_ai_pane/write_continuation.py,
+continuation_stream.py, provider_bridge.py; BIMCode_Provider/write_tool_protocol.py;
+tests/test_bimcode_write_continuation.py and native process probes.
+
+#### C. Write leases and lifecycle cleanup foundation
+
+Commit: 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db.
+Parent: b703acaa143c5a834f35184001ef1b1b8c8228ca.
+Subject: feat(bimcode): add M4B write leases and lifecycle cleanup.
+Author/commit date: 2026-10-01T22:25:57+02:00.
+
+Host-session clock abstraction uses monotonic expiry decisions, UTC provenance
+and injectable fake clocks. Preview lease 120 seconds starts at deterministic
+preview creation. Execution-queue lease 30 seconds starts at explicit human
+Confirm. Exact-boundary expiry, immutable correlation bindings, no renewal,
+no automatic retry; lease invalidation cannot assert transaction rollback.
+Callable cleanup methods: document_switch, document_close, pane_disposal,
+shutdown, abandon, continuation_terminal. Retain unresolved mutation safety,
+actual host receipts and executing owners as required. Closed M4A 60-second
+CONFIRMATION_EXPIRED behavior unchanged. Automatic Revit event wiring was still
+deferred in this commit; current uncommitted M4B-8A adds that wiring.
+Implemented lease reasons:
+PREVIEW_LEASE_EXPIRED; PREVIEW_LEASE_INVALIDATED;
+EXECUTION_QUEUE_LEASE_EXPIRED; EXECUTION_QUEUE_LEASE_INVALIDATED;
+LEASE_CORRELATION_FAILED; LEASE_ALREADY_CONSUMED; LEASE_NOT_ACTIVE;
+CLOCK_STATE_INVALID.
+Validation: 489 Python tests PASS; 25 clock/lease tests; 16 cleanup tests;
+74 focused M4A regression tests; 24 continuation regression tests;
+64 native assertions PASS; 74 bridge/process probes PASS;
+24 distinct IronPython checks plus reducer recompile; catalog 237 unchanged.
+Sources: AI.extension/lib/bimcode_ai_pane/write_clock.py, write_leases.py,
+write_lifecycle.py, provider_write.py; associated clock/lease/cleanup tests.
+
+### D. Pre-existing uncommitted session gate
+
+M4B_SESSION_GATE_READY_FOR_LIVE_TEST.
+IMPLEMENTED / STATIC PASS / LIVE TEST PENDING / UNCOMMITTED / UNPUSHED.
+Committed HEAD remains 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db.
+No session-gate SHA invented. Prior implementation delta: 11 files / +765/-1.
+
+Modified before this documentation task:
+
+- AI.extension/lib/bimcode_ai_pane/BIMCodeAIPane.xaml
+
+- AI.extension/lib/bimcode_ai_pane/lifecycle.py
+
+- AI.extension/lib/bimcode_ai_pane/panel.py
+
+- tests/test_bimcode_modelmind_bridge.py
+
+- tests/test_bimcode_pane_theme.py
+
+- tests/test_bimcode_provider.py
+
+- tests/test_bimcode_result_find_wpf.ps1
+
+- tests/test_bimcode_write_lifecycle.py
+
+- tests/test_bimcode_write_native.ps1
+
+New before this documentation task:
+
+- AI.extension/lib/bimcode_ai_pane/session_write_gate.py
+
+- tests/test_bimcode_session_write_gate.py
+
+Visible state, explicit Enable/Disable, eligibility display, Cancel-default native
+enable confirmation and memory-only permission are implemented. Reset on document
+switch/open/close, pane hide/unload/disposal and shutdown; M4B-7 cleanup integration;
+normal same-document view activation and existing selection updates preserved.
+Enabling is not write approval and does not register or dispatch a provider write.
+
+Preceding implementation validation, not rerun here:
+531 Python tests PASS; 42 new gate/integration tests PASS;
+78 native contract assertions PASS; 74 native bridge/process probes PASS;
+IronPython compilation PASS; 8 Python syntax/compile/tabnanny files PASS;
+XAML/WPF/dark-light theme/Find PASS; 27 protected complete-source comparisons PASS;
+dependency/whitespace/credential-pattern checks PASS; catalog 237 unchanged.
+No added transaction or Parameter.Set. The closed executor remains one transaction
+constructor/one setter; explicit human-only provisioning remains one constructor/
+no setter. No provider-triggered preview, consent, write event or mutation path.
+
+### Live evidence boundary and next session
+
+LIVE-M4B-GATE-01 through LIVE-M4B-GATE-10: all PENDING / NOT RUN.
+Exact manual procedures and expectations: test_plan.md, 2026-10-01 matrix.
+Live Revit validation deferred to next work session (planned 2026-10-02).
+No observed live success or failure exists for this gate checkpoint.
+Future LIVE-M4B-01..18 end-to-end provider-write cases also remain pending; their
+write-exposure/dispatch prerequisites are absent. No authenticated OpenAI request,
+Revit run or new runtime test is performed for this documentation update.
+
+### Administrative fields and allocation review
+
+Evidence IDs for checkpoints A-D: PENDING / NOT ALLOCATED.
+Daily Log ID for 2026-10-01: PENDING / NOT ALLOCATED.
+Actual hours (2026-10-01): PENDING USER INPUT; no numeric value supplied or found.
+Knowledge Capture ID: PENDING / NOT ALLOCATED. Technical knowledge is recorded in
+the existing architecture_notes.md section, not a guessed numbered KC file.
+
+Repository-local inspection found no maintained standalone Daily Log, Weekly
+Summary, evidence-ID allocator, Evidence Link Index, Commit Log or Branch Overview.
+The equivalents used here are evidence_reference.md plus experiment_log.csv,
+the technical/scope/provider records, test_plan.md, validation_summary.md and
+PROJECT_STATE.md. No duplicate tracker or central WBSO file is created/edited.
+
+Identifier ambiguity: this file's historical Evidence ID Format is
+EV-YYYY-MM-DD-###; later experiment rows use EV-AI IDs, last explicit local
+allocation EV-AI-371 with DL-2026-09-01-01 / KC-053. Later records explicitly
+leave IDs PENDING, and some local references point to separate central identifiers
+(including KC-052 and DL-2026-09-01-05). Highest observed suffix is not a validated
+allocation rule or reservation register. No EV-AI/Daily Log/KC number is guessed.
+Resolve the authoritative project-local next-ID allocation before assigning IDs.
+
+The existing nine-column experiment CSV has no hours field. No Daily Log hour
+column exists locally to populate. The exact outstanding local placeholder is
+this section's Actual hours (2026-10-01); user must supply actual hours before
+any hour-bearing Daily Log/accounting completion. Do not copy 8h or historical 5h.
+All non-hour-dependent technical/source-control/pending-validation records can be
+reviewed now; administrative completion remains pending.
+
+### Documentation-only change scope
+
+New EOD documentation changes are separate from the 11 pre-existing implementation
+changes: PROJECT_STATE.md, provider_registry.md, architecture_notes.md,
+current_scope_alignment.md, evidence_reference.md, test_plan.md,
+validation_summary.md and experiment_log.csv under their existing WBSO paths.
+No implementation/test content changed; no runtime/catalog/configuration/
+dependency/secret/central WBSO change; no staging, commit or push.
+
+## Historical 2026-09-28 - M4B end-of-day discovery checkpoint
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
 M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.

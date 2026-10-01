@@ -1,6 +1,55 @@
 # Validation Summary
 
-## 2026-09-28 - M4B end-of-day discovery checkpoint (authoritative current)
+## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
+M4B_SESSION_GATE_READY_FOR_LIVE_TEST.
+Session gate: IMPLEMENTED / STATIC VALIDATION PASSED / UNCOMMITTED /
+LIVE REVIT VALIDATION PENDING. No session-gate commit SHA exists.
+Production provider tools: 13 READ-ONLY; dormant controlled-write metadata: 1;
+provider-exposed write tools: 0; provider write dispatch: NOT IMPLEMENTED;
+OpenAI-triggered mutation: NOT AVAILABLE, including when local permission is enabled.
+Live Revit validation deferred to next work session (planned 2026-10-02).
+LIVE-M4B-GATE-01 through LIVE-M4B-GATE-10 are all PENDING, not PASS.
+
+This section supersedes earlier M4B discovery/design-prerequisite current-state
+wording. Earlier dated sections remain historical; M4A host-only closure and
+prior runtime/catalog hashes remain unchanged. This EOD documentation is itself
+UNCOMMITTED / UNPUSHED. It does not close M4B or the uncommitted session gate.
+
+### Recorded checkpoint validation, not rerun by this documentation task
+
+| Checkpoint | Python suite | Focused tests | Native assertions | Bridge/process probes | IronPython | Syntax |
+| --- | ---: | --- | ---: | ---: | --- | --- |
+| Admission/callback 9e19caf... (committed/pushed) |424 PASS|18 admission/callback|41 PASS|66 PASS|19 compiles PASS|10 checks PASS|
+| Continuation b703aca... (committed/pushed) |448 PASS|24 continuation|41 PASS|74 PASS|21 checks PASS|11 changed Python files PASS|
+| Leases/cleanup 7bf5b38... (committed/pushed) |489 PASS|25 clock/lease; 16 cleanup; 74 M4A; 24 continuation regression|64 PASS|74 PASS|24 distinct checks plus reducer recompile PASS|Static checks PASS|
+| Session gate M4B-8A (UNCOMMITTED) |531 PASS|42 new gate/integration|78 PASS|74 PASS|Compilation PASS|8 Python files PASS|
+
+Counts describe distinct checkpoint runs, not additive test totals; focused groups
+are subsets, not additional suite tests. Earlier closure counts are supplied in
+the EOD request. Gate results are from the preceding implementation validation.
+Full SHAs, parents and subjects are in evidence_reference.md, 2026-10-01.
+
+Gate validation also passed native XAML/WPF/dark-light theme/Find checks,
+27 protected complete-source comparisons, dependency check, whitespace and
+credential-pattern scan. Catalog 237 unchanged; read-only tools 13; dormant metadata 1;
+exposed writes 0. No added transaction or Parameter.Set. Closed M4A Preview/Write/
+Setup, Workbench, provider execution and lease semantics remain protected.
+No runtime tests, Revit or authenticated OpenAI calls are repeated for this EOD
+documentation update. Documentation validation is limited to diff/CSV/scope checks.
+
+LIVE-M4B-GATE-01..10 all PENDING / NOT RUN; none PASS.
+Live Revit validation deferred to next work session, planned 2026-10-02.
+Future provider-write LIVE-M4B-01..18 also remain pending and are not enabled by
+the session gate. Static PASS does not establish live validation or M4B closure.
+
+Source-control: main HEAD/origin/live remote 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db,
+0/0; pre-existing 11-file gate delta +765/-1, no staging. Additional EOD documentation
+is uncommitted/unpushed. Evidence/Daily Log/KC IDs and actual hours remain PENDING.
+Only non-hour-dependent project-local records are updated; no central allocation.
+
+## Historical 2026-09-28 - M4B end-of-day discovery checkpoint
 
 M4A HOST-ONLY WRITE LAYER SOURCE-CONTROL CLOSED.
 M4B PROVIDER-FACING WRITE DISCOVERY COMPLETE.

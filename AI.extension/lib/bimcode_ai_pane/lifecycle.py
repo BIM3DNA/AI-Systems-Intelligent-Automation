@@ -13,6 +13,9 @@ from bimcode_ai_pane.context import empty_context, read_context
 from bimcode_ai_pane.panel import BIMCodeAIPanel
 from bimcode_ai_pane.tools import ModelMindToolBridge, document_key, result_for
 from bimcode_ai_pane.ai_tool import Coordinator
+from bimcode_ai_pane.session_write_gate import SessionWriteGate, read_document
+from bimcode_ai_pane.write_access import admission_for
+from bimcode_ai_pane.write_contracts import M4A_TEST_PARAMETER_GUID
 
 
 def pane_id():
@@ -37,7 +40,10 @@ class ContextRefreshHandler(UI.IExternalEventHandler):
         self.session = session
 
     def Execute(self, uiapp):
+        if getattr(self.session, "disposed", False):
+            return
         self.session.refresh(uiapp)
+        self.session.process_write_enable(uiapp)
         self.session.try_initial_show(uiapp)
 
     def GetName(self):
@@ -81,6 +87,9 @@ class PaneSession(object):
         self.context_generation = 0
         self.document_identity = None
         self.selection_generation = 0
+        self.disposed = False
+        self.write_gate = SessionWriteGate(admission_for(self))
+        self.panel.bind_write_gate(self.request_write_enable, self.disable_writes, self.on_pane_unloaded)
         self.ai = Coordinator(self)
         self.panel.bind_ai(self.ai)
         self.tool_handler = ModelMindReadOnlyHandler(self)
@@ -119,6 +128,10 @@ class PaneSession(object):
                 and hasattr(UI.Events, "ThemeChangedEventArgs")):
             specs += ((self.uiapp, "ThemeChanged", UI.Events.ThemeChangedEventArgs,
                        self.on_theme_changed),)
+        for name, callback in (("ApplicationClosing", self.on_shutdown),
+                               ("DockableFrameVisibilityChanged", self.on_pane_visibility)):
+            if hasattr(self.uiapp, name) and hasattr(UI.Events, name + "EventArgs"):
+                specs += ((self.uiapp, name, getattr(UI.Events, name + "EventArgs"), callback),)
         for source, name, event_type, callback in specs:
             # Theme subscriptions use this same retained/rollback-safe list.
             delegate = framework.EventHandler[event_type](callback)
@@ -126,19 +139,110 @@ class PaneSession(object):
             self._subscriptions.append((source, name, delegate))
 
     def dispose_unregistered(self):
+        if self.disposed:
+            return
+        self.write_gate.cleanup("PANE_DISPOSAL")
+        self.write_gate.closed = True
+        self.disposed = True
+        self.render_write_gate()
         for source, name, delegate in reversed(self._subscriptions):
             getattr(source, name).__isub__(delegate)
         self._subscriptions = []
         self.panel.bind_refresh(None)
         self.panel.bind_tools(None)
+        self.panel.bind_write_gate(None, None, None)
         self.tools.clear()
         self.tool_event.Dispose()
         self.refresh_event.Dispose()
 
     def refresh(self, uiapp):
         # Called only from startup / a command / a supported Revit API event.
+        if self.disposed:
+            return
         self.document_identity = document_key(uiapp)
         self.panel.render(read_context(uiapp))
+        self.write_gate.observe(*read_document(uiapp, DB, framework.Guid.Parse(M4A_TEST_PARAMETER_GUID)))
+        self.render_write_gate()
+
+    def render_write_gate(self):
+        try:
+            self.panel.render_write_gate(self.write_gate.view_model())
+        except Exception:
+            pass  # Cleanup must remain effective after the WPF host disappears.
+
+    def request_write_enable(self):
+        # Local WPF click only: no API reads or provider arguments. Reuse the
+        # existing refresh ExternalEvent, not the M4A write event/dispatcher.
+        if self.write_gate.queue_enable():
+            try:
+                response = self.refresh_event.Raise()
+                if response not in (UI.ExternalEventRequest.Accepted, UI.ExternalEventRequest.Pending):
+                    raise RuntimeError("Event unavailable")
+            except Exception:
+                self.write_gate.enable_pending = None
+                self.write_gate.note = "ENABLE_EVENT_UNAVAILABLE"
+        self.render_write_gate()
+
+    def process_write_enable(self, uiapp):
+        gate = self.write_gate
+        ticket, gate.enable_pending = gate.enable_pending, None
+        if ticket is None or gate.closed:
+            return
+        required = {"ViewActivated", "DocumentClosed", "DocumentOpened", "DocumentCreated",
+                    "ApplicationClosing", "DockableFrameVisibilityChanged"}
+        if not required.issubset(set(item[1] for item in self._subscriptions)):
+            gate.note = "LIFECYCLE_EVENTS_UNAVAILABLE"
+        elif not gate.view_model()["controlled_write_document_eligible"]:
+            gate.note = gate.view_model()["controlled_write_eligibility_reason"]
+        elif (ticket != (gate.document, gate.cleanup_generation) or gate.admission.active is not None
+              or gate.admission.safety_locked or gate.admission.busy()):
+            gate.note = "ENABLE_INVALIDATED_OR_BUSY"
+        else:
+            gate.confirmation_active = True
+            try:
+                dialog = UI.TaskDialog("Enable Controlled Writes for This Session")
+                dialog.MainInstruction = "Enable local session permission for this document?"
+                dialog.MainContent = (
+                    "Permission is session-only and current-document-only.\n"
+                    "Provider write dispatch is NOT YET AVAILABLE in this checkpoint.\n"
+                    "Enabling performs no model write and exposes no AI write tool.\n"
+                    "Use only a disposable test project; OK confirms this local intent.\n"
+                    "Permission resets on restart or document lifecycle invalidation.\n"
+                    "Pane hide/disposal and Disable also clear permission.")
+                dialog.CommonButtons = UI.TaskDialogCommonButtons.Ok | UI.TaskDialogCommonButtons.Cancel
+                dialog.DefaultButton = UI.TaskDialogResult.Cancel
+                confirmed = dialog.Show() == UI.TaskDialogResult.Ok
+                gate.observe(*read_document(uiapp, DB, framework.Guid.Parse(M4A_TEST_PARAMETER_GUID)))
+                gate.enable(ticket, confirmed)
+            except Exception:
+                gate.cleanup("ABANDONED")
+                gate.note = "ENABLE_CONFIRMATION_UNAVAILABLE"
+            finally:
+                gate.confirmation_active = False
+        self.render_write_gate()
+
+    def disable_writes(self):
+        self.write_gate.cleanup("ABANDONED")
+        self.write_gate.note = "Permission disabled locally"
+        self.render_write_gate()
+
+    def on_pane_unloaded(self):
+        # WPF Unloaded may mean hide/reparent rather than permanent disposal.
+        # Revoke intent, but retain the once-registered pane and subscriptions.
+        self.write_gate.cleanup("PANE_DISPOSAL")
+        self.render_write_gate()
+
+    def on_pane_visibility(self, sender, args):
+        if args.PaneId.Equals(pane_id()):
+            if args.DockableFrameShown:
+                self.refresh(self.uiapp)
+            else:
+                self.on_pane_unloaded()
+
+    def on_shutdown(self, sender, args):
+        self.write_gate.cleanup("SHUTDOWN")
+        self.write_gate.closed = True
+        self.dispose_unregistered()
 
     def request_tool(self, tool_name):
         from bimcode_ai_pane.write_access import admission_blocked
@@ -241,6 +345,8 @@ class PaneSession(object):
 
     def on_document_changed(self, sender, args):
         # DocumentOpened/Created may precede activation of that document.
+        self.write_gate.cleanup("DOCUMENT_SWITCH")
+        self.render_write_gate()
         self.invalidate_tool_context()
         self.show_pending = True
         self.request_refresh()
@@ -249,6 +355,8 @@ class PaneSession(object):
         # Do not dereference the closed document or display its cached context.
         # Revit can hide the visual host when the final project closes. Re-arm
         # Show for the next valid active document without registering again.
+        self.write_gate.cleanup("DOCUMENT_CLOSE")
+        self.render_write_gate()
         self.invalidate_tool_context()
         self.show_pending = True
         self.panel.render(empty_context())

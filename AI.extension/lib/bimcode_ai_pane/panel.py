@@ -29,6 +29,9 @@ class BIMCodeAIPanel(forms.WPFPanel):
         forms.WPFPanel.__init__(self)
         self._request_refresh = None
         self._request_tool = None
+        self._enable_writes = None
+        self._disable_writes = None
+        self._write_unloaded = None
         self._tools_busy = False
         self._ai = None
         self._ai_provenance = None
@@ -40,6 +43,9 @@ class BIMCodeAIPanel(forms.WPFPanel):
         self.FindName("FindNext").Click += self._on_find_next
         self.FindName("FindClear").Click += self._on_find_clear
         self.FindName("RefreshButton").Click += self._on_refresh
+        self.FindName("EnableWritesButton").Click += self._on_enable_writes
+        self.FindName("DisableWritesButton").Click += self._on_disable_writes
+        self.Unloaded += self._on_unloaded
         for name, tool in TOOL_BUTTONS:
             control = self.FindName(name)
             control.Tag = tool
@@ -161,6 +167,33 @@ class BIMCodeAIPanel(forms.WPFPanel):
 
     def bind_refresh(self, callback):
         self._request_refresh = callback
+
+    def bind_write_gate(self, enable, disable, unloaded):
+        self._enable_writes, self._disable_writes, self._write_unloaded = enable, disable, unloaded
+
+    def _on_enable_writes(self, sender, args):
+        if self._enable_writes is not None:
+            self._enable_writes()
+
+    def _on_disable_writes(self, sender, args):
+        if self._disable_writes is not None:
+            self._disable_writes()
+
+    def _on_unloaded(self, sender, args):
+        if self._write_unloaded is not None:
+            self._write_unloaded()
+
+    def render_write_gate(self, model):
+        # Presentation snapshot only; the permission object is the sole authority.
+        self.FindName("WritePermissionText").Text = model["status"]
+        self.FindName("WriteDispatchText").Text = model["dispatch_status"]
+        self.FindName("WriteEligibilityText").Text = model["eligibility_text"]
+        self.FindName("WriteGateNote").Text = model["note"]
+        self.FindName("EnableWritesButton").IsEnabled = model["enable_available"]
+        self.FindName("DisableWritesButton").IsEnabled = model["disable_available"]
+        self.FindName("WriteGateArea").ToolTip = "\n".join(
+            "{0}: {1}".format(key, model[key]) for key in sorted(model)
+            if key not in ("status", "dispatch_status", "eligibility_text", "note"))
 
     def _on_refresh(self, sender, args):
         if self._request_refresh is not None:

@@ -49,6 +49,12 @@ for name in ('light', 'dark'):
     apply_resources(page.Resources, name)
     assert document.Tag.Background.Color == page.Resources['AccentBrush'].Color
     assert document.Tag.Foreground.Color == page.Resources['SurfaceBrush'].Color
+    assert page.FindName('WriteGateArea').Background.Color == page.Resources['SurfaceBrush'].Color
+    assert page.FindName('WriteDispatchText').Foreground.Color == page.Resources['WarningBrush'].Color
+    assert page.FindName('WritePermissionText').Text == 'CONTROLLED WRITES: DISABLED'
+    assert page.FindName('WriteDispatchText').Text == 'PROVIDER WRITE DISPATCH: NOT YET AVAILABLE'
+    assert page.FindName('EnableWritesButton').Content == 'Enable Controlled Writes'
+    assert page.FindName('DisableWritesButton').Content == 'Disable Controlled Writes'
 finder.move(-1)
 document = make_document(model, finder)
 page.FindName('ToolResultText').Document = document

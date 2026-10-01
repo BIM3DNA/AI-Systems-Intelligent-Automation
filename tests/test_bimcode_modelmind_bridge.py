@@ -230,6 +230,7 @@ class PanelTests(unittest.TestCase):
         class WPF:
             def __init__(self):
                 self.controls = {}
+                self.Unloaded = m1.Event()
 
             def FindName(self, name):
                 return self.controls.setdefault(name, Control())

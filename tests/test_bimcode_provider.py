@@ -286,6 +286,7 @@ class PaneTests(unittest.TestCase):
         class WPF:
             def __init__(self):
                 self.controls, self.Resources, self.Dispatcher = {}, {}, object()
+                self.Unloaded = Event()
             def FindName(self, name):
                 return self.controls.setdefault(name, Control())
         host = types.ModuleType("pyrevit")
