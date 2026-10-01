@@ -63,6 +63,23 @@ for name in ('write_access.py', 'controlled_write_registry.py'):
     with open(os.path.join(repo, 'AI.extension/lib/bimcode_ai_pane', name), 'rb') as source:
         compile(source.read(), name, 'exec')
 print('PASS: 10 M4B native assertions; 2 additional IronPython compiles')
+from bimcode_ai_pane import write_projection as projection
+from bimcode_ai_pane import provider_write as machine
+assert len(machine.STATES) == 22
+identity = machine.correlation('logical1', 'host1', 'session1', 'doc1', 'resp1', 'call1', 'New')
+request = machine.new_request(identity, 0)
+assert request.state == 'IDLE'
+assert not machine.transition(request, identity, 'WRITE_EXECUTING', 1, 'TEST').accepted
+assert machine.transition(request, identity, 'PROVIDER_INITIAL_REQUEST', 1, 'TEST').accepted
+assert projection.explanation('FAILED').status == 'FAILED'
+from bimcode_write_execution import result_for
+receipt = projection.from_host_result(result_for(dict(request_id='host1'), 'CANCELLED', 'USER_CANCELLED'))
+assert projection.project_receipt(receipt)['model_modified'] is False
+assert projection.provenance(receipt)['transaction'] == 'NOT_STARTED'
+for name in ('write_projection.py', 'provider_write.py'):
+    with open(os.path.join(repo, 'AI.extension/lib/bimcode_ai_pane', name), 'rb') as source:
+        compile(source.read(), name, 'exec')
+print('PASS: 7 M4B coordination assertions; 2 additional IronPython compiles')
 '@, $scope) | Out-Null
 } finally {
     Remove-Item -LiteralPath $archive
