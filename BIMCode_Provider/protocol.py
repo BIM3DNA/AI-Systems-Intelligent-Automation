@@ -6,6 +6,7 @@ import tool_protocol
 MAX_REQUEST = 20000
 MAX_TEXT = 12000
 MESSAGES = {
+    "CONTINUATION_OUTPUT_TOO_LARGE": "Provider explanation exceeds its output limit.",
     "CONFIG_MISSING_API_KEY": "Provider API key is not configured.",
     "CONFIG_MISSING_MODEL": "Provider model is not configured.",
     "INVALID_CONFIG": "Provider configuration is invalid.",
@@ -51,6 +52,9 @@ def parse(raw):
             or not re.fullmatch(r"[a-f0-9]{32}", data["request_id"])):
         raise ValueError("protocol")
     operation = data.get("operation")
+    if operation == "write_explanation":
+        from write_tool_protocol import validate_request
+        return validate_request(data)
     if operation in ("agent_turn", "tool_result"):
         return tool_protocol.validate_request(data)
     if len(raw) > MAX_REQUEST:

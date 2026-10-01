@@ -15,8 +15,13 @@ if mode == "malformed":
     sys.exit(0)
 if mode == "stderr":
     sys.stderr.write("fake-private-error" * 10000)
+if mode == "oversized":
+    sys.stdout.write("x" * 150000)
+    sys.exit(0)
 result = dict(protocol_version=1, request_id=request["request_id"], ok=True,
               provider="openai", model="fake-model", text="fake answer", error=None)
 if mode == "mismatch":
     result["request_id"] = "b" * 32
+if request.get("operation") == "write_explanation":
+    result.update(state="WRITE_FINAL", response_id="resp_final", previous_response_id="resp1", call_id="call1")
 sys.stdout.write(json.dumps(result))

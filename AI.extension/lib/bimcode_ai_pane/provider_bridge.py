@@ -120,7 +120,7 @@ def decode_tool(data, request_id):
     return data
 
 
-def run(payload):
+def run(payload, decoder=None):
     """Only scalar work. Executed off the UI thread. Fixed executable/script."""
     from System.Diagnostics import Process
     from System.Text import UTF8Encoding
@@ -148,8 +148,13 @@ def run(payload):
         if not started:
             return failure(request_id, "SIDECAR_START_FAILED")
         # Drain both pipes concurrently to avoid stderr/stdout deadlocks.
-        output = process.StandardOutput.ReadToEndAsync()
-        errors = process.StandardError.ReadToEndAsync()
+        if decoder is not None:
+            from bimcode_ai_pane.continuation_stream import Drain
+            output = Drain(process.StandardOutput, MAX_OUTPUT)
+            errors = Drain(process.StandardError, 0)  # Discard stderr; never retain secrets.
+        else:
+            output = process.StandardOutput.ReadToEndAsync()
+            errors = process.StandardError.ReadToEndAsync()
         writing = process.StandardInput.WriteLineAsync(json.dumps(payload, ensure_ascii=True))
         if not writing.Wait(5000):
             return failure(request_id, "SIDECAR_TIMEOUT")
@@ -158,7 +163,7 @@ def run(payload):
             return failure(request_id, "SIDECAR_TIMEOUT")
         if not output.Wait(1000) or not errors.Wait(1000):
             return failure(request_id, "SIDECAR_PROTOCOL_ERROR")
-        return decode(output.Result, request_id, process.ExitCode)
+        return (decoder or decode)(output.Result, request_id, process.ExitCode)
     except Exception:
         return failure(request_id, "SIDECAR_START_FAILED")
     finally:

@@ -58,6 +58,26 @@ check('valid', 'SIDECAR_START_FAILED')
 bridge.paths = lambda: (executable, fake, root)
 
 # Real .NET worker -> WPF dispatcher; no controls touched on worker.
+from bimcode_ai_pane.write_continuation import decode_final
+for mode, expected in (('valid', None), ('stderr', None), ('malformed', 'MALFORMED_CONTINUATION_RESPONSE'),
+                       ('nonzero', 'SIDECAR_EXIT_FAILED'), ('mismatch', 'RESPONSE_CORRELATION_FAILED'),
+                       ('oversized', 'OUTPUT_TOO_LARGE')):
+    payload = bridge.request('write_explanation')
+    payload['user_text'] = mode  # Fake child only; production parser rejects this key.
+    result = bridge.run(payload, decoder=decode_final)
+    assert result.get('reason') == expected, str(result)
+    assert 'fake-private-error' not in str(result)
+bridge.TIMEOUT_MS = 100
+payload['user_text'] = 'timeout'
+assert bridge.run(payload, decoder=decode_final)['error']['code'] == 'SIDECAR_TIMEOUT'
+bridge.TIMEOUT_MS = 75000
+bridge.paths = lambda: (executable, fake + '.missing', root)
+assert bridge.run(payload, decoder=decode_final)['error']['code'] == 'SIDECAR_START_FAILED'
+bridge.paths = lambda: (executable, fake, root)
+for name in ('write_continuation.py', 'continuation_stream.py'):
+    with open(os.path.join(repo, 'AI.extension/lib/bimcode_ai_pane', name), 'rb') as source:
+        compile(source.read(), name, 'exec')
+print('PASS: 8 continuation native process probes; 2 additional IronPython compiles')
 dispatcher = Dispatcher.CurrentDispatcher
 owner = Thread.CurrentThread.ManagedThreadId
 frame = DispatcherFrame()

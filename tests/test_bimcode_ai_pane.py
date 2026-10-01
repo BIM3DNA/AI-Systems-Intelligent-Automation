@@ -264,7 +264,9 @@ class BoundaryTests(unittest.TestCase):
             names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
             names |= {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
             imports = {n.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.alias)}
-            self.assertFalse((names | imports) & forbidden, str(path))
+            # M4B-6 uses locks and bounded pipe-drain workers only, never API work.
+            allowed = {"threading"} if path.name in ("continuation_stream.py", "write_continuation.py") else set()
+            self.assertFalse((names | imports) & (forbidden - allowed), str(path))
 
 
 if __name__ == "__main__":

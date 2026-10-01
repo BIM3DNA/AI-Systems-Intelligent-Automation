@@ -145,6 +145,8 @@ class RegistryTests(unittest.TestCase):
         current.body = [node for node in current.body if not (
             isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and
             t.id == "READ_ONLY_TOOL_REGISTRY" for t in node.targets))]
+        current.body = [node for node in current.body if not (
+            isinstance(node, ast.FunctionDef) and node.name == "send_write_explanation")]
         self.assertEqual(ast.dump(current), ast.dump(ast.parse(baseline)))
 
     def test_pure_boundary(self):

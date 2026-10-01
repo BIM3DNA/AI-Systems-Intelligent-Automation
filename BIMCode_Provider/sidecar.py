@@ -35,8 +35,8 @@ def dispatch(raw, root, environ=None, sender=None):
         if request["operation"] == "readiness":
             return success(request_id, config.model, "READY")
         if sender is None:
-            from provider import send
-            sender = send
+            from provider import send, send_write_explanation
+            sender = send_write_explanation if request["operation"] == "write_explanation" else send
         return sender(config, request)
     except ToolError as exc:
         return failure(request_id, exc.args[0])

@@ -183,3 +183,42 @@ def send(config, request, factory=client_for):
     except Exception:
         code = "INTERNAL_PROVIDER_ERROR"
     return failure(request_id, code, config.model)
+
+
+def send_write_explanation(config, request, factory=client_for):
+    """One final no-tools call. This entry cannot select or execute a tool."""
+    from write_tool_protocol import final_payload, identifier
+    rid = request.get("request_id", "")
+    try:
+        payload = final_payload(request)
+        if payload["model"] != config.model:
+            return failure(rid, "AI_TOOL_PROTOCOL_ERROR", config.model)
+        with factory(config) as client:
+            response = client.responses.create(**payload)
+        if getattr(response, "status", None) != "completed":
+            return failure(rid, "OPENAI_API_ERROR", config.model)
+        for item in response.output:
+            if getattr(item, "type", None) not in ("message", "reasoning"):
+                return failure(rid, "AI_TOOL_LOOP_LIMIT", config.model)
+        text = response.output_text
+        if not isinstance(text, str) or not text.strip():
+            return failure(rid, "OPENAI_EMPTY_RESPONSE", config.model)
+        if len(text) > MAX_TEXT:
+            return failure(rid, "CONTINUATION_OUTPUT_TOO_LARGE", config.model)
+        response_id = getattr(response, "id", None)
+        if (not identifier(response_id) or config.api_key in text or config.api_key in response_id or
+                "authorization:" in text.lower()):
+            return failure(rid, "INTERNAL_PROVIDER_ERROR", config.model)
+        result = success(rid, config.model, text)
+        result.update(state="WRITE_FINAL", response_id=response_id,
+                      previous_response_id=request["previous_response_id"], call_id=request["call_id"])
+        return result
+    except openai.APITimeoutError:
+        code = "OPENAI_TIMEOUT"
+    except openai.APIError:
+        code = "OPENAI_API_ERROR"
+    except (ValueError, TypeError, KeyError):
+        code = "SIDECAR_PROTOCOL_ERROR"
+    except Exception:
+        code = "INTERNAL_PROVIDER_ERROR"
+    return failure(rid, code, config.model)
