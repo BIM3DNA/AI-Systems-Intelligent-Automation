@@ -95,6 +95,57 @@ assert admission.safety_locked
 with open(os.path.join(repo, 'AI.extension/lib/bimcode_ai_pane/write_completion.py'), 'rb') as source:
     compile(source.read(), 'write_completion.py', 'exec')
 print('PASS: 7 M4B admission/callback assertions; 1 additional IronPython compile')
+from bimcode_ai_pane.write_clock import Clock
+from bimcode_ai_pane import write_leases as leases_module
+from bimcode_ai_pane.write_lifecycle import Lifecycle
+from bimcode_ai_pane.write_access import ControlledWritePermission
+native_clock = Clock()
+assert native_clock.sample().monotonic <= native_clock.sample().monotonic
+now = [1000.0]
+clock = Clock(lambda: now[0], lambda: '2026-10-01T12:00:00Z')
+admission = OperationAdmission()
+owner = admission.acquire('CONTROLLED_WRITE_PROVIDER_TOOL', 'logical1', 'host1', 'doc1', 'session1', 0)
+bound = leases_module.binding(identity, owner, 'fingerprint', 123, 'unique1', False, None, 1, 2)
+leases = leases_module.Leases(clock)
+assert leases.preview.state == 'NOT_STARTED'
+assert leases.create_preview(bound).accepted
+assert leases.preview.expires_at == 1120
+now[0] = 1119.999
+assert leases.check('PREVIEW', bound).accepted
+assert leases.confirm(bound, True).accepted
+assert leases.preview.consumed
+assert leases.queue.created_at == now[0]
+assert leases.queue.expires_at == now[0] + 30
+assert not leases.confirm(bound, True).accepted
+now[0] = leases.queue.expires_at
+assert leases.handler_started(bound).reason == 'EXECUTION_QUEUE_LEASE_EXPIRED'
+assert not leases.queue.consumed
+assert not leases.handler_started(bound).accepted
+request = machine.new_request(identity, 0)
+for index, state in enumerate(('PROVIDER_INITIAL_REQUEST', 'PROVIDER_TOOL_SELECTED', 'WRITE_ARGUMENTS_VALIDATED',
+                             'HOST_PREVIEW_BUILDING', 'PREVIEW_READY', 'AWAITING_HUMAN_CONFIRMATION', 'WRITE_REQUEST_QUEUED')):
+    request = machine.transition(request, identity, state, index + 1, 'TEST').request
+ready = leases_module.expired_request(request, leases)
+host = projection.project_receipt(ready.host_result)
+assert ready.state == 'HOST_RESULT_READY'
+assert ready.terminal_intent == 'EXPIRED'
+assert host['reason_code'] == 'EXECUTION_QUEUE_LEASE_EXPIRED'
+assert host['transaction_started'] is False
+assert host['model_modified'] is False
+sink = CompletionSink(owner)
+sink.store(host)
+permission = ControlledWritePermission()
+lifecycle = Lifecycle(owner, admission, permission, leases, sink)
+cleaned = lifecycle.document_close(ready)
+assert cleaned.owner_released
+assert cleaned.host_result == ready.host_result
+assert sink.closed
+assert lifecycle.document_close(ready) is cleaned
+assert admission.active is None
+for name in ('write_clock.py', 'write_leases.py', 'write_lifecycle.py', 'provider_write.py'):
+    with open(os.path.join(repo, 'AI.extension/lib/bimcode_ai_pane', name), 'rb') as source:
+        compile(source.read(), name, 'exec')
+print('PASS: 23 M4B lease/lifecycle assertions; 3 additional IronPython compiles; reducer recompiled')
 '@, $scope) | Out-Null
 } finally {
     Remove-Item -LiteralPath $archive

@@ -109,7 +109,8 @@ def transition(request, identity, target, timestamp, reason, host_result=None, p
             return reject("UNEXPECTED_EXECUTION_EVIDENCE")
         if request.state == "USER_CANCELLED" and data["classification"] != "MEP_PARAMETER_WRITE_CANCELLED":
             return reject("HOST_OUTCOME_MISMATCH")
-        if request.state == "APPROVAL_EXPIRED" and data["reason_code"] != "CONFIRMATION_EXPIRED":
+        if request.state == "APPROVAL_EXPIRED" and data["reason_code"] not in (
+                "CONFIRMATION_EXPIRED", "PREVIEW_LEASE_EXPIRED", "EXECUTION_QUEUE_LEASE_EXPIRED"):
             return reject("HOST_OUTCOME_MISMATCH")
     if target == "PROVIDER_CONTINUATION_PENDING" and not (identity.previous_response_id and identity.call_id):
         return reject("PROVIDER_CORRELATION_REQUIRED")
