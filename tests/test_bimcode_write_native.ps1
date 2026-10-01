@@ -41,6 +41,28 @@ preview['request_id'] = 'changed'
 assert 'changed' not in request.preview_json
 assert request.epochs == (1, 2, 3)
 print('PASS: 17 native contract assertions; 7 IronPython compiles; no Revit execution')
+from bimcode_ai_pane.write_access import ControlledWritePermission, document_eligibility
+from bimcode_ai_pane.controlled_write_registry import metadata, validate_arguments
+facts = dict(valid_document=True, active_uidocument=True, family_document=False,
+             host_document=True, linked_document=False, workshared=False,
+             read_only=False, modifiable=False, fixed_parameter_available=True,
+             fixed_parameter_binding_valid=True)
+permission = ControlledWritePermission()
+assert not permission.view_model()['enabled']
+assert document_eligibility(facts)['eligible']
+assert permission.enable_from_human('doc', facts, True)
+assert not permission.view_model()['provider_exposure_allowed']
+permission.document_closed()
+assert not permission.view_model()['enabled']
+assert len(metadata()) == 1
+assert metadata()[0]['dispatcher_state'] == 'NOT_IMPLEMENTED'
+assert validate_arguments({'value': u'M4A_AI_01'})['valid']
+assert not validate_arguments({'value': 'A', 'confirmed': True})['valid']
+assert not validate_arguments({'value': 'A\n'})['valid']
+for name in ('write_access.py', 'controlled_write_registry.py'):
+    with open(os.path.join(repo, 'AI.extension/lib/bimcode_ai_pane', name), 'rb') as source:
+        compile(source.read(), name, 'exec')
+print('PASS: 10 M4B native assertions; 2 additional IronPython compiles')
 '@, $scope) | Out-Null
 } finally {
     Remove-Item -LiteralPath $archive

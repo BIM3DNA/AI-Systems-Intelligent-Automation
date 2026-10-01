@@ -40,6 +40,10 @@ TOOL = TOOLS[0]  # Existing Summary contract remains available to offline probes
 TOOLS.append(dict(type="function", name="summarize_selected_mep_elements", strict=True,
                   description="Summarize selected MEP elements, including mixed Pipe, rigid Duct and supported Electrical fixtures/equipment. Summary only; host chooses fixed read-only children.",
                   parameters=dict(type="object", properties={}, required=[], additionalProperties=False)))
+# M4B-1 explicit read-only partition. Production TOOLS remains the original 13;
+# dormant controlled-write metadata is deliberately not imported or assembled here.
+READ_ONLY_TOOL_REGISTRY = tuple(TOOLS)
+
 TOOL_INSTRUCTION = (
     "You are BIMCode AI running inside Autodesk Revit. Answer text questions. "
     "Four read-only Piping, four HVAC and four Electrical tools are available for the current selection: summary, "
