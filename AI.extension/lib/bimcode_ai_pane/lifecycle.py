@@ -141,6 +141,9 @@ class PaneSession(object):
         self.panel.render(read_context(uiapp))
 
     def request_tool(self, tool_name):
+        from bimcode_ai_pane.write_access import admission_blocked
+        if admission_blocked(self):
+            return
         # WPF callback: cached scalar identity only. No Revit reads here.
         if getattr(self, "write_busy", False):
             return

@@ -69,6 +69,9 @@ class Coordinator(object):
         self.callback = None
 
     def begin(self, request_id):
+        from bimcode_ai_pane.write_access import admission_blocked
+        if admission_blocked(self.session):
+            return False
         if getattr(self.session, "write_busy", False):
             return False
         if self.turn is not None or self.session.tools.pending is not None:

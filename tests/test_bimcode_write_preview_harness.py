@@ -26,6 +26,11 @@ class Harness(unittest.TestCase):
         self.forms.ask_for_string.return_value = "M4A_Test_01"
         self.pyrevit = N(HOST_APP=N(uiapp=self.host), forms=self.forms,
                          script=N(get_output=lambda: self.output))
+        self.session = N(document_identity="fixture", tools=N(pending=None), ai=N(turn=None))
+        modules = patch.dict(sys.modules, {"pyrevit.coreutils": N(
+            envvars=N(get_pyrevit_env_var=lambda key: self.session))})
+        modules.start()
+        self.addCleanup(modules.stop)
 
     def invoke(self, result):
         with patch.dict(sys.modules, {"pyrevit": self.pyrevit}), \

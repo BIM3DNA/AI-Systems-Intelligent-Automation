@@ -80,6 +80,21 @@ for name in ('write_projection.py', 'provider_write.py'):
     with open(os.path.join(repo, 'AI.extension/lib/bimcode_ai_pane', name), 'rb') as source:
         compile(source.read(), name, 'exec')
 print('PASS: 7 M4B coordination assertions; 2 additional IronPython compiles')
+from bimcode_ai_pane.write_access import OperationAdmission
+from bimcode_ai_pane.write_completion import CompletionSink
+admission = OperationAdmission()
+owner = admission.acquire('HUMAN_DEV_WRITE', 'host1', 'host1', 'doc1', 'session1', 1)
+assert owner is not None
+assert admission.acquire('PARAMETER_PROVISIONING', 'host2', 'host2', 'doc1', 'session1', 2) is None
+sink = CompletionSink(owner)
+assert sink.store(result_for(dict(request_id='host1'), 'CANCELLED', 'USER_CANCELLED'))
+assert sink.deliver('host1')
+assert not sink.deliver('host1')
+assert admission.cleanup(owner, 'DOCUMENT_CLOSE', transaction_unresolved=True)
+assert admission.safety_locked
+with open(os.path.join(repo, 'AI.extension/lib/bimcode_ai_pane/write_completion.py'), 'rb') as source:
+    compile(source.read(), 'write_completion.py', 'exec')
+print('PASS: 7 M4B admission/callback assertions; 1 additional IronPython compile')
 '@, $scope) | Out-Null
 } finally {
     Remove-Item -LiteralPath $archive

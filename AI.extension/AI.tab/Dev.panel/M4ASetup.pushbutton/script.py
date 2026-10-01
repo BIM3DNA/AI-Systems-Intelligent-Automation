@@ -84,7 +84,7 @@ def provision(uiapp, path, db, guid, io):
         app.SharedParametersFilename = original
 
 
-def main():
+def _main():
     from pyrevit import HOST_APP, forms
     from Autodesk.Revit import DB
     from System import Guid, IO
@@ -109,6 +109,13 @@ def main():
             print("Save/inspect the disposable fixture manually. Dedicated file: " + path)
     except Exception as error:
         print("SETUP STOPPED: {0}. Binding may have committed if a post-commit read failed. Inspect fixture and dedicated file manually; no automatic retry.".format(error))
+
+
+def main():
+    from pyrevit.coreutils import envvars
+    from bimcode_ai_pane import SESSION_KEY
+    from bimcode_ai_pane.write_access import run_human_operation
+    return run_human_operation(envvars.get_pyrevit_env_var(SESSION_KEY), "PARAMETER_PROVISIONING", _main)
 
 
 if __name__ == "__main__":

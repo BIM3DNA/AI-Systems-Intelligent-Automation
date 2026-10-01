@@ -4,6 +4,99 @@ Facts must eventually be captured by a host API adapter; unknown facts fail clos
 No API, environment, persistence, target selection, or execution dependencies.
 """
 from bimcode_ai_pane.write_contracts import string_types
+from collections import namedtuple
+from uuid import uuid4
+import time
+import hashlib
+
+OWNER_TYPES = ("PROVIDER_TURN", "READ_ONLY_PROVIDER_TOOL", "CONTROLLED_WRITE_PROVIDER_TOOL",
+               "HUMAN_DEV_WRITE", "HUMAN_DEV_PREVIEW", "PARAMETER_PROVISIONING",
+               "DETERMINISTIC_READ_ONLY_TOOL")
+Owner = namedtuple("Owner", "token owner_type logical_request_id host_request_id document_id session_id acquired_at lease state release_reason")
+
+
+class OperationAdmission(object):
+    """Host-created identities only; no timeout stealing or transaction authority."""
+    def __init__(self, busy=None):
+        self.active = None
+        self.last_released = None
+        self.safety_locked = False
+        self.busy = busy
+
+    def acquire(self, owner_type, logical_request_id, host_request_id, document_id,
+                session_id, acquired_at, lease=None):
+        if owner_type not in OWNER_TYPES:
+            raise ValueError("INVALID_OWNER_TYPE")
+        if self.active is not None or self.safety_locked or (self.busy is not None and self.busy()):
+            return None
+        if not all(isinstance(v, string_types) and 0 < len(v) <= 256 for v in
+                   (logical_request_id, host_request_id, document_id, session_id)):
+            raise ValueError("INVALID_OWNER_IDENTITY")
+        if (type(acquired_at) not in (int, float) or not 0 <= acquired_at <= 1e15 or
+                (lease is not None and (type(lease) not in (int, float) or not 0 <= lease <= 1e15))):
+            raise ValueError("INVALID_OWNER_TIME")
+        self.active = Owner(uuid4().hex, owner_type, logical_request_id, host_request_id,
+                            document_id, session_id, acquired_at, lease, "ACQUIRED", None)
+        return self.active
+
+    def release(self, owner, reason):
+        if self.active is None:
+            return self.last_released is not None and owner == self.last_released[0]
+        if owner != self.active:
+            return False
+        self.last_released = (owner, owner._replace(state="RELEASED", release_reason=reason))
+        self.active = None
+        return True
+
+    def cleanup(self, owner, reason, execution_active=False, transaction_unresolved=False):
+        if owner != self.active:
+            return False
+        if execution_active or transaction_unresolved:
+            self.safety_locked = True
+        return self.release(owner, reason)
+
+    def resolve_safety(self, executor_quiescent):
+        # Only the trusted host may attest explicit executor status inspection.
+        if executor_quiescent is True and self.active is None:
+            self.safety_locked = False
+            return True
+        return False
+
+
+def admission_for(session):
+    manager = getattr(session, "write_admission", None)
+    if manager is None:
+        manager = OperationAdmission(lambda: bool(getattr(session, "write_busy", False) or
+            getattr(getattr(session, "tools", None), "pending", None) is not None or
+            getattr(getattr(session, "ai", None), "turn", None) is not None))
+        session.write_admission = manager
+    return manager
+
+
+def admission_blocked(session):
+    manager = getattr(session, "write_admission", None)
+    return manager is not None and (manager.active is not None or manager.safety_locked)
+
+
+def owner_document_key(session):
+    # Bounded opaque identity from the existing cached scalar document tuple.
+    return hashlib.sha256(repr(getattr(session, "document_identity", None)).encode("utf-8")).hexdigest()
+
+
+def run_human_operation(session, owner_type, operation):
+    """Thin synchronous Dev-command guard; no added target/parameter semantics."""
+    if session is None:
+        return operation()
+    manager = admission_for(session)
+    request_id = uuid4().hex
+    owner = manager.acquire(owner_type, request_id, request_id,
+                            owner_document_key(session), str(id(session)), time.time())
+    if owner is None:
+        raise RuntimeError("M4A operation busy")
+    try:
+        return operation()
+    finally:
+        manager.release(owner, "HUMAN_COMMAND_FINISHED")
 
 
 def document_eligibility(facts):

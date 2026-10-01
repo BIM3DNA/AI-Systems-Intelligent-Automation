@@ -6,7 +6,7 @@ from xml.sax.saxutils import escape
 from bimcode_write_runtime import build_preview, capture_preview_context
 
 
-def main():
+def _main():
     from pyrevit import HOST_APP, forms, script
     uiapp = HOST_APP.uiapp
     context = capture_preview_context(uiapp)
@@ -28,6 +28,13 @@ def main():
     output.print_html("<pre>" + escape(json.dumps(result, indent=2, sort_keys=True,
                                                  ensure_ascii=True)) + "</pre>")
     return result
+
+
+def main():
+    from pyrevit.coreutils import envvars
+    from bimcode_ai_pane import SESSION_KEY
+    from bimcode_ai_pane.write_access import run_human_operation
+    return run_human_operation(envvars.get_pyrevit_env_var(SESSION_KEY), "HUMAN_DEV_PREVIEW", _main)
 
 
 if __name__ == "__main__":

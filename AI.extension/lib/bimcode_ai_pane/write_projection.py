@@ -92,7 +92,8 @@ def freeze_result(result):
         raise ValueError("CONTRADICTORY_COMMIT")
     if data["verification_passed"] and not (committed and data["verification_performed"]):
         raise ValueError("CONTRADICTORY_VERIFICATION")
-    if data["transaction_status"] in ("RolledBack", "NOT_STARTED", "Uninitialized") and data["model_modified"] is not False:
+    if (data["transaction_status"] in ("RolledBack", "NOT_STARTED", "Uninitialized") and data["model_modified"] is not False
+            and not (data["classification"] == "MEP_PARAMETER_WRITE_INDETERMINATE" and data["model_modified"] is None)):
         raise ValueError("CONTRADICTORY_TRANSACTION")
     if data["reason_code"] == "VERIFICATION_FAILED" and not (
             committed and data["verification_performed"] and not data["verification_passed"] and
