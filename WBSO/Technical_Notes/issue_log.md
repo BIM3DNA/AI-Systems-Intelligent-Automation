@@ -1,5 +1,44 @@
 # Issue Log
 
+## 2026-10-05 - M4B gate regression observation (INVESTIGATION / UNCLASSIFIED)
+
+Package: BIMCODE-REVIT-AI-PANE-001 / M4B. No confirmed defect or new ID assigned.
+User-reported Autodesk Revit 2025.4 / Project2 / Pipe 353871 observation.
+Pushed baseline: 0b7aa7a0c6f45d8929dd4aa50b30da245d79084e.
+Overall gate live status: PARTIALLY ACCEPTED; M4B NOT CLOSED.
+
+LIVE-M4B-GATE-01..09 PASS; 10A Preview, 10B Cancel and same-value guard PASS.
+LIVE-M4B-GATE-10C: INVESTIGATION REQUIRED / FINAL HOST RECEIPT MISSING.
+Before M4A_Write_01, proposed M4A_GATE_WRITE_02, request
+4f392d2629494c3ab4f71e3e17704c86. Changed-value preview returned
+MEP_PARAMETER_WRITE_PREVIEW_OK / COMPLETE, followed by the native
+BIMCode M4A Controlled Write dialog and user confirmation.
+Manual Properties inspection afterward still showed M4A_Write_01.
+Final deterministic post-confirm host output was not captured.
+
+Final transaction outcome is UNKNOWN. Do not classify this as WRITE_FAILED,
+WRITE_INDETERMINATE, CONFIRMATION_EXPIRED, transaction/callback failure, or an
+M4A/session-gate regression defect. Preview success and confirmation do not prove
+a commit. No runtime fix or cause hypothesis is recorded.
+GATE-10D Undo NOT RUN: a committed changed-value write was not established.
+
+Separate observation: READ_ONLY_DOCUMENT immediately after GATE-07/08 reopen
+later recovered to YES (COMPLETE) on eligibility recomputation.
+TRANSIENT ELIGIBILITY OBSERVATION, not a confirmed defect; root cause unknown.
+
+Next action: reproduce only GATE-10C with a different value, capture preview,
+native confirmation and FINAL deterministic host receipt, then inspect Properties.
+Classify only from that evidence; if successful, perform native Undo and verify
+the prior value. Do not broaden investigation before capturing the final receipt.
+Detailed steps: test_plan.md, October 5 section.
+
+Source: user-supplied October 5 report; no live/API test rerun here.
+Actual time: 8 hours total for October 5, recorded once as a daily total in
+evidence_reference.md (not additional issue-specific hours).
+EV-AI / Daily Log / KC IDs remain PENDING. Provider dispatch NOT YET AVAILABLE;
+zero exposed write tools; no provider-controlled mutation capability added.
+Documentation only; no staging, commit or push.
+
 ## Project
 
 AI Systems & Intelligent Automation

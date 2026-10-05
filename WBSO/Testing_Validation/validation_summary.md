@@ -1,6 +1,61 @@
 # Validation Summary
 
-## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.
+Session-gate implementation: COMMITTED / PUSHED; prior STATIC VALIDATION PASSED.
+Session-gate live validation: PARTIALLY ACCEPTED, not fully closed.
+GATE-01 through GATE-09 PASS (GATE-02A Cancel and GATE-02B OK both PASS).
+GATE-10A Preview, GATE-10B Cancel and the M4A same-value guard PASS.
+GATE-10C: INVESTIGATION REQUIRED / FINAL HOST RECEIPT MISSING.
+GATE-10D Undo: NOT RUN; successful changed-value write not established.
+Provider tools remain read-only (13 production tools, one dormant write definition,
+zero exposed write tools). Dispatch: NOT YET AVAILABLE / NOT IMPLEMENTED.
+Provider-controlled/OpenAI-triggered mutation: NOT AVAILABLE.
+
+This section supersedes earlier pending-all/uncommitted gate status. Earlier dated
+sections retain their historical meaning. Today's evidence is supplied by the
+user, not a new Revit or authenticated OpenAI run by this documentation task.
+Actual development / validation time for 2026-10-05: 8 hours (user supplied).
+EV-AI / Daily Log / KC IDs: PENDING; no unambiguous local allocation established.
+This October 5 documentation update is UNCOMMITTED / UNPUSHED.
+
+Pushed implementation/prior WBSO baseline:
+0b7aa7a0c6f45d8929dd4aa50b30da245d79084e, parent 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db.
+User-supplied live environment: Revit 2025.4, Project2, Pipe 353871, gpt-6-astra.
+This is partial live acceptance, not M4B or session-gate validation closure.
+
+| Case | Supplied observation | Status |
+| --- | --- | --- |
+| LIVE-M4B-GATE-01 | Full restart/open Project2: DISABLED, dispatch NOT YET AVAILABLE, eligibility YES (COMPLETE); no write | PASS |
+| LIVE-M4B-GATE-02A | Native Enable dialog Cancel: DISABLED, ENABLE_CANCELLED; no write | PASS |
+| LIVE-M4B-GATE-02B | Native Enable dialog OK: ENABLED FOR THIS SESSION, eligibility YES (COMPLETE); dispatch unavailable; no write | PASS |
+| LIVE-M4B-GATE-03 | Disabled mutation prompt: read-only refusal; no write tool, TaskDialog, provider write ExternalEvent, transaction or model change | PASS |
+| LIVE-M4B-GATE-04 | Enabled mutation prompt: read-only refusal; provider COMPLETE response, no write tool/confirmation/provider write ExternalEvent/model change; dispatch unavailable | PASS |
+| LIVE-M4B-GATE-05 | Disable: DISABLED, Permission disabled locally, eligibility YES (COMPLETE); no write | PASS |
+| LIVE-M4B-GATE-06 | Enabled Project2 -> workshared project -> Project2: permission disabled throughout return, no silent restoration | PASS |
+| LIVE-M4B-GATE-07 | Close enabled Project2 while another project stays open, then reopen: permission remains disabled | PASS |
+| LIVE-M4B-GATE-08 | Exit/restart Revit and reopen Project2: DISABLED, dispatch unavailable | PASS |
+| LIVE-M4B-GATE-09 | Workshared project ILF_Amsterdam_EHA_15... rejects Enable with WORKSHARED_DOCUMENT, stays disabled; no write | PASS |
+| LIVE-M4B-GATE-10A | M4A preview M4A_Write_01 -> M4A_GATE_REGRESSION: PREVIEW_OK / COMPLETE, confirmation required, no transaction/model modification | PASS |
+| LIVE-M4B-GATE-10B | Cancel proposed-value window: CANCELLED / USER_CANCELLED, NOT_CONFIRMED, NOT_STARTED, no transaction/commit/model change/verification | PASS |
+| M4A same-value guard | M4A_Write_01 -> M4A_Write_01: PREVIEW_NOT_READY / NO_CHANGE_REQUIRED; no transaction/model change; not a write failure | PASS |
+| LIVE-M4B-GATE-10C | Changed-value preview and native confirmation succeeded; Properties retained M4A_Write_01; final deterministic host receipt not captured | INVESTIGATION REQUIRED |
+| LIVE-M4B-GATE-10D | Native Undo requires an established successful changed-value write | NOT RUN |
+
+GATE-10C final host result is UNKNOWN. PREVIEW_OK and a confirmation dialog do
+not establish commit success. No WRITE_FAILED, WRITE_INDETERMINATE,
+CONFIRMATION_EXPIRED, transaction/callback failure, or M4A/session-gate defect
+is assigned. READ_ONLY_DOCUMENT after reopen recovered after recomputation;
+recorded as TRANSIENT ELIGIBILITY OBSERVATION, not a confirmed defect.
+Next: exact final receipt capture for GATE-10C, then Undo only if a committed
+write is established. See test_plan.md and evidence_reference.md.
+
+Prior static results (531 Python tests, 78 native assertions, 74 bridge/process
+probes and other October 1 checks) remain historical evidence, not rerun today.
+This task validates documentation scope, CSV integrity and whitespace only.
+
+## Historical 2026-10-01 - M4B end-of-day implementation checkpoint
 
 BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
 M4B_SESSION_GATE_READY_FOR_LIVE_TEST.

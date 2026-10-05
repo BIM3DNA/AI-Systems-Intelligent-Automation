@@ -1,6 +1,42 @@
 # Provider Registry
 
-## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.
+Session-gate implementation: COMMITTED / PUSHED; prior STATIC VALIDATION PASSED.
+Session-gate live validation: PARTIALLY ACCEPTED, not fully closed.
+GATE-01 through GATE-09 PASS (GATE-02A Cancel and GATE-02B OK both PASS).
+GATE-10A Preview, GATE-10B Cancel and the M4A same-value guard PASS.
+GATE-10C: INVESTIGATION REQUIRED / FINAL HOST RECEIPT MISSING.
+GATE-10D Undo: NOT RUN; successful changed-value write not established.
+Provider tools remain read-only (13 production tools, one dormant write definition,
+zero exposed write tools). Dispatch: NOT YET AVAILABLE / NOT IMPLEMENTED.
+Provider-controlled/OpenAI-triggered mutation: NOT AVAILABLE.
+
+This section supersedes earlier pending-all/uncommitted gate status. Earlier dated
+sections retain their historical meaning. Today's evidence is supplied by the
+user, not a new Revit or authenticated OpenAI run by this documentation task.
+Actual development / validation time for 2026-10-05: 8 hours (user supplied).
+EV-AI / Daily Log / KC IDs: PENDING; no unambiguous local allocation established.
+This October 5 documentation update is UNCOMMITTED / UNPUSHED.
+
+Pushed session-gate checkpoint: 0b7aa7a0c6f45d8929dd4aa50b30da245d79084e
+(subject update project WBSO...; parent 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db).
+No registry/provider change is made by this documentation task.
+
+Autodesk Revit 2025.4 / Project2 / selected Pipe 353871; OpenAI model observed:
+gpt-6-astra. Prompt in enabled GATE-04 and disabled GATE-03:
+"Set the selected pipe test text to M4B_AI_01."
+The provider explained that available tools were read-only and it could not set
+parameters. GATE-04's COMPLETE is a provider-response classification, not host
+write success. No provider write tool, provider write confirmation, provider
+write ExternalEvent or model modification was observed. GATE-03 additionally
+recorded no TaskDialog and no transaction.
+Enablement remains local permission only. The separate human M4A GATE-10C
+observation is not evidence of a provider mutation path. Host result remains
+unknown pending capture of its final deterministic receipt.
+
+## Historical 2026-10-01 - M4B end-of-day implementation checkpoint
 
 BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
 M4B_SESSION_GATE_READY_FOR_LIVE_TEST.

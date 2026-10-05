@@ -1,6 +1,52 @@
 # PROJECT STATE
 
-## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.
+Session-gate implementation: COMMITTED / PUSHED; prior STATIC VALIDATION PASSED.
+Session-gate live validation: PARTIALLY ACCEPTED, not fully closed.
+GATE-01 through GATE-09 PASS (GATE-02A Cancel and GATE-02B OK both PASS).
+GATE-10A Preview, GATE-10B Cancel and the M4A same-value guard PASS.
+GATE-10C: INVESTIGATION REQUIRED / FINAL HOST RECEIPT MISSING.
+GATE-10D Undo: NOT RUN; successful changed-value write not established.
+Provider tools remain read-only (13 production tools, one dormant write definition,
+zero exposed write tools). Dispatch: NOT YET AVAILABLE / NOT IMPLEMENTED.
+Provider-controlled/OpenAI-triggered mutation: NOT AVAILABLE.
+
+This section supersedes earlier pending-all/uncommitted gate status. Earlier dated
+sections retain their historical meaning. Today's evidence is supplied by the
+user, not a new Revit or authenticated OpenAI run by this documentation task.
+Actual development / validation time for 2026-10-05: 8 hours (user supplied).
+EV-AI / Daily Log / KC IDs: PENDING; no unambiguous local allocation established.
+This October 5 documentation update is UNCOMMITTED / UNPUSHED.
+
+Verified pre-edit baseline: main HEAD = origin/main = live remote main =
+0b7aa7a0c6f45d8929dd4aa50b30da245d79084e; subject: update project WBSO...
+Parent: 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db. Ahead/behind: 0/0.
+git status --short was empty; no staged, modified or untracked paths.
+Git confirms this combined checkpoint includes the 11 session-gate implementation/
+test files and eight prior documentation files: 19 files, +1322/-8.
+It is the actual pushed gate checkpoint despite its generic WBSO subject.
+
+Today's environment: Autodesk Revit 2025.4, disposable Project2, Pipe 353871.
+Fixed parameter BIMCode_M4A_TestText, GUID 2f3c955d-45ee-4258-bc61-08acd40a2912.
+Observed provider model: gpt-6-astra. Gate tests did not expose provider writes.
+
+GATE-10C request 4f392d2629494c3ab4f71e3e17704c86 previewed M4A_Write_01 ->
+M4A_GATE_WRITE_02 and the user confirmed the native dialog. Properties still
+showed M4A_Write_01. Final host result is UNKNOWN, not a confirmed write failure
+or session-gate/M4A regression defect. GATE-10 overall is not closed.
+READ_ONLY_DOCUMENT immediately after reopen recovered to YES (COMPLETE) after
+eligibility recomputation: transient observation only, no established root cause.
+
+Next: reproduce only GATE-10C with the final host receipt captured; conditional
+native Undo only after an established committed write. Full instructions and
+matrix: WBSO/Testing_Validation/test_plan.md. Detailed observations and 8-hour
+record: WBSO/Technical_Notes/evidence_reference.md. Investigation: issue_log.md.
+Historical M4A closure remains historical evidence, not proof of today's outcome.
+No provider integration, broader investigation or runtime fix is authorized here.
+
+## Historical 2026-10-01 - M4B end-of-day implementation checkpoint
 
 BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
 M4B_SESSION_GATE_READY_FOR_LIVE_TEST.

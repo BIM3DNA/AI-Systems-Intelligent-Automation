@@ -1,6 +1,45 @@
 # Current Scope Alignment
 
-## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.
+Session-gate implementation: COMMITTED / PUSHED; prior STATIC VALIDATION PASSED.
+Session-gate live validation: PARTIALLY ACCEPTED, not fully closed.
+GATE-01 through GATE-09 PASS (GATE-02A Cancel and GATE-02B OK both PASS).
+GATE-10A Preview, GATE-10B Cancel and the M4A same-value guard PASS.
+GATE-10C: INVESTIGATION REQUIRED / FINAL HOST RECEIPT MISSING.
+GATE-10D Undo: NOT RUN; successful changed-value write not established.
+Provider tools remain read-only (13 production tools, one dormant write definition,
+zero exposed write tools). Dispatch: NOT YET AVAILABLE / NOT IMPLEMENTED.
+Provider-controlled/OpenAI-triggered mutation: NOT AVAILABLE.
+
+This section supersedes earlier pending-all/uncommitted gate status. Earlier dated
+sections retain their historical meaning. Today's evidence is supplied by the
+user, not a new Revit or authenticated OpenAI run by this documentation task.
+Actual development / validation time for 2026-10-05: 8 hours (user supplied).
+EV-AI / Daily Log / KC IDs: PENDING; no unambiguous local allocation established.
+This October 5 documentation update is UNCOMMITTED / UNPUSHED.
+
+Pushed gate/runtime plus prior WBSO baseline:
+0b7aa7a0c6f45d8929dd4aa50b30da245d79084e, parent 7bf5b382f3bd58f0aedd9c4fd13106b4bc2343db.
+The current task records manual validation only; no runtime architecture changed.
+
+Gate lifecycle/security behavior passed GATE-01..09. GATE-07 closed Project2
+while another project remained open; do not extend this evidence to a last-
+document/no-document scenario. GATE-09 covered WORKSHARED_DOCUMENT; do not claim
+all other ineligible-document variants were live tested.
+GATE-10's independent human M4A regression is partial: preview, Cancel and
+same-value guard pass; confirmed changed-value outcome remains unknown, Undo
+not run. Overall session-gate live status remains PARTIALLY ACCEPTED.
+READ_ONLY_DOCUMENT after reopen recovered on recomputation; no confirmed defect.
+
+Next scope is only GATE-10C reproduction with final deterministic host output,
+then conditional native Undo. No broader defect investigation before that receipt.
+No provider write exposure/dispatch, new parameters/categories, batch writes or
+end-to-end provider-write completion is claimed. Future LIVE-M4B-01..18 remain
+separate and pending. Historical M4A closure is not rewritten.
+
+## Historical 2026-10-01 - M4B end-of-day implementation checkpoint
 
 BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
 M4B_SESSION_GATE_READY_FOR_LIVE_TEST.

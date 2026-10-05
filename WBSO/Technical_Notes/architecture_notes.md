@@ -1,6 +1,49 @@
 # Architecture Notes
 
-## 2026-10-01 - M4B end-of-day implementation checkpoint (authoritative current)
+## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.
+Session-gate implementation: COMMITTED / PUSHED; prior STATIC VALIDATION PASSED.
+Session-gate live validation: PARTIALLY ACCEPTED, not fully closed.
+GATE-01 through GATE-09 PASS (GATE-02A Cancel and GATE-02B OK both PASS).
+GATE-10A Preview, GATE-10B Cancel and the M4A same-value guard PASS.
+GATE-10C: INVESTIGATION REQUIRED / FINAL HOST RECEIPT MISSING.
+GATE-10D Undo: NOT RUN; successful changed-value write not established.
+Provider tools remain read-only (13 production tools, one dormant write definition,
+zero exposed write tools). Dispatch: NOT YET AVAILABLE / NOT IMPLEMENTED.
+Provider-controlled/OpenAI-triggered mutation: NOT AVAILABLE.
+
+This section supersedes earlier pending-all/uncommitted gate status. Earlier dated
+sections retain their historical meaning. Today's evidence is supplied by the
+user, not a new Revit or authenticated OpenAI run by this documentation task.
+Actual development / validation time for 2026-10-05: 8 hours (user supplied).
+EV-AI / Daily Log / KC IDs: PENDING; no unambiguous local allocation established.
+This October 5 documentation update is UNCOMMITTED / UNPUSHED.
+
+### Knowledge checkpoint: independent validation states
+
+A visible permission gate can pass its lifecycle/security matrix while an
+independent host-write regression remains unresolved. Keep session permission,
+provider exposure, host preview, and host transaction result independently
+classified. Successful preview plus native confirmation is not evidence that
+a transaction committed. Require the final deterministic receipt and post-write
+verification before declaring a controlled write successful.
+
+The user-reported GATE-01..09 observations validate default-off permission,
+Cancel/OK enablement, local disable, document switch/close/restart resets and
+workshared-document rejection. They do not establish provider write dispatch.
+GATE-10A/B and the same-value guard pass; GATE-10C remains unclassified because
+Properties retained the prior value and the final receipt is missing.
+No expiry, transaction, callback or session-gate cause is inferred.
+The recovered READ_ONLY_DOCUMENT observation is not a confirmed defect.
+
+Session-gate runtime and earlier WBSO are pushed at
+0b7aa7a0c6f45d8929dd4aa50b30da245d79084e. Current architecture is unchanged.
+This knowledge note uses the existing file, not a guessed KC identifier.
+Detailed evidence: evidence_reference.md, October 5 section; bounded next action:
+test_plan.md, GATE-10C receipt capture then conditional Undo.
+
+## Historical 2026-10-01 - M4B end-of-day implementation checkpoint
 
 BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
 M4B_SESSION_GATE_READY_FOR_LIVE_TEST.
