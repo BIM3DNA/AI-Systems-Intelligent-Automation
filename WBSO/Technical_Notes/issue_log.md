@@ -1,5 +1,41 @@
 # Issue Log
 
+## 2026-10-06 - RESOLVED: October 5 GATE-10C investigation
+
+Disposition: RESOLVED / NO PRODUCT DEFECT DEMONSTRATED.
+NO M4A EXECUTION REGRESSION WAS DEMONSTRATED. The October 5 investigation below
+is preserved verbatim as historical evidence, not deleted or retrospectively
+reclassified. Session-gate/M4A live acceptance is now PASS; M4B overall NOT CLOSED.
+
+Controlled diagnosis supplied by the user:
+
+- 74dd9b455806473eb0e3fe01232cadf6: MEP_PARAMETER_WRITE_NOT_READY /
+  CONFIRMATION_EXPIRED, transaction_started=false, transaction_committed=false,
+  model_modified=false. About 75.160 seconds preview-to-result; correct fail-closed
+  rejection under the existing 60-second pre-input approval contract.
+- 492e52a6c1d64e53ba91ac037945e545: MEP_PARAMETER_WRITE_OK / COMPLETE,
+  CONFIRMED, one committed transaction, exact GUID reread/verification PASS;
+  Properties changed M4A_Write_01 -> M4A_GATE_DIAG_02. GATE-10C PASS.
+- One native Revit Undo restored M4A_Write_01. GATE-10D PASS.
+
+The earlier M4A_GATE_WRITE_02 and M4A_GATE_WRITE_03 attempts have no captured
+final receipts. Their exact reasons remain UNKNOWN; do not call them definite
+expiry cases, failed transactions or regressions. The October 6 WRITE_03 report
+additionally observed no second/final JSON and unchanged M4A_Write_01. Controlled
+diagnosis supersedes these incomplete observations for current acceptance only.
+
+Execution semantics are working as designed in the controlled tests. Source
+review identified a potential pyRevit stdout observability weakness, but it was
+not established as the cause; no new product defect is opened for it.
+The recovered READ_ONLY_DOCUMENT observation remains historical/nonblocking,
+with no confirmed cause or defect. No provider-controlled write was exercised.
+
+M4A-DIAG-001 remains TEMPORARY / UNCOMMITTED / REMOVAL PENDING. Separate cleanup
+and full regression validation follow WBSO review; no production fix is justified
+by this evidence. No runtime/test changes here, no source-control closure.
+Receipt details: evidence_reference.md, October 6. Daily time: 8 hours total,
+not extra issue-specific hours. EV-AI/Daily Log/KC IDs remain PENDING.
+
 ## 2026-10-05 - M4B gate regression observation (INVESTIGATION / UNCLASSIFIED)
 
 Package: BIMCODE-REVIT-AI-PANE-001 / M4B. No confirmed defect or new ID assigned.

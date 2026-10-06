@@ -1,5 +1,151 @@
 # Evidence Reference
 
+## 2026-10-06 - Live diagnosis and GATE-10 resolution (authoritative current)
+
+RESOLVED 2026-10-06. Session-gate live matrix and M4A backward compatibility:
+LIVE VALIDATED / PASS. NO M4A EXECUTION REGRESSION WAS DEMONSTRATED.
+M4B overall remains IN PROGRESS / NOT CLOSED; provider dispatch remains unavailable.
+This section supersedes acceptance/next-action statements in the preserved
+October 5 checkpoint below; it does not rewrite what was known then.
+
+### Provenance, daily time and source-control separation
+
+Source: user-supplied 2026-10-06 live diagnosis/closure report, attachment
+599fd84d-99fe-489b-890f-d75593eb473a/Pasted text.txt. Receipts and Properties/Undo
+observations are supplied evidence, not independently rerun Revit tests. No raw
+JSONL marker sequence is supplied in this report; no exact Raise/handler trace
+is invented. Diagnostic sink used by the temporary implementation:
+C:\Users\Korisnik\AppData\Local\Temp\m4a_gate10c_diagnostic.jsonl.
+
+Date: 2026-10-06. Actual development / validation time: 8 hours TOTAL, user supplied.
+This is one daily total, not hours per case or per repeated documentation entry.
+EV-AI ID: PENDING. Daily Log ID: PENDING. KC ID: PENDING. None allocated.
+Local records still mix EV-date and EV-AI formats, with last explicit local
+EV-AI-371 / DL-2026-09-01-01 / KC-053 and later PENDING entries. No maintained
+next-ID allocator/reservation or separate Daily Log was found; central references
+are not local allocations. Knowledge is recorded in architecture_notes.md.
+The nine-column experiment log has no hours column and references this daily total.
+
+Verified start: main HEAD = origin/main = 0853b9a496808dabd1b4680d6803acc8eaee3745;
+subject updated project WBSO...; parent 0b7aa7a0c6f45d8929dd4aa50b30da245d79084e;
+ahead/behind 0/0; staged files NONE. October 5 documentation is now committed/pushed;
+its old pre-commit wording remains historical. Worktree was already dirty:
+
+| Pre-existing M4A-DIAG-001 path | Status | Added/deleted |
+| --- | --- | --- |
+| AI.extension/lib/bimcode_ai_pane/write_coordinator.py | Modified | +90/-22 |
+| AI.extension/lib/bimcode_write_execution.py | Modified | +54/-6 |
+| tests/test_bimcode_write_lifecycle.py | Modified | +10/-1 |
+| AI.extension/lib/bimcode_ai_pane/write_diagnostic.py | Untracked | +126/-0 |
+| tests/test_bimcode_write_diagnostic.py | Untracked | +316/-0 |
+
+Pre-existing total: five files, +596/-29 including new files. These are TEMPORARY /
+UNCOMMITTED / REMOVAL PENDING, NOT PRODUCTION CLOSURE. They are preserved against
+a start-of-task SHA-256 snapshot; they are not this documentation task's changes.
+Today's changes are only the nine existing project-local documentation/WBSO files.
+No runtime, tests, XAML, provider, configuration, dependency or catalog edits;
+no staging/commit/push. October 6 documentation itself is UNCOMMITTED / UNPUSHED.
+
+### Starting uncertainty and controlled investigation
+
+At session start: GATE-01..09, 02A/02B, 10A Preview, 10B Cancel and same-value guard
+PASS; 10C INVESTIGATION REQUIRED; 10D NOT RUN. Earlier changed-value attempts
+M4A_GATE_WRITE_02 (request 4f392d2629494c3ab4f71e3e17704c86, October 5) and
+M4A_GATE_WRITE_03 (request a2312aabdf1e4bcdbe10ce243f9b558d, October 6) had valid
+previews/native confirmation and unchanged M4A_Write_01, but no captured final
+receipts. WRITE_03 also explicitly had no second/final JSON observed. Cause UNKNOWN.
+
+Source/history result: M4A_GATE10C_ROOT_CAUSE_NARROWED. No-callback HUMAN_DEV_WRITE
+remained reachable and passed an integrated offline probe. Coordinator/session
+retained event/handler; no GC cause established, no production caller clearly
+clearing pending M4A work, and no proven gate-cleanup invalidation. Entry/executor/
+write contracts remained reachable. M4B leases did not replace M4A's 60 seconds.
+pyRevit print_html's dependence on current stdout raised an output-observability
+concern, not a proven cause. Source alone could not locate the missing live stage
+or establish actual Raise acceptance/handler entry. No production fix was justified.
+
+Recorded prior investigation validation: full Python 531 PASS; focused M4A 74;
+admission/callback 18; lifecycle/gate 58; native write assertions 78; native provider
+bridge/process probes 74; syntax PASS; one transaction constructor/one Parameter.Set;
+additional integrated no-callback probe PASS. These are prior results, not rerun here.
+
+Temporary M4A-DIAG-001 added host/Dev-only independent JSONL observations for Raise,
+handler/pending state, revalidation, executor, Start/Set/Commit/reread/verification,
+completion and output. Recorded instrumentation validation: full Python 548 PASS;
+new diagnostic tests 17; existing M4A 74; admission/callback 18; lifecycle/gate 58;
+native contract assertions 78 plus diagnostic sink assertions 8; bridge/process
+probes 74; IronPython, syntax, dependency, whitespace and credential checks PASS.
+One transaction constructor/one Parameter.Set and M4A's 60 seconds unchanged;
+zero provider-write exposure and no dispatcher. Not permanent production architecture.
+
+### Exact supplied live receipts: Project2 / Pipe 353871
+
+Fixed parameter BIMCode_M4A_TestText, GUID 2f3c955d-45ee-4258-bc61-08acd40a2912.
+Both tests were HUMAN DEV M4A HOST WRITE, not provider-originated writes.
+
+| Field | Slow confirmation diagnostic | Prompt-confirm GATE-10C |
+| --- | --- | --- |
+| request_id | 74dd9b455806473eb0e3fe01232cadf6 | 492e52a6c1d64e53ba91ac037945e545 |
+| Preview timestamp UTC | 2026-10-06T17:41:19.934000Z | 2026-10-06T17:49:14.608000Z |
+| Preview classification / reason | MEP_PARAMETER_WRITE_PREVIEW_OK / COMPLETE | MEP_PARAMETER_WRITE_PREVIEW_OK / COMPLETE |
+| Preview transaction_started / model_modified | false / false | false / false |
+| Before | M4A_Write_01 | M4A_Write_01 |
+| Proposed | M4A_GATE_DIAG_01 | M4A_GATE_DIAG_02 |
+| Final timestamp UTC | 2026-10-06T17:42:35.094000Z | 2026-10-06T17:49:35.794000Z |
+| Final classification | MEP_PARAMETER_WRITE_NOT_READY | MEP_PARAMETER_WRITE_OK |
+| reason_code | CONFIRMATION_EXPIRED | COMPLETE |
+| confirmation_result | NOT_CONFIRMED | CONFIRMED |
+| before_has_value | Not supplied | true |
+| final_value | null | M4A_GATE_DIAG_02 |
+| transaction_started | false | true |
+| transaction_committed | false | true |
+| transaction_status | NOT_STARTED | Committed |
+| model_modified | false | true |
+| verification_performed | false | true |
+| verification_passed | false | true |
+| warnings | Not supplied | [] |
+| Properties afterward | M4A_Write_01 | M4A_GATE_DIAG_02 |
+
+The slow run's native dialog was displayed and the human clicked Confirm, but
+the final receipt correctly remains NOT_CONFIRMED because approval validity
+expired. Preview-to-result interval approximately 75.160 seconds. Transaction
+did not start; unchanged value was expected: PASS / FAIL-CLOSED EXPIRY BEHAVIOR,
+not Set/commit/transaction failure or an M4B regression.
+
+M4A approval lifetime starts before the proposed-value input dialog and is not
+reset on Confirm. Post-confirm and execution timing are checked. The preview-to-
+result interval is not a substitute for the internal approval-clock measurement.
+M4B's separate 120-second preview and 30-second provider queue leases do not
+replace this human 60-second contract. Timing semantics were not changed.
+
+In the second run the user confirmed promptly without pausing to copy preview.
+One existing transaction committed exactly once; GUID-based reread and exact
+verification passed. Manual Properties confirmed M4A_GATE_DIAG_02: GATE-10C PASS.
+Immediately afterward, one native Revit Undo restored M4A_Write_01: GATE-10D PASS.
+This proves normal native reversibility for the observed controlled write.
+
+### Final acceptance and remaining engineering scope
+
+Final matrix in test_plan.md: GATE-01, 02A, 02B, 03, 04, 05, 06, 07, 08, 09,
+10A, 10B, same-value guard, 10C, 10D all PASS. Additional expiry diagnostic PASS.
+Session-gate acceptance and M4A backward-compatibility acceptance: PASS.
+Issue disposition: RESOLVED / NO PRODUCT DEFECT DEMONSTRATED.
+NO M4A EXECUTION REGRESSION WAS DEMONSTRATED. Earlier WRITE_02/03 outcomes remain
+incomplete and are not retroactively assigned CONFIRMATION_EXPIRED. Today's
+controlled evidence supersedes them for acceptance, not historical causality.
+The stdout concern is not a proven cause; recovered READ_ONLY_DOCUMENT remains
+historical/nonblocking, not a confirmed defect.
+
+Provider surface remains 13 read-only tools plus one dormant write metadata entry;
+write exposure ZERO; dispatcher NOT IMPLEMENTED / NOT AVAILABLE; OpenAI-triggered
+mutation NOT AVAILABLE. No authenticated provider write was run. M4B NOT CLOSED.
+M4A-DIAG-001 remains TEMPORARY / UNCOMMITTED / REMOVAL PENDING. After WBSO review,
+separately inspect/remove diagnostics, explicitly decide any regression tests to
+retain, restore intended non-diagnostic runtime, rerun full static/regression,
+verify one Transaction/Set, unchanged 60-second approval/M4B leases/provider
+boundary, then obtain cleanup/test source-control authorization and reconcile WBSO.
+This task does not source-control-close the diagnostic episode.
+
 ## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
 
 BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.

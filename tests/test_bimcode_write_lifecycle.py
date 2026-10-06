@@ -182,7 +182,16 @@ class CleanupTests(unittest.TestCase):
         baseline = 'b703acaa143c5a834f35184001ef1b1b8c8228ca'
         for path in paths:
             old = subprocess.check_output(['git', 'show', baseline + ':' + path])
-            self.assertEqual(old.replace(b'\r\n', b'\n'), (ROOT / path).read_bytes().replace(b'\r\n', b'\n'), path)
+            new = (ROOT / path).read_bytes()
+            if path in ('AI.extension/lib/bimcode_write_execution.py',
+                        'AI.extension/lib/bimcode_ai_pane/write_coordinator.py'):
+                # Authorized temporary M4A-DIAG-001 observations only. Preserve
+                # the full executable AST after removing that explicit seam.
+                from test_bimcode_write_diagnostic import diagnostic_contract_ast
+                self.assertEqual(diagnostic_contract_ast(old.decode()),
+                                 diagnostic_contract_ast(new.decode()), path)
+            else:
+                self.assertEqual(old.replace(b'\r\n', b'\n'), new.replace(b'\r\n', b'\n'), path)
         # M4B-8A explicitly wires lifecycle.py; protect the existing read-only
         # dispatch/selection functions rather than freezing that entire adapter.
         import ast

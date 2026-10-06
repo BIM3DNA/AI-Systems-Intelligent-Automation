@@ -1,5 +1,47 @@
 # Test Plan
 
+## 2026-10-06 - Final session-gate/M4A regression live matrix
+
+User-supplied controlled results; no live tests rerun by this documentation task.
+This resolution supersedes the October 5 acceptance/next-action statements below
+while preserving their historical observations. M4B overall remains NOT CLOSED.
+
+| Case | Final status | Evidence |
+| --- | --- | --- |
+| LIVE-M4B-GATE-01 | PASS | Prior default-off restart/open observation retained |
+| LIVE-M4B-GATE-02A | PASS | Prior Enable Cancel observation retained |
+| LIVE-M4B-GATE-02B | PASS | Prior Enable OK observation retained |
+| LIVE-M4B-GATE-03 | PASS | Prior disabled provider read-only refusal retained |
+| LIVE-M4B-GATE-04 | PASS | Prior enabled provider read-only refusal retained |
+| LIVE-M4B-GATE-05 | PASS | Prior explicit Disable observation retained |
+| LIVE-M4B-GATE-06 | PASS | Prior document-switch permission reset retained |
+| LIVE-M4B-GATE-07 | PASS | Prior close/reopen with another document open retained |
+| LIVE-M4B-GATE-08 | PASS | Prior Revit restart reset retained |
+| LIVE-M4B-GATE-09 | PASS | Prior workshared-document rejection retained |
+| LIVE-M4B-GATE-10A Preview | PASS | Prior read-only PREVIEW_OK retained |
+| LIVE-M4B-GATE-10B Cancel | PASS | Prior non-mutating USER_CANCELLED retained |
+| M4A same-value guard | PASS | Prior NO_CHANGE_REQUIRED retained |
+| LIVE-M4B-GATE-10C changed-value write | PASS | Request 492e52a6c1d64e53ba91ac037945e545: COMPLETE; commit/reread/verification and Properties M4A_GATE_DIAG_02 |
+| LIVE-M4B-GATE-10D native Undo | PASS | One native Undo restored M4A_Write_01 |
+| Additional M4A confirmation-expiry diagnostic | PASS | Request 74dd9b455806473eb0e3fe01232cadf6: CONFIRMATION_EXPIRED; no transaction/model change |
+
+Project2, Pipe 353871, fixed BIMCode_M4A_TestText GUID. Exact timestamps/receipts:
+evidence_reference.md, October 6. Slow diagnostic: approximately 75.160 seconds
+preview-to-result. M4A's 60 seconds begins before value input, not at Confirm;
+copying output must not delay confirmation past that window. Require final host
+receipt and separate Properties check; native Undo only after proven commit.
+Earlier WRITE_02/03 receipt-missing attempts remain incomplete, not definite expiry.
+READ_ONLY_DOCUMENT remains historical/nonblocking; no new defect or coverage claim.
+
+LIVE VALIDATION CLOSED FOR THE SESSION-GATE / M4A REGRESSION MATRIX.
+M4B visible session gate: LIVE VALIDATED / PASS. M4A backward compatibility: PASS.
+No M4A execution regression demonstrated. Provider-facing LIVE-M4B-01..18 remain
+separate; zero provider write exposure, no dispatcher or OpenAI-triggered mutation.
+M4A-DIAG-001 remains TEMPORARY / UNCOMMITTED / REMOVAL PENDING. Next is a separate
+post-review diagnostic cleanup/test-retention decision and full static/regression
+validation, then source-control reconciliation; do not remove diagnostics here.
+Actual October 6 daily time: 8 hours total; EV-AI/Daily Log/KC IDs PENDING.
+
 ## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
 
 BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.

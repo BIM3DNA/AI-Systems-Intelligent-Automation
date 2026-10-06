@@ -1,5 +1,52 @@
 # PROJECT STATE
 
+## 2026-10-06 - GATE-10 resolved; session-gate live acceptance (authoritative current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.
+M4B visible session gate: LIVE VALIDATED / PASS.
+M4A backward compatibility: LIVE VALIDATED / PASS.
+GATE-01, 02A, 02B, 03-09, 10A Preview, 10B Cancel, the same-value guard,
+10C changed-value write and 10D native Undo: all PASS.
+Additional confirmation-expiry diagnostic: PASS / VERIFIED FAIL-CLOSED.
+This closes live acceptance for the session-gate/M4A regression matrix only.
+It does not close M4B or the diagnostic episode in source control.
+
+RESOLVED 2026-10-06: NO M4A EXECUTION REGRESSION WAS DEMONSTRATED.
+Slow confirmation request 74dd9b455806473eb0e3fe01232cadf6 returned
+MEP_PARAMETER_WRITE_NOT_READY / CONFIRMATION_EXPIRED without a transaction or
+model modification. Prompt confirmation request 492e52a6c1d64e53ba91ac037945e545
+returned MEP_PARAMETER_WRITE_OK / COMPLETE, committed once, and passed exact
+GUID reread/verification. Properties showed M4A_GATE_DIAG_02; one native Undo
+restored M4A_Write_01. Both were HUMAN DEV M4A HOST WRITE tests in Project2,
+Pipe 353871, not provider-originated writes. Evidence is user supplied.
+Earlier M4A_GATE_WRITE_02/03 observations remain incomplete: no final receipts,
+no retroactive expiry reason or defect assigned. The October 5 entries below
+are preserved history and superseded for current acceptance by this resolution.
+
+M4A's 60-second approval begins before the value dialog and is not restarted
+by Confirm. M4B's 120/30-second provider leases do not replace that contract.
+Provider surface: 13 read-only tools, one dormant write metadata definition,
+zero exposed write tools; dispatch NOT IMPLEMENTED / NOT AVAILABLE;
+OpenAI-triggered Revit mutation NOT AVAILABLE. No provider write was exercised.
+
+Verified start: main HEAD = origin/main =
+0853b9a496808dabd1b4680d6803acc8eaee3745; ahead/behind 0/0; nothing staged.
+That pushed documentation checkpoint supersedes October 5's pre-commit wording.
+Worktree already dirty with five M4A-DIAG-001 runtime/test files (+596/-29,
+including two untracked files); exact list in evidence_reference.md below.
+Those files are preserved byte-for-byte by this documentation-only task.
+M4A-DIAG-001: TEMPORARY / UNCOMMITTED / REMOVAL PENDING, not production closure.
+This October 6 documentation is also UNCOMMITTED / UNPUSHED.
+
+Actual development/validation time for 2026-10-06: 8 hours total (user supplied).
+EV-AI / Daily Log / KC IDs: PENDING; local allocation remains ambiguous.
+Detailed receipts, prior static results and daily record: evidence_reference.md,
+October 6 section. Final matrix: test_plan.md; disposition: issue_log.md.
+After documentation review, separately remove/reconcile temporary diagnostics,
+review any regression tests to retain, rerun full static/regression validation
+and safety/count checks, then obtain source-control closure authorization.
+Do not begin provider-write implementation in this documentation task.
+
 ## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
 
 BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.

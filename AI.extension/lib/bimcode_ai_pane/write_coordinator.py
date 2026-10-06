@@ -9,6 +9,7 @@ from bimcode_write_execution import Executor, freeze, result_for
 from bimcode_write_runtime import capture_preview_context, build_preview
 from bimcode_ai_pane.write_access import admission_for, owner_document_key
 from bimcode_ai_pane.write_completion import CompletionSink
+from bimcode_ai_pane import write_diagnostic as diag
 
 
 def clock():
@@ -16,8 +17,15 @@ def clock():
     return float(Stopwatch.GetTimestamp()) / Stopwatch.Frequency
 
 
-def display(output, result):
-    output.print_html("<pre>" + escape(json.dumps(result, indent=2, sort_keys=True)) + "</pre>")
+def display(output, result, diagnostic=None):
+    diag.record(diagnostic, "DEV_OUTPUT_ATTEMPT", result)
+    try:
+        output.print_html("<pre>" + escape(json.dumps(result, indent=2, sort_keys=True)) + "</pre>")
+    except Exception as error:
+        diag.exception(diagnostic, "dev_output", error)
+        diag.record(diagnostic, "DEV_OUTPUT_RESULT", result, success=False)
+        raise
+    diag.record(diagnostic, "DEV_OUTPUT_RESULT", result, success=True)
 
 
 def confirm(preview):
@@ -47,10 +55,17 @@ class WriteHandler(UI.IExternalEventHandler):
         return "BIMCode M4A human-confirmed parameter write"
 
     def Execute(self, uiapp):
-        self.owner.execute(uiapp)
+        diag.state(self.owner, "HANDLER_ENTERED")
+        try:
+            self.owner.execute(uiapp)
+        finally:
+            diag.state(self.owner, "HANDLER_EXITED")
 
 
 class WriteCoordinator(object):
+    # Also safe for an existing retained controller without a diagnostic session.
+    diagnostic = None
+
     def __init__(self, session):
         self.session = session
         self.pending = None
@@ -66,6 +81,7 @@ class WriteCoordinator(object):
         self.owner = None
         self.completion_sink = None
         self.delivering = False
+        self.diagnostic = None
         try:
             # Use the existing retained subscription list; no parallel lifecycle service.
             self.delegate = framework.EventHandler[DB.Events.DocumentChangedEventArgs](self.on_model_changed)
@@ -84,34 +100,48 @@ class WriteCoordinator(object):
         return (self.session.context_generation, self.session.selection_generation, self.epoch)
 
     def invoke(self, uiapp, forms, output, completion_callback=None):
+        command_trace = diag.host_trace() if completion_callback is None else None
+        diag.record(command_trace, "COMMAND_INVOKED")
         if completion_callback is not None and not callable(completion_callback):
             raise ValueError("INVALID_CALLBACK")
         session = self.session
         if self.running or self.pending is not None or self.resolving or self.delivering:
-            display(output, result_for({}, "NOT_READY", "EXECUTION_BUSY"))
+            diag.record(command_trace, "INVOCATION_REJECTED", reason_code="EXECUTION_BUSY")
+            display(output, result_for({}, "NOT_READY", "EXECUTION_BUSY"), command_trace)
             return
         if self.executor.retained is not None:
             # A repeated HUMAN command is a status query, not a second write.
             self.output = output
             self.resolving = True
             try:
-                if self.event.Raise() != UI.ExternalEventRequest.Accepted:
+                diag.state(self, "EXTERNAL_EVENT_RAISE_ATTEMPT")
+                raised = self.event.Raise()
+                diag.raised(self.diagnostic, raised)
+                if raised != UI.ExternalEventRequest.Accepted:
                     self.resolving = False
-                    display(output, result_for({}, "NOT_READY", "EXECUTION_BUSY"))
-            except Exception:
+                    display(output, result_for({}, "NOT_READY", "EXECUTION_BUSY"), self.diagnostic)
+                else:
+                    diag.state(self, "PUSHBUTTON_RETURN_AFTER_ACCEPTED")
+            except Exception as error:
+                diag.exception(self.diagnostic, "resolution_raise", error)
                 self.resolving = False
-                display(output, result_for({}, "INDETERMINATE", "TRANSACTION_STATUS_UNKNOWN"))
+                display(output, result_for({}, "INDETERMINATE", "TRANSACTION_STATUS_UNKNOWN"), self.diagnostic)
             return
         if (getattr(session, "write_busy", False) or session.tools.pending is not None or
                 session.ai.turn is not None):
-            display(output, result_for({}, "NOT_READY", "EXECUTION_BUSY"))
+            diag.record(command_trace, "INVOCATION_REJECTED", reason_code="EXECUTION_BUSY")
+            display(output, result_for({}, "NOT_READY", "EXECUTION_BUSY"), command_trace)
             return
         request_id = uuid4().hex
+        self.diagnostic = command_trace
+        diag.bind(self.diagnostic, request_id)
         self.owner = self.admission.acquire("HUMAN_DEV_WRITE", request_id, request_id,
             owner_document_key(session), str(id(session)), clock())
         if self.owner is None:
-            display(output, result_for({}, "NOT_READY", "EXECUTION_BUSY"))
+            diag.record(self.diagnostic, "OWNER_REJECTED", reason_code="EXECUTION_BUSY")
+            display(output, result_for({}, "NOT_READY", "EXECUTION_BUSY"), self.diagnostic)
             return
+        diag.record(self.diagnostic, "OWNER_ACQUIRED")
         self.completion_sink = CompletionSink(self.owner, completion_callback)
         session.write_busy = True
         self.output = output
@@ -126,25 +156,43 @@ class WriteCoordinator(object):
                 self.emit(output, result_for(preview, "CANCELLED", "USER_CANCELLED"))
                 return
             preview = build_preview(uiapp, request_id, value, epochs[1], context)
-            display(output, preview)
+            diag.record(self.diagnostic, "PREVIEW_CREATED", preview)
+            display(output, preview, self.diagnostic)
             if preview["classification"] != c.PREVIEW_OK or preview["reason_code"] != "COMPLETE":
                 self.complete(preview)
                 return
             if self.epochs() != epochs or clock() - stamp > 60:
+                diag.record(self.diagnostic, "APPROVAL_REJECTED", reason_code="STALE_CONTEXT")
                 self.emit(output, result_for(preview, "NOT_READY", "STALE_CONTEXT"))
                 return
-            if not confirm(preview):
+            diag.record(self.diagnostic, "CONFIRM_DIALOG_ATTEMPT", preview)
+            confirmation = confirm(preview)
+            # Show returned; construction/Show exceptions must not claim a shown dialog.
+            diag.record(self.diagnostic, "CONFIRM_DIALOG_SHOWN", preview)
+            if not confirmation:
+                diag.record(self.diagnostic, "CONFIRM_REJECTED", reason_code="USER_CANCELLED")
                 self.emit(output, result_for(preview, "CANCELLED", "USER_CANCELLED"))
                 return
             confirmed = clock()
+            diag.record(self.diagnostic, "CONFIRM_ACCEPTED", elapsed_seconds=confirmed - stamp)
             if self.epochs() != epochs or confirmed - stamp > 60:
+                diag.record(self.diagnostic, "APPROVAL_REJECTED",
+                            reason_code="CONFIRMATION_EXPIRED" if confirmed - stamp > 60 else "STALE_CONTEXT")
                 self.emit(output, result_for(preview, "NOT_READY", "CONFIRMATION_EXPIRED" if confirmed - stamp > 60 else "STALE_CONTEXT"))
                 return
+            diag.record(self.diagnostic, "POST_CONFIRM_CONTEXT_VALID", elapsed_seconds=confirmed - stamp)
             self.pending = freeze(preview, epochs, stamp, confirmed)
-            if self.event.Raise() != UI.ExternalEventRequest.Accepted:
+            diag.state(self, "APPROVAL_REGISTERED")
+            diag.state(self, "EXTERNAL_EVENT_RAISE_ATTEMPT")
+            raised = self.event.Raise()
+            diag.raised(self.diagnostic, raised)
+            if raised != UI.ExternalEventRequest.Accepted:
                 self.pending = None
                 self.emit(output, result_for(preview, "FAILED", "EXTERNAL_EVENT_NOT_ACCEPTED"))
-        except Exception:
+            else:
+                diag.state(self, "PUSHBUTTON_RETURN_AFTER_ACCEPTED")
+        except Exception as error:
+            diag.exception(self.diagnostic, "invoke", error)
             self.pending = None
             self.emit(output, result_for(preview, "FAILED", "CONFIRMATION_FAILED"))
         finally:
@@ -153,29 +201,38 @@ class WriteCoordinator(object):
 
     def emit(self, output, result):
         self.complete(result)
-        display(output, result)
+        display(output, result, self.diagnostic)
 
     def complete(self, result):
         sink, owner = self.completion_sink, self.owner
         if sink is None or sink.receipt is not None:
+            diag.record(self.diagnostic, "COMPLETION_SKIPPED",
+                        reason_code="NO_SINK" if sink is None else "RECEIPT_ALREADY_STORED")
             return
         try:
             sink.store(result)
-        except Exception:
+            diag.record(self.diagnostic, "COMPLETION_CREATED", result)
+        except Exception as error:
+            diag.exception(self.diagnostic, "completion_store", error)
             sink.error = "COMPLETION_CONTRACT_FAILED"
             self.admission.safety_locked = (self.executor.retained is not None or
                 result.get("classification") == "MEP_PARAMETER_WRITE_INDETERMINATE")
-            self.admission.release(owner, "COMPLETION_CONTRACT_FAILED")
+            released = self.admission.release(owner, "COMPLETION_CONTRACT_FAILED")
+            diag.record(self.diagnostic, "OWNER_RELEASED", released=released, reason_code="COMPLETION_CONTRACT_FAILED")
             return
         self.admission.safety_locked = (self.executor.retained is not None or
                                         result.get("classification") == "MEP_PARAMETER_WRITE_INDETERMINATE")
         def deliver():
             self.delivering = True
             try:
-                sink.deliver(owner.logical_request_id)
+                diag.record(self.diagnostic, "COMPLETION_CALLBACK_STATE", callback_present=sink.callback is not None)
+                delivered = sink.deliver(owner.logical_request_id)
+                diag.record(self.diagnostic, "COMPLETION_DELIVERED", delivered=delivered,
+                            success=delivered and sink.error is None, error=sink.error)
             finally:
                 self.delivering = False
-                self.admission.release(owner, "HOST_RESULT_READY")
+                released = self.admission.release(owner, "HOST_RESULT_READY")
+                diag.record(self.diagnostic, "OWNER_RELEASED", released=released, reason_code="HOST_RESULT_READY")
         if sink.callback is None:
             deliver()
         else:
@@ -183,12 +240,15 @@ class WriteCoordinator(object):
                 # Deferred WPF callback: no Revit API context/objects provided.
                 from System import Action
                 self.session.panel.Dispatcher.BeginInvoke(Action(deliver))
-            except Exception:
+            except Exception as error:
+                diag.exception(self.diagnostic, "callback_dispatch", error)
                 sink.error = "CALLBACK_DISPATCH_FAILED"
                 sink.cleanup()
-                self.admission.release(owner, "CALLBACK_DISPATCH_FAILED")
+                released = self.admission.release(owner, "CALLBACK_DISPATCH_FAILED")
+                diag.record(self.diagnostic, "OWNER_RELEASED", released=released, reason_code="CALLBACK_DISPATCH_FAILED")
 
     def cleanup(self, reason):
+        diag.state(self, "COORDINATOR_CLEANUP", reason_code=reason)
         if reason not in ("DOCUMENT_CLOSE", "DOCUMENT_SWITCH", "PANE_DISPOSAL", "SHUTDOWN", "ABANDONED"):
             raise ValueError("INVALID_CLEANUP_REASON")
         if self.completion_sink is not None:
@@ -199,13 +259,19 @@ class WriteCoordinator(object):
             self.session.write_busy = False
 
     def execute(self, uiapp):
+        diag.state(self, "HANDLER_RUNNING_STATE")
+        diag.state(self, "HANDLER_PENDING_STATE")
         if self.running:
+            diag.state(self, "HANDLER_REJECTED", reason_code="ALREADY_RUNNING")
             return
         request = self.pending
         resolving = self.resolving
         self.pending = None  # Consume before any API evaluation; callback replay is inert.
         self.resolving = False
+        if request is not None:
+            diag.state(self, "PENDING_REQUEST_CONSUMED")
         if request is None and not resolving:
+            diag.state(self, "HANDLER_REJECTED", reason_code="NO_PENDING_REQUEST")
             return
         self.running = True
         try:
@@ -213,11 +279,13 @@ class WriteCoordinator(object):
             if resolving:
                 result = self.executor.check_pending(DB, guid)
             else:
+                self.executor.diagnostic = self.diagnostic
                 result = self.executor.execute(request, uiapp, self.epochs(), clock(), DB, guid)
             self.emit(self.output, result)
             if resolving and self.executor.retained is None:
                 self.admission.resolve_safety(True)
-        except Exception:
+        except Exception as error:
+            diag.exception(self.diagnostic, "handler", error)
             preview = json.loads(request.preview_json) if request is not None else {}
             result = result_for(preview, "INDETERMINATE", "INTERNAL_ERROR")
             result["model_modified"] = None

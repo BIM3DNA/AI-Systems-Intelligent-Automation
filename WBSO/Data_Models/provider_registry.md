@@ -1,5 +1,25 @@
 # Provider Registry
 
+## 2026-10-06 - Session-gate acceptance resolution (authoritative current)
+
+Supersedes current-state acceptance claims in the preserved October 5 section.
+M4B visible session gate and M4A backward compatibility: LIVE VALIDATED / PASS.
+GATE-10C prompt-confirm host write and GATE-10D native Undo now PASS; full matrix
+in test_plan.md, October 6. Today's successful write was HUMAN DEV M4A HOST WRITE,
+not OpenAI/provider-controlled mutation. No authenticated provider write run.
+
+Production provider surface remains 13 READ-ONLY tools, with one separate dormant
+set_selected_pipe_test_text metadata definition. Provider write exposure: ZERO.
+Provider write dispatch: NOT IMPLEMENTED / NOT AVAILABLE. OpenAI-triggered Revit
+mutation: NOT AVAILABLE. Local session permission does not expose the dormant tool.
+M4B overall: IN PROGRESS / NOT CLOSED; provider-facing implementation is separate.
+
+M4A-DIAG-001 is TEMPORARY / UNCOMMITTED / REMOVAL PENDING, not permanent provider
+architecture. This documentation task preserves all five diagnostic/runtime/test
+files and changes no registry code. Main HEAD/origin: 0853b9a496808dabd1b4680d6803acc8eaee3745,
+0/0. Current documentation is uncommitted/unpushed. Actual October 6 daily time:
+8 hours total, recorded in evidence_reference.md; EV-AI/Daily Log/KC IDs PENDING.
+
 ## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
 
 BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.

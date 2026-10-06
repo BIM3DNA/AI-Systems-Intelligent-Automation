@@ -1,5 +1,44 @@
 # Architecture Notes
 
+## 2026-10-06 - Controlled-write timing knowledge and GATE-10 resolution
+
+Current acceptance supersedes the preserved October 5 investigation below.
+Session gate and M4A backward compatibility: LIVE VALIDATED / PASS; M4B NOT CLOSED.
+Knowledge Capture ID: PENDING; no unambiguous local allocator. Reusable knowledge
+is recorded here without creating a numbered KC file or copying central IDs.
+
+Distinguish PREVIEW SUCCESS, APPROVAL VALIDITY, TRANSACTION EXECUTION and
+POST-COMMIT VERIFICATION. Copying/inspecting preview output can consume the
+approval lifetime. M4A's existing 60 seconds starts before the proposed-value
+dialog and is not restarted at Confirm; post-confirm and execution checks remain.
+M4B's 120-second preview/30-second queue leases do not replace human M4A timing.
+
+User-supplied request 74dd9b455806473eb0e3fe01232cadf6 returned
+CONFIRMATION_EXPIRED with transaction_started=false after about 75.160 seconds
+from preview to result. This is fail-closed safety PASS, not a failed transaction.
+Prompt-confirm request 492e52a6c1d64e53ba91ac037945e545 committed M4A_GATE_DIAG_02,
+passed GUID reread/exact verification and Properties inspection; one native Undo
+restored M4A_Write_01. Host write, timing, verification and Undo are functional.
+Earlier receipt-missing runs cannot be assigned that expiry cause retroactively.
+
+Manual acceptance should capture preview without delaying confirmation beyond
+the documented window, require the final deterministic host receipt, separately
+inspect model state, and use native Undo only after a committed write is proven.
+Source/history investigation first yielded M4A_GATE10C_ROOT_CAUSE_NARROWED:
+no-callback HUMAN_DEV_WRITE remained reachable; handler/event retained; no proven
+GC or gate-cleanup cause. pyRevit stdout is a potential asynchronous-output
+observability weakness, not an established cause of this symptom.
+
+M4A-DIAG-001 independent JSONL markers are TEMPORARY / UNCOMMITTED / REMOVAL PENDING,
+not permanent architecture. Existing one transaction/one Parameter.Set semantics
+and the 60-second approval were preserved. After WBSO review, separately remove
+diagnostics, review any tests to retain, rerun regressions and count/safety checks,
+then reconcile source-control closure. This task does not perform that cleanup.
+Provider surface remains 13 read-only tools; one dormant metadata entry, zero
+write exposure, no provider dispatcher or OpenAI-triggered mutation. Today's
+live evidence is human Dev only. Actual October 6 daily time is 8 hours total;
+EV-AI/Daily Log/KC IDs PENDING. Full evidence: evidence_reference.md, October 6.
+
 ## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
 
 BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.

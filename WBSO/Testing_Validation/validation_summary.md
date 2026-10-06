@@ -1,5 +1,51 @@
 # Validation Summary
 
+## 2026-10-06 - GATE-10 resolved; bounded live acceptance PASS
+
+RESOLVED / NO PRODUCT DEFECT DEMONSTRATED. NO M4A EXECUTION REGRESSION DEMONSTRATED.
+User-supplied evidence closes live acceptance for the session-gate/M4A regression
+matrix only; M4B overall remains NOT CLOSED. Prior October 5 entries are preserved
+history, superseded for current acceptance by this dated resolution.
+
+GATE-01, 02A, 02B, 03-09, 10A Preview, 10B Cancel, same-value guard, 10C changed-value
+write and 10D native Undo all PASS. Full per-case matrix: test_plan.md, October 6.
+M4B visible session gate: LIVE VALIDATED / PASS. M4A backward compatibility: PASS.
+
+Request 74dd9b455806473eb0e3fe01232cadf6: MEP_PARAMETER_WRITE_NOT_READY /
+CONFIRMATION_EXPIRED; NOT_CONFIRMED; transaction_started=false;
+transaction_committed=false; NOT_STARTED; model_modified=false; no verification;
+final_value=null. About 75.160 seconds preview-to-result. Parameter retained
+M4A_Write_01: PASS / FAIL-CLOSED EXPIRY BEHAVIOR, not transaction failure.
+
+Request 492e52a6c1d64e53ba91ac037945e545: MEP_PARAMETER_WRITE_OK / COMPLETE;
+CONFIRMED; transaction_started=true; transaction_committed=true; Committed;
+model_modified=true; verification_performed=true; verification_passed=true;
+final_value=M4A_GATE_DIAG_02; warnings=[]. Properties confirmed the new value.
+One native Undo restored M4A_Write_01. These were HUMAN DEV M4A HOST WRITE tests.
+Exact timestamps and full field comparison: evidence_reference.md, October 6.
+
+The 60-second human approval starts before input and is not reset by Confirm;
+M4B 120/30-second leases do not replace it. Earlier WRITE_02/03 attempts remain
+receipt-missing observations, not retroactively proven expiry or product defects.
+Potential stdout observability weakness is not an established cause. Transient
+READ_ONLY_DOCUMENT remains historical/nonblocking, not a confirmed defect.
+
+Prior source investigation: 531 Python PASS, M4A 74, admission/callback 18,
+lifecycle/gate 58, native write assertions 78, bridge/process probes 74, syntax
+and one-Transaction/one-Set scan PASS, integrated no-callback probe PASS.
+Temporary diagnostic checkpoint: 548 Python PASS including 17 diagnostic tests;
+M4A 74, admission/callback 18, lifecycle/gate 58, native assertions 78 plus 8 sink,
+bridge/process 74, IronPython/syntax/dependency/whitespace/credential checks PASS.
+These are recorded prior results, not rerun in this documentation-only task.
+
+M4A-DIAG-001: TEMPORARY / UNCOMMITTED / REMOVAL PENDING, not production closure.
+Its five runtime/test files are preserved unchanged here. Source-control closure
+requires separate post-review cleanup and regression validation. Provider tools
+remain 13 read-only, one dormant write definition, zero exposed writes; provider
+dispatch NOT IMPLEMENTED / NOT AVAILABLE; OpenAI-triggered mutation NOT AVAILABLE.
+Actual October 6 time: 8 hours total; EV-AI/Daily Log/KC IDs PENDING.
+No runtime/test/provider/WBSO-history rewrite, staging, commit or push in this task.
+
 ## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
 
 BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.

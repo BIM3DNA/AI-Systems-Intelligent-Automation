@@ -1,5 +1,33 @@
 # Current Scope Alignment
 
+## 2026-10-06 - Session-gate live scope accepted; provider phase remains open
+
+This dated resolution supersedes current acceptance in the October 5 history below.
+LIVE VALIDATION CLOSED FOR THE SESSION-GATE / M4A REGRESSION MATRIX: PASS.
+GATE-01..09 (including 02A/02B), 10A Preview, 10B Cancel, same-value guard,
+10C changed-value write and 10D native Undo all PASS. Additional M4A expiry
+diagnostic PASS / VERIFIED FAIL-CLOSED. NO M4A EXECUTION REGRESSION DEMONSTRATED.
+
+These are user-observed human Dev results on Project2/Pipe 353871. A slow run
+returned CONFIRMATION_EXPIRED without starting a transaction; a prompt-confirm
+run committed M4A_GATE_DIAG_02, passed reread/Properties and one native Undo.
+Earlier incomplete observations remain unclassified. READ_ONLY_DOCUMENT remains
+historical/nonblocking, not a confirmed defect. No new ineligible-document or
+last-document/no-document coverage is inferred from this resolution.
+
+M4B PROVIDER-FACING CONTROLLED-WRITE IMPLEMENTATION remains incomplete.
+M4B overall: NOT CLOSED. Thirteen read-only provider tools; one dormant write
+metadata definition; zero exposed writes; dispatch NOT IMPLEMENTED / NOT AVAILABLE;
+OpenAI-triggered mutation NOT AVAILABLE. Future LIVE-M4B-01..18 are separate.
+
+M4A-DIAG-001 remains TEMPORARY / UNCOMMITTED / REMOVAL PENDING. This documentation
+does not remove or modify its five runtime/test files. After review, a separate
+engineering checkpoint must remove/reconcile diagnostics, explicitly review any
+tests to retain, restore non-diagnostic behavior, rerun full regression/count/
+timing/provider-boundary checks, and obtain commit/push authorization. Diagnostic
+source-control closure is not part of this task. Actual October 6 time: 8 hours
+total; IDs PENDING; daily record and exact Git scope in evidence_reference.md.
+
 ## 2026-10-05 - M4B session-gate live checkpoint (authoritative current)
 
 BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.
