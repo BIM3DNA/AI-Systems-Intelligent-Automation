@@ -1,5 +1,165 @@
 # Evidence Reference
 
+## 2026-10-07 EOD - M4B dispatch, live failure and cross-engine correction
+
+Authoritative EOD checkpoint; earlier dated records below remain historical.
+This task records prior static results and user-supplied Revit observations;
+it does not rerun Revit, authenticated OpenAI requests or implementation suites.
+October 7 actual hours / Evidence ID / Daily Log ID / KC ID: PENDING. None allocated.
+October 6's recorded eight hours are not duplicated or extrapolated.
+
+### Source control and checkpoint sequence
+
+Day began from clean committed/pushed b62b89b03be8d64b24c9aea3b1b12267c5cb1efd,
+subject docs(wbso): reconcile M4A diagnostic cleanup closure. M4A-DIAG-001 REMOVED /
+SOURCE-CONTROL CLOSED; GATE-10 SOURCE-CONTROL CLOSED; session gate and M4A backward
+compatibility LIVE VALIDATED / PASS. Provider13 read-only/one dormant/zero exposed;
+dispatch NOT IMPLEMENTED at that starting point; M4B NOT CLOSED.
+
+DISPATCH-001 committed/pushed: 000c9ec13f87be805fcaa64a5bdaeed9bc865518.
+Parent: b62b89b03be8d64b24c9aea3b1b12267c5cb1efd.
+Subject: feat(bimcode): add M4B internal write dispatch foundation.
+Two files, +608/-0: AI.extension/lib/bimcode_ai_pane/provider_write_dispatch.py
+(272 lines) and tests/test_bimcode_provider_write_dispatch.py (336 lines).
+Validated internal fixed mapping -> permission/eligibility/admission -> deterministic
+host preview -> 120-second preview lease -> AWAITING_HUMAN_CONFIRMATION, STOP.
+COMMITTED / PUSHED / OFFLINE-STATIC PASS. This checkpoint alone contains no native
+confirmation, execution-queue dispatch, mutation, continuation or provider exposure.
+
+DISPATCH-002 reviewed delta: five files, +693/-1; IMPLEMENTED / STATIC PASS /
+UNCOMMITTED / LIVE VALIDATION IN PROGRESS. Modified executor and lifecycle regression
+test; new confirmation, host bridge and bridge tests (exact inventory below).
+Native Cancel-default TaskDialog; explicit Confirm consumes preview120, starts queue30,
+raises dedicated retained ExternalEvent, revalidates at execution, reuses existing
+executor and stores immutable HOST_RESULT_READY completion. STOP; no continuation.
+M4A validation/transaction body extracted, not duplicated. Source-regression test
+reconstructs and compares complete original executor source/behavior protections.
+
+Temporary harness checkpoint: three new files, +238/-0; combined eight paths,
++931/-1. M4BHostTest Dev command offers New internal request / Inspect retained
+result. TEMPORARY / DEV-ONLY / UNCOMMITTED; no provider registration, OpenAI call,
+continuation, transaction constructor or Parameter.Set.
+
+DISPATCH-002A: IMPLEMENTED / STATIC PASS / UNCOMMITTED / LIVE RETEST PENDING.
+EOD documentation-task start verified main HEAD = origin/main = 000c9ec...,
+ahead/behind 0/0; no staged files. Twelve implementation/test/harness paths,
++1190/-1 including untracked content. No unrelated paths observed.
+The new EOD documentation itself is UNCOMMITTED / UNPUSHED, not package closure.
+
+| Pre-existing path | Status against HEAD | Added | Deleted |
+| --- | --- | ---: | ---: |
+| AI.extension/lib/bimcode_ai_pane/lifecycle.py | modified | 11 | 0 |
+| AI.extension/lib/bimcode_write_execution.py | modified | 22 | 0 |
+| tests/test_bimcode_write_lifecycle.py | modified | 12 | 1 |
+| AI.extension/AI.tab/Dev.panel/M4BHostTest.pushbutton/bundle.yaml | untracked | 2 | 0 |
+| AI.extension/AI.tab/Dev.panel/M4BHostTest.pushbutton/script.py | untracked | 74 | 0 |
+| AI.extension/lib/bimcode_ai_pane/provider_write_confirmation.py | untracked | 26 | 0 |
+| AI.extension/lib/bimcode_ai_pane/provider_write_host_bridge.py | untracked | 223 | 0 |
+| AI.extension/lib/bimcode_ai_pane/provider_write_session.py | untracked | 82 | 0 |
+| tests/test_bimcode_host_live_harness.py | untracked | 116 | 0 |
+| tests/test_bimcode_provider_write_host_bridge.py | untracked | 410 | 0 |
+| tests/test_bimcode_write_session.py | untracked | 56 | 0 |
+| tests/test_bimcode_write_session_native.ps1 | untracked | 156 | 0 |
+
+### Recorded static validations (not new EOD test runs)
+
+| Check | DISPATCH-001 | DISPATCH-002 | Harness | DISPATCH-002A |
+| --- | ---: | ---: | ---: | ---: |
+| Full Python PASS | 581 | 623 | 637 | 643 |
+| DISPATCH-001 PASS | 45 | 45 | 45 | 45 |
+| DISPATCH-002 PASS | not implemented | 42 | 42 | 42 |
+| Harness PASS | not present | not present | 14 | 14 |
+| Session boundary PASS | not present | not present | not present | 6 |
+| AST/py_compile/tabnanny files PASS | 56 | 59 | 61 | 63 |
+| Credential-scan text files | 155 | 158 | 161 | 164 |
+
+All four checkpoints: focused M4A79, durable GATE-10 five, admission/callback18,
+lifecycle/gate58, continuation24, leases25, registry32, provider142 PASS.
+Native write78 assertions/18 compiles; native provider74 probes/9 compiles PASS.
+DISPATCH-001 dispatcher IronPython compile PASS; DISPATCH-002, harness and 002A
+each recorded three additional IronPython compiles PASS. Subsuite counts overlap;
+do not add them as unique tests. WPF/theme/Find, dependencies and whitespace PASS
+at their recorded audits; no UI changes in the harness checkpoint. Credential scans
+reported no credential finding, only two existing prompt-ID false positives;
+not an exhaustive secret proof. .env.local contents not read by these audits.
+DISPATCH-002A additionally passed 54 assertions with two installed IronPython engines.
+
+### User-supplied first live attempt: LIVE-M4B-HOST-01
+
+Intent: non-mutating Cancel acceptance. Project2, Pipe353871, permission ENABLED,
+eligibility YES. Before M4A_Write_01; proposed M4B_HOST_CANCEL_01.
+Logical request: 7ca2f0f531ab4274a258fbaf431473d4.
+Host request: 68b14f754f0e44be82a11e0058587b84.
+Call: host-test-call-3462d6320a504b6cbef9e26d6f504a5f.
+Response placeholder: host-test-response-a98c861c3eaf4e9b85886826bdc0e0e6.
+Session string: 4043. Fixed tool: set_selected_pipe_test_text.
+Target UniqueId: 5a664df7-5acd-41f8-a7e0-39255f126d5d-0005664f.
+Parameter: BIMCode_M4A_TestText; GUID 2f3c955d-45ee-4258-bc61-08acd40a2912.
+
+Preview: MEP_PARAMETER_WRITE_PREVIEW_OK / COMPLETE; confirmation_required=true;
+current/proposed values as above; target353871; INSTANCE/String/writable=true;
+transaction_started=false, model_modified=false. Preview construction PASSED.
+History: IDLE -> PROVIDER_INITIAL_REQUEST -> PROVIDER_TOOL_SELECTED ->
+WRITE_ARGUMENTS_VALIDATED -> HOST_PREVIEW_BUILDING (all COMPLETE), then
+HOST_RESULT_READY / INTERNAL_DISPATCH_ERROR -> COMPLETED / INTERNAL_DISPATCH_ERROR.
+PREVIEW_READY and AWAITING_HUMAN_CONFIRMATION were never reached; no TaskDialog.
+
+Final receipt: MEP_PARAMETER_WRITE_FAILED / INTERNAL_DISPATCH_ERROR;
+NOT_CONFIRMED; before M4A_Write_01; proposed M4B_HOST_CANCEL_01; final null;
+transaction_started=false; transaction_committed=false; status NOT_STARTED;
+model_modified=false; verification_performed=false; verification_passed=false.
+Properties remained M4A_Write_01. Both leases INVALIDATED / ABANDONED, with null
+bindings and creation/expiry timestamps, consumed=false.
+Disposition: BLOCKED BEFORE CONFIRMATION; Preview PASS; native confirmation
+NOT REACHED; Cancel NOT TESTED; mutation NONE; fail-closed safety PASS.
+Do NOT mark Cancel acceptance PASS or infer a transaction/executor defect.
+
+### Root cause and correction evidence
+
+M4B_HOST_LIVE_ROOT_CAUSE_IDENTIFIED. write_leases.binding's strict
+type(owner) is not Owner rejects a pane-owned Owner from another IronPython
+engine. Startup admission returns engine A's namedtuple; Dev imports engine B's
+distinct class. ValueError LEASE_CORRELATION_FAILED is flattened by Dispatcher
+into INTERNAL_DISPATCH_ERROR. Failure is after PREVIEW_OK/serialization but before
+lease creation, PREVIEW_READY, confirmation, ExternalEvent or transaction.
+ABANDONED is cleanup AFTER failure, not the initiating cause.
+
+Installed IronPython: same-engine default Clock/Stopwatch and lease creation PASS;
+two engines sharing admission reproduce differing Owner identity and binding failure.
+Dispatcher with separately loaded admission reproduces the exact history/null leases.
+Reducer transitions are valid, never reached; harness call order is not the cause.
+Original live exception was discarded; offline reproductions establish the contract
+defect. Single-engine fake tests and compilation alone missed engine-owned class identity.
+
+Correction: persistent PaneSession owns begin_controlled_write_request(value),
+confirm_controlled_write_request(host_request_id), inspect_controlled_write_request().
+Inputs strings/scalars; outputs JSON. Session constructs/retains admission, Owner,
+Correlation, Request, Clock, Binding, leases, Dispatcher, HostBridge, handler and
+completion. Dev harness no longer constructs/transfers authoritative coordination
+objects. Strict identity/correlation validation remains, not unchecked duck typing.
+Native human confirmation remains sole execution authority; values not normalized.
+
+Real two-engine probe54 PASS: original foreign Owner still rejects; corrected owner
+constructed in A; preview/active lease/AWAITING_HUMAN_CONFIRMATION succeeds; simulated
+native Cancel yields CANCELLED / USER_CANCELLED; authority injection, wrong request,
+replay and competing request reject; subsequent Dev inspection retains state; fresh
+request after Cancel works; lifecycle cleanup invalidates approval and prevents revival.
+This is OFFLINE HOST-RUNTIME COMPATIBILITY evidence, not corrected Revit live PASS.
+
+### EOD safety and next gate
+
+Executor exactly one transaction constructor / one Parameter.Set. New orchestration,
+cross-engine correction and harness each add zero. M4A approval60 seconds unchanged;
+M4B preview120 and execution-queue30 unchanged. Provider13 read-only/one dormant/zero
+exposed; provider continuation UNWIRED; OpenAI-triggered mutation NOT AVAILABLE;
+catalog237. M4B IN PROGRESS / NOT CLOSED; all post-001 implementation uncommitted.
+Next ONLY LIVE-M4B-HOST-01R Cancel after full restart: Project2/Pipe353871,
+M4A_Write_01 -> proposed M4B_HOST_CANCEL_02, native Cancel, inspect CANCELLED /
+USER_CANCELLED with no transaction/mutation and Properties unchanged. Confirm/Undo
+must wait until Cancel passes. Full steps in ../Testing_Validation/test_plan.md.
+No runtime, test, harness or provider changes by this documentation task; pre-existing
+non-documentation bytes captured for before/after preservation verification.
+
 ## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
 
 M4A-DIAG-001: REMOVED / SOURCE-CONTROL CLOSED.

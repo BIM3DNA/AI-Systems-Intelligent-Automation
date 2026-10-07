@@ -1,5 +1,52 @@
 # Validation Summary
 
+## 2026-10-07 EOD - Dispatch compatibility corrected; Revit Cancel retest pending
+
+M4B IN PROGRESS / NOT CLOSED. This current EOD status supersedes earlier
+dispatch-not-implemented next-action text while preserving historical records.
+M4A-DIAG-001/GATE-10 remain SOURCE-CONTROL CLOSED; session gate/M4A compatibility LIVE PASS.
+DISPATCH-001 COMMITTED / PUSHED / STATIC PASS at 000c9ec13f87be805fcaa64a5bdaeed9bc865518.
+DISPATCH-002 IMPLEMENTED / STATIC PASS / UNCOMMITTED / LIVE IN PROGRESS.
+DISPATCH-002A IMPLEMENTED / STATIC PASS / UNCOMMITTED / LIVE RETEST PENDING.
+Temporary harness PRESENT / DEV-ONLY / UNCOMMITTED. Twelve pre-existing paths,
++1190/-1 at EOD documentation start; no staged files. Documentation also uncommitted.
+
+Recorded checkpoint progression, not fresh EOD test runs:
+
+| Checkpoint | Full Python PASS | Focused additions | Syntax files PASS |
+| --- | ---: | --- | ---: |
+| DISPATCH-001 | 581 | dispatcher45 | 56 |
+| DISPATCH-002 | 623 | host bridge42 | 59 |
+| Temporary harness | 637 | harness14 | 61 |
+| DISPATCH-002A | 643 | session boundary6; two-engine54 assertions | 63 |
+
+Latest retained focused results: DISPATCH-00145, DISPATCH-00242, harness14,
+session6, M4A79, GATE-10 five, admission18, lifecycle/gate58, leases25,
+continuation24, registry32, provider142 PASS. Native write78 assertions/18 compiles;
+native provider74 probes/9 compiles; three additional IronPython compiles PASS.
+WPF/theme/Find, dependency, whitespace PASS. Credential scan164 text files:
+no credential finding, two existing prompt-ID false positives only. Counts overlap.
+
+LIVE-M4B-HOST-01: preview PASS, BLOCKED BEFORE CONFIRMATION; Cancel NOT TESTED.
+Project2/Pipe353871 M4A_Write_01 -> M4B_HOST_CANCEL_01 produced valid preview then
+FAILED / INTERNAL_DISPATCH_ERROR, NOT_CONFIRMED, NOT_STARTED, all mutation and
+verification flags false; Properties unchanged. Safety FAIL-CLOSED / PASS.
+Root cause reproduced: strict Owner class identity across startup/Dev IronPython
+engines rejected binding before lease creation. ABANDONED was subsequent cleanup.
+Default Clock/Stopwatch passed; no transaction defect. Correction centralizes
+coordination in PaneSession, crosses strings/JSON, preserves strict validation.
+Two-engine54 proves corrected preview/lease/readiness/simulated Cancel, negative
+injection, replay, repeated invocation and lifecycle safety; NOT live acceptance.
+
+Corrected LIVE-M4B-HOST-01R Cancel PENDING. Full restart, value M4B_HOST_CANCEL_02,
+native Cancel, retained CANCELLED / USER_CANCELLED, unchanged Properties required.
+Do not proceed to Confirm until Cancel passes. Detailed procedure: test_plan.md.
+Executor one transaction/one Set; orchestration/correction/harness zero new mutation;
+M4A60/M4B120/30 unchanged. Provider13 read-only/one dormant/zero exposed; continuation
+UNWIRED; OpenAI-triggered mutation NOT AVAILABLE; catalog237. Hours/IDs PENDING.
+Detailed source-control, live receipt and architectural evidence: evidence_reference.md
+under ../Technical_Notes/, October 7 EOD. No Revit/API or runtime tests rerun here.
+
 ## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
 
 M4A-DIAG-001: REMOVED / SOURCE-CONTROL CLOSED.

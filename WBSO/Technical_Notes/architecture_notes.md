@@ -1,5 +1,48 @@
 # Architecture Notes
 
+## 2026-10-07 EOD - Session-owned cross-engine controlled-write coordination
+
+Engineering checkpoint, not live closure. DISPATCH-001 committed/pushed at
+000c9ec13f87be805fcaa64a5bdaeed9bc865518; DISPATCH-002/002A and temporary harness
+are uncommitted. M4B NOT CLOSED. Historical sections below remain unchanged.
+
+DISPATCH-001 validates fixed mapping, permission, eligibility and admission,
+builds deterministic preview, binds a 120-second lease and stops at
+AWAITING_HUMAN_CONFIRMATION. DISPATCH-002 adds Cancel-default native TaskDialog;
+explicit Confirm alone consumes preview and starts the 30-second queue lease.
+A dedicated session-retained ExternalEvent performs execution-time revalidation,
+reuses the existing executor and retains immutable completion at HOST_RESULT_READY.
+No provider continuation or production write exposure is wired.
+The existing M4A body was extracted rather than duplicated; regression reconstructs
+the complete original source. One transaction constructor and one Parameter.Set
+remain in the executor; new orchestration, correction and harness each add zero.
+M4A 60-second approval remains unchanged; no fabricated M4A approval is reused.
+
+The first live harness request passed preview but failed at write_leases.binding:
+type(owner) is not Owner. Persistent startup admission returned engine A's Owner;
+the Dev engine imported engine B's distinct class. Values were valid, class
+identity was not. ValueError LEASE_CORRELATION_FAILED was flattened into
+INTERNAL_DISPATCH_ERROR. ABANDONED invalidation followed failure. No transaction.
+Same-engine/default Stopwatch probe passed; two-engine topology reproduced the
+failure. Static compilation and single-engine fake tests missed this boundary.
+
+Lesson: pass validated scalar/value data across engines; construct and retain
+authoritative coordination objects inside the persistent session. Do not weaken
+strict checks into unchecked duck typing. PaneSession now owns begin(value),
+confirm(host_request_id), inspect() via begin_controlled_write_request,
+confirm_controlled_write_request and inspect_controlled_write_request.
+Inputs are strings; outputs serialized JSON. Admission, Owner, Correlation,
+Request, Clock, Binding, leases, Dispatcher, HostBridge, handler and completion
+remain session-owned. The harness cannot inject consent, owner/token, target,
+GUID, action or reducer state. Native human confirmation remains authoritative.
+Owner/Correlation/Request/Binding/Lease/Clock/Completion/Receipt identity checks
+remain strict within the owning engine. Two-engine regression: 54 assertions PASS,
+including original rejection, corrected preview/Cancel, negative injection,
+repeated inspection, fresh post-Cancel request and lifecycle invalidation.
+Offline compatibility evidence is not Revit live acceptance. Corrected Cancel
+retest PENDING; Confirm/Undo deferred. Detailed evidence: evidence_reference.md.
+No new KC ID or hours allocated; PENDING. This EOD entry is uncommitted/unpushed.
+
 ## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
 
 Cleanup 335a66746bdcec01e56fbb16ebcd83197b508112 removed temporary JSONL writes,

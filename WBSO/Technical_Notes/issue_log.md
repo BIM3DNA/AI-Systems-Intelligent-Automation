@@ -1,5 +1,36 @@
 # Issue Log
 
+## 2026-10-07 EOD - LIVE-M4B-HOST-01 cross-engine coordination defect
+
+Status: ROOT CAUSE IDENTIFIED / CORRECTION IMPLEMENTED / STATIC PASS /
+CORRECTED REVIT LIVE RETEST PENDING. Not live-resolved or source-control closed.
+Separate from the closed M4A-DIAG-001/GATE-10 episode; not a Revit transaction defect.
+
+Project2/Pipe353871, enabled permission/eligible document, M4A_Write_01 ->
+M4B_HOST_CANCEL_01: deterministic PREVIEW_OK / COMPLETE, but TaskDialog never
+appeared. HOST_PREVIEW_BUILDING -> HOST_RESULT_READY -> COMPLETED with
+INTERNAL_DISPATCH_ERROR. FAILED, NOT_CONFIRMED, NOT_STARTED; transaction started,
+committed, model modified and verification flags all false. Properties unchanged.
+Preview PASS; Cancel NOT TESTED; live case BLOCKED BEFORE CONFIRMATION;
+fail-closed safety PASS. Both null/uncreated leases became INVALIDATED / ABANDONED.
+
+First failing contract reproduced: write_leases.binding rejects
+type(owner) is not Owner because startup/pane admission and Dev imports belong
+to different IronPython engines. ValueError LEASE_CORRELATION_FAILED is discarded
+by Dispatcher's broad catch and becomes INTERNAL_DISPATCH_ERROR. ABANDONED is
+subsequent cleanup, not the cause. Clock/default Stopwatch passed; intended reducer
+transitions valid, not reached; harness ordering not the initiating defect.
+Two native engines reproduced the mismatch; separately loaded admission reproduced
+the exact history/null-lease shape. The original live exception itself was not logged.
+
+DISPATCH-002A retains authoritative objects in PaneSession and crosses only strings/
+JSON; strict checks are unchanged. Native two-engine probe54 and full Python643 PASS.
+Simulated Cancel is not live acceptance. No mutation/confirmation semantics change.
+Next: LIVE-M4B-HOST-01R with M4B_HOST_CANCEL_02, native Cancel, retained result and
+unchanged Properties. Confirm remains deferred until Cancel PASS.
+Correction/harness uncommitted; M4B NOT CLOSED; provider writes0, continuation unwired.
+Details/correlation: evidence_reference.md, October 7 EOD. Hours/IDs PENDING.
+
 ## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
 
 M4A execution regression: NOT DEMONSTRATED.

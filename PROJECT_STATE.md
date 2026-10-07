@@ -1,5 +1,52 @@
 # PROJECT STATE
 
+## 2026-10-07 EOD - M4B dispatch and cross-engine correction (authoritative current)
+
+M4B: IN PROGRESS / NOT CLOSED. This dated EOD entry supersedes earlier current
+dispatch/next-action statements below without rewriting historical checkpoints.
+M4A-DIAG-001 REMOVED / SOURCE-CONTROL CLOSED; GATE-10 SOURCE-CONTROL CLOSED.
+Visible session gate and M4A backward compatibility remain LIVE VALIDATED / PASS.
+
+Clean pre-dispatch baseline: b62b89b03be8d64b24c9aea3b1b12267c5cb1efd,
+docs(wbso): reconcile M4A diagnostic cleanup closure. At that point dispatch
+was NOT IMPLEMENTED. DISPATCH-001 is now COMMITTED / PUSHED / STATIC PASS:
+000c9ec13f87be805fcaa64a5bdaeed9bc865518, parent b62b89b..., subject
+feat(bimcode): add M4B internal write dispatch foundation; two files, +608/-0.
+Its internal preview-only boundary stops at AWAITING_HUMAN_CONFIRMATION.
+
+DISPATCH-002: IMPLEMENTED / STATIC PASS / UNCOMMITTED / LIVE VALIDATION IN PROGRESS.
+DISPATCH-002A cross-engine correction: IMPLEMENTED / STATIC PASS / UNCOMMITTED /
+LIVE RETEST PENDING. Temporary M4B Host Test: PRESENT / DEV-ONLY / UNCOMMITTED.
+The internal bridge adds native human confirmation, 120-second preview and
+30-second execution-queue leases, dedicated ExternalEvent, existing executor
+and immutable HOST_RESULT_READY completion. Provider continuation is UNWIRED.
+
+LIVE-M4B-HOST-01: BLOCKED BEFORE CONFIRMATION / ROOT CAUSE IDENTIFIED.
+Project2/Pipe 353871 preview M4A_Write_01 -> M4B_HOST_CANCEL_01 passed, but
+INTERNAL_DISPATCH_ERROR prevented TaskDialog. Cancel NOT TESTED; no mutation;
+Properties unchanged; fail-closed safety PASS. Cross-engine Owner class identity
+caused LEASE_CORRELATION_FAILED; ABANDONED leases were cleanup, not the cause.
+The correction keeps authoritative coordination in the persistent PaneSession;
+Dev callers pass strings and receive JSON. Strict identity checks remain intact.
+Two installed IronPython engines passed 54 assertions, including simulated
+Cancel. This is offline evidence, NOT corrected Revit live acceptance.
+
+Verified EOD documentation-task start: main HEAD = origin/main = 000c9ec...,
+ahead/behind 0/0; no staged files. Twelve pre-existing implementation/test/harness
+paths total +1190/-1, UNCOMMITTED / UNPUSHED; exact inventory and checkpoint
+counts in WBSO/Technical_Notes/evidence_reference.md, October 7 EOD section.
+Latest recorded full suite: 643 PASS. This documentation task does not rerun it.
+Production provider remains 13 read-only / one dormant definition / zero exposed
+writes; OpenAI-triggered mutation NOT AVAILABLE; catalog 237. M4A60/M4B120/30
+unchanged. No runtime/test/harness changes authorized by this EOD documentation.
+
+Next: full Revit restart, LIVE-M4B-HOST-01R CANCEL RETEST with
+M4B_HOST_CANCEL_02. Expected CANCELLED / USER_CANCELLED, no transaction/mutation,
+Properties still M4A_Write_01. Do not proceed to Confirm until Cancel passes.
+Exact procedure: WBSO/Testing_Validation/test_plan.md, October 7 EOD section.
+October 7 hours and Evidence/Daily Log/KC IDs remain PENDING; none allocated.
+This EOD documentation is UNCOMMITTED / UNPUSHED; no source-control closure claim.
+
 ## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
 
 M4A-DIAG-001: REMOVED / SOURCE-CONTROL CLOSED.

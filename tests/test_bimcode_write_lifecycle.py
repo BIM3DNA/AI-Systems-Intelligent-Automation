@@ -182,7 +182,18 @@ class CleanupTests(unittest.TestCase):
         baseline = 'b703acaa143c5a834f35184001ef1b1b8c8228ca'
         for path in paths:
             old = subprocess.check_output(['git', 'show', baseline + ':' + path])
-            self.assertEqual(old.replace(b'\r\n', b'\n'), (ROOT / path).read_bytes().replace(b'\r\n', b'\n'), path)
+            current = (ROOT / path).read_bytes().replace(b'\r\n', b'\n')
+            if path == 'AI.extension/lib/bimcode_write_execution.py':
+                # DISPATCH-002: reconstruct the original M4A source after the
+                # narrow shared-body extraction. Entire legacy source, including
+                # its 60-second guard and transaction body, must still match.
+                start = current.index(b'        return self._execute_authorized(')
+                end = current.index(b'        if not c.validate_value(', start)
+                current = current[:start] + current[end:]
+                callback = b'        if before_mutation is not None:\n            before_mutation()\n'
+                self.assertEqual(current.count(callback), 1)
+                current = current.replace(callback, b'')
+            self.assertEqual(old.replace(b'\r\n', b'\n'), current, path)
         # M4B-8A explicitly wires lifecycle.py; protect the existing read-only
         # dispatch/selection functions rather than freezing that entire adapter.
         import ast

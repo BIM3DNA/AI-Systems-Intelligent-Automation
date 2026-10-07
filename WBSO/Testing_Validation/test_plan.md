@@ -1,5 +1,43 @@
 # Test Plan
 
+## 2026-10-07 EOD - LIVE-M4B-HOST-01R Cancel retest gate
+
+Current authority; preserve all earlier matrices as historical evidence.
+DISPATCH-001 committed/pushed/static PASS at 000c9ec13f87be805fcaa64a5bdaeed9bc865518.
+DISPATCH-002/002A and temporary M4B Host Test are uncommitted, offline/static PASS.
+Full Python643 and two-installed-IronPython-engine54 assertions PASS are recorded
+prior results, not rerun here. See ../Technical_Notes/evidence_reference.md for all counts.
+
+| Case | EOD disposition |
+| --- | --- |
+| LIVE-M4B-HOST-01 | BLOCKED BEFORE CONFIRMATION / ROOT CAUSE IDENTIFIED; preview PASS, native dialog not reached, Cancel NOT TESTED, no mutation, fail-closed PASS |
+| LIVE-M4B-HOST-01R | PENDING: corrected native Cancel retest after full restart |
+| LIVE-M4B-HOST-02 Confirm | DEFERRED until 01R Cancel passes; no PASS claimed |
+| Native Undo after confirmed M4B write | DEFERRED; successful M4B write not established |
+
+LIVE-M4B-HOST-01R procedure for next session (manual only):
+
+1. Fully restart Revit to load session-owned coordination correction.
+2. Open disposable Project2 and initialize BIMCode pane.
+3. Enable Controlled Writes for this session.
+4. Select supported Pipe353871 and verify current BIMCode_M4A_TestText = M4A_Write_01.
+5. Run AI -> Dev -> M4B Host Test; choose New internal M4B test request.
+6. Enter exactly M4B_HOST_CANCEL_02.
+7. Verify native controlled-write TaskDialog appears; choose Cancel.
+8. Invoke the same command, Inspect retained result (read-only).
+9. Require state CANCELLED and reason USER_CANCELLED, transaction_started=false,
+   transaction_committed=false and model_modified=false.
+10. Verify Properties remains M4A_Write_01. Record actual result before advancing.
+
+Do NOT proceed to Confirm until this Cancel retest passes. No OpenAI prompt or
+provider continuation involved. M4B preview120/queue30, M4A approval60 unchanged.
+Keep 13 read-only tools/one dormant/zero exposed writes and catalog237.
+Regression protection: real two-engine original failure and corrected preview/Cancel,
+strict rejection of injected owner/token/correlation, repeated invocation/inspection,
+fresh request after Cancel, lifecycle invalidation and no revival. Simulated native
+Cancel is offline evidence only. No live test was run by this documentation task.
+M4B NOT CLOSED. Hours/IDs PENDING; EOD documentation UNCOMMITTED / UNPUSHED.
+
 ## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
 
 Cleanup commit 335a66746bdcec01e56fbb16ebcd83197b508112 closes M4A-DIAG-001

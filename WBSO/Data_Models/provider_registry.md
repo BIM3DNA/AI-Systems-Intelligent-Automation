@@ -1,5 +1,30 @@
 # Provider Registry
 
+## 2026-10-07 EOD - Internal dispatch checkpoint; production exposure unchanged
+
+Current authority supersedes earlier dispatch-not-started wording below.
+Production surface: 13 active READ-ONLY tools / one dormant controlled-write
+definition / zero exposed writes. set_selected_pipe_test_text is NOT selectable
+by OpenAI. Provider assembly unchanged; normal mutation prompts remain refused.
+Catalog 237. No authenticated provider request occurred in this documentation task.
+
+DISPATCH-001 internal preview foundation is COMMITTED / PUSHED at
+000c9ec13f87be805fcaa64a5bdaeed9bc865518 (parent b62b89b...; +608/-0, two files).
+DISPATCH-002 native confirmation/host execution and DISPATCH-002A session-owned
+cross-engine correction are IMPLEMENTED / STATIC PASS / UNCOMMITTED.
+Internal host dispatch is implemented; production provider write dispatch/exposure
+is NOT AVAILABLE. Do not conflate these two boundaries.
+The temporary Dev harness does not expose a provider tool or call OpenAI.
+Provider continuation remains UNWIRED; DISPATCH-003 is future work.
+The host request stops at immutable HOST_RESULT_READY after execution; Cancel
+retains CANCELLED / USER_CANCELLED evidence. Native human consent is required.
+
+LIVE-M4B-HOST-01 was blocked before confirmation; preview PASS, Cancel NOT TESTED,
+no mutation. Cross-engine correction is offline PASS; corrected live Cancel
+retest PENDING. M4B IN PROGRESS / NOT CLOSED. No provider-write live PASS claimed.
+Details: ../Technical_Notes/evidence_reference.md, October 7 EOD.
+Hours/IDs PENDING. This documentation is UNCOMMITTED / UNPUSHED.
+
 ## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
 
 M4A-DIAG-001 is REMOVED / SOURCE-CONTROL CLOSED at

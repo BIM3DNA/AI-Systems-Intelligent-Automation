@@ -1,5 +1,31 @@
 # Current Scope Alignment
 
+## 2026-10-07 EOD - Internal host bridge implemented; corrected live Cancel pending
+
+M4B remains IN PROGRESS / NOT CLOSED. Supersedes earlier next-phase/not-started
+wording below; preserves all historical checkpoints and M4A closure evidence.
+Clean starting checkpoint b62b89b03be8d64b24c9aea3b1b12267c5cb1efd closed the
+M4A diagnostic WBSO reconciliation. M4A-DIAG-001 REMOVED / SOURCE-CONTROL CLOSED;
+GATE-10 SOURCE-CONTROL CLOSED; session gate and M4A backward compatibility LIVE PASS.
+
+DISPATCH-001 COMMITTED / PUSHED / STATIC PASS at 000c9ec13f87be805fcaa64a5bdaeed9bc865518.
+DISPATCH-002 IMPLEMENTED / STATIC PASS / UNCOMMITTED / LIVE IN PROGRESS.
+DISPATCH-002A IMPLEMENTED / STATIC PASS / UNCOMMITTED / LIVE RETEST PENDING.
+Temporary M4B Host Test is DEV-ONLY / UNCOMMITTED, not provider exposure.
+Current implementation scope: twelve paths, +1190/-1 before this EOD documentation.
+Production provider: 13 read-only / one dormant / zero exposed writes; catalog237.
+Continuation UNWIRED; OpenAI-triggered mutation NOT AVAILABLE.
+
+LIVE-M4B-HOST-01 blocked after PREVIEW_OK but before TaskDialog. Cancel NOT TESTED;
+no mutation, fail-closed PASS. Root cause identified/reproduced: cross-engine
+Owner class identity mismatch. Session-owned scalar-boundary correction passed
+offline checks, including two installed IronPython engines; live retest not run.
+Next ONLY LIVE-M4B-HOST-01R Cancel with M4B_HOST_CANCEL_02 after full Revit restart.
+Do not proceed to Confirm until Cancel passes. No closure or provider exposure
+authorization follows from static PASS. M4A60/M4B120/30 and mutation semantics unchanged.
+October 7 hours/IDs PENDING; no inference from October 6 hours. Documentation-only,
+uncommitted/unpushed. Full evidence and scope: evidence_reference.md, EOD section.
+
 ## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
 
 M4A-DIAG-001: REMOVED / SOURCE-CONTROL CLOSED.

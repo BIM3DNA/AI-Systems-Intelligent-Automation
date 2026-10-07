@@ -107,6 +107,26 @@ class Executor(object):
             return result
         if now < request.confirmed or now - request.created > 60.0:
             return _mark(result, "NOT_READY", "CONFIRMATION_EXPIRED")
+        return self._execute_authorized(preview, result, uiapp, db, guid)
+
+    def execute_provider(self, preview, uiapp, db, guid, before_mutation):
+        """Trusted host bridge ONLY, after native consent and consumed M4B lease.
+
+        No M4A approval is manufactured. The bridge retains ownership/leases;
+        before_mutation enters WRITE_EXECUTING only after host preflight passes.
+        This is not a provider argument or an externally registered tool.
+        """
+        result = result_for(preview, "NOT_READY", "STALE_CONTEXT")
+        result["confirmation_result"] = "CONFIRMED"
+        if self.retained is not None or len(self.used) >= 1000:
+            return _mark(result, "NOT_READY", "EXECUTION_BUSY")
+        if preview["request_id"] in self.used:
+            return _mark(result, "NOT_READY", "CONFIRMATION_INVALID")
+        self.used.add(preview["request_id"])
+        return self._execute_authorized(preview, result, uiapp, db, guid, before_mutation)
+
+    def _execute_authorized(self, preview, result, uiapp, db, guid, before_mutation=None):
+        """Shared unchanged validation/mutation body; exactly one transaction/Set."""
         if not c.validate_value(preview.get("proposed_value"))["valid"]:
             return _mark(result, "NOT_READY", "INVALID_VALUE")
         try:
@@ -115,6 +135,8 @@ class Executor(object):
             return _mark(result, "NOT_READY", error.reason)
         except Exception:
             return _mark(result, "FAILED", "READ_FAILED")
+        if before_mutation is not None:
+            before_mutation()
         tx = None
         phase = "TRANSACTION_START_FAILED"
         try:

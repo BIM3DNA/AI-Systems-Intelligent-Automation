@@ -16,6 +16,7 @@ from bimcode_ai_pane.ai_tool import Coordinator
 from bimcode_ai_pane.session_write_gate import SessionWriteGate, read_document
 from bimcode_ai_pane.write_access import admission_for
 from bimcode_ai_pane.write_contracts import M4A_TEST_PARAMETER_GUID
+from bimcode_ai_pane.provider_write_session import SessionWrites
 
 
 def pane_id():
@@ -89,6 +90,7 @@ class PaneSession(object):
         self.selection_generation = 0
         self.disposed = False
         self.write_gate = SessionWriteGate(admission_for(self))
+        self.controlled_writes = SessionWrites(self)
         self.panel.bind_write_gate(self.request_write_enable, self.disable_writes, self.on_pane_unloaded)
         self.ai = Coordinator(self)
         self.panel.bind_ai(self.ai)
@@ -105,6 +107,15 @@ class PaneSession(object):
             raise
         self.show_pending = True
         self._subscriptions = []
+
+    def begin_controlled_write_request(self, value):
+        return self.controlled_writes.begin(value)
+
+    def confirm_controlled_write_request(self, host_request_id):
+        return self.controlled_writes.confirm(host_request_id)
+
+    def inspect_controlled_write_request(self):
+        return self.controlled_writes.inspect()
 
     def subscribe(self):
         if self._subscriptions:
