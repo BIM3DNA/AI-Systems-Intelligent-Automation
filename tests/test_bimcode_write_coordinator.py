@@ -1,5 +1,6 @@
 """Host-only confirmation/event admission tests using fake APIs."""
 import importlib
+import json
 import sys
 from types import SimpleNamespace as N
 import unittest
@@ -7,6 +8,7 @@ from unittest.mock import Mock, patch
 import test_bimcode_write_runtime as fixtures
 import test_bimcode_ai_pane as pane_tests
 import bimcode_write_runtime as runtime
+import test_bimcode_write_execution as execution_fixture
 
 
 class Coordination(unittest.TestCase):
@@ -145,3 +147,103 @@ class Coordination(unittest.TestCase):
         self.session.write_busy = True
         coordinator = Coordinator(self.session)
         self.assertFalse(coordinator.begin("provider-request"))
+
+
+class HostWriteIntegration(unittest.TestCase):
+    """Durable GATE-10 contracts: delayed event, real executor, fake DB only."""
+    def setUp(self):
+        self.c = Coordination()
+        self.c.setUp()
+        self.addCleanup(self.c.tearDown)
+        self.e = execution_fixture.Execution()
+        self.e.setUp()
+        self.c.f = self.e.f
+        self.c.m.DB = self.e.f.db
+        self.c.m.framework.Guid.Parse = lambda value: self.e.f.guid
+        self.c.preview.clear()
+        self.c.preview.update(self.e.preview)
+        self.c.dialog.Show.return_value = "Confirm"
+        ids = patch.object(self.c.m, "uuid4", return_value=N(hex="rid"))
+        ids.start()
+        self.addCleanup(ids.stop)
+
+    def receipt(self):
+        return json.loads(self.c.owner.completion_sink.receipt.receipt.json)
+
+    def assert_no_write(self, reason):
+        result = self.receipt()
+        self.assertEqual(result["reason_code"], reason)
+        for key in ("transaction_started", "transaction_committed", "model_modified"):
+            self.assertIs(result[key], False)
+        self.e.f.db.Transaction.assert_not_called()
+        self.e.f.parameter.Set.assert_not_called()
+        self.assertIsNone(self.c.owner.pending)
+        self.assertIsNone(self.c.owner.admission.active)
+        self.assertFalse(self.c.session.write_busy)
+
+    def test_accepted_later_handler_commits_without_callback(self):
+        self.c.invoke()
+        self.assertEqual(self.c.owner.owner.owner_type, "HUMAN_DEV_WRITE")
+        self.assertIsNone(self.c.owner.completion_sink.callback)
+        self.assertIsNotNone(self.c.owner.pending)
+        self.e.f.db.Transaction.assert_not_called()
+        self.c.owner.handler.Execute(self.e.f.app)
+        result = self.receipt()
+        self.assertEqual(result["reason_code"], "COMPLETE")
+        self.assertTrue(result["transaction_committed"])
+        self.assertTrue(result["verification_passed"])
+        self.assertEqual(result["final_value"], "M4A_Write_01")
+        frozen = self.c.owner.completion_sink.receipt
+        with self.assertRaises(AttributeError):
+            frozen.host_request_id = "changed"
+        self.assertTrue(self.c.owner.completion_sink.delivered)
+        self.assertIsNone(self.c.owner.admission.active)
+        self.assertFalse(self.c.session.write_busy)
+        self.c.owner.handler.Execute(self.e.f.app)
+        self.e.tx.Commit.assert_called_once()
+        self.e.f.parameter.Set.assert_called_once_with("M4A_Write_01")
+        self.e.tx.RollBack.assert_not_called()
+        self.assertEqual(self.c.output.print_html.call_count, 2)
+
+    def test_expiry_during_confirmation_never_enqueues(self):
+        def slow_confirm():
+            self.c.m.clock.return_value = 71
+            return "Confirm"
+        self.c.dialog.Show.side_effect = slow_confirm
+        self.c.invoke()
+        self.c.event.Raise.assert_not_called()
+        self.assert_no_write("CONFIRMATION_EXPIRED")
+
+    def test_expiry_while_queued_rejects_before_transaction(self):
+        self.c.invoke()
+        with patch.object(self.c.m, "clock", return_value=71):
+            self.c.owner.handler.Execute(self.e.f.app)
+        self.assert_no_write("CONFIRMATION_EXPIRED")
+
+    def test_nonaccepted_event_preserves_failure_receipt(self):
+        for status in ("Pending", "Denied"):
+            with self.subTest(status=status):
+                self.c.event.Raise.return_value = status
+                self.c.invoke()
+                self.assertEqual(self.receipt()["classification"], "MEP_PARAMETER_WRITE_FAILED")
+                self.assert_no_write("EXTERNAL_EVENT_NOT_ACCEPTED")
+                self.c.owner.handler.Execute(self.e.f.app)
+                self.e.tx.Start.assert_not_called()
+
+    def test_output_failure_preserves_authoritative_committed_receipt(self):
+        self.c.invoke()
+        self.c.output.print_html.side_effect = RuntimeError("output unavailable")
+        # Preserve existing output exception behavior; do not repair production here.
+        with self.assertRaises(RuntimeError):
+            self.c.owner.handler.Execute(self.e.f.app)
+        result = self.receipt()
+        self.assertEqual(result["classification"], "MEP_PARAMETER_WRITE_OK")
+        self.assertEqual(result["reason_code"], "COMPLETE")
+        self.assertTrue(result["transaction_committed"])
+        self.assertTrue(result["verification_passed"])
+        self.assertEqual(self.e.value, "M4A_Write_01")
+        self.e.tx.Commit.assert_called_once()
+        self.e.tx.RollBack.assert_not_called()
+        self.assertTrue(self.c.owner.completion_sink.delivered)
+        self.assertIsNone(self.c.owner.admission.active)
+        self.assertFalse(self.c.session.write_busy)
