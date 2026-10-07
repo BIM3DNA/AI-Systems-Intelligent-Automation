@@ -1,5 +1,40 @@
 # PROJECT STATE
 
+## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
+
+M4A-DIAG-001: REMOVED / SOURCE-CONTROL CLOSED.
+GATE-10 diagnostic episode: SOURCE-CONTROL CLOSED.
+Cleanup committed and pushed: 335a66746bdcec01e56fbb16ebcd83197b508112.
+Parent: bb13d09ace4244f6bb162b7ff24f9d3ede65a1e3.
+Subject: test(bimcode): close M4A diagnostic regression coverage.
+Scope: six files, 131 insertions, 596 deletions.
+
+Temporary diagnostics are removed; intended pre-diagnostic production source
+restored, with five durable GATE-10 integration tests retained. Full closure
+validation: 536 Python PASS; detailed counts in evidence_reference.md, October 7.
+LIVE RETEST NOT REQUIRED FOR CLEANUP; prior expiry, GATE-10C write and GATE-10D
+native Undo PASS evidence remains authoritative, not rerun.
+
+M4B visible session gate: IMPLEMENTED / STATIC PASS / LIVE PASS.
+M4A backward compatibility: LIVE VALIDATED / PASS.
+M4A execution regression: NOT DEMONSTRATED.
+Issue: RESOLVED / NO PRODUCT DEFECT DEMONSTRATED.
+Provider: 13 active read-only tools, one dormant write definition, zero exposed
+writes; dispatch NOT IMPLEMENTED / NOT AVAILABLE; OpenAI-triggered mutation
+NOT AVAILABLE. M4B overall: IN PROGRESS / NOT CLOSED.
+
+Next engineering phase: PROVIDER-TO-HOST CONTROLLED-WRITE DISPATCH AND GATED
+TOOL EXPOSURE. This phase has NOT started through diagnostic cleanup.
+Verified documentation-task baseline: main HEAD = origin/main = live remote main
+at the cleanup SHA; ahead/behind 0/0; clean. This new reconciliation is
+UNCOMMITTED / UNPUSHED. No runtime/test edits or live/API runs.
+October 7 actual hours and EV-AI / Daily Log / KC IDs: PENDING, none allocated.
+October 6's eight hours remain recorded once; no additional hours inferred.
+
+This entry supersedes diagnostic-removal/source-control next actions below;
+all earlier dated evidence is preserved as historical, not rewritten.
+
+
 ## 2026-10-06 - GATE-10 resolved; session-gate live acceptance (authoritative current)
 
 BIMCODE-REVIT-AI-PANE-001 / M4B remains IN PROGRESS / NOT CLOSED.

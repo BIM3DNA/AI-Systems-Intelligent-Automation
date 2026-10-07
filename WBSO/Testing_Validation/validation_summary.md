@@ -1,5 +1,36 @@
 # Validation Summary
 
+## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
+
+M4A-DIAG-001: REMOVED / SOURCE-CONTROL CLOSED.
+GATE-10 diagnostic episode: SOURCE-CONTROL CLOSED.
+Cleanup commit 335a66746bdcec01e56fbb16ebcd83197b508112, parent
+bb13d09ace4244f6bb162b7ff24f9d3ede65a1e3; six files, +131/-596.
+Production files restored to pre-diagnostic source, strict lifecycle comparison
+restored, diagnostic helper/test removed, five durable integration tests retained.
+
+Recorded fresh cleanup-closure validation (not rerun in this documentation task):
+536 Python; 79 focused M4A; 5 GATE-10; 18 admission/callback; 58 lifecycle/gate;
+24 continuation; 25 leases; 32 registry separation, all PASS.
+Native write: 78 assertions / 18 compile checks PASS.
+Native provider: 74 probes / 9 compile checks PASS.
+AST/py_compile/tabnanny: 54 files PASS. Native XAML/WPF/theme/Find PASS.
+Dependency and whitespace PASS. Credential scan: 153 text files, two unchanged
+prompt-ID false positives, no credential finding. Subsuite counts overlap.
+
+Mutation audit: executor one Transaction/one Set; provisioning unchanged;
+preview/gate zero Transaction/Set. M4A60/M4B120/30 timing unchanged.
+Provider13 read-only/one dormant/zero exposed writes; dispatcher NOT IMPLEMENTED;
+OpenAI-triggered mutation NOT AVAILABLE. Catalog237. No production diagnostics.
+LIVE RETEST NOT REQUIRED FOR CLEANUP; earlier expiry/write/Undo PASS retained,
+not rerun. No M4A execution regression demonstrated. Gate and backward
+compatibility LIVE PASS; M4B NOT CLOSED. Full evidence: evidence_reference.md.
+October 7 actual hours/IDs PENDING; October 6 hours not duplicated.
+
+This entry supersedes diagnostic-removal/source-control next actions below;
+all earlier dated evidence is preserved as historical, not rewritten.
+
+
 ## 2026-10-06 - GATE-10 resolved; bounded live acceptance PASS
 
 RESOLVED / NO PRODUCT DEFECT DEMONSTRATED. NO M4A EXECUTION REGRESSION DEMONSTRATED.

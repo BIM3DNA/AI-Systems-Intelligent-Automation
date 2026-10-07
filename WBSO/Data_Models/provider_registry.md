@@ -1,5 +1,23 @@
 # Provider Registry
 
+## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
+
+M4A-DIAG-001 is REMOVED / SOURCE-CONTROL CLOSED at
+335a66746bdcec01e56fbb16ebcd83197b508112. GATE-10 diagnostic episode is closed.
+No provider implementation changed in cleanup or this reconciliation.
+Thirteen active read-only tools, one dormant controlled-write definition,
+zero exposed controlled-write tools. Dispatch: NOT IMPLEMENTED / NOT AVAILABLE.
+OpenAI-triggered Revit mutation: NOT AVAILABLE.
+M4B visible session gate: IMPLEMENTED / STATIC PASS / LIVE PASS.
+M4A backward compatibility: LIVE PASS. M4B overall: NOT CLOSED.
+Next phase: PROVIDER-TO-HOST CONTROLLED-WRITE DISPATCH AND GATED TOOL EXPOSURE;
+NOT started by closing the diagnostic episode. Evidence and validation counts:
+Technical_Notes/evidence_reference.md, October 7.
+
+This entry supersedes diagnostic-removal/source-control next actions below;
+all earlier dated evidence is preserved as historical, not rewritten.
+
+
 ## 2026-10-06 - Session-gate acceptance resolution (authoritative current)
 
 Supersedes current-state acceptance claims in the preserved October 5 section.

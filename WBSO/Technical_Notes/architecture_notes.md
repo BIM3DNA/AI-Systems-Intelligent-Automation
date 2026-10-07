@@ -1,5 +1,35 @@
 # Architecture Notes
 
+## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
+
+Cleanup 335a66746bdcec01e56fbb16ebcd83197b508112 removed temporary JSONL writes,
+imports, markers, exception logging, write_diagnostic.py and its test module.
+The lifecycle test again uses strict source comparison. Both production files
+match the intended pre-diagnostic parent after line-ending normalization;
+legitimate M4B ownership/completion/lifecycle changes remain intact.
+
+Executor: exactly one DB.Transaction constructor and one Parameter.Set.
+Separate provisioning transaction unchanged. Preview and session gate:
+zero transaction / Set. M4A approval remains 60 seconds, starting before input.
+M4B preview/queue leases remain 120/30 seconds. No timing change was required.
+Five durable coordinator tests replace instrumentation-specific observations:
+no-callback delayed execution through the real executor/fake DB, commit/reread/
+immutable completion/owner release; pre-enqueue expiry; queued expiry;
+non-accepted event; output failure preserving authoritative committed receipt.
+No test depends on JSONL or diagnostic markers.
+
+M4A-DIAG-001 and GATE-10 diagnostic episode: SOURCE-CONTROL CLOSED.
+LIVE RETEST NOT REQUIRED FOR CLEANUP: source restoration plus full offline/native
+regression PASS, without invalidating prior live expiry/write/Undo evidence.
+Provider remains 13 read-only / one dormant definition / zero exposed writes,
+no dispatcher or OpenAI-triggered mutation. M4B NOT CLOSED.
+Future provider-to-host dispatch/gated exposure is NOT started by this cleanup.
+KC ID and October 7 hours: PENDING; detailed provenance in evidence_reference.md.
+
+This entry supersedes diagnostic-removal/source-control next actions below;
+all earlier dated evidence is preserved as historical, not rewritten.
+
+
 ## 2026-10-06 - Controlled-write timing knowledge and GATE-10 resolution
 
 Current acceptance supersedes the preserved October 5 investigation below.

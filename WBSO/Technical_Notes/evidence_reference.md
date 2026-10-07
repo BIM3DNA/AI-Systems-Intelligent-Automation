@@ -1,5 +1,99 @@
 # Evidence Reference
 
+## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
+
+M4A-DIAG-001: REMOVED / SOURCE-CONTROL CLOSED.
+GATE-10 diagnostic episode: SOURCE-CONTROL CLOSED.
+Cleanup commit: 335a66746bdcec01e56fbb16ebcd83197b508112.
+Parent: bb13d09ace4244f6bb162b7ff24f9d3ede65a1e3.
+Subject: test(bimcode): close M4A diagnostic regression coverage.
+Scope: six files, 131 insertions, 596 deletions.
+Verified reconciliation start: main HEAD = origin/main = live remote main at
+the cleanup commit, ahead/behind 0/0, clean; staged/modified/untracked none.
+The parent had committed diagnostics and October 6 documentation together.
+Earlier UNCOMMITTED / REMOVAL PENDING statements describe their historical
+checkpoint only. This October 7 reconciliation is UNCOMMITTED / UNPUSHED.
+
+Cleanup committed paths:
+
+- AI.extension/lib/bimcode_ai_pane/write_coordinator.py (+22/-90)
+- AI.extension/lib/bimcode_ai_pane/write_diagnostic.py (deleted, -126)
+- AI.extension/lib/bimcode_write_execution.py (+6/-54)
+- tests/test_bimcode_write_coordinator.py (+102/-0)
+- tests/test_bimcode_write_diagnostic.py (deleted, -316)
+- tests/test_bimcode_write_lifecycle.py (+1/-10)
+
+Temporary JSONL writes/imports/markers/exception logging and helper were removed.
+Instrumentation-only tests and lifecycle diagnostic-specific comparison exception
+were removed. Runtime matches intended pre-diagnostic source at
+0853b9a496808dabd1b4680d6803acc8eaee3745 after LF/CRLF normalization,
+preserving legitimate M4B changes. No provider implementation was added.
+
+Five durable GATE-10 integration tests in tests/test_bimcode_write_coordinator.py:
+
+1. HUMAN_DEV_WRITE without callback: accepted enqueue, delayed handler, real
+   executor/fake DB, commit, GUID reread verification, immutable completion,
+   owner release and no duplicate write.
+2. Confirmation expiry before enqueue.
+3. Confirmation expiry while queued.
+4. Non-accepted ExternalEvent deterministic failure.
+5. Output failure preserving authoritative committed receipt.
+
+No JSONL/diagnostic marker/helper dependency remains in these tests.
+
+Fresh cleanup-closure validation, recorded here from the preceding closure run
+and supplied reconciliation request; NOT rerun by this documentation task:
+
+| Check | PASS count |
+| --- | --- |
+| Full Python suite | 536 |
+| Focused M4A | 79 |
+| Durable GATE-10 integration | 5 |
+| Admission/callback | 18 |
+| Lifecycle/session gate | 58 |
+| Continuation | 24 |
+| Leases | 25 |
+| Registry separation | 32 |
+| Native write assertions / compile checks | 78 / 18 |
+| Native provider probes / compile checks | 74 / 9 |
+| AST / py_compile / tabnanny files | 54 |
+
+Subsuite counts overlap the full Python suite. Native XAML/WPF/theme/Find,
+dependency and whitespace checks PASS. Credential-pattern scan reviewed 153
+text files; two unchanged ask- prompt-ID false positives, no credential finding.
+No environment-file contents read; pattern checks are not exhaustive secret proof.
+
+Architecture audit: executor exactly one DB.Transaction constructor and one
+Parameter.Set; separate provisioning transaction unchanged. Preview and session
+gate zero transaction/Set. Human M4A approval 60 seconds unchanged; provider
+preview 120/queue 30 seconds unchanged. Catalog 237. Production diagnostic imports,
+markers and JSONL references NONE. Temp diagnostic JSONL was absent at cleanup.
+Provider: 13 active read-only tools, one dormant controlled-write definition,
+zero exposed writes; dispatch NOT IMPLEMENTED / NOT AVAILABLE.
+OpenAI-triggered Revit mutation NOT AVAILABLE.
+
+LIVE RETEST NOT REQUIRED FOR CLEANUP: production semantics restored and durable
+offline/native regressions PASS. Prior live confirmation-expiry PASS, GATE-10C
+changed-value write PASS and GATE-10D native Undo PASS remain authoritative,
+NOT rerun. Earlier receipt-missing observations are not assigned reason codes.
+M4A execution regression NOT DEMONSTRATED; issue RESOLVED / NO PRODUCT DEFECT
+DEMONSTRATED. Diagnostic episode technically resolved and source-control closed.
+M4B gate IMPLEMENTED / STATIC PASS / LIVE PASS; M4A backward compatibility LIVE PASS.
+M4B overall NOT CLOSED. Next engineering phase: PROVIDER-TO-HOST CONTROLLED-WRITE
+DISPATCH AND GATED TOOL EXPOSURE, NOT started by diagnostic closure.
+
+October 7 actual hours: PENDING, no supplied numeric value. EV-AI / Daily Log /
+KC IDs: PENDING; no unambiguous local allocation established. None allocated.
+October 6's eight hours remain a single historical daily total, not duplicated.
+Existing experiment_log.csv is retained unchanged: no new live experiment here.
+This task changes only existing project-local Markdown records, no runtime/tests,
+provider/XAML/catalog/configuration/dependency files, Revit/API runs or Git writes
+to staging/commit/remote.
+
+This entry supersedes diagnostic-removal/source-control next actions below;
+all earlier dated evidence is preserved as historical, not rewritten.
+
+
 ## 2026-10-06 - Live diagnosis and GATE-10 resolution (authoritative current)
 
 RESOLVED 2026-10-06. Session-gate live matrix and M4A backward compatibility:

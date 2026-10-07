@@ -1,5 +1,33 @@
 # Test Plan
 
+## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
+
+Cleanup commit 335a66746bdcec01e56fbb16ebcd83197b508112 closes M4A-DIAG-001
+and the GATE-10 diagnostic episode. Five durable integration tests in
+tests/test_bimcode_write_coordinator.py remain:
+
+1. No-callback HUMAN_DEV_WRITE, accepted enqueue, later handler, real executor
+   with fake DB, commit, reread verification, immutable completion, owner release.
+2. Confirmation expiry before enqueue, without mutation.
+3. Confirmation expiry while queued, before transaction.
+4. Rejected/non-accepted ExternalEvent with deterministic failure.
+5. Output failure preserving the authoritative committed receipt.
+
+These are production-contract tests, independent of JSONL/markers/helper.
+Full Python 536 PASS; focused M4A79, GATE-10 integration5, admission18,
+lifecycle/gate58, continuation24, leases25, registry32 PASS. Native/syntax counts
+and source-control provenance are in evidence_reference.md, October 7.
+LIVE RETEST NOT REQUIRED FOR CLEANUP: pre-diagnostic production source restored
+and full offline/native regressions passed. Existing confirmation-expiry,
+LIVE-M4B-GATE-10C write and LIVE-M4B-GATE-10D Undo remain PASS; NOT rerun.
+Session gate and M4A backward compatibility LIVE PASS; M4B NOT CLOSED.
+Provider-facing dispatch/gated-exposure phase and its live matrix remain separate
+and are NOT started by cleanup. Zero exposed writes; no provider dispatcher.
+
+This entry supersedes diagnostic-removal/source-control next actions below;
+all earlier dated evidence is preserved as historical, not rewritten.
+
+
 ## 2026-10-06 - Final session-gate/M4A regression live matrix
 
 User-supplied controlled results; no live tests rerun by this documentation task.

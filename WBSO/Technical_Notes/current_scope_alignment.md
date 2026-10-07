@@ -1,5 +1,27 @@
 # Current Scope Alignment
 
+## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
+
+M4A-DIAG-001: REMOVED / SOURCE-CONTROL CLOSED.
+GATE-10 diagnostic episode: technically resolved and SOURCE-CONTROL CLOSED.
+Cleanup checkpoint: 335a66746bdcec01e56fbb16ebcd83197b508112.
+M4B visible session gate: IMPLEMENTED / STATIC PASS / LIVE PASS.
+M4A backward compatibility: LIVE PASS. No execution regression demonstrated.
+LIVE RETEST NOT REQUIRED FOR CLEANUP; prior expiry, GATE-10C and GATE-10D
+remain PASS, not rerun. Earlier coverage gaps and receipt-missing facts remain.
+
+M4B overall: NOT CLOSED. Provider exposure: zero; 13 read-only tools and one
+dormant write definition. Dispatch NOT IMPLEMENTED / NOT AVAILABLE.
+OpenAI-triggered Revit mutation NOT AVAILABLE.
+Next engineering phase: PROVIDER-TO-HOST CONTROLLED-WRITE DISPATCH AND GATED TOOL
+EXPOSURE. It has NOT started merely because cleanup closed.
+This reconciliation changes documentation only, not runtime/tests or safety
+boundaries. October 7 hours/IDs PENDING; October 6 eight hours not duplicated.
+
+This entry supersedes diagnostic-removal/source-control next actions below;
+all earlier dated evidence is preserved as historical, not rewritten.
+
+
 ## 2026-10-06 - Session-gate live scope accepted; provider phase remains open
 
 This dated resolution supersedes current acceptance in the October 5 history below.

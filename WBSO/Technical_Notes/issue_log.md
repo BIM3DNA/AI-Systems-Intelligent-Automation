@@ -1,5 +1,26 @@
 # Issue Log
 
+## 2026-10-07 - Diagnostic cleanup source-control reconciliation (authoritative current)
+
+M4A execution regression: NOT DEMONSTRATED.
+Disposition remains RESOLVED / NO PRODUCT DEFECT DEMONSTRATED.
+M4A-DIAG-001: REMOVED / SOURCE-CONTROL CLOSED.
+GATE-10 diagnostic episode is now technically resolved and source-control closed
+in 335a66746bdcec01e56fbb16ebcd83197b508112, following passed cleanup regressions.
+Temporary instrumentation and instrumentation-only tests were removed; five
+durable production-contract tests remain, including output-failure receipt truth.
+Earlier WRITE_02/03 receipt-missing observations remain historical with UNKNOWN
+exact causes; no retrospective reason codes assigned. The stdout concern remains
+unproven, not a newly confirmed product defect.
+Prior expiry/GATE-10C/GATE-10D PASS remains authoritative; no live rerun.
+LIVE RETEST NOT REQUIRED FOR CLEANUP. M4B overall remains NOT CLOSED;
+provider exposure zero and dispatch NOT IMPLEMENTED. Details: evidence_reference.md.
+October 7 hours/IDs PENDING; no duplicate October 6 hours.
+
+This entry supersedes diagnostic-removal/source-control next actions below;
+all earlier dated evidence is preserved as historical, not rewritten.
+
+
 ## 2026-10-06 - RESOLVED: October 5 GATE-10C investigation
 
 Disposition: RESOLVED / NO PRODUCT DEFECT DEMONSTRATED.
