@@ -91,12 +91,12 @@ class Dispatcher(object):
                     receipt = projection.from_preview(preview)
                 self._move("HOST_RESULT_READY", reason, receipt)
             self._move("EXPIRED" if self.request.terminal_intent == "EXPIRED" else "COMPLETED", reason)
-        self.leases.invalidate("ABANDONED")
+        self.leases.invalidate("REQUEST_FINALIZED")
         if self.lifecycle is not None:
             gate = self.session.write_gate
             if gate.lifecycle is self.lifecycle:
                 if gate.permission.generation == self.lifecycle.permission_generation:
-                    self.lifecycle.cleanup("CONTINUATION_TERMINAL", self.request)
+                    self.lifecycle.finalize(self.request)
                 else:
                     # Permission was independently revoked. Never disable a newer
                     # permission or release anyone else's owner during late cleanup.
@@ -105,6 +105,10 @@ class Dispatcher(object):
                 gate.lifecycle, gate.request = None, None
         elif self.owner is not None:
             self.admission.release(self.owner, reason)
+        try:
+            self.session.render_write_gate()
+        except Exception:
+            pass  # Host receipt/admission safety must survive pane disposal.
         return self._out(False, reason)
 
     def dispatch(self, uiapp, call, previous_response_id):
@@ -169,8 +173,10 @@ class Dispatcher(object):
             document, facts = read_document(uiapp, db, guid)
             eligible = document_eligibility(facts)
             if not eligible["eligible"]:
+                gate.observe(document, facts)
                 return self._finish(eligible["reason_code"])
             if document != self.identity.document_id:
+                gate.observe(document, facts)
                 return self._finish("CORRELATION_MISMATCH")
             self.owner = self.admission.acquire("CONTROLLED_WRITE_PROVIDER_TOOL",
                 self.identity.logical_request_id, self.identity.host_request_id, document,
@@ -256,7 +262,10 @@ class Dispatcher(object):
                     self.request = expired_request(self.request, self.leases)
                 return self._finish(checked.reason)
             document, facts = read_document(uiapp, db, guid)
-            if document != self.identity.document_id or not document_eligibility(facts)["eligible"] or self._epochs() != self.epochs:
+            if document != self.identity.document_id or not document_eligibility(facts)["eligible"]:
+                gate.observe(document, facts)
+                return self._finish("PREVIEW_LEASE_INVALIDATED")
+            if self._epochs() != self.epochs:
                 return self._finish("PREVIEW_LEASE_INVALIDATED")
             preview = _preview(uiapp, self.identity.host_request_id, self.identity.value,
                                self.epochs[1], db, guid)

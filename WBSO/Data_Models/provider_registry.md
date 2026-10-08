@@ -1,5 +1,30 @@
 # Provider Registry
 
+## 2026-10-08 EOD - Internal host live acceptance; provider boundary unchanged
+
+Authoritative current checkpoint; preceding dated records remain historical.
+13 active read-only tools / one dormant controlled-write definition / zero exposed
+controlled-write tools. set_selected_pipe_test_text remains unavailable to OpenAI.
+Provider continuation UNWIRED; catalog237; OpenAI-triggered mutation NOT AVAILABLE.
+No provider/network call participated in the October 8 tests: the temporary human
+Dev harness exercised session-owned preview, native confirmation and host execution.
+
+DISPATCH-001 committed/pushed/static PASS. DISPATCH-002 host Confirm/commit/GUID
+verification/Properties/Undo LIVE PASS; 002A session API LIVE PASS after restart.
+Original missing-method live cause remains unproven; stale-session hypothesis supported.
+002C normal-finalization correction STATIC PASS / LIVE PASS: session permission
+survives success and deterministic Cancel/expiry; explicit invalidation still revokes it.
+No permission auto-enable, lease renewal, provider exposure or continuation wiring.
+LIVE-M4B-PERM-01 request 1d1efd5815bd496f8dbe22a3c7b3355d PASS;
+LIVE-M4B-HOST-01R request ba462ef863a346f5bd53d4c8128ad51d Cancel FUNCTIONAL PASS.
+Independent post-Cancel Properties observation remains PENDING.
+
+Verified main HEAD/origin 61ddb86af0cbfa2cd2edb23f089326b914f87040, 0/0;
+earlier implementation/harness and October 7 WBSO committed there. Current 002C
+correction/test delta and this documentation are uncommitted. M4B NOT CLOSED.
+Temporary harness retained for acceptance review, not promoted to provider registry.
+October 8 hours PENDING USER CONFIRMATION; Evidence/Daily Log/KC IDs PENDING.
+
 ## 2026-10-07 EOD - Internal dispatch checkpoint; production exposure unchanged
 
 Current authority supersedes earlier dispatch-not-started wording below.

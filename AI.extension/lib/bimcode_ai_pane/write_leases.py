@@ -21,7 +21,7 @@ REASONS = ("PREVIEW_LEASE_EXPIRED", "PREVIEW_LEASE_INVALIDATED", "EXECUTION_QUEU
 INVALIDATIONS = ("DOCUMENT_SWITCH", "DOCUMENT_CLOSE", "PANE_DISPOSAL", "SHUTDOWN", "OWNER_MISMATCH",
                  "SELECTION_CHANGED", "DOCUMENT_IDENTITY_CHANGED", "SESSION_IDENTITY_CHANGED", "TARGET_CHANGED",
                  "PARAMETER_CHANGED", "BEFORE_VALUE_CHANGED", "EPOCH_CHANGED", "USER_CANCEL", "ABANDONED",
-                 "CONTINUATION_TERMINAL")
+                 "CONTINUATION_TERMINAL", "REQUEST_FINALIZED")
 Binding = namedtuple("Binding", "logical_request_id host_request_id owner document_id session_id selection_fingerprint "
                      "target_element_id target_unique_id parameter_guid before_has_value before_value proposed_value model_epoch write_epoch")
 Lease = namedtuple("Lease", "kind state binding created_at expires_at created_utc checked_at checked_utc "

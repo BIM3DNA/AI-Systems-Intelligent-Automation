@@ -42,6 +42,19 @@ class Harness(unittest.TestCase):
         self.session.begin_controlled_write_request.assert_called_once_with('M4B_HOST_WRITE_01')
         self.session.confirm_controlled_write_request.assert_called_once_with('host')
 
+    def test_missing_inspection_api_stops_before_new_request(self):
+        del self.session.inspect_controlled_write_request
+        self.forms.CommandSwitchWindow.show.return_value=self.m.NEW
+        pyrevit=N(HOST_APP=N(uiapp=None),DB=None,forms=self.forms,script=N(get_output=lambda:self.output))
+        with patch.dict(sys.modules,{'pyrevit':pyrevit,'pyrevit.coreutils':N(envvars=N(get_pyrevit_env_var=lambda k:self.session))}):
+            with self.assertRaises(AttributeError):
+                self.m.main()
+        self.assertIn('HARNESS_ERROR',self.output.print_html.call_args[0][0])
+        self.session.begin_controlled_write_request.assert_not_called()
+        self.session.confirm_controlled_write_request.assert_not_called()
+        self.forms.ask_for_string.assert_not_called()
+        self.capture_preview_context.assert_not_called()
+
     def test_permission_disabled(self):
         self.session.inspect_controlled_write_request.return_value='{"permission_enabled":false,"busy":false}'
         self.assertEqual(self.run_new()['reason'],'PERMISSION_DISABLED')

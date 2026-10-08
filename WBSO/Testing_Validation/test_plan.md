@@ -1,5 +1,40 @@
 # Test Plan
 
+## 2026-10-08 EOD - Host acceptance disposition and remaining verification
+
+Current matrix supersedes earlier pending retests; historical instructions remain below.
+All live observations are user supplied; no Revit/API or implementation tests rerun here.
+
+| Case / request | Current disposition |
+| --- | --- |
+| Session API after full restart | LIVE PASS; busy=false, permission=false, NO_RETAINED_HARNESS_REQUEST |
+| fe30e1a8a54640d1a6442da46d64686c | Native Confirm/commit/GUID verification/Properties/Undo PASS; NOT Cancel |
+| LIVE-M4B-PERM-01 / 1d1efd5815bd496f8dbe22a3c7b3355d | PASS; M4A_Write_01 -> M4B_PERM_01, permission and pane enabled, busy=false |
+| LIVE-M4B-HOST-01R / ba462ef863a346f5bd53d4c8128ad51d | Cancel FUNCTIONAL PASS; fresh request without re-enable, USER_CANCELLED, no transaction/mutation in receipt |
+| Independent Properties after final Cancel | PENDING; do not infer PASS from host receipt |
+
+Final Cancel proposed M4B_HOST_CANCEL_03 from M4B_PERM_01; state CANCELLED,
+permission_enabled=true, busy=false; repeat inspection stable. No final value was
+read by the cancellation receipt (final_value=null). Next observation: independently
+inspect BIMCode_M4A_TestText on Project2/Pipe353871 and report its actual value.
+Expected unchanged M4B_PERM_01, but record only the supplied observation; no new
+write, repeated confirmation or inferred evidence is needed for that check.
+
+Missing-method stale-session hypothesis supported, not proven; API recovered after
+restart. Permission divergence was independently root-caused/reproduced and corrected
+by normal finalization versus explicit invalidation. 002C STATIC PASS / LIVE PASS;
+659 Python, 78 native write, 74 provider, 76 cross-engine, 40 syntax files, four
+modified runtime IronPython modules PASS are historical implementation results.
+Complete counts and receipts: ../Technical_Notes/evidence_reference.md, October 8.
+
+Next engineering checkpoint reviews accumulated implementation/test scope, keeps
+durable coverage, decides when to remove temporary M4B Host Test and obtains review/
+source-control authorization. Do not remove harness or mark M4B complete here.
+Provider13/1/0; continuation UNWIRED; catalog237; M4A60/M4B120/30 unchanged.
+main HEAD/origin61ddb86af0cbfa2cd2edb23f089326b914f87040; correction/test delta
+and this EOD documentation uncommitted. M4B IN PROGRESS / NOT CLOSED.
+October 8 hours PENDING USER CONFIRMATION; Evidence/Daily Log/KC IDs PENDING.
+
 ## 2026-10-07 EOD - LIVE-M4B-HOST-01R Cancel retest gate
 
 Current authority; preserve all earlier matrices as historical evidence.

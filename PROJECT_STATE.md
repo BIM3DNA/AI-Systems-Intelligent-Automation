@@ -1,5 +1,50 @@
 # PROJECT STATE
 
+## 2026-10-08 EOD - M4B host acceptance and permission lifecycle (current)
+
+M4B: IN PROGRESS / NOT CLOSED. This dated checkpoint supersedes earlier pending
+live/source-control statements without rewriting their historical evidence.
+Session API access: LIVE PASS AFTER FULL REVIT RESTART. Stale pre-002A session
+hypothesis: SUPPORTED BUT NOT CONCLUSIVELY PROVEN; no production API fix justified.
+DISPATCH-001: COMMITTED / PUSHED / STATIC PASS (000c9ec13f87be805fcaa64a5bdaeed9bc865518).
+DISPATCH-002: IMPLEMENTED / STATIC PASS / LIVE HOST EXECUTION PASS.
+DISPATCH-002A: CROSS-ENGINE CORRECTION / STATIC PASS; live session path exercised.
+DISPATCH-002C: PERMISSION LIFECYCLE CORRECTION / STATIC PASS / LIVE PASS;
+current correction/regression changes remain UNCOMMITTED / UNPUSHED.
+
+Git verified at this documentation-task start: main HEAD = origin/main =
+61ddb86af0cbfa2cd2edb23f089326b914f87040, subject updated project WBSO...,
+parent 000c9ec13f87be805fcaa64a5bdaeed9bc865518; ahead/behind 0/0; nothing staged.
+That combined commit includes the earlier DISPATCH-002/002A/harness implementation
+and October 7 documentation; their earlier uncommitted wording is historical.
+Pre-existing current delta: eight modified tracked paths plus one untracked test,
+nine paths / +409/-26 including the untracked file. Preserved by this docs task.
+
+Project2 / Pipe353871: native Confirm, transaction commit, GUID verification,
+Properties confirmation and one native Undo LIVE PASS (request fe30e1a8a54640d1a6442da46d64686c).
+M4B_HOST_CANCEL_02 was CONFIRMED by the human, not a Cancel test; Undo restored M4A_Write_01.
+Permission divergence root cause identified: successful completion used ABANDONED
+cleanup, revoking session permission without repainting the pane. Dispatcher failed closed.
+002C separates normal finalization from session invalidation; no auto-enable/approval renewal.
+LIVE-M4B-PERM-01 PASS: request 1d1efd5815bd496f8dbe22a3c7b3355d wrote M4B_PERM_01;
+authoritative permission and pane stayed enabled, busy false, Properties confirmed.
+LIVE-M4B-HOST-01R FUNCTIONAL PASS: fresh request ba462ef863a346f5bd53d4c8128ad51d,
+without re-enable, proposed M4B_HOST_CANCEL_03; native Cancel, CANCELLED / USER_CANCELLED,
+no transaction/mutation in receipt; permission remained enabled; repeated inspection stable.
+Independent post-Cancel Properties verification: PENDING, not claimed PASS.
+
+Recorded implementation validation, not rerun here: Python659 PASS; native write78,
+provider74, cross-engine76 assertions PASS; full counts/evidence in evidence_reference.md.
+M4A60 / M4B120/30 seconds unchanged; executor one transaction constructor/one Set.
+Provider13 read-only / one dormant / zero exposed writes; continuation UNWIRED;
+catalog237; OpenAI-triggered mutation NOT AVAILABLE. Live tests used internal Dev harness.
+Temporary M4B Host Test remains acceptance infrastructure, not a production tool or
+source-control-closed acceptance package. No removal authorized by this checkpoint.
+Next: obtain independent post-Cancel Properties observation, review accumulated scope
+and durable regressions, decide harness retirement, then seek checkpoint authorization.
+October 8 hours: PENDING USER CONFIRMATION; Evidence/Daily Log/KC IDs PENDING.
+This documentation update is UNCOMMITTED / UNPUSHED. No Revit/API or implementation tests rerun.
+
 ## 2026-10-07 EOD - M4B dispatch and cross-engine correction (authoritative current)
 
 M4B: IN PROGRESS / NOT CLOSED. This dated EOD entry supersedes earlier current

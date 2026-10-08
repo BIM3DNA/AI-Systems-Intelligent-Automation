@@ -71,7 +71,7 @@ class Bridge(object):
                 d.leases.invalidate("ABANDONED")
                 d.sink.cleanup()
                 return d.request
-            d.lifecycle.cleanup("ABANDONED", d.request, transaction_unresolved=unresolved)
+            d.lifecycle.finalize(d.request, transaction_unresolved=unresolved)
             gate.lifecycle, gate.request = None, None
         else:
             d.leases.invalidate("ABANDONED")
@@ -79,6 +79,14 @@ class Bridge(object):
             d.admission.release(d.owner, "HOST_RESULT_READY")
         # No callback delivery or continuation in DISPATCH-002.
         return d.request
+
+    def _render_gate(self):
+        # Both callers are host/UI callbacks (native confirmation or Execute).
+        # A disappearing pane must not alter the authoritative host receipt.
+        try:
+            self.session.render_write_gate()
+        except Exception:
+            pass
 
     def _reject(self, reason, kind="NOT_READY", confirmed=False):
         d = self.dispatcher
@@ -107,8 +115,10 @@ class Bridge(object):
         document, facts = read_document(uiapp, db, guid)
         eligible = document_eligibility(facts)
         if document != ticket.identity.document_id:
+            gate.observe(document, facts)
             return "STALE_CONTEXT"
         if not eligible["eligible"]:
+            gate.observe(document, facts)
             return eligible["reason_code"]
         return None
 
@@ -165,6 +175,7 @@ class Bridge(object):
             return self._reject(getattr(error, "reason", "CONFIRMATION_FAILED"), "FAILED")
         finally:
             self.confirming = False
+            self._render_gate()
 
     def execute(self, uiapp):
         if self.running or self.pending is None:
@@ -201,6 +212,7 @@ class Bridge(object):
             return self._finish(result)
         finally:
             self.running = False
+            self._render_gate()
 
 
 def get_bridge(session):

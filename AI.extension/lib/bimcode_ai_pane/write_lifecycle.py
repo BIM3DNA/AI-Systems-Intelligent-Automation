@@ -13,7 +13,8 @@ Cleanup = namedtuple("Cleanup", "reason owner_released owner_held permission_res
                      "continuation_cancelled host_result retained_safety_lock request")
 TRIGGERS = {"DOCUMENT_SWITCH": "document_close", "DOCUMENT_CLOSE": "document_close",
             "PANE_DISPOSAL": "pane_disposal", "SHUTDOWN": "shutdown",
-            "ABANDONED": "cancelled", "CONTINUATION_TERMINAL": "completed"}
+            "ABANDONED": "cancelled", "CONTINUATION_TERMINAL": "completed",
+            "REQUEST_FINALIZED": "completed"}
 
 
 class Lifecycle(object):
@@ -43,6 +44,10 @@ class Lifecycle(object):
                 owner.logical_request_id, owner.host_request_id, owner.document_id, owner.session_id):
             raise ValueError("LEASE_CORRELATION_FAILED")
         if reason == "CONTINUATION_TERMINAL" and request.state not in machine.TERMINAL_STATES:
+            raise ValueError("REQUEST_NOT_TERMINAL")
+        normal = reason in ("REQUEST_FINALIZED", "CONTINUATION_TERMINAL")
+        if normal and (request.state not in ("HOST_RESULT_READY",) + machine.TERMINAL_STATES
+                       or request.host_result is None):
             raise ValueError("REQUEST_NOT_TERMINAL")
         for lease in (self.leases.preview, self.leases.queue):
             if lease.binding is not None and lease.binding.owner != owner:
@@ -78,7 +83,10 @@ class Lifecycle(object):
                       (host is not None and (host["classification"] == "MEP_PARAMETER_WRITE_INDETERMINATE" or
                        host["model_modified"] is None or host["transaction_status"] in ("Started", "Pending", "Unknown"))))
         self.receipt = receipt
-        self.permission.disable()  # Conservative reset, no silent auto-enable/revalidation.
+        # Session intent and one request's approval are independent. Normal
+        # success/Cancel/expiry never enables, renews or revokes session intent.
+        if not normal:
+            self.permission.disable()
         self.permission_generation = self.permission.generation
         self.leases.invalidate(reason)
         self.sink.cleanup()  # Immutable stored completion is retained.
@@ -89,10 +97,14 @@ class Lifecycle(object):
         released = False
         if not active:
             released = self.admission.release(owner, reason)
-        self.result = Cleanup(reason, released, active, True, True, self.continuation is not None,
+        self.result = Cleanup(reason, released, active, not normal, True, self.continuation is not None,
                               receipt, self.admission.safety_locked, request)
         self._evidence = evidence
         return self.result
+
+    def finalize(self, request, **facts):
+        """Close a settled request; retain session permission and safety locks."""
+        return self.cleanup("REQUEST_FINALIZED", request, **facts)
 
     def document_switch(self, request, **facts):
         return self.cleanup("DOCUMENT_SWITCH", request, **facts)

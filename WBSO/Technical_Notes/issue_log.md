@@ -1,5 +1,35 @@
 # Issue Log
 
+## 2026-10-08 EOD - Session API recovery and permission-divergence resolution
+
+Current dispositions supersede earlier pending retests without deleting evidence.
+Missing inspect_controlled_write_request: original live cause NOT CONCLUSIVELY
+ESTABLISHED. Current methods/storage key correct; stale pre-002A instance reproduces
+absence offline. No production API fix. Full Revit restart yielded busy=false,
+permission_enabled=false, NO_RETAINED_HARNESS_REQUEST: SESSION API LIVE PASS.
+Stale-session hypothesis SUPPORTED BUT NOT CONCLUSIVELY PROVEN.
+
+First host request fe30e1a8a54640d1a6442da46d64686c CONFIRMED M4B_HOST_CANCEL_02,
+committed/verified; Properties agreed; native Undo restored M4A_Write_01. LIVE PASS
+for Confirm/execution/verification/Undo, NOT Cancel. Subsequent permission=false,
+busy=false/HOST_RESULT_READY while pane said enabled; next request PERMISSION_DISABLED.
+Dispatcher fail-closed behavior PASS. Permission divergence ROOT CAUSE IDENTIFIED:
+normal completion called ABANDONED cleanup -> permission.disable(), no UI repaint.
+Offline reproduction requires neither Undo nor selection change.
+
+002C CORRECTION IMPLEMENTED / STATIC PASS / LIVE PASS: independent normal request
+finalization and explicit session invalidation; repaint from shared authority.
+LIVE-M4B-PERM-01 (1d1efd5815bd496f8dbe22a3c7b3355d) preserved enabled permission,
+pane agreed, Properties M4B_PERM_01. Fresh request without re-enable
+ba462ef863a346f5bd53d4c8128ad51d reached native Cancel: functional PASS,
+USER_CANCELLED, no transaction/mutation in receipt, permission true, repeat stable.
+Independent post-Cancel Properties verification PENDING; do not claim that PASS.
+
+Current correction/regressions UNCOMMITTED; prior 002/002A/harness in61ddb86... .
+Temporary harness retained for review, not source-control-closed acceptance scope.
+Provider13/1/0, continuation unwired; M4B IN PROGRESS / NOT CLOSED.
+October 8 hours PENDING USER CONFIRMATION; Evidence/Daily Log/KC IDs PENDING.
+
 ## 2026-10-07 EOD - LIVE-M4B-HOST-01 cross-engine coordination defect
 
 Status: ROOT CAUSE IDENTIFIED / CORRECTION IMPLEMENTED / STATIC PASS /

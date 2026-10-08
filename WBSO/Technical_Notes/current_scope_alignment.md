@@ -1,5 +1,32 @@
 # Current Scope Alignment
 
+## 2026-10-08 EOD - Host path accepted; overall M4B remains open
+
+This section supersedes earlier pending-live statements; history remains intact.
+DISPATCH-001 COMMITTED / PUSHED / STATIC PASS. DISPATCH-002 IMPLEMENTED /
+STATIC PASS / LIVE HOST EXECUTION PASS. DISPATCH-002A cross-engine correction
+STATIC PASS; live session path exercised successfully after full restart.
+Missing-method stale-session explanation is supported, not conclusively proven.
+DISPATCH-002C permission lifecycle correction STATIC PASS / LIVE PASS.
+Native Confirm, transaction commit, post-write GUID verification, Properties,
+native Undo and permission preservation: PASS. Native Cancel: FUNCTIONAL PASS.
+Independent post-Cancel Properties verification: PENDING.
+
+Scope remains one eligible host rigid Pipe, fixed BIMCode_M4A_TestText GUID,
+native human confirmation, existing executor. Internal Dev harness only; provider
+surface13 read-only/one dormant/zero exposed; continuation UNWIRED; catalog237;
+OpenAI-triggered mutation NOT AVAILABLE. M4A60 and M4B120/30 remain unchanged.
+M4B overall IN PROGRESS / NOT CLOSED. Temporary harness present; no removal or
+acceptance/source-control closure claim. Confirm/Undo evidence must not be mislabeled
+Cancel merely because the first confirmed value was named M4B_HOST_CANCEL_02.
+
+main HEAD = origin/main = 61ddb86af0cbfa2cd2edb23f089326b914f87040, 0/0.
+Earlier 002/002A/harness/WBSO included in that commit; current nine-path correction/
+test delta and new EOD documentation uncommitted. Next: independent post-Cancel
+Properties observation; accumulated implementation/regression audit; decide when
+to retire harness; obtain source-control authorization. No provider expansion here.
+October 8 hours PENDING USER CONFIRMATION; Evidence/Daily Log/KC IDs PENDING.
+
 ## 2026-10-07 EOD - Internal host bridge implemented; corrected live Cancel pending
 
 M4B remains IN PROGRESS / NOT CLOSED. Supersedes earlier next-phase/not-started

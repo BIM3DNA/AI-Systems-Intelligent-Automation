@@ -1,5 +1,44 @@
 # Architecture Notes
 
+## 2026-10-08 EOD - Separate request finalization from session permission
+
+Current engineering checkpoint; preserve earlier architecture/evidence as history.
+Session authority remains PaneSession -> SessionWriteGate.permission. Dispatcher,
+retained inspection and lifecycle cleanup share this object; pane text is a snapshot.
+Current PaneSession defines begin_controlled_write_request(value),
+confirm_controlled_write_request(host_request_id), inspect_controlled_write_request().
+The first live missing-method failure was not conclusively attributed. A stale
+pre-002A class reproduces it offline; full Revit restart restored live API inspection.
+No production correction to method installation was justified. The stronger native
+probe constructs the real PaneSession, uses pyRevit AppDomain storage and separate
+Dev engines instead of manually attaching methods to a stand-in object.
+
+Identified divergence: Bridge._finish stored completion/HOST_RESULT_READY then
+called lifecycle.cleanup("ABANDONED"); Lifecycle disabled session permission,
+while no pane repaint occurred. Reproduced before Undo/selection activity.
+Owner release or immutable receipt storage alone does not revoke permission.
+DocumentChanged (commit/Undo/Redo) increments the model epoch, not permission;
+selection changes invalidate their generation without revoking session intent.
+
+002C introduces Lifecycle.finalize / REQUEST_FINALIZED. Normal success, deterministic
+Cancel and expiry preserve enabled session intent, close leases and obsolete callbacks,
+release matching quiescent ownership, retain receipts and unresolved safety locks.
+Executing owners cannot be released prematurely; no approval is renewed or revived.
+Terminal-continuation cleanup follows normal-finalization policy, but continuation
+remains unwired. Explicit Disable, abandonment, document switch/close, pane disposal,
+shutdown and invalid eligibility retain permission-revoking semantics.
+Host confirmation/ExternalEvent callbacks repaint through the existing safe pane
+renderer, from the authoritative permission object. No new permission cache.
+
+LIVE-M4B-PERM-01 PASS confirms successful execution/Properties, enabled retained
+permission and matching pane. Subsequent native Cancel without re-enable FUNCTIONAL
+PASS; independent post-Cancel Properties still PENDING. Exact IDs/receipts in
+evidence_reference.md. Static Python659/cross-engine76 PASS are recorded prior results.
+M4A executor/60-second approval unchanged; M4B120/30; provider13/1/0; catalog237.
+No OpenAI-triggered mutation. Temporary harness remains Dev-only acceptance infrastructure.
+main HEAD/origin61ddb86af0cbfa2cd2edb23f089326b914f87040 contains prior 002/002A;
+002C delta uncommitted. M4B IN PROGRESS / NOT CLOSED; hours/IDs pending.
+
 ## 2026-10-07 EOD - Session-owned cross-engine controlled-write coordination
 
 Engineering checkpoint, not live closure. DISPATCH-001 committed/pushed at

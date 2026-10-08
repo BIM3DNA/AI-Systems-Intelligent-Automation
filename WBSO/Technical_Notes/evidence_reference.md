@@ -1,5 +1,159 @@
 # Evidence Reference
 
+## 2026-10-08 EOD - M4B host acceptance, API investigation and permission correction
+
+Authoritative dated checkpoint; prior entries retain their historical meaning.
+Live evidence below is supplied by the user. No Revit/authenticated OpenAI requests
+or implementation tests are rerun by this documentation task. No screenshots,
+generated evidence artifacts, commit identifiers or work hours are invented.
+October 8 hours: PENDING USER CONFIRMATION. Evidence/Daily Log/KC IDs: PENDING.
+No earlier eight-hour entry is reused or extrapolated.
+
+### Verified source control and preserved scope
+
+main HEAD = origin/main = 61ddb86af0cbfa2cd2edb23f089326b914f87040;
+subject updated project WBSO...; parent 000c9ec13f87be805fcaa64a5bdaeed9bc865518;
+ahead/behind0/0, no staged files. The combined HEAD includes DISPATCH-002/002A,
+temporary harness and October 7 WBSO: 20 files, +1607/-1. Older uncommitted wording
+describes that earlier checkpoint, not current Git contents.
+DISPATCH-001 remains committed/pushed/static PASS at the parent SHA above.
+
+Pre-existing current delta: nine paths, +409/-26 including the untracked test:
+
+- AI.extension/lib/bimcode_ai_pane/provider_write_dispatch.py (modified)
+- AI.extension/lib/bimcode_ai_pane/provider_write_host_bridge.py (modified)
+- AI.extension/lib/bimcode_ai_pane/write_leases.py (modified)
+- AI.extension/lib/bimcode_ai_pane/write_lifecycle.py (modified)
+- tests/test_bimcode_ai_pane.py (modified)
+- tests/test_bimcode_host_live_harness.py (modified)
+- tests/test_bimcode_write_lifecycle.py (modified)
+- tests/test_bimcode_write_session_native.ps1 (modified)
+- tests/test_bimcode_permission_divergence.py (untracked)
+
+All are preserved byte-for-byte by this documentation task. Current correction
+and tests are UNCOMMITTED / UNPUSHED; new EOD documentation also awaits review.
+
+### Session API investigation: recovered live, original cause not proven
+
+Initial October 8 observation: HARNESS_ERROR; AttributeError: 'PaneSession' object
+has no attribute 'inspect_controlled_write_request'. Current class defines all
+three scalar APIs; harness and startup use the same session key. A retained
+pre-002A class reproduces missing-method behavior offline; importing new source
+does not upgrade that instance. The previous probe manually attached methods to
+a stand-in, so regression improvements now exercise actual PaneSession construction,
+pyRevit AppDomain persistence and separate Dev engines. Three test files updated;
+Python645 PASS, native session75 assertions PASS. No production API fix justified.
+
+After COMPLETE REVIT RESTART, read-only inspection returned:
+busy=false; permission_enabled=false; reason=NO_RETAINED_HARNESS_REQUEST.
+SESSION API ACCESS: LIVE PASS AFTER RESTART.
+STALE SESSION HYPOTHESIS: SUPPORTED BUT NOT CONCLUSIVELY PROVEN.
+Do not retrospectively assign a verified root cause to the original exception.
+
+### First successful Confirm / verification / Undo
+
+Project2, supported Pipe353871; host request fe30e1a8a54640d1a6442da46d64686c.
+Before M4A_Write_01; proposed M4B_HOST_CANCEL_02. Although intended as a Cancel
+retest, the human selected native CONFIRM. The proposed value's name is not consent.
+PREVIEW_READY -> AWAITING_HUMAN_CONFIRMATION -> WRITE_REQUEST_QUEUED ->
+WRITE_EXECUTING -> WRITE_SUCCEEDED -> HOST_RESULT_READY.
+Receipt: MEP_PARAMETER_WRITE_OK / COMPLETE; confirmation_result=CONFIRMED;
+transaction_started=true; transaction_committed=true; transaction_status=Committed;
+model_modified=true; verification_performed=true; verification_passed=true;
+final_value=M4B_HOST_CANCEL_02. Independent Properties agreed.
+One native Undo restored M4A_Write_01.
+M4B HOST CONFIRM / EXECUTION / VERIFICATION / UNDO: LIVE PASS. NOT a Cancel result.
+
+### Permission divergence and source correction
+
+Afterward retained inspection: busy=false, permission_enabled=false,
+state=HOST_RESULT_READY; pane still CONTROLLED WRITES: ENABLED FOR THIS SESSION.
+Next internal request rejected PERMISSION_DISABLED: dispatcher failed closed.
+ROOT CAUSE IDENTIFIED: provider_write_host_bridge.py Bridge._finish invoked
+lifecycle.cleanup("ABANDONED", ...); write_lifecycle.py unconditionally disabled
+permission; no pane repaint. Normal request finalization was incorrectly coupled
+to session permission invalidation. Offline reproduction requires no Undo or
+selection changes. DocumentChanged increments epoch; selection increments its
+generation; neither callback itself disables session permission.
+
+002C: Lifecycle.finalize / REQUEST_FINALIZED separates normal terminal success,
+Cancel and expiry from invalidating cleanup. Preserve enabled intent, close leases
+and obsolete callbacks, release matching quiescent owner, retain immutable receipts
+and unresolved safety locks; reject replay and retain executing owners. Pane refresh
+uses the authoritative permission object. Explicit Disable, abandonment, document
+switch/close, invalid eligibility, pane disposal and shutdown still revoke permission.
+No auto-enable, approval renewal, new executor, provider exposure or continuation wiring.
+
+### Recorded 002C implementation validation (NOT rerun here)
+
+| Check | Prior reported PASS count |
+| --- | ---: |
+| Full Python | 659 |
+| DISPATCH-001 | 45 |
+| DISPATCH-002 | 42 |
+| Permission regressions | 11 |
+| M4A/GATE-10 | 79 |
+| Admission/lifecycle/leases/continuation | 83 |
+| Native write assertions | 78 |
+| Native provider probes | 74 |
+| Cross-engine session assertions | 76 |
+| AST/compile/tabnanny files | 40 |
+| Modified runtime IronPython modules | 4 |
+
+Dependency and whitespace PASS. Credential-pattern scan: 167 files, zero candidates;
+pattern scan is not an exhaustive secret proof. No secret content read into this record.
+
+### LIVE-M4B-PERM-01 - PASS (2026-10-08)
+
+Project2 / Pipe353871; before M4A_Write_01; proposed M4B_PERM_01;
+host request 1d1efd5815bd496f8dbe22a3c7b3355d. User enabled Controlled Writes,
+confirmed eligibility, explicitly accepted native confirmation.
+AWAITING_HUMAN_CONFIRMATION -> WRITE_REQUEST_QUEUED -> WRITE_EXECUTING ->
+WRITE_SUCCEEDED -> HOST_RESULT_READY.
+Receipt: MEP_PARAMETER_WRITE_OK / COMPLETE, CONFIRMED; transaction_started=true,
+transaction_committed=true, transaction_status=Committed, model_modified=true,
+verification_performed=true, verification_passed=true, final_value=M4B_PERM_01.
+Preview consumed; execution queue consumed with EXECUTION_STARTED provenance.
+Retained inspection: busy=false, permission_enabled=true, state=HOST_RESULT_READY.
+Independent Properties: BIMCode_M4A_TestText=M4B_PERM_01. Pane remained
+CONTROLLED WRITES: ENABLED FOR THIS SESSION. Permission preservation and pane
+synchronization after successful host execution: LIVE PASS.
+
+### LIVE-M4B-HOST-01R - native Cancel FUNCTIONAL PASS (2026-10-08)
+
+Project2 / Pipe353871; before M4B_PERM_01; proposed M4B_HOST_CANCEL_03;
+host request ba462ef863a346f5bd53d4c8128ad51d. Fresh request WITHOUT re-enabling
+permission reached native confirmation; human explicitly selected Cancel.
+HOST_PREVIEW_BUILDING -> PREVIEW_READY -> AWAITING_HUMAN_CONFIRMATION ->
+USER_CANCELLED -> HOST_RESULT_READY -> CANCELLED.
+Receipt: MEP_PARAMETER_WRITE_CANCELLED / USER_CANCELLED; NOT_CONFIRMED;
+transaction_started=false; transaction_committed=false; transaction_status=NOT_STARTED;
+model_modified=false; verification_performed=false; verification_passed=false;
+final_value=null. Preview INVALIDATED / REQUEST_FINALIZED; queue never created,
+terminal invalidated state. Retained inspection busy=false, permission_enabled=true,
+state=CANCELLED; repeated read-only inspection returned the same terminal result.
+Cancel receipt PASS; no transaction PASS; session permission preserved PASS.
+Independent post-Cancel Properties verification: PENDING. No independent model-state
+PASS is claimed; null final_value is a non-write receipt, not an observed parameter value.
+
+### Source references, boundaries and next checkpoint
+
+Runtime: AI.extension/lib/bimcode_ai_pane/provider_write_dispatch.py,
+provider_write_confirmation.py, provider_write_host_bridge.py, provider_write_session.py,
+write_lifecycle.py, write_leases.py, lifecycle.py; AI.extension/lib/bimcode_write_execution.py.
+Tests: tests/test_bimcode_permission_divergence.py, test_bimcode_write_session_native.ps1,
+test_bimcode_provider_write_host_bridge.py, test_bimcode_host_live_harness.py.
+Temporary command: AI.extension/AI.tab/Dev.panel/M4BHostTest.pushbutton/script.py.
+
+M4A approval60seconds, one transaction constructor/one Parameter.Set; M4B preview120 /
+queue30seconds, native human confirmation required. Provider13 read-only/one dormant/
+zero exposed; continuation UNWIRED; catalog237; OpenAI-triggered mutation NOT AVAILABLE.
+Internal Dev host tests, not authenticated OpenAI tool invocation. M4B IN PROGRESS /
+NOT CLOSED. Harness remains present, acceptance-only, not source-control-closed.
+Next obtain post-Cancel Properties observation, review accumulated runtime/test delta,
+preserve durable regressions and decide harness removal timing before authorization
+of the next engineering/source-control checkpoint. No hours or IDs allocated.
+
 ## 2026-10-07 EOD - M4B dispatch, live failure and cross-engine correction
 
 Authoritative EOD checkpoint; earlier dated records below remain historical.

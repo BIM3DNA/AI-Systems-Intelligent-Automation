@@ -45,6 +45,36 @@ def finish_host(lifecycle, request, data):
 
 
 class CleanupTests(unittest.TestCase):
+    def test_finalization_retains_permission_receipt_and_existing_safety_lock(self):
+        lifecycle, req, _, _ = fixture(True)
+        ready = finish_host(lifecycle, req, result())
+        lifecycle.admission.safety_locked = True
+        generation = lifecycle.permission.generation
+        out = lifecycle.finalize(ready)
+        self.assertTrue(out.owner_released)
+        self.assertFalse(out.permission_reset)
+        self.assertTrue(lifecycle.permission.view_model()['enabled'])
+        self.assertEqual(lifecycle.permission.generation, generation)
+        self.assertTrue(out.retained_safety_lock)
+        self.assertEqual(out.host_result, ready.host_result)
+        self.assertIs(out, lifecycle.finalize(ready))
+        self.assertFalse(lifecycle.sink.deliver('logical1'))
+
+    def test_finalization_rejects_running_request_without_receipt(self):
+        lifecycle, req, _, _ = fixture(True)
+        with self.assertRaisesRegex(ValueError, 'REQUEST_NOT_TERMINAL'):
+            lifecycle.finalize(req)
+        self.assertEqual(lifecycle.admission.active, lifecycle.owner)
+        self.assertTrue(lifecycle.permission.view_model()['enabled'])
+
+    def test_finalization_holds_explicitly_executing_owner(self):
+        lifecycle, req, _, _ = fixture(True)
+        ready = finish_host(lifecycle, req, result())
+        out = lifecycle.finalize(ready, execution_active=True)
+        self.assertTrue(out.owner_held)
+        self.assertFalse(out.owner_released)
+        self.assertTrue(out.retained_safety_lock)
+
     def test_lifecycle_methods(self):
         for method in ('document_switch', 'document_close', 'pane_disposal', 'shutdown', 'abandon'):
             lifecycle, req, coord, _ = fixture()
@@ -135,6 +165,8 @@ class CleanupTests(unittest.TestCase):
             final = coord.finish(snap, returned, 1003)
             out = lifecycle.continuation_terminal(coord.request)
             self.assertTrue(out.owner_released)
+            self.assertFalse(out.permission_reset)
+            self.assertTrue(lifecycle.permission.view_model()['enabled'])
             self.assertEqual(out.host_result, final.host_result)
             self.assertEqual(out.request.provider_status.status, 'FAILED' if failed else 'COMPLETE')
             self.assertIs(out, lifecycle.continuation_terminal(coord.request))

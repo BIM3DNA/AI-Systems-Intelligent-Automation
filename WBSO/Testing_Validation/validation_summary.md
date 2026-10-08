@@ -1,5 +1,52 @@
 # Validation Summary
 
+## 2026-10-08 EOD - Host Confirm/Undo and permission correction live acceptance
+
+Authoritative dated checkpoint, preserving all historical entries below.
+DISPATCH-001 COMMITTED / PUSHED / STATIC PASS. DISPATCH-002 IMPLEMENTED /
+STATIC PASS / LIVE HOST EXECUTION PASS. DISPATCH-002A STATIC PASS and live session
+path exercised successfully after complete restart. Original missing-method cause
+not conclusively proven; stale-session hypothesis supported. No production API fix.
+DISPATCH-002C permission lifecycle correction STATIC PASS / LIVE PASS.
+M4B overall IN PROGRESS / NOT CLOSED; provider continuation UNWIRED; exposure0.
+
+User-supplied Project2/Pipe353871 results (not rerun by this documentation task):
+
+| Evidence | Result |
+| --- | --- |
+| Restart inspection | API LIVE PASS; busy=false, permission=false, NO_RETAINED_HARNESS_REQUEST |
+| fe30e1a8a54640d1a6442da46d64686c | CONFIRMED M4A_Write_01 -> M4B_HOST_CANCEL_02; COMPLETE, committed/verified; Properties agreed; one native Undo restored M4A_Write_01 |
+| LIVE-M4B-PERM-01 / 1d1efd5815bd496f8dbe22a3c7b3355d | PASS; CONFIRMED M4B_PERM_01, COMPLETE, committed/verified, Properties agreed; HOST_RESULT_READY, busy=false, permission=true, pane enabled |
+| LIVE-M4B-HOST-01R / ba462ef863a346f5bd53d4c8128ad51d | FUNCTIONAL PASS; proposed M4B_HOST_CANCEL_03 without re-enable; CANCELLED / USER_CANCELLED, NOT_CONFIRMED, no transaction/mutation, final_value=null; permission=true, busy=false; repeat stable |
+| Independent post-Cancel Properties | PENDING, not claimed PASS |
+
+First request was accidentally Confirmed, not Cancel despite its proposed value's
+name. The final Cancel receipt reports verification_performed=false and
+verification_passed=false; this is expected for a non-write, not independent
+model inspection. Only the outstanding Properties observation can close that gap.
+
+Permission divergence ROOT CAUSE IDENTIFIED: success used ABANDONED cleanup,
+revoked authoritative permission and left pane text stale; dispatcher rejected safely.
+002C Lifecycle.finalize separates request settlement from session revocation,
+preserves locks/receipts, refreshes pane; success/Cancel/expiry do not auto-enable
+or renew approval. Explicit lifecycle invalidations still revoke permission.
+
+Recorded prior static checkpoints: API investigation Python645/native-session75;
+002C Python659, dispatcher45, bridge42, permission11, M4A/GATE-10 79,
+admission/lifecycle/leases/continuation83, native-write78, native-provider74,
+cross-engine76, AST/compile/tabnanny40 files, modified runtime IronPython4 modules:
+all PASS. Dependency/whitespace/credential-pattern checks PASS. No suites rerun here.
+Exact receipts and source inventory: ../Technical_Notes/evidence_reference.md.
+
+M4A60seconds and executor1transaction/1Set; M4B120/30seconds; provider13 read-only/
+one dormant/zero exposed; catalog237. OpenAI-triggered mutation NOT AVAILABLE.
+Temporary Dev harness retained, not a production tool or source-control-closed
+acceptance package. Next: post-Cancel Properties evidence and accumulated-change/
+durable-regression/harness-retirement review before checkpoint authorization.
+main HEAD/origin61ddb86af0cbfa2cd2edb23f089326b914f87040 includes prior 002/002A;
+current correction/test delta and this documentation uncommitted/unpushed.
+October 8 hours PENDING USER CONFIRMATION; Evidence/Daily Log/KC IDs PENDING.
+
 ## 2026-10-07 EOD - Dispatch compatibility corrected; Revit Cancel retest pending
 
 M4B IN PROGRESS / NOT CLOSED. This current EOD status supersedes earlier

@@ -6,6 +6,8 @@ Host API stubs verify scheduling/ownership, not live Revit integration.
 
 import ast
 import importlib
+import inspect
+import json
 import pathlib
 import sys
 import types
@@ -124,6 +126,31 @@ class LifecycleTests(unittest.TestCase):
         self.module.show(self.uiapp)
         self.uiapp.RegisterDockablePane.assert_called_once()
         self.assertEqual(len(self.uiapp.SelectionChanged.handlers), 1)
+
+    def test_persisted_session_exposes_controlled_write_api(self):
+        session = self.module.start(self.uiapp)
+        retrieved = self.storage[self.module.SESSION_KEY]
+        self.assertIs(retrieved, session)
+        for name, parameters in (
+                ('begin_controlled_write_request', ['value']),
+                ('confirm_controlled_write_request', ['host_request_id']),
+                ('inspect_controlled_write_request', [])):
+            method = getattr(retrieved, name)
+            self.assertTrue(callable(method))
+            self.assertIs(method.__self__, session)
+            self.assertEqual(list(inspect.signature(method).parameters), parameters)
+        with patch('bimcode_ai_pane.provider_write_session.get_bridge') as bridge:
+            before = retrieved.inspect_controlled_write_request()
+            self.assertIsInstance(before, str)
+            self.assertEqual(json.loads(before)['reason'], 'NO_RETAINED_HARNESS_REQUEST')
+            self.assertEqual(json.loads(retrieved.begin_controlled_write_request('Value'))['reason'],
+                             'PERMISSION_DISABLED')
+            self.assertEqual(json.loads(retrieved.confirm_controlled_write_request('unknown'))['reason'],
+                             'CORRELATION_MISMATCH')
+            self.assertEqual(retrieved.inspect_controlled_write_request(), before)
+            bridge.assert_not_called()
+        self.assertIsNone(session.write_admission.active)
+        self.assertIs(self.module.start(self.uiapp), retrieved)
 
     def test_selection_callback_updates_only_count_without_refresh(self):
         session = self.module.start(self.uiapp)
