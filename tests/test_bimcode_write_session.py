@@ -13,6 +13,14 @@ from bimcode_ai_pane.session_write_gate import SessionWriteGate
 
 
 class SessionBoundary(unittest.TestCase):
+    def test_registry_catalog(self):
+        from bimcode_ai_pane.ai_tool_registry import TOOLS
+        from bimcode_ai_pane.controlled_write_registry import metadata
+        self.assertEqual(len(TOOLS),13);self.assertEqual(len(metadata()),1)
+        self.assertFalse(metadata()[0]['provider_exposure_allowed'])
+        root=Path(__file__).resolve().parents[1]
+        self.assertEqual(len(json.loads((root/'AI.extension/lib/prompt_catalog.json').read_text())),237)
+
     def setUp(self):
         self.session=N(write_gate=SessionWriteGate(OperationAdmission()),disposed=False)
         self.api=boundary.SessionWrites(self.session)
