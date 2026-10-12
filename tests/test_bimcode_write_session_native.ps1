@@ -235,6 +235,76 @@ assert invalid['host_result']['model_modified'] is False
 assert json.loads(session.begin_controlled_write_request('Revive'))['reason']=='PERMISSION_DISABLED'
 assert json.loads(session.inspect_controlled_write_request())==invalid
 '@,$sb2)
+    $a.Execute(@'
+# 003A recorded-shape internal adapter; no production routing or network.
+from bimcode_ai_pane.write_clock import Clock
+from bimcode_ai_pane import provider_write_handoff as handoff_module
+from bimcode_ai_pane import write_continuation
+write_continuation.Coordinator.run_worker=forbidden
+document,facts=read_document(f.app,f.db,f.guid)
+s.write_gate.observe(document,facts)
+s.write_gate.permission.enable_from_human(document,facts,True)
+s.panel._provider_state=N(active=dict(request_id='native_transport',operation='agent_turn'))
+s.ai.turn=dict(request_id='native_transport',key=s.document_identity,
+              generation=s.context_generation,selection=s.selection_generation,used=False)
+h=s.controlled_writes.handoff
+ticket=h.open_transport(s.panel._provider_state.active,'fixture-model')
+binding=h.bind_response(ticket,dict(protocol_version=1,request_id='native_transport',ok=True,
+    provider='openai',model='fixture-model',text=None,error=None,state='TOOL_REQUEST',
+    tool_call=dict(name='set_selected_pipe_test_text',call_id='native_call',arguments=dict(value='Native')),
+    provider_state=dict(response_id='native_response',model='fixture-model')))
+assert type(binding) is handoff_module.Binding
+# Offline fixture relinquishes the read-only turn; production transfer is NOT wired.
+s.ai.turn=None
+hold_now=[10.0]
+d=Dispatcher(s,binding.identity,Clock(lambda:hold_now[0],lambda:'fixture-time'),True)
+s.controlled_writes.dispatcher=d
+out=d._dispatch(f.app,dict(name=binding.identity.tool_name,call_id='native_call',arguments=dict(value='Native')),
+                'native_response',f.db,f.guid)
+assert out.accepted
+s.confirm_controlled_write_request(binding.identity.host_request_id)
+assert d.request.state=='PROVIDER_CONTINUATION_PENDING'
+assert d.sink.delivered and d.sink.closed and d.sink.continuation_claimed
+assert s.write_admission.active is None
+assert not h.pending[1]._worker_started
+'@,$sa)
+    $c.Execute(@'
+pending=json.loads(session.inspect_controlled_write_request())
+assert pending['continuation']['pending']
+assert pending['host_result']['reason_code']=='USER_CANCELLED'
+assert json.loads(session.begin_controlled_write_request('Blocked'))['reason']=='CONTINUATION_PENDING'
+assert json.loads(session.inspect_controlled_write_request())==pending
+'@,$sb2)
+    $a.Execute(@'
+hold_now[0]=130.0
+'@,$sa)
+    $c.Execute(@'
+expired=json.loads(session.inspect_controlled_write_request())
+assert expired['continuation']['last']['reason']=='CONTINUATION_HOLD_EXPIRED'
+assert expired['state']=='CANCELLED'
+assert expired['host_result']==pending['host_result']
+'@,$sb2)
+    $a.Execute(@'
+# A later host callback still sees the pair consumed before the Dev inspection.
+assert ('native_response','native_call') in h.seen
+s.panel._provider_state.active=dict(request_id='later_transport',operation='agent_turn')
+s.ai.turn=dict(request_id='later_transport',key=s.document_identity,
+              generation=s.context_generation,selection=s.selection_generation,used=False)
+ticket=h.open_transport(s.panel._provider_state.active,'fixture-model')
+try:
+    h.bind_response(ticket,dict(protocol_version=1,request_id='later_transport',ok=True,
+        provider='openai',model='fixture-model',text=None,error=None,state='TOOL_REQUEST',
+        tool_call=dict(name='set_selected_pipe_test_text',call_id='native_call',arguments=dict(value='Native')),
+        provider_state=dict(response_id='later_response',model='fixture-model')))
+    raise AssertionError('Duplicate call accepted')
+except ValueError as error:
+    assert str(error)=='PROVIDER_REPLAY_OR_CAPACITY'
+assert ('later_response','native_call') not in h.seen
+'@,$sa)
+    $c.Execute(@'
+assert json.loads(session.inspect_controlled_write_request())['host_result']==expired['host_result']
+'@,$sb2)
+    Write-Output 'PASS: 17 additional 003A real-session cross-engine assertions; no transport/mutation'
     $checks=$sb.GetVariable('count')
     Write-Output "PASS: persistent IronPython engine plus two Dev engines; $checks counted boundary assertions; 29 additional session/stale-class/identity/lifecycle assertions; actual PaneSession API and Cancel passed; old Owner failure still rejected; stale class alternative reproduced (not live attribution)"
 } finally { [IO.File]::Delete($archive) }

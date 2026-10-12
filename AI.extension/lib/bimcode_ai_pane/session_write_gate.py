@@ -77,6 +77,9 @@ class SessionWriteGate(object):
         self.note = ""
 
     def observe(self, identity, facts):
+        handoff = getattr(self, 'handoff', None)
+        if handoff is not None:
+            handoff.check()
         if self.closed:
             return
         if identity != self.document:
@@ -105,6 +108,9 @@ class SessionWriteGate(object):
         return ok
 
     def cleanup(self, reason):
+        handoff = getattr(self, 'handoff', None)
+        if handoff is not None:
+            handoff.invalidate(reason)
         self.enable_pending = None
         # Existing foundation validates correlation, consumes leases/callbacks,
         # suppresses continuation, and preserves actual receipts/executing locks.

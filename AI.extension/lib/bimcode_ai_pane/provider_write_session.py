@@ -10,6 +10,7 @@ from bimcode_ai_pane.provider_write_host_bridge import get_bridge
 from bimcode_ai_pane.provider_write import correlation
 from bimcode_ai_pane.write_access import admission_for, owner_document_key
 from bimcode_ai_pane.write_contracts import validate_value, string_types
+from bimcode_ai_pane.provider_write_handoff import Handoff
 
 
 def encoded(data):
@@ -26,8 +27,13 @@ class SessionWrites(object):
     def __init__(self, session):
         self.session = session
         self.dispatcher = None
+        self.handoff = Handoff(session)
+        session.write_gate.handoff = self.handoff
 
     def begin(self, value):
+        self.handoff.check()
+        if self.handoff.pending is not None:
+            return encoded(dict(accepted=False, reason='CONTINUATION_PENDING'))
         checked = validate_value(value)
         if not checked["valid"]:
             return encoded(dict(accepted=False, reason=checked["reason_code"]))
@@ -53,6 +59,7 @@ class SessionWrites(object):
                             host_request_id=identity.host_request_id, state=d.request.state if d.request else None))
 
     def confirm(self, host_request_id):
+        self.handoff.check()
         d = self.dispatcher
         if (not isinstance(host_request_id, string_types) or d is None or
                 host_request_id != d.identity.host_request_id):
@@ -65,6 +72,7 @@ class SessionWrites(object):
         return self.inspect()
 
     def inspect(self):
+        handoff = self.handoff.inspect()
         gate = self.session.write_gate
         admission = gate.admission
         availability = dict(permission_enabled=not getattr(self.session, "disposed", False) and
@@ -73,9 +81,9 @@ class SessionWrites(object):
                       (admission.busy is not None and admission.busy())))
         d = self.dispatcher
         if d is None:
-            return encoded(dict(availability, reason="NO_RETAINED_HARNESS_REQUEST"))
+            return encoded(dict(availability, reason="NO_RETAINED_HARNESS_REQUEST", continuation=handoff))
         request = d.request
-        return encoded(dict(availability, correlation=d.identity._asdict(),
+        return encoded(dict(availability, continuation=handoff, correlation=d.identity._asdict(),
             state=request.state if request else None, history=request.history if request else (),
             host_result=json.loads(request.host_result.json) if request and request.host_result else None,
             preview=json.loads(d.preview_json) if d.preview_json else None,

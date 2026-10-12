@@ -106,6 +106,34 @@ class Lifecycle(object):
         """Close a settled request; retain session permission and safety locks."""
         return self.cleanup("REQUEST_FINALIZED", request, **facts)
 
+    def finalize_admitted(self, request, coordinator):
+        """Release only write resources; the session retains continuation."""
+        from bimcode_ai_pane.write_continuation import Coordinator
+        if type(coordinator) is not Coordinator or type(request) is not machine.Request:
+            raise ValueError('INVALID_ADMITTED_FINALIZATION')
+        snapshot = coordinator.snapshot
+        if (request.state != 'PROVIDER_CONTINUATION_PENDING' or coordinator.request != request or
+                snapshot is None or snapshot.host_result != request.host_result or coordinator.closed or
+                not getattr(self.sink, 'continuation_claimed', False) or not self.sink.delivered or
+                self.sink.closed or self.sink.receipt is None or
+                self.sink.receipt.receipt != request.host_result or self.admission.active != self.owner or
+                self.permission.generation != self.permission_generation or
+                (self.owner.logical_request_id, self.owner.host_request_id, self.owner.session_id, self.owner.document_id) !=
+                (request.correlation.logical_request_id, request.correlation.host_request_id,
+                 request.correlation.session_id, request.correlation.document_id)):
+            raise ValueError('INVALID_ADMITTED_FINALIZATION')
+        host = projection.project_receipt(request.host_result)
+        if host['transaction_status'] == 'Started':
+            raise ValueError('EXECUTION_STILL_ACTIVE')
+        if (request.retained_safety_lock or host['model_modified'] is None or
+                host['transaction_status'] in ('Pending', 'Unknown')):
+            self.admission.safety_locked = True
+        self.receipt = request.host_result
+        self.leases.invalidate('REQUEST_FINALIZED')
+        self.sink.cleanup()
+        if not self.admission.release(self.owner, 'CONTINUATION_ADMITTED'):
+            raise ValueError('LEASE_CORRELATION_FAILED')
+
     def document_switch(self, request, **facts):
         return self.cleanup("DOCUMENT_SWITCH", request, **facts)
 

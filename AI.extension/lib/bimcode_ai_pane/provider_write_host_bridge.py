@@ -65,6 +65,9 @@ class Bridge(object):
         if unresolved:
             d.admission.safety_locked = True
         gate = self.session.write_gate
+        writes = getattr(self.session, 'controlled_writes', None)
+        if writes is not None and writes.handoff.admit(d):
+            return d.request
         if gate.lifecycle is d.lifecycle and gate.permission.generation == d.lifecycle.permission_generation:
             # A superseding owner is never released or overwritten by late work.
             if d.admission.active not in (None, d.owner):
@@ -147,7 +150,8 @@ class Bridge(object):
             if not confirmation.show(json.loads(ticket.preview_json), identity):
                 d._move("USER_CANCELLED", "USER_CANCELLED")
                 result = self._reject("USER_CANCELLED", "CANCELLED")
-                d._move("CANCELLED", "USER_CANCELLED")
+                if d.request.state == 'HOST_RESULT_READY':
+                    d._move("CANCELLED", "USER_CANCELLED")
                 return d.request
             # Consume at the native Confirm return, not after another API pass.
             checked = d.leases.confirm(ticket.binding, human_confirmed=True)

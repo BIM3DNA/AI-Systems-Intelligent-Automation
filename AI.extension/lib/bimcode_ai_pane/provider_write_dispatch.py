@@ -90,6 +90,11 @@ class Dispatcher(object):
                 else:
                     receipt = projection.from_preview(preview)
                 self._move("HOST_RESULT_READY", reason, receipt)
+            writes = getattr(self.session, 'controlled_writes', None)
+            if writes is not None and writes.handoff.binding is not None and self.sink is not None:
+                self.sink.store(projection.project_receipt(self.request.host_result))
+                if writes.handoff.admit(self):
+                    return self._out(False, reason)
             self._move("EXPIRED" if self.request.terminal_intent == "EXPIRED" else "COMPLETED", reason)
         self.leases.invalidate("REQUEST_FINALIZED")
         if self.lifecycle is not None:

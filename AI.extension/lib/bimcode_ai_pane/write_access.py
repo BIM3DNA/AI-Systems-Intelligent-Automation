@@ -63,10 +63,19 @@ class OperationAdmission(object):
         return False
 
 
+def _continuation_pending(session):
+    writes = getattr(session, 'controlled_writes', None)
+    handoff = getattr(writes, 'handoff', None)
+    if handoff is None:
+        return False
+    handoff.check()  # Deterministic admission boundary, no timer or API work.
+    return handoff.pending is not None
+
+
 def admission_for(session):
     manager = getattr(session, "write_admission", None)
     if manager is None:
-        manager = OperationAdmission(lambda: bool(getattr(session, "write_busy", False) or
+        manager = OperationAdmission(lambda: bool(_continuation_pending(session) or getattr(session, "write_busy", False) or
             getattr(getattr(session, "tools", None), "pending", None) is not None or
             getattr(getattr(session, "ai", None), "turn", None) is not None))
         session.write_admission = manager
