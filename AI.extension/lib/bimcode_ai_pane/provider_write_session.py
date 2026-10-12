@@ -11,6 +11,7 @@ from bimcode_ai_pane.provider_write import correlation
 from bimcode_ai_pane.write_access import admission_for, owner_document_key
 from bimcode_ai_pane.write_contracts import validate_value, string_types
 from bimcode_ai_pane.provider_write_handoff import Handoff
+from bimcode_ai_pane.provider_write_adapter import Adapter
 
 
 def encoded(data):
@@ -29,6 +30,7 @@ class SessionWrites(object):
         self.dispatcher = None
         self.handoff = Handoff(session)
         session.write_gate.handoff = self.handoff
+        self.adapter = Adapter(self)
 
     def begin(self, value):
         self.handoff.check()

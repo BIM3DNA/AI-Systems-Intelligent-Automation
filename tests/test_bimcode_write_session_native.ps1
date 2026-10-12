@@ -305,6 +305,40 @@ assert ('later_response','native_call') not in h.seen
 assert json.loads(session.inspect_controlled_write_request())['host_result']==expired['host_result']
 '@,$sb2)
     Write-Output 'PASS: 17 additional 003A real-session cross-engine assertions; no transport/mutation'
+    $a.Execute(@'
+# 003B-1: readiness and injected response binding owned entirely by engine A.
+from bimcode_ai_pane.provider_write_adapter import Adapter, Launch
+adapter=s.controlled_writes.adapter
+assert type(adapter) is Adapter
+active=dict(request_id='adapter_ready',operation='readiness')
+s.panel._provider_state.active=active
+adapter.remember_readiness(active,dict(protocol_version=1,request_id='adapter_ready',
+    ok=True,provider='openai',model='fixture-model',text='READY',error=None))
+active=dict(request_id='adapter_transport',operation='agent_turn')
+s.panel._provider_state.active=active
+s.ai.turn=dict(request_id='adapter_transport',key=s.document_identity,
+    generation=s.context_generation,selection=s.selection_generation,used=False)
+results=[]
+def offline_transport(payload,callback):
+    assert adapter.outstanding is not None
+    assert payload is not active
+    callback(dict(protocol_version=1,request_id='adapter_transport',ok=True,provider='openai',
+        model='fixture-model',text=None,error=None,state='TOOL_REQUEST',
+        tool_call=dict(name='set_selected_pipe_test_text',call_id='adapter_call',arguments=dict(value='Native')),
+        provider_state=dict(response_id='adapter_response',model='fixture-model')))
+launch=adapter.launch(active,offline_transport,results.append)
+assert type(launch) is Launch
+assert results[0].state=='TRUSTED_PROVIDER_BINDING_READY'
+assert results[0].binding is h.binding
+assert h.pending is None
+assert s.write_admission.active is None
+assert ('adapter_response','adapter_call') in h.seen
+'@,$sa)
+    $c.Execute(@'
+# Dev engine receives only the existing serialized inspection, no adapter/ticket.
+assert json.loads(session.inspect_controlled_write_request())['host_result']==expired['host_result']
+'@,$sb2)
+    Write-Output 'PASS: 10 additional 003B-1 persistent adapter assertions; binding only'
     $checks=$sb.GetVariable('count')
     Write-Output "PASS: persistent IronPython engine plus two Dev engines; $checks counted boundary assertions; 29 additional session/stale-class/identity/lifecycle assertions; actual PaneSession API and Cancel passed; old Owner failure still rejected; stale class alternative reproduced (not live attribution)"
 } finally { [IO.File]::Delete($archive) }
