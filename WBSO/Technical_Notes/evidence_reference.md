@@ -1,5 +1,168 @@
 # Evidence Reference
 
+## 2026-10-12 EOD - Atomic provider ownership and safety evidence
+
+Current authoritative dated checkpoint; earlier entries, including October8
+pending Properties/harness-retirement and uncommitted-host wording, remain
+historical and are superseded for current status. Live closure facts below are
+user supplied; Git ancestry verified locally and against live remote main.
+No live Revit, authenticated OpenAI or engineering tests rerun by this docs task.
+
+### Committed and pushed foundations
+
+- DISPATCH-002: e7486724a02bf68fa4e5aae35908691cc7b4dcef,
+  test(bimcode): retire M4B live harness after host acceptance.
+  SOURCE-CONTROL CLOSED. Native Confirm, Revit transaction/GUID verification,
+  native Cancel and independent post-Cancel Properties PASS. Harness retired.
+  M4B_HOST_CANCEL_02 was a Confirm observation, not relabeled Cancel.
+- DISPATCH-003A: 80b7186d1b0fc8a59596509344fd5930a0957c90,
+  feat(bimcode): add M4B provider continuation handoff.
+  SOURCE-CONTROL CLOSED. Immutable host completion, existing coordinator reused,
+  response/call replay protection and bounded pending continuation implemented.
+  Production continuation transport remains UNWIRED.
+- DISPATCH-003B-1: 325b30e92c176e9fbd359a5c13df150fe348f721,
+  feat(bimcode): add trusted M4B provider response adapter.
+  SOURCE-CONTROL CLOSED. Trusted retained-launch binding, expected model captured
+  before launch, response/call replay protections preserved. Write exposure zero.
+
+### Actual pre-documentation Git state and preserved scope
+
+main HEAD = origin/main = live remote main =
+325b30e92c176e9fbd359a5c13df150fe348f721; parent80b7186d1b0fc8a59596509344fd5930a0957c90.
+Ahead/behind0/0; dirty; staged none.
+15 modified tracked + five untracked = 20 changed paths, +1362/-56 including
+untracked content. This is the pre-documentation delta, not a committed diff.
+Exact status inventory:
+
+```text
+ M AI.extension/lib/bimcode_ai_pane/provider_write_adapter.py
+ M AI.extension/lib/bimcode_ai_pane/provider_write_dispatch.py
+ M AI.extension/lib/bimcode_ai_pane/provider_write_handoff.py
+ M AI.extension/lib/bimcode_ai_pane/provider_write_host_bridge.py
+ M AI.extension/lib/bimcode_ai_pane/provider_write_session.py
+ M AI.extension/lib/bimcode_ai_pane/session_write_gate.py
+ M AI.extension/lib/bimcode_ai_pane/write_access.py
+ M AI.extension/lib/bimcode_ai_pane/write_coordinator.py
+ M AI.extension/lib/bimcode_ai_pane/write_lifecycle.py
+ M tests/test_bimcode_provider_write_adapter.py
+ M tests/test_bimcode_provider_write_handoff.py
+ M tests/test_bimcode_provider_write_host_bridge.py
+ M tests/test_bimcode_write_admission.py
+ M tests/test_bimcode_write_lifecycle.py
+ M tests/test_bimcode_write_session_native.ps1
+?? AI.extension/lib/bimcode_ai_pane/provider_write_transfer.py
+?? tests/test_bimcode_admission_safety.py
+?? tests/test_bimcode_cleanup_exception.py
+?? tests/test_bimcode_provider_write_transfer.py
+?? tests/test_bimcode_safety_resolution.py
+```
+
+Pre-edit SHA-256 snapshots include tracked and untracked non-documentation files.
+All twenty pre-existing changed paths must remain byte-identical; no runtime/test
+or provider implementation edit is authorized. Secrets are not read.
+
+### Engineering objective and atomic transfer
+
+M4B-DISPATCH-003B-2A investigates exclusive operation ownership, retained AI-turn
+identity, synchronization, cross-IronPython-engine authority, lifecycle contention,
+unresolved transactions, evidence-specific recovery authorization and pure inspection.
+The session-owned reservation binds exact retained AI turn, trusted provider origin,
+transport ticket, document/session, context/selection and permission generations,
+fixed tool name and proposed value. Validated binding -> reservation -> atomic
+replacement -> CONTROLLED_WRITE_PROVIDER_TOOL -> sealed dispatcher adoption.
+No release/acquire gap, global busy bypass, unrelated owner replacement or
+caller-supplied Owner. AI turn retained/consumed; adoption single-use, ordinary
+dispatch sealed. Work stops before Revit API-context preview/confirmation/mutation.
+Initial recorded results: Python784, transfer43, cross-engine117 PASS, before fixes.
+
+### FIX-001 - Lossless cleanup intent
+
+Original reproduced failure:
+LOCKED_CLEANUP False SAFETY False
+RELEASE_AFTER_LOST_CLEANUP True SAFETY False
+
+Nonblocking operation-lock rejection occurred before unresolved intent publication.
+Correction separates operation lock (admission/transfer/release/reconciliation)
+from state lock (owner publication/pending cleanup/safety); order Operation -> State.
+Cleanup publishes under State, releases it, then attempts Operation. Pending intent
+survives contention, blocks unsafe admission/release/transfer, remains observable
+and supports matching-owner reconciliation without automatically clearing safety.
+Implemented; offline regression PASS.
+
+### FIX-002 - Evidence-correlated resolution and pure inspection
+
+Original reproduced failure:
+STALE_RESOLUTION_AFTER_NEW_EVIDENCE True SAFETY False
+
+Quiescence alone previously allowed older decisions to clear newer evidence.
+Correction: monotonic generation, bounded source/request evidence records,
+deduplication, exact host-only tickets and atomic comparison/clearing. Resolution
+requires matching evidence, no active owner/pending cleanup, verified executor
+quiescence and authorized recovery. Stale tickets rejected; M4A recovery cannot
+clear unrelated M4B evidence. Unknown-source evidence/overflow require intervention.
+
+Separate reproduced inspection defect:
+SessionWrites.inspect -> Handoff.inspect -> Handoff.check -> expiry/invalidation.
+Inspection now returns retained owner active/quiescent, pending cleanup, safety
+generation/count, pending continuation and aggregate busy without expiring leases/
+continuation, releasing owners, clearing safety, changing permission/reducer state
+or invoking transport/Revit. Operational/lifecycle boundaries still enforce expiry.
+Both corrections implemented; offline regressions PASS.
+
+### FIX-003 - Cleanup exception safety
+
+Original reproduced failure:
+CLEANUP_EXCEPTION AttributeError
+SAFETY_RETAINED False
+SAFETY_GENERATION 0
+PENDING_CLEANUP False
+
+Exception handler read self.lifecycle.owner before retention; secondary AttributeError
+prevented safety publication. Correction publishes synchronized unknown-source
+evidence first, then independently guards lease invalidation, sink cleanup and
+continuation closure. No fabricated owner identity/release; existing safety and
+pending cleanup preserved. Executor-specific recovery cannot clear unknown evidence;
+intervention required. Implemented; offline regression PASS.
+SC-004 must additionally review safety-publication failure itself; ready-for-review
+does not claim every failure mode has completed final source-control review.
+
+### Latest recorded validation, not rerun by this documentation task
+
+Python827 PASS; persistent-session cross-engine141 PASS; native write78 PASS;
+native provider74 PASS; changed-runtime IronPython10 PASS; AST/py_compile/tabnanny
+19 files PASS; dependencies and git diff --check PASS; credential-pattern scan173
+files/zero matches (not exhaustive secret proof). Prior failing reproductions were
+observed before their respective corrections. No offline result is live acceptance.
+These counts are the preceding engineering report, not newly executed EOD checks.
+
+### Source-control disposition, contracts and next work
+
+003B-2A defined offline implementation complete; transfer and FIX-001/002/003
+implemented, regressions passing. UNCOMMITTED / UNPUSHED; final review PENDING.
+Last conditional source-control attempt blocked by FIX-003; correction implemented,
+but final conditional review not rerun. Current verdict:
+M4B_DISPATCH003B2A_SAFETY_FIX003_READY_FOR_REVIEW.
+Do not claim M4B_DISPATCH003B2A_SOURCE_CONTROL_CLOSED. Overall M4B NOT CLOSED.
+
+M4A one transaction constructor/one Parameter.Set/60-second approval;
+M4B120-second preview/30-second queue/separate120-second continuation hold;
+native human confirmation required. Provider13 active read-only/one dormant/zero
+exposed write tools; catalog237; production continuation UNWIRED.
+No new Revit write or authenticated OpenAI-controlled mutation performed.
+
+Next M4B-DISPATCH-003B-2A-SC-004: final safety review of exception/publication-failure
+boundaries, FIX-001/002/003, atomic transfer, cross-engine authority and unchanged
+mutation/exposure contracts; conditional commit/push only after passing review.
+Following M4B-DISPATCH-003B-2B API-context dispatch/live qualification/preview:
+NOT STARTED. No implementation authorized in this EOD task.
+
+October12 actual hours: PENDING USER CONFIRMATION; no eight-hour assumption or
+October8 duplication. Central Evidence IDs, Daily Log ID and Knowledge Checkpoint
+ID: PENDING. Six experiment rows use existing PENDING Evidence_ID convention;
+no invented experiment or central identifier. This EOD documentation is uncommitted/
+unpushed. Only documentation checks run: Git, diff/whitespace, CSV structure,
+historical-record preservation and non-documentation byte hashes.
+
 ## 2026-10-08 EOD - M4B host acceptance, API investigation and permission correction
 
 Authoritative dated checkpoint; prior entries retain their historical meaning.

@@ -87,6 +87,8 @@ class HandoffTests(unittest.TestCase):
         self.finish()
         receipt=self.f.d.request.host_result
         self.f.now += 120
+        self.assertTrue(self.h.inspect()['pending'])
+        self.h.check()  # Operational expiry, never a side effect of inspection.
         state=self.h.inspect()
         self.assertFalse(state['pending'])
         self.assertEqual(state['last']['reason'], 'CONTINUATION_HOLD_EXPIRED')

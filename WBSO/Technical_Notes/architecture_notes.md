@@ -1,5 +1,53 @@
 # Architecture Notes
 
+## 2026-10-12 EOD - Atomic ownership and evidence-specific recovery
+
+Current architectural checkpoint supersedes earlier current-state statements;
+earlier observations remain history. Committed foundations: DISPATCH-002 host
+acceptance/harness retirement e7486724a02bf68fa4e5aae35908691cc7b4dcef;
+003A immutable handoff80b7186d1b0fc8a59596509344fd5930a0957c90;
+003B-1 trusted adapter325b30e92c176e9fbd359a5c13df150fe348f721.
+
+003B-2A technical uncertainty: exclusive operation ownership, retained AI-turn and
+cross-IronPython-engine identity, synchronized admission, lifecycle contention,
+unresolved transaction evidence, evidence-specific recovery and pure observation.
+Implemented session-owned reservation binds exact AI turn, trusted provider origin,
+transport ticket, session/document, context/selection/permission generations,
+fixed tool and proposed value. Validated binding -> reservation -> atomic owner
+replacement -> CONTROLLED_WRITE_PROVIDER_TOOL -> sealed dispatcher adoption.
+No release-then-acquire gap, busy bypass, unrelated owner replacement or caller
+Owner. Turn identity retained/consumed; adoption single-use; ordinary dispatch sealed.
+The defined offline scope stops before Revit preview/confirmation/mutation.
+
+FIX-001: nonblocking operation lock previously rejected cleanup before publishing
+unresolved intent. Separate short state lock publishes owner/pending cleanup/safety;
+operation lock serializes admission/transfer/release/reconciliation.
+Lock order Operation -> State; cleanup releases State before attempting Operation.
+Pending cleanup survives contention, blocks unsafe admission/release/transfer and
+permits matching-owner reconciliation without automatically clearing safety.
+
+FIX-002: monotonic generation, bounded source/request records and deduplication;
+exact host-only recovery ticket must match retained evidence under synchronization.
+No active owner/pending cleanup, executor quiescence and authorized recovery required.
+Stale tickets rejected; M4A recovery cannot clear unrelated M4B evidence.
+Unknown-source evidence and overflow require intervention. Session/Handoff inspection
+now observes retained state without operational expiry, lease invalidation, owner
+release, safety clearing, permission/reducer change, transport or Revit execution.
+Deadline enforcement remains at operational/lifecycle boundaries.
+
+FIX-003: exception handler previously dereferenced lifecycle.owner before retention.
+Unknown-source safety is now published first under synchronization; lease/sink/
+continuation secondary cleanup independently guarded. No fabricated owner or release;
+prior evidence/pending cleanup retained; executor-specific recovery cannot clear unknown.
+Final SC-004 must still review failure of safety publication itself; no new proof of
+that boundary or live acceptance is claimed by this documentation task.
+
+All three fixes implemented/offline PASS, UNCOMMITTED / UNPUSHED; M4B NOT CLOSED.
+M4A1transaction/1Set/60seconds; M4B120/30 plus separate continuation120;
+native consent; provider13/1/0; catalog237; production continuation UNWIRED.
+Next SC-004; 003B-2B API-context dispatch not started. Hours/central IDs PENDING.
+Recorded counts and reproductions: evidence_reference.md, October12.
+
 ## 2026-10-08 EOD - Separate request finalization from session permission
 
 Current engineering checkpoint; preserve earlier architecture/evidence as history.

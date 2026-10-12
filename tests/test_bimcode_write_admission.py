@@ -40,12 +40,14 @@ class Admission(unittest.TestCase):
     def test_cleanup_and_safety_separate(self):
         for reason in ("DOCUMENT_CLOSE", "DOCUMENT_SWITCH", "PANE_DISPOSAL", "SHUTDOWN", "ABANDONED"):
             manager = OperationAdmission(); owner = acquire(manager)
-            self.assertTrue(manager.cleanup(owner, reason, transaction_unresolved=True))
+            source = object()
+            self.assertTrue(manager.cleanup(owner, reason, transaction_unresolved=True, evidence_source=source))
             self.assertIsNone(manager.active)
             self.assertTrue(manager.safety_locked)
             self.assertIsNone(acquire(manager))
             self.assertFalse(manager.resolve_safety(False))
-            self.assertTrue(manager.resolve_safety(True))
+            self.assertFalse(manager.resolve_safety(True))
+            self.assertTrue(manager.resolve_safety(True, manager.resolution_ticket(source, owner)))
             self.assertIsNotNone(acquire(manager))
 
     def test_stale_cleanup_no_stealing(self):

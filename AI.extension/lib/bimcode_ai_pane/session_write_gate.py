@@ -108,6 +108,9 @@ class SessionWriteGate(object):
         return ok
 
     def cleanup(self, reason):
+        transfer = getattr(self, 'transfer', None)
+        if transfer is not None:
+            transfer.invalidate(reason)
         handoff = getattr(self, 'handoff', None)
         if handoff is not None:
             handoff.invalidate(reason)
@@ -125,11 +128,22 @@ class SessionWriteGate(object):
                     self.request = None
             except Exception:
                 # Corrupt/missing host evidence must never release an owner.
-                self.admission.safety_locked = True
-                self.lifecycle.leases.invalidate(reason)
-                self.lifecycle.sink.cleanup()
-                if self.lifecycle.continuation is not None:
-                    self.lifecycle.continuation.close("cancelled")
+                # Publish unknown-source evidence before inspecting the damaged
+                # lifecycle. It cannot be cleared by an executor-specific ticket.
+                self.admission.retain_safety(True, event='CLEANUP_EVIDENCE_INVALID')
+                try:
+                    self.lifecycle.leases.invalidate(reason)
+                except Exception:
+                    pass
+                try:
+                    self.lifecycle.sink.cleanup()
+                except Exception:
+                    pass
+                try:
+                    if self.lifecycle.continuation is not None:
+                        self.lifecycle.continuation.close("cancelled")
+                except Exception:
+                    pass
                 self.note = "CLEANUP_EVIDENCE_INVALID"
         if self.permission.view_model()["enabled"]:
             self.permission.disable()
@@ -159,6 +173,7 @@ class SessionWriteGate(object):
             execution_queue_lease_active=leases is not None and leases.queue.state == "ACTIVE",
             current_owner=owner.owner_type if owner is not None else "NONE",
             retained_safety_lock=self.admission.safety_locked,
+            admission_safety=self.admission.inspect_safety(),
             cleanup_generation=self.cleanup_generation, note=self.note,
             enable_available=not self.closed and not state["enabled"] and self.enable_pending is None,
             disable_available=not self.closed)

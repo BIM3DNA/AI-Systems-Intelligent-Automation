@@ -7,6 +7,7 @@ All methods belong to the persistent session engine/UI owner thread. No worker.
 from collections import namedtuple
 from uuid import uuid4
 from threading import Lock
+from copy import deepcopy
 from bimcode_ai_pane import provider_write as machine
 from bimcode_ai_pane import write_projection as projection
 from bimcode_ai_pane import write_continuation as continuation
@@ -157,7 +158,7 @@ class Handoff(object):
             self.failure = 'CONTINUATION_ADMISSION_FAILED'
             self.binding = None
             if self.pending is not None:
-                d.admission.safety_locked = True
+                d.admission.retain_safety(True, self, d.owner, 'ADMISSION_FINALIZATION_FAILED')
                 self.invalidate('ADMISSION_FINALIZATION_FAILED')
             return False
 
@@ -176,7 +177,7 @@ class Handoff(object):
         status = projection.explanation('UNAVAILABLE', error_classification=reason)
         step = machine.transition(d.request, d.identity, target, stamp, reason, provider_status=status)
         if not step.accepted:
-            d.admission.safety_locked = True
+            d.admission.retain_safety(True, self, d.owner, 'CONTINUATION_TRANSITION_FAILED')
             raise ValueError(step.reason)
         coord.close('document_close' if reason in ('DOCUMENT_CLOSE','DOCUMENT_SWITCH') else 'cancelled')
         coord.request = d.request = step.request
@@ -203,9 +204,9 @@ class Handoff(object):
                 self.invalidate('CONTINUATION_HOLD_EXPIRED')
 
     def inspect(self):
-        self.check()
+        # Pure retained snapshot. Expiry belongs to operational check() calls.
         if self.pending is None:
-            return dict(pending=False, last=self.last, failure=self.failure)
+            return dict(pending=False, last=deepcopy(self.last), failure=self.failure)
         d, coord, snap, expires = self.pending
         return dict(pending=True, state=d.request.state, expires_at=expires,
                     correlation=d.identity._asdict(), host_result=snap.host_result.json,

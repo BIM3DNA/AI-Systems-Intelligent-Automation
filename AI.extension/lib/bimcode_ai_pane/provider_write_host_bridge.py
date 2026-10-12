@@ -63,7 +63,7 @@ class Bridge(object):
         # Receipt first, then cleanup. Never clear independent safety evidence.
         unresolved = self.executor.retained is not None or result["model_modified"] is None
         if unresolved:
-            d.admission.safety_locked = True
+            d.admission.retain_safety(True, self.executor, d.owner, 'HOST_RESULT_UNRESOLVED')
         gate = self.session.write_gate
         writes = getattr(self.session, 'controlled_writes', None)
         if writes is not None and writes.handoff.admit(d):
@@ -212,7 +212,7 @@ class Bridge(object):
             if d.request.state == "WRITE_EXECUTING":
                 result.update(classification="MEP_PARAMETER_WRITE_INDETERMINATE", model_modified=None,
                               transaction_status="Unknown")
-                d.admission.safety_locked = True
+                d.admission.retain_safety(True, self.executor, d.owner, 'EXECUTION_EXCEPTION')
             return self._finish(result)
         finally:
             self.running = False

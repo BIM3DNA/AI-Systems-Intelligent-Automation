@@ -51,6 +51,14 @@ class Dispatcher(object):
     def _out(self, accepted, reason):
         return Outcome(accepted, reason, self.request, self.preview_json, self.leases.preview)
 
+    def adopt_transferred(self):
+        """Internal 003B-2A ownership-only entry. Never builds a preview.
+
+        No caller-supplied Owner; exact session retention is checked by Transfer.
+        The adopted instance is sealed against the ordinary dispatch path.
+        """
+        return self.session.controlled_writes.transfer._adopt(self)
+
     def _move(self, state, reason, receipt=None):
         try:
             stamp = self.clock.sample().monotonic

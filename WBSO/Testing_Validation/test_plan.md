@@ -1,5 +1,38 @@
 # Test Plan
 
+## 2026-10-12 EOD - SC-004 safety review gate
+
+Current plan supersedes earlier pending host acceptance/harness-retirement actions.
+DISPATCH-002 host Confirm/verification/Cancel and independent post-Cancel Properties
+PASS (user supplied); harness retired, source-control closed e7486724... .
+003A80b7186... and 003B-1 325b30e... are committed/pushed; full anchors in
+../Technical_Notes/evidence_reference.md. No live tests rerun here.
+
+003B-2A atomic reservation/replacement/sealed adoption and FIX-001/002/003 are
+implemented with recorded offline PASS, UNCOMMITTED / UNPUSHED.
+Immediate checkpoint: M4B-DISPATCH-003B-2A-SC-004, NOT YET RERUN.
+
+Required final review:
+- Cleanup exception publishes safety before fallible lifecycle/owner inspection.
+- Safety-publication failure cannot silently permit admission.
+- Pending cleanup survives contention/reentrancy and blocks unsafe release/transfer.
+- Exact source/request/generation tickets reject stale evidence decisions;
+  unknown/overflow evidence requires intervention; M4A cannot clear foreign evidence.
+- Inspection remains pure; operational expiry still enforced.
+- Atomic replacement has no gap/busy bypass; exact AI-turn/binding/ticket/epochs;
+  single-use sealed adoption and persistent cross-engine authority retained.
+- Full Python/native/cross-engine/static regressions, exact scope, dependencies,
+  credential-pattern and whitespace checks; no exposure/mutation expansion.
+
+Only after that review passes may a separately authorized conditional implementation
+commit/push close 003B-2A. This documentation task does not perform that review.
+Following M4B-DISPATCH-003B-2B: dedicated Revit API-context dispatch, live target
+qualification and preview integration; NOT STARTED, no new live matrix PASS.
+M4A1transaction/1Set/60seconds; M4B120/30 plus continuation120; native confirmation;
+provider13/1/0; catalog237; production continuation UNWIRED.
+Recorded test counts: validation_summary.md, October12; not new executions.
+Hours PENDING USER CONFIRMATION; Evidence/Daily Log/KC IDs PENDING; M4B NOT CLOSED.
+
 ## 2026-10-08 EOD - Host acceptance disposition and remaining verification
 
 Current matrix supersedes earlier pending retests; historical instructions remain below.

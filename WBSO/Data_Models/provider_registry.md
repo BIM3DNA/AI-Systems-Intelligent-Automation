@@ -1,5 +1,30 @@
 # Provider Registry
 
+## 2026-10-12 EOD - Trusted binding and atomic ownership checkpoint
+
+Current authority supersedes older pending/harness-present statements below.
+DISPATCH-002 e7486724a02bf68fa4e5aae35908691cc7b4dcef, DISPATCH-003A
+80b7186d1b0fc8a59596509344fd5930a0957c90 and DISPATCH-003B-1
+325b30e92c176e9fbd359a5c13df150fe348f721 are COMMITTED / PUSHED /
+SOURCE-CONTROL CLOSED checkpoints. Host Confirm/verification/Cancel and independent
+post-Cancel Properties passed; temporary Dev harness retired (user-supplied live evidence).
+
+003B-1 retains trusted launch/model/response/call identity. Uncommitted 003B-2A
+reserves the exact AI turn and transport ticket, atomically replaces only its owner,
+then permits single-use sealed dispatcher adoption. No arbitrary caller Owner,
+global busy bypass, provider-selected action or Revit dispatch is introduced.
+FIX-001/002/003 retain cleanup intent and source-specific safety under contention,
+reject stale recovery and make inspection pure, including malformed lifecycle failures.
+Recorded offline PASS; final source-control review pending, not feature closure.
+
+Registry unchanged: 13 active read-only tools / one dormant controlled-write definition /
+zero exposed write tools. set_selected_pipe_test_text remains unavailable to OpenAI.
+Production continuation transport UNWIRED; catalog237; no new authenticated write.
+Main HEAD/origin/live remote325b30e..., ahead/behind0/0; 003B-2A uncommitted/unpushed.
+Next SC-004 safety review; 003B-2B not started. M4B NOT CLOSED.
+October12 hours PENDING USER CONFIRMATION; central Evidence/Daily Log/KC IDs PENDING.
+Detailed evidence and exact baseline: ../Technical_Notes/evidence_reference.md, October12.
+
 ## 2026-10-08 EOD - Internal host live acceptance; provider boundary unchanged
 
 Authoritative current checkpoint; preceding dated records remain historical.

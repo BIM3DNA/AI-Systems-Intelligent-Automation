@@ -1,5 +1,62 @@
 # PROJECT STATE
 
+## 2026-10-12 EOD - Atomic provider-turn ownership and safety corrections (current)
+
+BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.
+This dated authority supersedes earlier current/pending statements below.
+Historical evidence, runtime/catalog hashes and prior discrepancy notes are preserved.
+
+Committed and pushed foundations (verified ancestors of current live remote main):
+- DISPATCH-002 host acceptance / harness retirement:
+  e7486724a02bf68fa4e5aae35908691cc7b4dcef, SOURCE-CONTROL CLOSED.
+  Native Confirm, transaction/verification and Cancel live validated;
+  independent post-Cancel Properties PASS (user-supplied closure evidence).
+  Temporary Dev harness retired; October 8 pending/harness-present text is historical.
+- DISPATCH-003A continuation handoff:
+  80b7186d1b0fc8a59596509344fd5930a0957c90, SOURCE-CONTROL CLOSED.
+  Immutable completion, reused continuation coordinator, replay protection and
+  bounded pending continuation implemented; production transport UNWIRED.
+- DISPATCH-003B-1 trusted provider adapter:
+  325b30e92c176e9fbd359a5c13df150fe348f721, SOURCE-CONTROL CLOSED.
+  Retained-launch binding and pre-launch expected-model capture implemented;
+  response/call replay protection retained; zero production write exposure.
+
+Verified documentation-task baseline: main HEAD = origin/main = live remote main =
+325b30e92c176e9fbd359a5c13df150fe348f721; parent 80b7186d1b0fc8a59596509344fd5930a0957c90;
+subject feat(bimcode): add trusted M4B provider response adapter; ahead/behind 0/0.
+Worktree dirty: 15 modified tracked + five untracked = 20 paths, +1362/-56
+including untracked content; nothing staged. All pre-existing files are preserved.
+
+DISPATCH-003B-2A: IMPLEMENTATION COMPLETE FOR DEFINED OFFLINE SCOPE.
+Atomic session-owned provider-turn reservation/replacement and sealed dispatcher
+adoption implemented; no release/acquire gap, unrelated owner replacement or busy bypass.
+FIX-001 lossless cleanup intent, FIX-002 evidence-correlated recovery/pure inspection
+and FIX-003 cleanup-exception safety implemented; OFFLINE REGRESSIONS PASS.
+UNCOMMITTED / UNPUSHED; FINAL SOURCE-CONTROL REVIEW PENDING.
+Last conditional source-control attempt was blocked by FIX-003; correction followed,
+but final conditional review has not been rerun. Current engineering verdict:
+M4B_DISPATCH003B2A_SAFETY_FIX003_READY_FOR_REVIEW.
+This is NOT source-control closure or live provider-to-Revit acceptance.
+
+Recorded preceding validation, not rerun for this documentation: Python827;
+cross-engine141; native write78/provider74; changed-runtime IronPython10;
+AST/py_compile/tabnanny19 files; dependencies/whitespace PASS;
+credential-pattern scan173 files, zero matches (not exhaustive secret proof).
+Technical findings, exact preserved inventory and validation provenance:
+WBSO/Technical_Notes/evidence_reference.md, October 12.
+
+M4A: one transaction constructor/one Parameter.Set, 60-second approval.
+M4B: 120-second preview, 30-second execution queue, separate120-second continuation
+hold; native human confirmation required. Provider13 read-only/one dormant/zero
+exposed writes; catalog237; production continuation UNWIRED.
+No new Revit write or authenticated OpenAI-controlled mutation performed.
+
+Next: M4B-DISPATCH-003B-2A-SC-004 final safety review and conditional closure.
+Verify safety-publication failure cannot silently permit admission before closure.
+Following 003B-2B API-context dispatch/live qualification/preview: NOT STARTED.
+October12 actual hours PENDING USER CONFIRMATION; Evidence/Daily Log/KC IDs PENDING.
+This documentation checkpoint is UNCOMMITTED / UNPUSHED; no staging/commit/push.
+
 ## 2026-10-08 EOD - M4B host acceptance and permission lifecycle (current)
 
 M4B: IN PROGRESS / NOT CLOSED. This dated checkpoint supersedes earlier pending

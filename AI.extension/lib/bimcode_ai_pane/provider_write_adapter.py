@@ -21,6 +21,7 @@ class Adapter(object):
         self.expected_model = None
         self.model_generation = 0
         self.outstanding = None
+        self.accepted = None
         self._lock = Lock()
 
     def _session(self):
@@ -112,6 +113,7 @@ class Adapter(object):
                 if type(response) is not dict:
                     raise ValueError('INVALID_PROVIDER_EVIDENCE')
                 binding = self.writes.handoff.bind_response(ticket, response)
+                self.accepted = (launch, binding)  # Retained host evidence, never reconstructed.
                 return Outcome('TRUSTED_PROVIDER_BINDING_READY', binding)
             finally:
                 if self.writes.handoff.ticket is launch.ticket:

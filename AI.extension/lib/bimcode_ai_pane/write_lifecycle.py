@@ -64,7 +64,7 @@ class Lifecycle(object):
         if host is not None and host["request_id"] != owner.host_request_id:
             raise ValueError("LEASE_CORRELATION_FAILED")
         evidence = (reason, request, receipt, execution_active, transaction_unresolved)
-        if evidence == self._evidence:
+        if evidence == self._evidence and not self.admission.inspect_safety()['pending_cleanup']:
             return self.result
         # A late old cleanup cannot disable/release a newer request or permission.
         if self.admission.active not in (None, owner):
@@ -92,11 +92,11 @@ class Lifecycle(object):
         self.sink.cleanup()  # Immutable stored completion is retained.
         if self.continuation is not None:
             self.continuation.close(TRIGGERS[reason])
-        if active or unresolved:
-            self.admission.safety_locked = True
-        released = False
-        if not active:
-            released = self.admission.release(owner, reason)
+        released = self.admission.cleanup(owner, reason, active, unresolved, evidence_source=self)
+        if not active and not released:
+            released = self.admission.reconcile_cleanup(owner, executor_quiescent=True)
+            if not released:
+                released = self.admission.release(owner, reason)
         self.result = Cleanup(reason, released, active, not normal, True, self.continuation is not None,
                               receipt, self.admission.safety_locked, request)
         self._evidence = evidence
@@ -127,7 +127,7 @@ class Lifecycle(object):
             raise ValueError('EXECUTION_STILL_ACTIVE')
         if (request.retained_safety_lock or host['model_modified'] is None or
                 host['transaction_status'] in ('Pending', 'Unknown')):
-            self.admission.safety_locked = True
+            self.admission.retain_safety(True, self, self.owner, 'ADMITTED_HOST_RESULT_UNRESOLVED')
         self.receipt = request.host_result
         self.leases.invalidate('REQUEST_FINALIZED')
         self.sink.cleanup()

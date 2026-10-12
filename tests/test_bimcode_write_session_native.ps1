@@ -277,6 +277,8 @@ assert json.loads(session.inspect_controlled_write_request())==pending
 '@,$sb2)
     $a.Execute(@'
 hold_now[0]=130.0
+assert s.controlled_writes.handoff.inspect()['pending']
+s.controlled_writes.handoff.check()
 '@,$sa)
     $c.Execute(@'
 expired=json.loads(session.inspect_controlled_write_request())
@@ -339,6 +341,106 @@ assert ('adapter_response','adapter_call') in h.seen
 assert json.loads(session.inspect_controlled_write_request())['host_result']==expired['host_result']
 '@,$sb2)
     Write-Output 'PASS: 10 additional 003B-1 persistent adapter assertions; binding only'
+    $a.Execute(@'
+# 003B-2A: all identity-sensitive authority remains in persistent engine A.
+from bimcode_ai_pane.provider_write_transfer import Transfer, Reservation
+transfer=s.controlled_writes.transfer
+assert type(transfer) is Transfer
+assert transfer.reserve()['state']=='PROVIDER_TURN_RESERVED'
+assert type(transfer.reservation) is Reservation
+before=s.write_admission.active
+assert before is transfer.reservation.owner and type(before) is Owner
+assert transfer.transfer()['state']=='CONTROLLED_WRITE_OWNER_TRANSFERRED'
+assert s.write_admission.active is transfer.transferred
+assert s.ai.turn is transfer.reservation.evidence[0].ticket.turn
+assert transfer.adopt()['state']=='TRANSFERRED_OWNER_ADOPTED'
+assert s.controlled_writes.dispatcher.owner is transfer.transferred
+assert s.controlled_writes.dispatcher.used and s.controlled_writes.dispatcher.preview_json is None
+'@,$sa)
+    $c.Execute(@'
+owned=json.loads(session.inspect_controlled_write_request())
+assert owned['busy'] and owned['host_result'] is None
+assert json.loads(session.begin_controlled_write_request('Competing'))['reason']=='EXECUTION_BUSY'
+'@,$sb2)
+    $a.Execute(@'
+s.write_gate.cleanup('DOCUMENT_CLOSE')
+assert s.write_admission.active is None
+try:
+    transfer.adopt()
+    raise AssertionError('Invalidated adoption accepted')
+except ValueError:
+    pass
+'@,$sa)
+    Write-Output 'PASS: 14 additional 003B-2A cross-engine ownership assertions; no preview/execution'
+    $a.Execute(@'
+# FIX-001: contention retains safety in the persistent authority only.
+m=s.write_admission
+held=m.acquire('HUMAN_DEV_WRITE','safety','safety','doc',str(id(s)),1)
+# Existing AI turn blocks admission; use the already-owned scalar-free manager
+# in isolation while keeping inspection on the actual persistent PaneSession.
+if held is None:
+    s.ai.turn=None
+    held=m.acquire('HUMAN_DEV_WRITE','safety','safety','doc',str(id(s)),1)
+assert held is not None
+m._lock.acquire(False)
+try:
+    assert not m.cleanup(held,'PANE_DISPOSAL',transaction_unresolved=True,evidence_source=m)
+    assert m.safety_locked
+finally:
+    m._lock.release()
+assert not m.release(held,'ORDINARY')
+'@,$sa)
+    $c.Execute(@'
+safety=json.loads(session.inspect_controlled_write_request())['admission_safety']
+assert safety['pending_cleanup'] and safety['retained_safety_lock']
+assert safety['cleanup_reason']=='PANE_DISPOSAL' and safety['requires_intervention']
+# Editing this deserialized copy cannot affect the persistent authority.
+safety['retained_safety_lock']=False
+assert json.loads(session.inspect_controlled_write_request())['admission_safety']['retained_safety_lock']
+'@,$sb2)
+    $a.Execute(@'
+assert m.reconcile_cleanup(held,executor_quiescent=True)
+assert m.active is None and m.safety_locked
+assert not m.inspect_safety()['pending_cleanup']
+assert not m.resolve_safety(False)
+assert not m.resolve_safety(True)
+ticket=m.resolution_ticket(m,held)
+assert m.resolve_safety(True,ticket)
+'@,$sa)
+    $c.Execute(@'
+snapshot=json.loads(session.inspect_controlled_write_request())['admission_safety']
+assert snapshot['owner_state']=='QUIESCENT' and not snapshot['owner_present']
+assert snapshot['safety_evidence_generation'] >= 1
+assert 'execution_active' not in snapshot
+'@,$sb2)
+    $a.Execute(@'
+m.retain_safety(True,m,held,'NEW')
+assert not m.resolve_safety(True,ticket)
+assert m.safety_locked
+'@,$sa)
+    Write-Output 'PASS: 12 additional FIX-001 persistent safety/Dev inspection assertions'
+    Write-Output 'PASS: 7 additional FIX-002 pure snapshot/evidence authority assertions'
+    $a.Execute(@'
+class BrokenCleanup(object):
+    @property
+    def owner(self):
+        raise AttributeError('missing owner')
+    def cleanup(self, *args):
+        raise ValueError('missing evidence')
+before=m.inspect_safety()['safety_evidence_generation']
+s.write_gate.lifecycle=BrokenCleanup()
+s.write_gate.cleanup('PANE_DISPOSAL')
+assert m.safety_locked
+assert m.inspect_safety()['safety_evidence_generation']==before+1
+s.write_gate.cleanup('PANE_DISPOSAL')
+assert m.inspect_safety()['safety_evidence_generation']==before+1
+'@,$sa)
+    $c.Execute(@'
+first=json.loads(session.inspect_controlled_write_request())['admission_safety']
+assert first['retained_safety_lock'] and first['requires_intervention']
+assert first==json.loads(session.inspect_controlled_write_request())['admission_safety']
+'@,$sb2)
+    Write-Output 'PASS: 5 additional FIX-003 persistent cleanup exception assertions'
     $checks=$sb.GetVariable('count')
     Write-Output "PASS: persistent IronPython engine plus two Dev engines; $checks counted boundary assertions; 29 additional session/stale-class/identity/lifecycle assertions; actual PaneSession API and Cancel passed; old Owner failure still rejected; stale class alternative reproduced (not live attribution)"
 } finally { [IO.File]::Delete($archive) }

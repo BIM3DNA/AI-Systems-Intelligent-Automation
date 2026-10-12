@@ -1,5 +1,39 @@
 # Issue Log
 
+## 2026-10-12 EOD - Offline ownership safety corrections awaiting final review
+
+Current dispositions supersede earlier current-state language, not historical evidence.
+DISPATCH-002 host acceptance/harness retirement is source-control closed at
+e7486724a02bf68fa4e5aae35908691cc7b4dcef. Independent post-Cancel Properties PASS
+is now user supplied; earlier PENDING is historical. No reinterpretation of the
+M4B_HOST_CANCEL_02 Confirm observation. 003A80b7186... and 003B-1 325b30e...
+are also committed/pushed checkpoints; full anchors in evidence_reference.md.
+
+- FIX-001: operation-lock contention dropped unresolved safety intent.
+  Reproduced LOCKED_CLEANUP False SAFETY False; RELEASE_AFTER_LOST_CLEANUP True
+  SAFETY False. State-lock publication before operation-lock attempt implemented;
+  pending cleanup and safety retained. OFFLINE PASS.
+- FIX-002 recovery: stale quiescence decision cleared newer evidence.
+  Reproduced STALE_RESOLUTION_AFTER_NEW_EVIDENCE True SAFETY False.
+  Generation/source/request-specific tickets and atomic comparison implemented;
+  stale/foreign/unknown-source clearing rejected. OFFLINE PASS.
+- FIX-002 inspection: Handoff.inspect invoked check and expired continuation.
+  Pure retained snapshots implemented; operational expiry remains separate.
+  OFFLINE PASS.
+- FIX-003: cleanup exception handler read lifecycle.owner before safety retention.
+  Reproduced AttributeError, SAFETY_RETAINED False, SAFETY_GENERATION0,
+  PENDING_CLEANUP False. Unknown-source publication now precedes fallible inspection;
+  independent secondary cleanup guards; no invented identity or owner release.
+  OFFLINE PASS; unknown evidence requires intervention.
+
+003B-2A implementation/fixes UNCOMMITTED / UNPUSHED, final SC-004 review PENDING.
+Previous conditional source-control attempt blocked by FIX-003; final review has
+not been rerun since correction. Do not record source-control closure.
+SC-004 must verify publication failure cannot silently allow admission, preserve
+all fixes, atomic transfer and session-owned cross-engine authority.
+003B-2B NOT STARTED; M4B NOT CLOSED; provider13/1/0; continuation UNWIRED.
+No new Revit or authenticated OpenAI run. October12 actual hours/central IDs PENDING.
+
 ## 2026-10-08 EOD - Session API recovery and permission-divergence resolution
 
 Current dispositions supersede earlier pending retests without deleting evidence.

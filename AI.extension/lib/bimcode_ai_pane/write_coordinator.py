@@ -163,18 +163,22 @@ class WriteCoordinator(object):
             sink.store(result)
         except Exception:
             sink.error = "COMPLETION_CONTRACT_FAILED"
-            self.admission.safety_locked = (self.executor.retained is not None or
-                result.get("classification") == "MEP_PARAMETER_WRITE_INDETERMINATE")
+            self.admission.retain_safety(self.executor.retained is not None or
+                result.get("classification") == "MEP_PARAMETER_WRITE_INDETERMINATE",
+                self.executor, owner, 'COMPLETION_CONTRACT_FAILED')
+            self.admission.reconcile_cleanup(owner, executor_quiescent=True)
             self.admission.release(owner, "COMPLETION_CONTRACT_FAILED")
             return
-        self.admission.safety_locked = (self.executor.retained is not None or
-                                        result.get("classification") == "MEP_PARAMETER_WRITE_INDETERMINATE")
+        self.admission.retain_safety(self.executor.retained is not None or
+                                    result.get("classification") == "MEP_PARAMETER_WRITE_INDETERMINATE",
+                                    self.executor, owner, 'HOST_RESULT_UNRESOLVED')
         def deliver():
             self.delivering = True
             try:
                 sink.deliver(owner.logical_request_id)
             finally:
                 self.delivering = False
+                self.admission.reconcile_cleanup(owner, executor_quiescent=True)
                 self.admission.release(owner, "HOST_RESULT_READY")
         if sink.callback is None:
             deliver()
@@ -194,7 +198,8 @@ class WriteCoordinator(object):
         if self.completion_sink is not None:
             self.completion_sink.cleanup()
         self.pending = None
-        self.admission.cleanup(self.owner, reason, self.running, self.executor.retained is not None)
+        self.admission.cleanup(self.owner, reason, self.running, self.executor.retained is not None,
+                               evidence_source=self.executor)
         if not self.running and self.executor.retained is None:
             self.session.write_busy = False
 
@@ -211,12 +216,13 @@ class WriteCoordinator(object):
         try:
             guid = framework.Guid.Parse(c.M4A_TEST_PARAMETER_GUID)
             if resolving:
+                resolution = self.admission.resolution_ticket(self.executor, self.owner)
                 result = self.executor.check_pending(DB, guid)
             else:
                 result = self.executor.execute(request, uiapp, self.epochs(), clock(), DB, guid)
             self.emit(self.output, result)
             if resolving and self.executor.retained is None:
-                self.admission.resolve_safety(True)
+                self.admission.resolve_safety(True, resolution)
         except Exception:
             preview = json.loads(request.preview_json) if request is not None else {}
             result = result_for(preview, "INDETERMINATE", "INTERNAL_ERROR")

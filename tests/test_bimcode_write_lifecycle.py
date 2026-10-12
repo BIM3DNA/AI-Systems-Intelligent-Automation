@@ -215,6 +215,26 @@ class CleanupTests(unittest.TestCase):
         for path in paths:
             old = subprocess.check_output(['git', 'show', baseline + ':' + path])
             current = (ROOT / path).read_bytes().replace(b'\r\n', b'\n')
+            if path.endswith('/write_coordinator.py'):
+                # FIX-002: reconstruct only approved evidence identity plumbing.
+                for fragment in (b',\n                self.executor, owner, \'COMPLETION_CONTRACT_FAILED\'',
+                                 b',\n                                    self.executor, owner, \'HOST_RESULT_UNRESOLVED\'',
+                                 b',\n                               evidence_source=self.executor'):
+                    self.assertEqual(current.count(fragment), 1)
+                    current = current.replace(fragment, b'')
+                capture = b'                resolution = self.admission.resolution_ticket(self.executor, self.owner)\n'
+                self.assertEqual(current.count(capture), 1)
+                current = current.replace(capture, b'')
+                self.assertEqual(current.count(b'resolve_safety(True, resolution)'), 1)
+                current = current.replace(b'resolve_safety(True, resolution)', b'resolve_safety(True)')
+                # FIX-001 reviewed seam only; reconstruct all other legacy source.
+                self.assertEqual(current.count(b'self.admission.retain_safety('), 2)
+                current = current.replace(b'self.admission.retain_safety(', b'self.admission.safety_locked = (')
+                current = current.replace(b'                                    result.get(', b'                                        result.get(')
+                for indent in (b'            ', b'                '):
+                    line = b'\n' + indent + b'self.admission.reconcile_cleanup(owner, executor_quiescent=True)\n'
+                    self.assertEqual(current.count(line), 1)
+                    current = current.replace(line, b'\n')
             if path == 'AI.extension/lib/bimcode_write_execution.py':
                 # DISPATCH-002: reconstruct the original M4A source after the
                 # narrow shared-body extraction. Entire legacy source, including

@@ -1,5 +1,33 @@
 # Current Scope Alignment
 
+## 2026-10-12 EOD - Offline transfer complete; source-control review pending
+
+This current scope supersedes older uncommitted-host/harness-present/pending
+post-Cancel statements, preserving their historical meaning.
+DISPATCH-002 e7486724a02bf68fa4e5aae35908691cc7b4dcef: SOURCE-CONTROL CLOSED;
+Confirm/transaction/verification/Cancel and independent post-Cancel Properties PASS;
+temporary harness retired. DISPATCH-003A80b7186d1b0fc8a59596509344fd5930a0957c90
+and 003B-1 325b30e92c176e9fbd359a5c13df150fe348f721 also committed/pushed/closed.
+
+003B-2A implements only atomic session-owned provider-turn ownership transfer and
+sealed adoption, with FIX-001 contention-safe cleanup, FIX-002 evidence-correlated
+resolution/pure inspection and FIX-003 fail-closed cleanup exception handling.
+Defined offline implementation COMPLETE; regressions PASS; final review PENDING.
+No 003B-2A commit/push exists. Verdict M4B_DISPATCH003B2A_SAFETY_FIX003_READY_FOR_REVIEW.
+Overall M4B IN PROGRESS / NOT CLOSED; no provider-origin live acceptance claimed.
+
+Still excluded: dedicated provider API-context dispatch, live target qualification/
+preview integration (003B-2B NOT STARTED), exposed write tool and production
+continuation transport. Provider13 read-only/one dormant/zero exposed; catalog237.
+M4A executor1transaction/1Set/60seconds; M4B120/30-second leases plus separate120-second
+continuation hold; human native confirmation required. No new Revit/API write run.
+
+Immediate next SC-004: final safety review, including safety-publication failure
+and all FIX-001/002/003/transfer/cross-engine invariants; only then conditional
+source-control closure. This EOD task grants no implementation or commit authority.
+October12 hours PENDING USER CONFIRMATION; Evidence/Daily Log/KC IDs PENDING.
+Exact Git baseline/inventory and recorded tests: evidence_reference.md, October12.
+
 ## 2026-10-08 EOD - Host path accepted; overall M4B remains open
 
 This section supersedes earlier pending-live statements; history remains intact.

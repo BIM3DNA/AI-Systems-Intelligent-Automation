@@ -1,5 +1,46 @@
 # Validation Summary
 
+## 2026-10-12 EOD - Atomic transfer and FIX-001/002/003 offline results
+
+Current checkpoint supersedes older current-state claims without rewriting evidence.
+Committed/pushed/source-control-closed foundations: DISPATCH-002 e7486724a02bf68fa4e5aae35908691cc7b4dcef;
+003A80b7186d1b0fc8a59596509344fd5930a0957c90; 003B-1 325b30e92c176e9fbd359a5c13df150fe348f721.
+Host Confirm/transaction/verification/Cancel and independent post-Cancel Properties
+LIVE PASS per user-supplied closure evidence; temporary harness retired.
+
+003B-2A defined offline implementation COMPLETE; FIX-001/002/003 implemented.
+Earlier atomic-transfer checkpoint: Python784 / transfer43 / cross-engine117 PASS.
+Those counts precede safety corrections and are not added to latest totals.
+
+| Latest recorded engineering validation | Result |
+| --- | --- |
+| Full Python suite | 827 PASS |
+| Persistent-session cross-engine assertions | 141 PASS |
+| Native write assertions | 78 PASS |
+| Native provider probes | 74 PASS |
+| Changed-runtime IronPython compilation | 10 PASS |
+| AST / py_compile / tabnanny | 19 files PASS |
+| Dependency checks | PASS |
+| Credential-pattern scan | 173 files; zero matches |
+| git diff --check | PASS |
+
+Recorded from preceding engineering work and user-supplied EOD request.
+No implementation/native/live tests rerun by this documentation task.
+Original failure reproductions preceded their corrections; details in
+../Technical_Notes/evidence_reference.md. Offline/native-engine probes are not
+Revit live acceptance; pattern scan is not exhaustive secret proof.
+
+003B-2A UNCOMMITTED / UNPUSHED; final source-control review PENDING.
+M4B_DISPATCH003B2A_SAFETY_FIX003_READY_FOR_REVIEW, not source-control closure.
+Last conditional attempt blocked on FIX-003; SC-004 has not been rerun.
+Publication-failure safety, all prior invariants and exact final scope remain
+review gates. 003B-2B NOT STARTED; overall M4B NOT CLOSED.
+M4A1transaction/1Set/60seconds; M4B120/30 and continuation120; native confirmation;
+provider13/1/0; catalog237; production continuation UNWIRED.
+October12 hours PENDING USER CONFIRMATION; central Evidence/Daily Log/KC IDs PENDING.
+New documentation-only checks: Git/scope, history preservation, file hashes,
+CSV structure and diff whitespace; reported separately from engineering results.
+
 ## 2026-10-08 EOD - Host Confirm/Undo and permission correction live acceptance
 
 Authoritative dated checkpoint, preserving all historical entries below.

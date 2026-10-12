@@ -258,6 +258,18 @@ class AdapterTests(unittest.TestCase):
             'ai_tool_registry.py', 'controlled_write_registry.py', 'provider_write_handoff.py')]
         for name in paths:
             before = subprocess.check_output(['git', 'show', 'HEAD:'+name]).decode('utf-8-sig')
+            if name.endswith('/provider_write_handoff.py'):
+                # FIX-001: only synchronized monotonic safety publication.
+                self.assertEqual(before.count('d.admission.safety_locked = True'), 2)
+                before = before.replace('d.admission.safety_locked = True',
+                    "d.admission.retain_safety(True, self, d.owner, 'ADMISSION_FINALIZATION_FAILED')", 1)
+                before = before.replace('d.admission.safety_locked = True',
+                    "d.admission.retain_safety(True, self, d.owner, 'CONTINUATION_TRANSITION_FAILED')", 1)
+                before = before.replace('from threading import Lock', 'from threading import Lock\nfrom copy import deepcopy')
+                before = before.replace('    def inspect(self):\n        self.check()',
+                    '    def inspect(self):\n        # Pure retained snapshot. Expiry belongs to operational check() calls.')
+                before = before.replace('last=self.last, failure=self.failure',
+                                        'last=deepcopy(self.last), failure=self.failure')
             self.assertEqual(before.replace('\r\n', '\n'),
                              (ROOT/name).read_text(encoding='utf-8-sig'))
         self.assertFalse(provider_bridge.decode_tool(self.response, 'transport')['ok'])

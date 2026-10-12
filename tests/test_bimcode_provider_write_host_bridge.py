@@ -184,7 +184,7 @@ class HostBridge(unittest.TestCase):
 
     def test_competing_owner(self):
         self.confirm()
-        self.d.admission.active=self.d.owner._replace(token='other')
+        self.d.admission._active=self.d.owner._replace(token='other')  # Fault injection, not a public setter.
         self.run_host()
         self.no_mutation()
 

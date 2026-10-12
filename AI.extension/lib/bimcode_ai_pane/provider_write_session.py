@@ -12,6 +12,7 @@ from bimcode_ai_pane.write_access import admission_for, owner_document_key
 from bimcode_ai_pane.write_contracts import validate_value, string_types
 from bimcode_ai_pane.provider_write_handoff import Handoff
 from bimcode_ai_pane.provider_write_adapter import Adapter
+from bimcode_ai_pane.provider_write_transfer import Transfer
 
 
 def encoded(data):
@@ -31,6 +32,8 @@ class SessionWrites(object):
         self.handoff = Handoff(session)
         session.write_gate.handoff = self.handoff
         self.adapter = Adapter(self)
+        self.transfer = Transfer(self)
+        session.write_gate.transfer = self.transfer
 
     def begin(self, value):
         self.handoff.check()
@@ -77,10 +80,15 @@ class SessionWrites(object):
         handoff = self.handoff.inspect()
         gate = self.session.write_gate
         admission = gate.admission
-        availability = dict(permission_enabled=not getattr(self.session, "disposed", False) and
+        safety = admission.inspect_safety()
+        availability = dict(admission_safety=safety,
+            permission_enabled=not getattr(self.session, "disposed", False) and
             not gate.closed and gate.permission.view_model()["enabled"],
-            busy=bool(admission.active is not None or admission.safety_locked or
-                      (admission.busy is not None and admission.busy())))
+            busy=bool(safety['owner_present'] or safety['retained_safety_lock'] or
+                      safety['pending_cleanup'] or handoff['pending'] or
+                      getattr(self.session, 'write_busy', False) or
+                      getattr(getattr(self.session, 'tools', None), 'pending', None) is not None or
+                      getattr(getattr(self.session, 'ai', None), 'turn', None) is not None))
         d = self.dispatcher
         if d is None:
             return encoded(dict(availability, reason="NO_RETAINED_HARNESS_REQUEST", continuation=handoff))
