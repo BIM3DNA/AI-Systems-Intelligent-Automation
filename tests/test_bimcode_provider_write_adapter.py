@@ -257,9 +257,16 @@ class AdapterTests(unittest.TestCase):
             'provider_bridge.py', 'provider_ui.py', 'panel.py', 'ai_tool.py',
             'ai_tool_registry.py', 'controlled_write_registry.py', 'provider_write_handoff.py')]
         for name in paths:
+            if name.endswith('/ai_tool.py'):
+                from readonly_source_contract import assert_readonly_core_unchanged
+                assert_readonly_core_unchanged(self, ROOT)
+                continue
             before = subprocess.check_output(['git', 'show', 'HEAD:'+name]).decode('utf-8-sig')
-            if name.endswith('/provider_write_handoff.py'):
+            if (name.endswith('/provider_write_handoff.py')
+                    and 'd.admission.safety_locked = True' in before):
                 # FIX-001: only synchronized monotonic safety publication.
+                # A pre-fix HEAD needs normalization; a committed fix compares
+                # byte-for-byte without applying the transformation twice.
                 self.assertEqual(before.count('d.admission.safety_locked = True'), 2)
                 before = before.replace('d.admission.safety_locked = True',
                     "d.admission.retain_safety(True, self, d.owner, 'ADMISSION_FINALIZATION_FAILED')", 1)

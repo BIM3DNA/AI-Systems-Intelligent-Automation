@@ -1,5 +1,66 @@
 # PROJECT STATE
 
+## 2026-10-28 - BIMCODE-MCP-RO-001 local read-only adapter
+
+Status: IMPLEMENTED / OFFLINE VALIDATION PASS / LIVE REVIT ACCEPTANCE PENDING.
+Implementation checkpoint on feature/mcp-readonly-adapter. The user explicitly
+authorized this branch's commit and push on 2026-10-28. Git records the exact
+commit and remote state; this does not establish live or production acceptance.
+This independent adapter package does not close or supersede the M4B work below.
+
+User-authorized scope: add an MCP adapter to the existing Workbench repository.
+Verified clean starting main HEAD = origin/main =
+0ee7d3277570470a085d6af38c1246a968bf2a03 (Update Project WBSO...).
+Isolated working branch: feature/mcp-readonly-adapter. Git history fetched for
+the existing historical source-comparison tests; no remote branch was changed.
+
+Implemented:
+- CPython MCP stdio server in BIMCode_MCP, pinned official SDK mcp==1.30.0,
+  isolated dependency manifest; no model API calls or API-key dependency.
+- get_revit_context plus three fixed read-only inspections: selected pipe
+  summary, pipe connectors and mixed MEP summary. No write/generic-code tool.
+- Opt-in local MCP Bridge button; random loopback port and 256-bit secret in a
+  current-user-only Windows directory. No listener at ordinary pane startup.
+- Scalar worker-to-UI dispatcher bridge reusing the existing ai coordinator,
+  existing read-only ExternalEvent and existing ModelMind builders/composite.
+- 30-second single-use context tokens, document/activation/selection/model-edit
+  invalidation, 20-second host timeout, bounded IPC, no automatic retries,
+  existing operation admission and shutdown cleanup.
+- Codex, portable Copilot/Claude and VS Code configuration examples plus a
+  Windows installation procedure and explicit manual acceptance matrix.
+
+Runtime changes to existing code are limited to ai_tool.py's provider-neutral
+  queue entry/guard and lifecycle.py's opt-in runtime ownership/disposal.
+No change to production provider exposure (13 read-only tools), Workbench domain
+  semantics, catalog, headless facade/composite or controlled-write executor.
+Two earlier M4B source fences now allow only the explicit coordinator seam;
+  unchanged provider/registry boundaries and behavior regressions are retained.
+The historical FIX-001 test normalization now applies only to a pre-fix HEAD,
+  allowing already-committed source to compare directly without double rewriting.
+
+Validation executed here (Linux, CPython 3.12.14):
+- Full tests directory: 854 tests PASS, 124 subtests PASS (19.20 seconds).
+  Includes 27 MCP tests; real SDK initialization/list/call/schema errors, stdio
+  subprocess and authenticated socket roundtrip with a simulated Revit dispatcher
+  and mocked domain builder. Host tests cover all three inspection mappings.
+- 15 changed/new Python files: AST/compile/tabnanny PASS.
+- Three client configuration examples parse; pip check and git diff --check PASS.
+- Seven protected source files byte-identical to baseline: Workbench script,
+  prompt catalog, headless facade, composite, provider.py, AI tool registry and
+  controlled-write executor. Existing suite also checks historical invariants.
+- Existing tests emitted 810 datetime.utcnow deprecation warnings under Python
+  3.12; those unrelated runtime sources were not changed.
+
+Not performed: native IronPython/.NET execution, Windows DACL enforcement,
+actual Revit API/ExternalEvent scheduling, live model parity, or live Codex/
+Claude/VS Code acceptance. No authenticated model API call, model mutation,
+local Windows installation, WBSO hours or evidence ID allocation.
+
+Next: after the authorized source-control checkpoint, install on Windows and run
+BIMCode_MCP/README.md's manual acceptance matrix.
+Root AGENTS.md remains the repository instruction source; no duplicate project
+or separate state-document hierarchy was created.
+
 ## 2026-10-12 EOD - Atomic provider-turn ownership and safety corrections (current)
 
 BIMCODE-REVIT-AI-PANE-001 / M4B: IN PROGRESS / NOT CLOSED.

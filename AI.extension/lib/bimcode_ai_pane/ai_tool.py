@@ -92,6 +92,20 @@ class Coordinator(object):
         if not valid["ok"]:
             callback(valid, None)
             return
+        self._queue_action(rid, valid["tool_call"]["name"], callback)
+
+    def queue_readonly(self, request_id, tool_name, callback, guard):
+        """Trusted local adapter entry; no fabricated provider response required.
+
+        Caller owns begin()/clear() on the UI dispatcher. The extra guard binds
+        a local request deadline/context; execution still belongs to our event.
+        """
+        if tool_name not in ACTIONS or not callable(guard):
+            callback(provider_bridge.failure(request_id, "AI_TOOL_NOT_ALLOWED"), None)
+            return
+        self._queue_action(request_id, tool_name, callback, guard)
+
+    def _queue_action(self, rid, tool_name, callback, guard=None):
         if self.turn is None or self.turn["request_id"] != rid:
             callback(provider_bridge.failure(rid, "AI_TOOL_PROTOCOL_ERROR"), None)
             return
@@ -99,7 +113,9 @@ class Coordinator(object):
             callback(provider_bridge.failure(rid, "AI_TOOL_LOOP_LIMIT"), None)
             return
         self.turn["used"] = True
-        self.turn["action"] = ACTIONS[valid["tool_call"]["name"]]
+        self.turn["action"] = ACTIONS[tool_name]
+        if guard is not None:
+            self.turn["guard"] = guard
         self.callback = callback
         self.pending = True
         try:
@@ -128,7 +144,8 @@ class Coordinator(object):
         rid = turn["request_id"]
         try:
             session = self.session
-            if (turn["key"] != document_key(uiapp)
+            extra_guard = turn.get("guard", lambda: True)
+            if (not extra_guard() or turn["key"] != document_key(uiapp)
                     or turn["generation"] != session.context_generation
                     or turn["selection"] != session.selection_generation):
                 self.complete(provider_bridge.failure(rid, "STALE_CONTEXT"), None)
@@ -141,7 +158,7 @@ class Coordinator(object):
                 from modelmind_composite import execute
 
                 def guard():
-                    return (self.turn is turn and turn["request_id"] == rid
+                    return (extra_guard() and self.turn is turn and turn["request_id"] == rid
                             and turn["key"] == document_key(uiapp)
                             and turn["generation"] == session.context_generation
                             and turn["selection"] == session.selection_generation)
@@ -170,6 +187,9 @@ class Coordinator(object):
                 self.complete(provider_bridge.failure(rid, "MODELMIND_EXECUTION_FAILED"), None)
                 return
             payload = compact(data, action)
+            if not extra_guard():
+                self.complete(provider_bridge.failure(rid, "STALE_CONTEXT"), None)
+                return
         except Exception:
             self.complete(provider_bridge.failure(rid, "MODELMIND_EXECUTION_FAILED"), None)
             return

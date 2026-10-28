@@ -230,6 +230,10 @@ class DispatchTests(unittest.TestCase):
         for path in ('BIMCode_Provider/provider.py','BIMCode_Provider/tool_protocol.py',
                      'AI.extension/lib/bimcode_ai_pane/ai_tool.py',
                      'AI.extension/lib/bimcode_ai_pane/controlled_write_registry.py'):
+            if path.endswith('/ai_tool.py'):
+                from readonly_source_contract import assert_readonly_core_unchanged
+                assert_readonly_core_unchanged(self, ROOT)
+                continue
             self.assertEqual(subprocess.check_output(['git','show','HEAD:'+path]).replace(b'\r\n',b'\n'),
                              (ROOT/path).read_bytes().replace(b'\r\n',b'\n'))
         self.assertEqual(len(TOOLS),13)

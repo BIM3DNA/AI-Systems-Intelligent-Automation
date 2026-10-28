@@ -1,0 +1,3 @@
+# Isolated from the existing OpenAI sidecar; Python 3.10+.
+# SDK v1 maintenance line matches the existing Python 3.10 deployment baseline.
+mcp==1.30.0

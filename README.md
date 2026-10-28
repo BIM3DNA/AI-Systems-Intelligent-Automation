@@ -4,6 +4,8 @@ This repository contains a pyRevit-delivered AI workbench with one Revit entry p
 
 ## Current Product Surfaces
 
+- Optional local read-only MCP adapter for Codex and compatible clients:
+  [setup, architecture and pending Revit acceptance](BIMCode_MCP/README.md).
 - `Ollama Chat`: low-risk conversational help and prompt experimentation
 - `ModelMind`: primary workflow for deterministic and semi-generative BIM task recipes
 - `AI Agent`: advanced reviewed planning/execution surface with destructive tools disabled by default

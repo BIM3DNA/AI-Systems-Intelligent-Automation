@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "bimcode-revit": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/BIMCode_MCP/.venv/Scripts/python.exe",
+      "args": ["-I", "-B", "${workspaceFolder}/BIMCode_MCP/server.py"]
+    }
+  }
+}

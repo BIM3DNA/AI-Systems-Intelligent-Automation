@@ -1,0 +1,7 @@
+# Merge this table into your Codex config; update the checkout paths.
+[mcp_servers.bimcode-revit]
+command = 'C:\00_WORKS\DEVELOPMENT\AI\BIMCode_MCP\.venv\Scripts\python.exe'
+args = ['-I', '-B', 'C:\00_WORKS\DEVELOPMENT\AI\BIMCode_MCP\server.py']
+env_vars = ['LOCALAPPDATA']
+startup_timeout_sec = 20
+tool_timeout_sec = 35

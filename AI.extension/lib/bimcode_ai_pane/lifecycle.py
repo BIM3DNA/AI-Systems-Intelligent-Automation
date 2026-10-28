@@ -89,6 +89,7 @@ class PaneSession(object):
         self.document_identity = None
         self.selection_generation = 0
         self.disposed = False
+        self.mcp_runtime = None
         self.write_gate = SessionWriteGate(admission_for(self))
         self.controlled_writes = SessionWrites(self)
         self.panel.bind_write_gate(self.request_write_enable, self.disable_writes, self.on_pane_unloaded)
@@ -107,6 +108,22 @@ class PaneSession(object):
             raise
         self.show_pending = True
         self._subscriptions = []
+
+    def toggle_mcp_bridge(self):
+        """Explicit local command, in API context; no automatic startup."""
+        runtime = self.mcp_runtime
+        if runtime is not None:
+            self.mcp_runtime = None
+            runtime.stop()
+            return None
+        if self.disposed:
+            raise RuntimeError("MCP_SESSION_DISPOSED")
+        from bimcode_mcp.runtime import Runtime
+        self.refresh(self.uiapp)
+        runtime = Runtime(self)
+        connection_file = runtime.start()
+        self.mcp_runtime = runtime
+        return connection_file
 
     def begin_controlled_write_request(self, value):
         return self.controlled_writes.begin(value)
@@ -152,6 +169,12 @@ class PaneSession(object):
     def dispose_unregistered(self):
         if self.disposed:
             return
+        if getattr(self, "mcp_runtime", None) is not None:
+            runtime, self.mcp_runtime = self.mcp_runtime, None
+            try:
+                runtime.stop()
+            except Exception:
+                pass  # Continue existing shutdown even if credential cleanup fails.
         self.write_gate.cleanup("PANE_DISPOSAL")
         self.write_gate.closed = True
         self.disposed = True
